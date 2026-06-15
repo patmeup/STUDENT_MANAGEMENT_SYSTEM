@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('students', function (Blueprint $table) {
             $table->id();
-            // Awtomatikong bubuo ng Student Number (halimbawa: AU-2026-0001)
-            $table->string('student_number')->unique();
+            // Awtomatikong bubuo ng Student Number (halimbawa: 26-00001)
+            $table->string('student_id')->unique();
             $table->date('registration_date');
             $table->string('student_type'); // New, Transferee, Cross-Enroll
             $table->string('course');
@@ -50,7 +50,23 @@ return new class extends Migration
             $table->string('college_school_address')->nullable(); // <-- Nullable
             $table->string('college_school_year')->nullable(); // <-- Nullable
 
-            // Credentials Checked (Ise-save natin bilang JSON array)
+            $table->string('path_psa')->nullable();
+            $table->string('path_2x2')->nullable();
+            
+            // Freshman specific files
+            $table->string('path_f138')->nullable();
+            $table->string('path_good_moral_new')->nullable();
+            $table->string('path_diploma')->nullable();
+            
+            // Transferee specific files
+            $table->string('path_tor')->nullable();
+            $table->string('path_dismissal')->nullable();
+            $table->string('path_good_moral_trans')->nullable();
+            
+            // Cross Enrollee specific files
+            $table->string('path_permit')->nullable();
+
+            // Credentials Checked (JSON array backup ledger)
             $table->json('credentials')->nullable(); // <-- Nullable
 
             $table->timestamps();

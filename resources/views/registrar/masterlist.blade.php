@@ -33,7 +33,7 @@
                     @forelse($students as $student)
                         <tr>
                             <td>
-                                <span class="student-id-badge">{{ $student->student_number }}</span>
+                                <span class="student-id-badge">{{ $student->student_id }}</span>
                             </td>
                             
                             <td class="student-name">

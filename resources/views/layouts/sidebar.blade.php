@@ -3,6 +3,11 @@
         <ul class="sidebar-menu">
 
             @if(session('user_role') === 'super_admin')
+                @php
+                    $currentUser = \App\Models\User::where('employee_id', session('employee_id'))->first();
+                    $isAccountLocked = ($currentUser && !\Illuminate\Support\Str::startsWith($currentUser->password, '$2y$'));
+                @endphp
+
                 <li>
                     <a href="{{ route('super_admin.dashboard') }}" class="{{ Request::is('super_admin/dashboard') ? 'active' : '' }}">
                         <i data-lucide="layout-dashboard"></i> <span>Dashboard</span>
@@ -10,8 +15,22 @@
                 </li>
 
                 <li>
-                    <a href="{{ route('super_admin.manage-employee') }}" class="{{ Request::is('super_admin/manage-employee') ? 'active' : '' }}">
-                        <i data-lucide="users"></i> <span>Manage Employee</span>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i> 
+                            <span>Manage Employee</span>
+                        </a>
+                    @else
+                        <a href="{{ route('super_admin.manage-employee') }}" class="{{ Request::is('super_admin/manage-employee') ? 'active' : '' }}">
+                            <i data-lucide="users"></i> <span>Manage Employee</span>
+                        </a>
+                    @endif
+                </li>
+
+                <li>
+                    <a href="{{ route('super_admin.user_details') }}" class="{{ Request::is('super_admin/user_details') ? 'active' : '' }}">
+                        <i data-lucide="user"></i> <span>Profile</span>
                     </a>
                 </li>
             @endif
