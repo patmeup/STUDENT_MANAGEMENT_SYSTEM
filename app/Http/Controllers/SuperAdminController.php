@@ -5,14 +5,19 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class SuperAdminController extends Controller
 {
-    // 1. Ipakita ang Dashboard, Form, at Kasalukuyang Listahan ng mga Empleyado
     public function index()
     {
         if (session('user_role') !== 'super_admin') {
             return redirect('/')->with('error', 'Unauthorized access.');
+        }
+        $currentAdmin = User::find(session('user_id'));
+        if ($currentAdmin && !Str::startsWith($currentAdmin->password, '$2y$')) {
+            return redirect()->route('account.security')
+                ->withErrors(['error' => 'Access Restricted! Mangyaring i-secure muna ang iyong account sa pamamagitan ng pagpapalit ng default password upang ma-unlock ang Manage Employee feature.']);
         }
 
         $employees = User::where('role', '!=', 'super_admin')
@@ -22,7 +27,6 @@ class SuperAdminController extends Controller
         return view('super_admin.manage-employee', compact('employees'));
     }
 
-    // 2. I-process ang pagre-rehistro ng Bagong Empleyado
     public function store(Request $request)
     {
         if (session('user_role') !== 'super_admin') {
@@ -51,7 +55,6 @@ class SuperAdminController extends Controller
         
         $generatedId = "EMP-{$yearShort}-{$nextNumber}";
 
-        // I-save sa database gamit ang default secure password
         User::create([
             'employee_id' => $generatedId,
             'first_name' => strtoupper($request->first_name),
@@ -66,4 +69,22 @@ class SuperAdminController extends Controller
 
         return redirect()->back()->with('success', "Personnel account successfully created! ID: {$generatedId} | Default Pass: Welcome@AU2026");
     }
+
+    public function profileView()
+    {
+        $userId = session('user_id');
+
+        // 2. Hanapin ang buong record ng user sa database
+        $user = User::find($userId);
+
+        // Safety net: Kung walang nahanap na user, ibalik sa login page
+        if (!$user) {
+            return redirect('/')->withErrors(['error' => 'Session expired. Please login again.']);
+        }
+
+        $isLocked = !Str::startsWith($user->password, '$2y$');
+
+        // 4. I-serve ang view kasama ang data ng user
+        return view('super_admin.user_details', compact('user', 'isLocked'));
+    }    
 }

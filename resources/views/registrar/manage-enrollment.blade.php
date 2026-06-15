@@ -31,7 +31,7 @@
             Student Information Sheet (SIS) Digital Capture
         </div>
         
-        <form action="{{ route('registrar.enroll.store') }}" method="POST" autocomplete="off" class="pure-form">
+        <form action="{{ route('registrar.enroll.store') }}" method="POST" autocomplete="off" class="pure-form" enctype="multipart/form-data">
             @csrf
 
             <div id="tab-admission" class="sis-tab-content active">                
@@ -42,9 +42,10 @@
                     </div>
                     <div class="form-group">
                         <label>Student Entry Type</label>
-                        <select name="student_type" required>
+                        <select name="student_type" id="student_type" onchange="filterCredentials()" required>
                             <option value="New">Freshman (New Student)</option>
                             <option value="Transferee">Transferee</option>
+                            <option value="Cross-Enrollee">Cross Enrollee</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -180,39 +181,97 @@
                 </div>
             </div>
 
-            <div id="tab-credentials" class="sis-tab-content">
-                <h3 class="section-divider">Mandatory Enrollment Credentials Verification</h3>
-                <p style="color: #64748b; font-size: 13px; margin-bottom: 20px;">Please check the folders physically submitted by the applicant:</p>
+<div id="tab-credentials" class="sis-tab-content">
+                <h3 class="section-divider">Mandatory Enrollment Credentials Digital Capture</h3>
+                <p style="color: #64748b; font-size: 13px; margin-bottom: 20px;">
+                    Please upload or drag-and-drop the scanned documents submitted by the applicant for <strong id="selected-type-label" style="color: #0033A0;">Freshman (New Student)</strong>:
+                </p>
                 
-                <div class="checkbox-grid">
-                    <label class="check-box-card">
-                        <input type="checkbox" name="credentials[]" value="Form 138">
-                        <span>Form 138 (Report Card)</span>
-                    </label>
-                    <label class="check-box-card">
-                        <input type="checkbox" name="credentials[]" value="Good Moral">
-                        <span>Good Moral Character</span>
-                    </label>
-                    <label class="check-box-card">
-                        <input type="checkbox" name="credentials[]" value="PSA Birth Cert">
-                        <span>PSA Birth Certificate</span>
-                    </label>
-                    <label class="check-box-card">
-                        <input type="checkbox" name="credentials[]" value="TOR">
-                        <span>Transcript of Records (TOR)</span>
-                    </label>
-                    <label class="check-box-card">
-                        <input type="checkbox" name="credentials[]" value="Honorable Dismissal">
-                        <span>Honorable Dismissal</span>
-                    </label>
-                    <label class="check-box-card">
-                        <input type="checkbox" name="credentials[]" value="Form 137">
-                        <span>Form 137 Ledger File</span>
-                    </label>
+                <div class="checkbox-grid" id="credentials-wrapper">
+                    <div class="file-upload-card" data-types="New,Transferee,Cross-Enrollee">
+                        <span class="file-label-text">PSA Birth Certificate</span>
+                        <div class="drop-zone" onclick="triggerFileInput('file_psa')">
+                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
+                            <input type="file" name="doc_psa" id="file_psa" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
+                        </div>
+                    </div>
+
+                    <div class="file-upload-card" data-types="New,Transferee,Cross-Enrollee">
+                        <span class="file-label-text">2x2 ID Picture w/ Name Tag</span>
+                        <div class="drop-zone" onclick="triggerFileInput('file_2x2')">
+                            <i class="fas fa-image upload-icon"></i>
+                            <span class="drop-zone-text">Click or Drag Image here</span>
+                            <input type="file" name="doc_2x2" id="file_2x2" class="hidden-file-input" accept=".jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
+                        </div>
+                    </div>
+
+                    <div class="file-upload-card" data-types="New">
+                        <span class="file-label-text">Form 138 / SF9 (Report Card)</span>
+                        <div class="drop-zone" onclick="triggerFileInput('file_f138')">
+                            <i class="fas fa-file-invoice upload-icon"></i>
+                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
+                            <input type="file" name="doc_f138" id="file_f138" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
+                        </div>
+                    </div>
+
+                    <div class="file-upload-card" data-types="New">
+                        <span class="file-label-text">Good Moral Character Certificate</span>
+                        <div class="drop-zone" onclick="triggerFileInput('file_good_moral_new')">
+                            <i class="fas fa-certificate upload-icon"></i>
+                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
+                            <input type="file" name="doc_good_moral_new" id="file_good_moral_new" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
+                        </div>
+                    </div>
+
+                    <div class="file-upload-card" data-types="New">
+                        <span class="file-label-text">Certificate of Graduation / Diploma</span>
+                        <div class="drop-zone" onclick="triggerFileInput('file_diploma')">
+                            <i class="fas fa-graduation-cap upload-icon"></i>
+                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
+                            <input type="file" name="doc_diploma" id="file_diploma" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
+                        </div>
+                    </div>
+
+                    <div class="file-upload-card" data-types="Transferee">
+                        <span class="file-label-text">Transcript of Records (TOR)</span>
+                        <div class="drop-zone" onclick="triggerFileInput('file_tor')">
+                            <i class="fas fa-file-alt upload-icon"></i>
+                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
+                            <input type="file" name="doc_tor" id="file_tor" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
+                        </div>
+                    </div>
+
+                    <div class="file-upload-card" data-types="Transferee">
+                        <span class="file-label-text">Honorable Dismissal</span>
+                        <div class="drop-zone" onclick="triggerFileInput('file_dismissal')">
+                            <i class="fas fa-door-open upload-icon"></i>
+                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
+                            <input type="file" name="doc_dismissal" id="file_dismissal" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
+                        </div>
+                    </div>
+
+                    <div class="file-upload-card" data-types="Transferee">
+                        <span class="file-label-text">Certificate of Good Moral</span>
+                        <div class="drop-zone" onclick="triggerFileInput('file_good_moral_trans')">
+                            <i class="fas fa-user-shield upload-icon"></i>
+                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
+                            <input type="file" name="doc_good_moral_trans" id="file_good_moral_trans" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
+                        </div>
+                    </div>
+
+                    <div class="file-upload-card" data-types="Cross-Enrollee">
+                        <span class="file-label-text">Cross Enroll Permit</span>
+                        <div class="drop-zone" onclick="triggerFileInput('file_permit')">
+                            <i class="fas fa-clipboard-check upload-icon"></i>
+                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
+                            <input type="file" name="doc_permit" id="file_permit" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-actions-bar">
-                    <button type="reset" class="btn-secondary">Clear Entry Sheet</button>
+                    <button type="reset" class="btn-secondary" onclick="resetDropZones()">Clear Entry Sheet</button>
                     <button type="submit" class="btn-primary">Compile & Secure ID Allocation</button>
                 </div>
             </div>
@@ -222,25 +281,121 @@
 </div>
 
 <script>
-function switchSisTab(evt, tabId) {
-    evt.preventDefault();
-    
-    // Hide all tabs
-    var tabContents = document.getElementsByClassName("sis-tab-content");
-    for (var i = 0; i < tabContents.length; i++) {
-        tabContents[i].classList.remove("active");
+    function switchSisTab(evt, tabId) {
+        evt.preventDefault();
+        
+        var tabContents = document.getElementsByClassName("sis-tab-content");
+        for (var i = 0; i < tabContents.length; i++) {
+            tabContents[i].classList.remove("active");
+        }
+
+        var tabLinks = document.getElementsByClassName("tab-btn");
+        for (var i = 0; i < tabLinks.length; i++) {
+            tabLinks[i].classList.remove("active");
+        }
+
+        document.getElementById(tabId).classList.add("active");
+        evt.currentTarget.classList.add("active");
     }
 
-    // Deactivate all tab buttons
-    var tabLinks = document.getElementsByClassName("tab-btn");
-    for (var i = 0; i < tabLinks.length; i++) {
-        tabLinks[i].classList.remove("active");
+    // Function para pindutin ang nakatagong input file kapag kinlik ang box
+    function triggerFileInput(inputId) {
+        document.getElementById(inputId).click();
     }
 
-    // Show selected tab and activate button
-    document.getElementById(tabId).classList.add("active");
-    evt.currentTarget.classList.add("active");
-}
+    // Baguhin ang UI ng box kapag may napiling file
+    function updateDropZoneStatus(input) {
+        var dropZone = input.parentElement;
+        var zoneText = dropZone.querySelector('.drop-zone-text');
+        var icon = dropZone.querySelector('.upload-icon');
+        
+        if (input.files && input.files.length > 0) {
+            var fileName = input.files[0].name;
+            dropZone.classList.add('has-file');
+            zoneText.innerText = "Selected: " + fileName;
+            icon.style.color = "#10b981"; // Magiging green ang icon kapag loaded
+        } else {
+            dropZone.classList.remove('has-file');
+            zoneText.innerText = "Click or Drag PDF/Image here";
+            icon.style.color = "#0033A0";
+        }
+    }
+
+    // I-reset ang mga boxes kapag nag clear ng form
+    function resetDropZones() {
+        var dropZones = document.querySelectorAll('.drop-zone');
+        dropZones.forEach(zone => {
+            zone.classList.remove('has-file');
+            zone.querySelector('.drop-zone-text').innerText = "Click or Drag PDF/Image here";
+            zone.querySelector('.upload-icon').style.color = "#0033A0";
+        });
+    }
+
+    // REALTIME ENGINE: Sinasala ang mga document slots depende sa Entry Type
+    function filterCredentials() {
+        var dropdown = document.getElementById("student_type");
+        var selectedType = dropdown.value;
+        var selectedText = dropdown.options[dropdown.selectedIndex].text;
+        
+        document.getElementById("selected-type-label").innerText = selectedText;
+
+        var cards = document.getElementById("credentials-wrapper").getElementsByClassName("file-upload-card");
+
+        for (var i = 0; i < cards.length; i++) {
+            var allowedTypes = cards[i].getAttribute("data-types").split(",");
+            var fileInput = cards[i].querySelector('input[type="file"]');
+            
+            if (allowedTypes.includes(selectedType)) {
+                cards[i].style.display = "block"; 
+                // HUWAG rito i-clear para hindi magka-conflict habang nagpapalit ang user
+            } else {
+                cards[i].style.display = "none";  
+                // I-clear lang ang value kapag ITINAGO ang card para malinis ang payload
+                if (fileInput) {
+                    fileInput.value = "";
+                    updateDropZoneStatus(fileInput);
+                }
+            }
+        }
+    }
+
+    // Drag and Drop Engine Setup para sa modern feel
+    document.addEventListener("DOMContentLoaded", function() {
+        filterCredentials();
+
+        var dropZones = document.querySelectorAll('.drop-zone');
+        
+        dropZones.forEach(zone => {
+            var input = zone.querySelector('input[type="file"]');
+            
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.style.borderColor = "#10b981";
+                zone.style.background = "#f0fdf4";
+            });
+
+            zone.addEventListener('dragleave', () => {
+                zone.style.borderColor = "#cbd5e1";
+                zone.style.background = "#f8fafc";
+            });
+
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.style.borderColor = "#cbd5e1";
+                zone.style.background = "#f8fafc";
+                
+                if (e.dataTransfer.files.length > 0) {
+                    // Gumamit ng DataTransfer object constructor para sa malinis na browser binding execution
+                    var dt = new DataTransfer();
+                    dt.items.add(e.dataTransfer.files[0]);
+                    input.files = dt.files;
+                    
+                    // I-trigger ang update status native listener
+                    updateDropZoneStatus(input);
+                }
+            });
+        });
+    });
 </script>
 
 <style>
@@ -252,7 +407,6 @@ function switchSisTab(evt, tabId) {
         padding-bottom: 50px;
     }
 
-    /* Header styling layout */
     .sis-header {
         display: flex;
         justify-content: space-between;
@@ -282,7 +436,6 @@ function switchSisTab(evt, tabId) {
         box-shadow: 0 2px 5px rgba(0,51,160,0.2);
     }
 
-    /* Tab Switcher Elements */
     .sis-tabs-nav {
         display: flex;
         gap: 10px;
@@ -315,7 +468,6 @@ function switchSisTab(evt, tabId) {
         color: white;
     }
 
-    /* Core Card Elements */
     .sis-card {
         background: white;
         border-radius: 12px;
@@ -335,7 +487,6 @@ function switchSisTab(evt, tabId) {
         padding: 24px;
     }
 
-    /* Tab Rendering Toggle Logic */
     .sis-tab-content {
         display: none;
     }
@@ -352,12 +503,10 @@ function switchSisTab(evt, tabId) {
         margin: 30px 0 20px 0;
     }
 
-    /* Grid Layout Engines */
     .form-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
     .form-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
     .form-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
 
-    /* Input Field Formatting wrappers */
     .form-group {
         display: flex;
         flex-direction: column;
@@ -388,7 +537,6 @@ function switchSisTab(evt, tabId) {
         text-transform: uppercase;
     }
 
-    /* Educational Blocks layout rules */
     .school-row {
         background-color: #f8fafc;
         border: 1px solid #e2e8f0;
@@ -422,7 +570,6 @@ function switchSisTab(evt, tabId) {
         border-color: #0033A0;
     }
 
-    /* Checklist elements custom cards layout wrappers */
     .checkbox-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -455,7 +602,6 @@ function switchSisTab(evt, tabId) {
         color: #334155;
     }
 
-    /* Submissions command panel triggers links */
     .form-actions-bar {
         display: flex;
         justify-content: flex-end;
@@ -492,6 +638,69 @@ function switchSisTab(evt, tabId) {
     .btn-secondary:hover {
         background-color: #f8fafc;
         color: #334155;
+    }
+
+.file-upload-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.01);
+    }
+    
+    .file-label-text {
+        display: block;
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 8px;
+    }
+    
+    .drop-zone {
+        border: 2px dashed #cbd5e1;
+        background-color: #f8fafc;
+        border-radius: 8px;
+        padding: 20px 10px;
+        text-align: center;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+    }
+    
+    .drop-zone:hover {
+        border-color: #0033A0;
+        background-color: rgba(0, 51, 160, 0.02);
+    }
+    
+    .drop-zone.has-file {
+        border-color: #10b981;
+        background-color: rgba(16, 185, 129, 0.03);
+    }
+    
+    .upload-icon {
+        font-size: 24px;
+        color: #0033A0;
+        transition: color 0.2s ease;
+    }
+    
+    .drop-zone-text {
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748b;
+    }
+    
+    .hidden-file-input {
+        display: none;
+    }
+
+    /* Panatilihin ang grid system */
+    .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
     }
 </style>
 @endsection

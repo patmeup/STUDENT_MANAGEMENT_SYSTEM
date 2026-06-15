@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -22,47 +23,126 @@ class AuthController extends Controller
         // 2. Hahanapin ang employee sa database gamit ang employee_id
         $user = User::where('employee_id', $loginId)->first();
 
-        // 3. I-verify gamit ang Hash::check kung tugma ang password sa database record
-        if ($user && Hash::check($password, $user->password)) {
-            
-            // Proteksyon: Siguraduhing active ang status ng account
-            if ($user->status !== 'Active') {
-                return back()->withErrors(['error' => 'This account has been deactivated. Please contact HR.']);
-            }
-            
-            // I-save ang mga mahahalagang impormasyon sa session
-            session([
-                'user_id' => $user->id,
-                'employee_id' => $user->employee_id,
-                'user_role' => $user->role, 
-                'user_name' => $user->first_name . ' ' . $user->last_name
-            ]);
+        if ($user) {
+            $isPasswordCorrect = false;
 
-            // 4. DYNAMIC REDIRECTS DEPENDING ON ROLES
             if ($user->role === 'super_admin') {
-                return redirect()->route('super_admin.dashboard');
-            } 
-            
-            if ($user->role === 'system_admin') {
-                return redirect()->route('admin.manage-subjects');
+                // Kung ang password sa DB ay nagsisimula sa $2y$ (ibig sabihin pinalitan na sa dashboard at naka-hash na)
+                if (Str::startsWith($user->password, '$2y$')) {
+                    $isPasswordCorrect = Hash::check($password, $user->password);
+                } else {
+                    $isPasswordCorrect = ($password === $user->password);
+                }
+            } else {
+                $isPasswordCorrect = Hash::check($password, $user->password);
             }
 
-            if ($user->role === 'dean') {
-                return redirect()->route('dean.curriculum.index');
-            }
-            
-            if ($user->role === 'registrar') {
-                return redirect()->route('registrar.dashboard');
+            // 3. Kung tama ang password batay sa pagsusuri sa itaas
+            if ($isPasswordCorrect) {
+                
+                // Proteksyon: Siguraduhing active ang status ng account
+                if ($user->status !== 'Active') {
+                    return back()->withErrors(['error' => 'This account has been deactivated. Please contact HR.']);
+                }
+                
+                // I-save ang mga mahahalagang impormasyon sa session
+                session([
+                    'user_id'     => $user->id,
+                    'employee_id' => $user->employee_id,
+                    'user_role'   => $user->role, 
+                    'user_name'   => $user->first_name . ' ' . $user->last_name
+                ]);
+
+                // 4. DYNAMIC REDIRECTS DEPENDING ON ROLES
+                if ($user->role === 'super_admin') {
+                    return redirect()->route('super_admin.dashboard');
+                } 
+                
+                if ($user->role === 'system_admin') {
+                    return redirect()->route('admin.manage-subjects');
+                }
+
+                if ($user->role === 'dean') {
+                    return redirect()->route('dean.curriculum.index');
+                }
+                
+                if ($user->role === 'registrar') {
+                    return redirect()->route('registrar.dashboard');
+                }
             }
         }
 
-        // Fail state kung hindi nag-match ang credentials sa DB
         return back()->withErrors(['error' => 'Invalid Employee ID or Security Password.']);
     }
 
     public function logout()
     {
-        session()->forget(['user_role', 'user_name']);
+        session()->forget(['user_id', 'employee_id', 'user_role', 'user_name']);
         return redirect('/');
+    }
+
+    public function showSecurityPage()
+    {
+        $user = User::where('employee_id', session('employee_id'))->first();
+
+        if (!$user) {
+            return redirect('/')->withErrors(['error' => 'Your session has expired. Please log in again.']);
+        }
+
+        $isLocked = ($user->role === 'super_admin' && !Str::startsWith($user->password, '$2y$'));
+
+        return view('update_password', compact('user', 'isLocked'));
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required|string',
+            'new_password'     => 'required|string|min:8|confirmed',
+        ]);
+
+        $user = User::where('employee_id', session('employee_id'))->first();
+
+        if (!$user) {
+            return redirect('/')->withErrors(['error' => 'User profile reference not found.']);
+        }
+
+        $isCurrentCorrect = false;
+        if ($user->role === 'super_admin' && !Str::startsWith($user->password, '$2y$')) {
+            $isCurrentCorrect = ($request->current_password === $user->password);
+        } else {
+            $isCurrentCorrect = Hash::check($request->current_password, $user->password);
+        }
+
+        if (!$isCurrentCorrect) {
+            return redirect()->back()->withErrors(['current_password' => 'The current password you provided is invalid.']);
+        }
+
+        $user->password = Hash::make($request->new_password);
+        $user->save();
+
+        $role = session('user_role');
+
+        if ($role === 'super_admin') {
+            return redirect()->route('super_admin.user_details')
+                ->with('success', 'Security records updated! All sidebar tabs are now unlocked.');
+        } 
+        
+        if ($role === 'system_admin') {
+            return redirect()->route('system_admin.user_details')
+                ->with('success', 'Your password has been changed successfully.');
+        }
+
+        if ($role === 'dean') {
+            return redirect()->route('dean.user_details')
+                ->with('success', 'Your password has been changed successfully.');
+        }
+        
+        if ($role === 'registrar') {
+            return redirect()->route('registrar.user_details')
+                ->with('success', 'Your password has been changed successfully.');
+        }
+
+        return redirect('/')->with('success', 'Password updated successfully. Please log in again.');
     }
 }
