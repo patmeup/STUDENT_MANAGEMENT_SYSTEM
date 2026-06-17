@@ -3,7 +3,6 @@
 @section('content')
 <div class="profile-container">
 
-    {{-- ⚠️ SECURITY LOCK WARNING BANNER --}}
     @if($isLocked)
         <div class="alert-banner alert-warning">
             <strong style="display:block; margin-bottom: 4px;">⚠️ First-Time Login Action Required!</strong>
@@ -12,41 +11,38 @@
         </div>
     @endif
 
-    {{-- ALERT RESPONSES --}}
     @if(session('success'))
         <div class="alert-banner alert-success">
-            🎉 {{ session('success') }}
+            {{ session('success') }}
         </div>
     @endif
 
     @if($errors->any())
         <div class="alert-banner alert-danger">
             @foreach($errors->all() as $error)
-                <p style="margin: 4px 0;">❌ {{ $error }}</p>
+                <p style="margin: 4px 0;">{{ $error }}</p>
             @endforeach
         </div>
     @endif
 
-    {{-- PERSONAL & CREDENTIALS DISPLAY CARD --}}
     <div class="profile-card">
         <div class="card-header">
-            <h2 class="card-title">Personal & Employee Credentials</h2>
-            <p class="card-subtitle">Ito ang iyong opisyal na impormasyon na nakatala sa system database.</p>
+            <h2 class="card-title">Personal Credentials</h2>
         </div>
 
         <div class="card-body grid-layout">
             <div>
-                <label class="info-label">Employee ID / Login ID</label>
+                <label class="info-label">Employee ID</label>
                 <p class="info-value-mono">{{ $user->employee_id }}</p>
             </div>
 
             <div>
-                <label class="info-label">Access Privilege / Role</label>
+                <label class="info-label">Role</label>
                 <p class="info-value capitalize">{{ str_replace('_', ' ', $user->role) }}</p>
             </div>
 
-            <div class="col-span-2 border-top-section">
-                <label class="info-label">Account Holder Name</label>
+            <div class="border-top-section">
+                <label class="info-label">Full Name</label>
                 <p class="info-value" style="font-size: 1.25rem; font-weight: 700;">
                     {{ $user->last_name }}, {{ $user->first_name }} {{ $user->middle_name ?? '' }}
                 </p>
@@ -60,64 +56,56 @@
                     </span>
                 </div>
             </div>
-
-            <div class="border-top-section">
-                <label class="info-label">Security State</label>
-                @if($isLocked)
-                    <p class="info-value" style="color: #dc2626; margin-top: 4px;">
-                        🔴 Unsecured (Plain-Text Default)
-                    </p>
-                @else
-                    <p class="info-value" style="color: #16a34a; margin-top: 4px;">
-                        ✅ Secured (Encrypted Hash)
-                    </p>
-                @endif
-            </div>
         </div>
     </div>
 
-    {{-- ACTIVE SECURITY FORM --}}
     <div class="profile-card">
         <div class="card-header">
-            <h3 class="card-title">🔒 Update Security Password</h3>
-            <p class="card-subtitle">I-update ang iyong login credentials para maging fully encrypted (hashed) sa system records.</p>
+            <h3 class="card-title">Update Security Password</h3>
         </div>
 
         <form action="{{ route('account.update_password') }}" method="POST" class="card-body">
             @csrf
-            
+
             <div class="form-group">
                 <label class="form-label">Current Security Password</label>
-                <input type="password" name="current_password" required placeholder="e.g., superadmin123" class="form-control">
-            </div>
-
-            <div class="grid-layout" style="margin-bottom: 16px;">
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">New Password</label>
-                    <input type="password" name="new_password" required placeholder="Gumawa ng bagong password" class="form-control">
-                    <p class="input-hint">Dapat hindi bababa sa 8 characters.</p>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Confirm New Password</label>
-                    <input type="password" name="new_password_confirmation" required placeholder="I-type muli ang bagong password" class="form-control">
+                <div class="password-wrapper">
+                    <input type="password" name="current_password" required class="form-control" id="current_password">
+                    <span class="toggle-password-text" onclick="togglePasswordVisibility('current_password', this)">Show</span>
                 </div>
             </div>
 
-            <div class="btn-container">
+            <div class="form-group">
+                <label class="form-label">New Password</label>
+                <div class="password-wrapper">
+                    <input type="password" name="new_password" required class="form-control" id="new_password">
+                    <span class="toggle-password-text" onclick="togglePasswordVisibility('new_password', this)">Show</span>
+                </div>
+                <p class="input-hint">Characters must be at least 8 characters long.</p>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Confirm New Password</label>
+                <div class="password-wrapper">
+                    <input type="password" name="new_password_confirmation" required class="form-control" id="new_password_confirmation">
+                    <span class="toggle-password-text" onclick="togglePasswordVisibility('new_password_confirmation', this)">Show</span>
+                </div>
+            </div>
+
+            <div class="btn-centered-container">
                 <button type="submit" class="btn-submit">
-                    Lock & Secure Account
+                    Confirm
                 </button>
             </div>
+
         </form>
     </div>
 
 </div>
 
 <style>
-    /* Custom Styling para sa User Details & Password Update Page */
     .profile-container {
-        max-width: 850px;
+        max-width: 700px;
         width: 100%;
         margin: 24px auto;
         font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -157,6 +145,30 @@
         grid-template-columns: 1fr;
         gap: 24px;
     }
+    
+    .password-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 80%;
+        margin: 0 auto;
+    }
+
+    .toggle-password-text {
+        position: absolute;
+        right: 16px;
+        font-size: 0.85rem;
+        color: #64748b;
+        cursor: pointer;
+        user-select: none;
+        font-weight: 500;
+        transition: color 0.2s;
+    }
+
+    .toggle-password-text:hover {
+        color: #1e293b;
+    }
+
     @media (min-width: 768px) {
         .grid-layout {
             grid-template-columns: 1fr 1fr;
@@ -165,6 +177,7 @@
             grid-column: span 2 / span 2;
         }
     }
+
     .info-label {
         display: block;
         font-size: 0.75rem;
@@ -205,16 +218,22 @@
         background-color: #dcfce7;
         color: #166534;
     }
+
     .form-group {
         margin-bottom: 16px;
     }
+
     .form-label {
         display: block;
         font-size: 0.875rem;
         font-weight: 600;
         color: #374151;
         margin-bottom: 6px;
+        width: 80%;       
+        margin-left: auto;
+        margin-right: auto;
     }
+
     .form-control {
         width: 100%;
         padding: 8px 16px;
@@ -230,16 +249,22 @@
         border-color: #3b82f6;
         box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
     }
+    
     .input-hint {
         font-size: 10px;
         color: #94a3b8;
-        margin: 4px 0 0 0;
+        text-align: left;
+        width: 80%;
+        margin: 4px auto 0 auto;
     }
-    .btn-container {
+
+    .btn-centered-container {
+        width: 80%;
+        margin: 20px auto 0 auto;
         display: flex;
-        justify-content: flex-end;
-        padding-top: 8px;
+        justify-content: center;
     }
+
     .btn-submit {
         width: 100%;
         padding: 10px 24px;
@@ -252,15 +277,11 @@
         cursor: pointer;
         transition: background-color 0.2s;
     }
+
     .btn-submit:hover {
         background-color: #1e293b;
     }
-    @media (min-width: 768px) {
-        .btn-submit {
-            width: auto;
-        }
-    }
-    /* Banner Alerts */
+    
     .alert-banner {
         padding: 16px;
         border-radius: 0 8px 8px 0;
@@ -271,4 +292,18 @@
     .alert-success { background-color: #f0fdf4; border-left: 4px solid #22c55e; color: #166534; font-weight: 600; }
     .alert-danger { background-color: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; }
 </style>
+
+<script>
+    function togglePasswordVisibility(inputId, toggleTextElement) {
+        const passwordInput = document.getElementById(inputId);
+        
+        if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            toggleTextElement.textContent = "Hide";
+        } else {
+            passwordInput.type = "password";
+            toggleTextElement.textContent = "Show";
+        }
+    }
+</script>
 @endsection
