@@ -6,33 +6,29 @@ use Illuminate\Http\Request;
 use App\Models\Student;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class RegistrarController extends Controller
 {
-    /**
-     * I-proseso ang Enrollment at Secure File Storage System
-     */
     public function storeEnrollment(Request $request)
     {
-        // 1. Basic Validation Rules (In-update para tanggapin ang LAHAT ng posibleng file inputs)
         $request->validate([
-            'registration_date'      => 'required|date',
-            'student_type'           => 'required|string',
-            'course'                 => 'required|string',
-            'last_name'              => 'required|string',
-            'first_name'             => 'required|string',
-            'contact_no'             => 'required|string',
-            
-            // Lahat ng file inputs ay dapat dumaan sa validation para hindi harangin ng Laravel Request Engine
-            'doc_psa'                => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_2x2'                => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
-            'doc_f138'               => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_good_moral_new'     => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_diploma'            => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_tor'                => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_dismissal'          => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_good_moral_trans'   => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_permit'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'registration_date' => 'required|date',
+            'student_type' => 'required|string',
+            'course' => 'required|string',
+            'last_name' => 'required|string',
+            'first_name' => 'required|string',
+            'contact_no' => 'required|string',
+
+            'doc_psa' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_2x2' => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
+            'doc_f138' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_good_moral_new' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_diploma' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_tor' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_dismissal' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_good_moral_trans' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_permit' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
         // 2. Automated Generation ng Student ID (Format: 2026-0001)
@@ -139,9 +135,6 @@ class RegistrarController extends Controller
         return redirect()->back()->with('success', "Student credentials compiled successfully! Allocated Student ID: {$generatedStudentId}");
     }
 
-    /**
-     * SECURE STREAMING GATEWAY:
-     */
     public function secureViewFile($student_id, $filename)
     {
         if (session('user_role') !== 'registrar') {
@@ -155,5 +148,23 @@ class RegistrarController extends Controller
         }
 
         return Storage::disk('local')->response($fullStoragePath);
+    }
+
+    public function profileView()
+    {
+        if (session('user_role') !== 'registrar') {
+            return redirect()->route('login')->with('error', 'Unauthorized access. Please login as Registrar.');
+        }
+
+        $userId = session('user_id');
+        $user = \App\Models\User::find($userId);
+
+        if (!$user) {
+            return redirect()->route('login')->with('error', 'User not found.');
+        }
+
+        $isLocked = !Str::startsWith($user->password, '$2y$');
+
+        return view('registrar.user_details', compact('user', 'isLocked'));
     }
 }

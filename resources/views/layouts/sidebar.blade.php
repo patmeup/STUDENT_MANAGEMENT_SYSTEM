@@ -29,6 +29,20 @@
                 </li>
 
                 <li>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i> 
+                            <span>Manage Courses</span>
+                        </a>
+                    @else
+                    <a href="{{ route('super_admin.manage-courses') }}" class="{{ Request::is('super_admin/manage-courses') ? 'active' : '' }}">
+                        <i data-lucide="book-open"></i> <span>Manage Courses</span>
+                    </a>
+                    @endif
+                </li>
+
+                <li>
                     <a href="{{ route('super_admin.user_details') }}" class="{{ Request::is('super_admin/user_details') ? 'active' : '' }}">
                         <i data-lucide="user"></i> <span>Profile</span>
                     </a>
@@ -45,6 +59,18 @@
                 <li>
                     <a href="{{ route('system_admin.manage-subjects') }}" class="{{ Request::is('system_admin/manage-subjects') ? 'active' : '' }}">
                         <i data-lucide="book-open"></i> <span>Manage Subjects</span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="{{ route('system_admin.manage-curriculum') }}" class="{{ Request::is('system_admin/manage-curriculum') ? 'active' : '' }}">
+                        <i data-lucide="notebook-text"></i> <span>Manage Curriculum</span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="{{ route('system_admin.user_details') }}" class="{{ Request::is('system_admin/user_details') ? 'active' : '' }}">
+                        <i data-lucide="user"></i> <span>Profile</span>
                     </a>
                 </li>
             @endif
@@ -65,6 +91,12 @@
                 <li>
                     <a href="{{ route('registrar.manage-enrollment') }}" class="{{ Request::is('registrar/manage-enrollment') ? 'active' : '' }}">
                         <i data-lucide="user-check"></i> <span>Manage Enrollment</span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="{{ route('registrar.user_details') }}" class="{{ Request::is('registrar/user_details') ? 'active' : '' }}">
+                        <i data-lucide="user"></i> <span>Profile</span>
                     </a>
                 </li>
             @endif
