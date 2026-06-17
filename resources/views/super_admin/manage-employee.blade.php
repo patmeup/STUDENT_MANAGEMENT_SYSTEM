@@ -27,44 +27,49 @@
                 
                 <div class="form-group">
                     <label>First Name</label>
-                    <input type="text" name="first_name" placeholder="e.g., JUAN" required>
+                    <input type="text" name="first_name" placeholder="Please enter your first name (e.g., JUAN)" required>
                 </div>
 
                 <div class="form-group">
                     <label>Last Name</label>
-                    <input type="text" name="last_name" placeholder="e.g., DELA CRUZ" required>
+                    <input type="text" name="last_name" placeholder="Please enter your last name" required>
                 </div>
 
                 <div class="form-grid-2">
                     <div class="form-group">
                         <label>Middle Name (Optional)</label>
-                        <input type="text" name="middle_name" placeholder="e.g., REYES">
+                        <input type="text" name="middle_name" placeholder="Please enter your middle name>
                     </div>
                     <div class="form-group">
                         <label>Sex</label>
-                        <select name="sex" required>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                        </select>
+                        <div class="custom-select-wrapper">
+                            <select name="sex" class="custom-select-dropdown" required>
+                                <option value="" disabled selected hidden>Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Official Institutional Email</label>
-                    <input type="email" name="email" placeholder="username@arellano.edu.ph" required>
+                    <input type="email" name="email" placeholder="Please enter official email" required>
                 </div>
 
                 <div class="form-group">
                     <label>Designated Operational Role</label>
-                    <select name="role" required>
-                        <option value="">-- Select System Tier Authorization --</option>
-                        <option value="system_admin">System Admin (Global Subject & Settings Maintenance)</option>
-                        <option value="dean">College Dean / Secretary (Curriculum & Mapping)</option>
-                        <option value="registrar">Registrar Officer (Student Records & Ledger Enrollment)</option>
-                    </select>
+                    <div class="custom-select-wrapper">
+                        <select name="role" class="custom-select-dropdown" required>
+                            <option value="" disabled selected hidden>Select System Tier Authorization</option>
+                            <option value="system_admin">System Admin (Global Subject & Settings Maintenance)</option>
+                            <option value="dean">College Dean / Secretary (Curriculum & Mapping)</option>
+                            <option value="registrar">Registrar Officer (Student Records & Ledger Enrollment)</option>
+                        </select>
+                    </div>
                 </div>
 
-                <button type="submit" class="btn-generate-account">Provision Account & ID</button>
+                <button type="submit" class="btn-generate-account">Deploy Personnel Account</button>
             </form>
         </div>
 
@@ -140,12 +145,12 @@
     .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group label { font-size: 13px; font-weight: 600; color: #475569; }
-    .form-group input, .form-group select { border: 1px solid #cbd5e1; border-radius: 6px; padding: 11px 14px; font-size: 14px; color: #0f172a; outline: none; background: #ffffff; }
-    .form-group input:focus, .form-group select:focus { border-color: #475569; box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.15); }
+    .form-group input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 11px 14px; font-size: 14px; color: #0f172a; outline: none; background: #ffffff; }
+    .form-group input:focus { border-color: #475569; box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.15); }
     .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     
     /* Action Buttons */
-    .btn-generate-account { background: #1e293b; color: #ffffff; border: none; padding: 14px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; margin-top: 8px; transition: background 0.2s; }
+    .btn-generate-account { background: #1e293b; color: #ffffff; border: none; padding: 14px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; margin-top: 8px; transition: background 0.2s; text-align: center; }
     .btn-generate-account:hover { background: #0f172a; }
 
     /* Database Table Layouts */
@@ -174,5 +179,49 @@
     .d-flex-jsb { display: flex; justify-content: space-between; align-items: center; }
     .count-tag { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 3px 10px; border-radius: 5px; font-weight: 700; }
     .empty-message-state { text-align: center; color: #94a3b8; padding: 50px 0; font-style: italic; font-size: 13.5px; }
+
+    /* 🛠️ Polished Custom Dropdown Element Styling */
+    .custom-select-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .custom-select-dropdown {
+        width: 100%;
+        padding: 11px 40px 11px 14px;
+        font-size: 14px;
+        color: #0f172a;
+        background-color: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        box-sizing: border-box;
+        appearance: none; 
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        cursor: pointer;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+
+    .custom-select-dropdown:hover {
+        border-color: #94a3b8;
+    }
+
+    .custom-select-dropdown:focus {
+        border-color: #475569;
+        box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.15);
+    }
+
+    /* Elegant Custom CSS Arrow Indicator */
+    .custom-select-wrapper::after {
+        content: "▼";
+        font-size: 0.65rem;
+        color: #64748b;
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+    }
 </style>
 @endsection

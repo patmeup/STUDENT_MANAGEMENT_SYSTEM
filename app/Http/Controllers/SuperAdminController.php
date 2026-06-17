@@ -87,4 +87,42 @@ class SuperAdminController extends Controller
         // 4. I-serve ang view kasama ang data ng user
         return view('super_admin.user_details', compact('user', 'isLocked'));
     }    
+
+    // 🚀 NEW FUNCTION: Controls password updates and enforces the 8-character rule for Super Admin
+    public function updatePassword(Request $request)
+    {
+        // 1. Ensure the user is actually logged in
+        $userId = session('user_id');
+        $user = User::find($userId);
+
+        if (!$user) {
+            return redirect('/')->withErrors(['error' => 'Session expired. Please login again.']);
+        }
+
+        // 2. Enforce minimum length rules dynamically based on session role
+        if (session('user_role') === 'super_admin') {
+            $minCharacters = 8;
+        } else {
+            $minCharacters = 6; // Standard length for other roles
+        }
+
+        // 3. Backend validation checkpoint
+        $request->validate([
+            'current_password' => ['required', function ($attribute, $value, $fail) use ($user) {
+                if (!Hash::check($value, $user->password) && $value !== $user->password) {
+                    $fail('Ang kasalukuyang password ay hindi tama.');
+                }
+            }],
+            'password' => ['required', 'string', 'min:' . $minCharacters, 'confirmed'],
+        ], [
+            'password.min' => "Ang bagong password ay dapat may hindi bababa sa {$minCharacters} karakter.",
+            'password.confirmed' => 'Hindi nagtutugma ang Bagong Password at Kumpirmasyon.',
+        ]);
+
+        // 4. Update the password securely in the database
+        $user->password = Hash::make($request->password);
+        $user->save();
+
+        return redirect()->back()->with('success', 'Password successfully updated security requirements!');
+    }
 }

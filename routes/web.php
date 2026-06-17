@@ -80,5 +80,6 @@ Route::get('/dean/dashboard', function () {
 
 Route::get('/dean/encoding', [CurriculumController::class, 'index'])->name('dean.curriculum.index');
 Route::post('/dean/encoding', [CurriculumController::class, 'store'])->name('dean.curriculum.store');
+Route::post('/account/security/update', [SuperAdminController::class, 'updatePassword'])->name('password.update');
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
