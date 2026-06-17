@@ -6,8 +6,6 @@
     @if($isLocked)
         <div class="alert-banner alert-warning">
             <strong style="display:block; margin-bottom: 4px;">⚠️ First-Time Login Action Required!</strong>
-            Naka-lock ang lahat ng system tabs para sa iyong seguridad dahil gamit mo pa ang default plain-text password. 
-            Mangyaring magpalit ng password sa ibaba upang ma-unlock ang buong features ng system.
         </div>
     @endif
 

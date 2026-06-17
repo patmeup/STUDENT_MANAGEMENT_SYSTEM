@@ -5,23 +5,22 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Subject;
 use App\Models\Curriculum;
+use App\Models\Course;
 
 class CurriculumController extends Controller
 {
     public function index()
     {
-        // Security Check for Dean Role
-        if (session('user_role') !== 'dean') {
-            return redirect()->route('admin.login');
+        if (session('user_role') !== 'system_admin') {
+            return redirect()->route('system_admin.dashboard');
         }
 
-        // Hakuha ang lahat ng Global Subjects na gawa ni Admin para sa dropdown
-        $globalSubjects = Subject::orderBy('subject_code', 'asc')->get();
+        $courses = Course::all();
+        $subjects = Subject::all();
 
-        // Kunin din ang mga kasalukuyang mapped subjects para makita ni Dean sa listahan sa ibaba
-        $mappings = Curriculum::with('subject')->latest()->get();
+        $mappings = Curriculum::with('subject')->orderBy('course')->orderBy('year_level')->orderBy('semester')->get();
 
-        return view('dean.encoding', compact('globalSubjects', 'mappings'));
+        return view('system_admin.manage-curriculum', compact('courses', 'subjects', 'mappings'));
     }
 
     public function store(Request $request)
@@ -33,9 +32,18 @@ class CurriculumController extends Controller
             'semester' => 'required|string',
         ]);
 
-        // I-save ang Mapping
-        Curriculum::create($request->all());
+        $exists = Curriculum::where('course', $request->course)
+                            ->where('year_level', $request->year_level)
+                            ->where('semester', $request->semester)
+                            ->where('subject_id', $request->subject_id)
+                            ->exists();
 
-        return redirect()->back()->with('success', 'Subject successfully mapped to the curriculum!');
+        if ($exists) {
+            return redirect()->back()->withErrors(['error' => 'This current subject is already mapped to the selected course and semester.']);
+        }
+
+        Curriculum::create($validated);
+
+        return redirect()->back()->with('success', 'Subject successfully mapped to the curriculum structure!');
     }
 }

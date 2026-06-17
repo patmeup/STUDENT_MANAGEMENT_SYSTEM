@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="subj-container">
-    
+
     <div class="subj-header">
         <div class="header-titles">
             <h2>Global Subject Encoder</h2>
@@ -53,13 +53,60 @@
             </div>
         </form>
     </div>
+
+    <div class="subject-list-card">
+        <div class="card-header-flex">
+            <h3 class="card-title-list">Global Subject Catalog</h3>
+            <span class="badge-count">{{ count($subjects) }} Total Subjects</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="minimal-table">
+                <thead>
+                    <tr>
+                        <th>Subject Code</th>
+                        <th>Descriptive Title</th>
+                        <th style="text-align: center;">Lect. Units</th>
+                        <th style="text-align: center;">Lab. Units</th>
+                        <th style="text-align: center;">Total Units</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($subjects as $subject)
+                        <tr>
+                            <td><span class="subject-code-tag">{{ $subject->subject_code }}</span></td>
+                            <td class="subject-title-text">{{ $subject->subject_title }}</td>
+                            <td style="text-align: center;">{{ $subject->lecture_units }}</td>
+                            <td style="text-align: center;">{{ $subject->lab_units }}</td>
+                            <td style="text-align: center;">
+                                <strong class="total-units-text">{{ $subject->total_units }}</strong>
+                            </td>
+                            <td style="text-align: center;">
+                                <button class="btn-action-edit" title="Edit Subject">
+                                    Edit
+                                </button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="empty-table-state">
+                                There's no registered subject found in the system records.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
 
 <style>
     .subj-container {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         color: #1e293b;
-        max-width: 700px;
+        max-width: 900px;
         margin: 0 auto;
         padding-bottom: 50px;
     }
@@ -82,6 +129,7 @@
         border: 1px solid #e2e8f0;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         overflow: hidden;
+        margin-bottom: 30px;
     }
     .card-bar {
         background: #ffffff;
@@ -157,6 +205,104 @@
         font-weight: 600;
         border-left: 5px solid #0f5132;
         font-size: 14px;
+    }
+
+    .subject-list-card {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+        overflow: hidden;
+    }
+    .card-header-flex {
+        background-color: #f8fafc;
+        padding: 18px 24px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .card-title-list {
+        font-size: 15px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+    }
+    .badge-count {
+        background-color: #e2e8f0;
+        color: #334155;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 9999px;
+    }
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+    }
+    .minimal-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 0.9rem;
+    }
+    .minimal-table th {
+        background-color: #f8fafc;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        padding: 14px 24px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .minimal-table td {
+        padding: 14px 24px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+        vertical-align: middle;
+    }
+    .minimal-table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+    .subject-code-tag {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-weight: 700;
+        color: #2563eb;
+        background-color: #eff6ff;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+    }
+    .subject-title-text {
+        font-weight: 500;
+        color: #1e293b;
+    }
+    .total-units-text {
+        color: #0f172a;
+        font-weight: 700;
+    }
+    .empty-table-state {
+        text-align: center;
+        color: #64748b;
+        padding: 40px !important;
+        font-style: italic;
+    }
+    .btn-action-edit {
+        background-color: transparent;
+        border: 1px solid #cbd5e1;
+        color: #475569;
+        padding: 5px 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .btn-action-edit:hover {
+        background-color: #f1f5f9;
+        color: #1e293b;
+        border-color: #94a3b8;
     }
 </style>
 @endsection
