@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Course;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -17,7 +18,7 @@ class SuperAdminController extends Controller
         $currentAdmin = User::find(session('user_id'));
         if ($currentAdmin && !Str::startsWith($currentAdmin->password, '$2y$')) {
             return redirect()->route('account.security')
-                ->withErrors(['error' => 'Access Restricted! Mangyaring i-secure muna ang iyong account sa pamamagitan ng pagpapalit ng default password upang ma-unlock ang Manage Employee feature.']);
+                ->withErrors(['error' => 'Access Restricted!']);
         }
 
         $employees = User::where('role', '!=', 'super_admin')
@@ -42,8 +43,7 @@ class SuperAdminController extends Controller
             'role' => 'required|string|in:system_admin,dean,registrar',
         ]);
 
-        // ALGORITHM: Awtomatikong pag-generate ng Employee ID (Format: EMP-26-XXXX)
-        $yearShort = date('y'); // Salo ang '26' para sa kasalukuyang taon na 2026
+        $yearShort = date('y');
         $lastEmployee = User::where('employee_id', 'LIKE', "EMP-{$yearShort}-%")->latest()->first();
 
         if ($lastEmployee) {
@@ -64,27 +64,54 @@ class SuperAdminController extends Controller
             'email' => $request->email,
             'role' => $request->role,
             'status' => 'Active',
-            'password' => Hash::make('Welcome@AU2026'), // Naka-encrypt na default temporary password
+            'password' => Hash::make('Welcome@AU2026'),
         ]);
 
         return redirect()->back()->with('success', "Personnel account successfully created! ID: {$generatedId} | Default Pass: Welcome@AU2026");
     }
 
+    public function manageCourses()
+    {
+        if (session('user_role') !== 'super_admin') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $courses = Course::all();
+        return view('super_admin.manage-courses', compact('courses'));
+    }
+
+    public function storeCourse(Request $request)
+    {
+        if (session('user_role') !== 'super_admin') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $validated = $request->validate([
+            'course_code'  => 'required|string|unique:courses,course_code|max:50',
+            'course_title' => 'required|string|max:255',
+            'department'   => 'required|string|max:100',
+        ]);
+
+        // Gawing automatic nakasulat sa ALL CAPS para uniporme
+        $validated['course_code'] = strtoupper($request->course_code);
+        $validated['department'] = strtoupper($request->department);
+
+        Course::create($validated);
+
+        return redirect()->back()->with('success', 'New institutional course program successfully registered!');
+    }
+
     public function profileView()
     {
         $userId = session('user_id');
-
-        // 2. Hanapin ang buong record ng user sa database
         $user = User::find($userId);
 
-        // Safety net: Kung walang nahanap na user, ibalik sa login page
         if (!$user) {
             return redirect('/')->withErrors(['error' => 'Session expired. Please login again.']);
         }
 
         $isLocked = !Str::startsWith($user->password, '$2y$');
 
-        // 4. I-serve ang view kasama ang data ng user
         return view('super_admin.user_details', compact('user', 'isLocked'));
     }    
 
