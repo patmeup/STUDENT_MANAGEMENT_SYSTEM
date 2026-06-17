@@ -25,6 +25,7 @@ Route::get('/bypass-super', function() {
 
 Route::get('/account/security', [AuthController::class, 'showSecurityPage'])->name('account.security');
 Route::post('/account/security/update-password', [AuthController::class, 'updatePassword'])->name('account.update_password');
+Route::post('/account/security/update', [SuperAdminController::class, 'updatePassword'])->name('password.update');
 
 // SUPER ADMIN ROUTES
 Route::get('/super_admin/dashboard', function () {
@@ -51,8 +52,6 @@ Route::get('/system_admin/dashboard', function () {
 Route::get('/system_admin/manage-subjects', [SystemAdminController::class, 'index'])->name('system_admin.manage-subjects');
 Route::post('/system_admin/manage-subjects', [SubjectController::class, 'store'])->name('system_admin.subjects.store');
 Route::get('/system_admin/user_details', [SystemAdminController::class, 'profileView'])->name('system_admin.user_details');
-Route::get('/system_admin/manage-subjects', [SubjectController::class, 'index'])->name('system_admin.manage-subjects');
-Route::post('/system_admin/manage-subjects', [SubjectController::class, 'store'])->name('system_admin.subjects.store');
 Route::get('/system_admin/manage-curriculum', [CurriculumController::class, 'index'])->name('system_admin.manage-curriculum');
 Route::post('/system_admin/manage-curriculum', [CurriculumController::class, 'store'])->name('system_admin.curriculum.store');
 

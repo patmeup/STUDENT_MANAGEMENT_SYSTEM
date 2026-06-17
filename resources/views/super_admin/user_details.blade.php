@@ -76,16 +76,28 @@
             <div class="form-group">
                 <label class="form-label">New Password</label>
                 <div class="password-wrapper">
-                    <input type="password" name="new_password" required class="form-control" id="new_password">
+                    <input type="password" 
+                           name="new_password" 
+                           required 
+                           class="form-control" 
+                           id="new_password"
+                           minlength="{{ session('user_role') === 'super_admin' ? 8 : 6 }}">
                     <span class="toggle-password-text" onclick="togglePasswordVisibility('new_password', this)">Show</span>
                 </div>
-                <p class="input-hint">Characters must be at least 8 characters long.</p>
+                <p class="input-hint">
+                    Characters must be at least {{ session('user_role') === 'super_admin' ? 8 : 6 }} characters long.
+                </p>
             </div>
 
             <div class="form-group">
                 <label class="form-label">Confirm New Password</label>
                 <div class="password-wrapper">
-                    <input type="password" name="new_password_confirmation" required class="form-control" id="new_password_confirmation">
+                    <input type="password" 
+                           name="new_password_confirmation" 
+                           required 
+                           class="form-control" 
+                           id="new_password_confirmation"
+                           minlength="{{ session('user_role') === 'super_admin' ? 8 : 6 }}">
                     <span class="toggle-password-text" onclick="togglePasswordVisibility('new_password_confirmation', this)">Show</span>
                 </div>
             </div>
@@ -121,7 +133,6 @@
     .card-header {
         background-color: #f8fafc;
         padding: 16px 24px;
-        border-b: 1px solid #e2e8f0;
         border-bottom: 1px solid #e2e8f0;
     }
     .card-title {
@@ -129,11 +140,6 @@
         font-weight: 700;
         color: #334155;
         margin: 0;
-    }
-    .card-subtitle {
-        font-size: 0.75rem;
-        color: #64748b;
-        margin: 4px 0 0 0;
     }
     .card-body {
         padding: 24px;
@@ -171,9 +177,6 @@
         .grid-layout {
             grid-template-columns: 1fr 1fr;
         }
-        .col-span-2 {
-            grid-column: span 2 / span 2;
-        }
     }
 
     .info-label {
@@ -203,7 +206,6 @@
     }
     .border-top-section {
         border-top: 1px solid #f1f5f9;
-        pt-4: 16px;
         padding-top: 16px;
     }
     .status-badge {
@@ -227,7 +229,7 @@
         font-weight: 600;
         color: #374151;
         margin-bottom: 6px;
-        width: 80%;       
+        width: 80%;      
         margin-left: auto;
         margin-right: auto;
     }
