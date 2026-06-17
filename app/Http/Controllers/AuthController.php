@@ -27,7 +27,6 @@ class AuthController extends Controller
             $isPasswordCorrect = false;
 
             if ($user->role === 'super_admin') {
-                // Kung ang password sa DB ay nagsisimula sa $2y$ (ibig sabihin pinalitan na sa dashboard at naka-hash na)
                 if (Str::startsWith($user->password, '$2y$')) {
                     $isPasswordCorrect = Hash::check($password, $user->password);
                 } else {
@@ -59,7 +58,7 @@ class AuthController extends Controller
                 } 
                 
                 if ($user->role === 'system_admin') {
-                    return redirect()->route('admin.manage-subjects');
+                    return redirect()->route('system_admin.dashboard');
                 }
 
                 if ($user->role === 'dean') {
