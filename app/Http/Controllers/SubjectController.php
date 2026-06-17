@@ -8,19 +8,17 @@ use Illuminate\Support\Facades\Session;
 
 class SubjectController extends Controller
 {
-    // 1. Ipakita ang Form para sa Pag-add ng Subjects
     public function index()
     {
-        // Security check para sa admin session role
         if (session('user_role') !== 'system_admin') {
             return redirect()->route('system_admin.dashboard');
         }
+        
+        $subjects = Subject::all(); 
 
-        // Ituturo natin sa admin folder -> manage-subjects.blade.php
-        return view('system_admin.manage-subjects');
+        return view('system_admin.manage-subjects', compact('subjects'));
     }
 
-    // 2. I-save ang Subject mula sa Form
     public function store(Request $request)
     {
         if (session('user_role') !== 'system_admin') {
@@ -39,7 +37,6 @@ class SubjectController extends Controller
 
         Subject::create($validated);
 
-        // Pagkatapos mag-save, pwede nating ibalik sa form na may success message
         return redirect()->back()->with('success', 'Global Subject catalog entry established successfully!');
     }
 }
