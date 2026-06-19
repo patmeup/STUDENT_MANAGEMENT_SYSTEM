@@ -4,38 +4,42 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Subject;
-use Illuminate\Support\Facades\Session;
+use App\Models\Course;
 
 class SubjectController extends Controller
 {
     public function index()
     {
         if (session('user_role') !== 'system_admin') {
-            return redirect()->route('system_admin.dashboard');
+            return redirect('/')->with('error', 'Unauthorized access.');
         }
         
-        $subjects = Subject::all(); 
+        $subjects = Subject::all();
+        $courses = Course::all();
 
-        return view('system_admin.manage-subjects', compact('subjects'));
+        return view('system_admin.manage-subjects', compact('subjects', 'courses'));
     }
 
     public function store(Request $request)
     {
         if (session('user_role') !== 'system_admin') {
-            return redirect()->route('system_admin.manage-subjects');
+            return redirect('/')->with('error', 'Unauthorized access.');
         }
 
-        $validated = $request->validate([
-            'subject_code' => 'required|string|unique:subjects,subject_code|max:50',
+        $request->validate([
+            'subject_code'  => 'required|string|unique:subjects,subject_code|max:50',
             'subject_title' => 'required|string|max:255',
             'lecture_units' => 'required|integer|min:0|max:9',
-            'lab_units' => 'required|integer|min:0|max:9',
+            'lab_units'     => 'required|integer|min:0|max:9',
         ]);
 
-        $validated['total_units'] = $request->lecture_units + $request->lab_units;
-        $validated['subject_code'] = strtoupper($request->subject_code);
-
-        Subject::create($validated);
+        Subject::create([
+            'subject_code'  => strtoupper($request->subject_code),
+            'subject_title' => $request->subject_title,
+            'lecture_units' => $request->lecture_units,
+            'lab_units'     => $request->lab_units,
+            'total_units'   => (int)$request->lecture_units + (int)$request->lab_units,
+        ]);
 
         return redirect()->back()->with('success', 'Global Subject catalog entry established successfully!');
     }

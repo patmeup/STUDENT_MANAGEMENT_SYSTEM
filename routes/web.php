@@ -6,6 +6,7 @@ use App\Http\Controllers\AccountSettingsController;
 use App\Http\Controllers\SuperAdminController;
 use App\Http\Controllers\SystemAdminController;
 use App\Http\Controllers\RegistrarController;
+use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\CurriculumController;
@@ -53,6 +54,8 @@ Route::get('/system_admin/dashboard', function () {
 Route::get('/system-admin/curriculum/get-subjects-by-course', [CurriculumController::class, 'getSubjectsByCourse'])
      ->name('system_admin.curriculum.get_subjects');
 
+Route::get('/system_admin/manage-faculty', [FacultyController::class, 'index'])->name('system_admin.manage-faculty');
+Route::post('/system_admin/manage-faculty', [FacultyController::class, 'store'])->name('system_admin.manage-faculty.store');
 Route::get('/system_admin/manage-subjects', [SubjectController::class, 'index'])->name('system_admin.manage-subjects');
 Route::post('/system_admin/manage-subjects', [SubjectController::class, 'store'])->name('system_admin.subjects.store');
 Route::get('/system_admin/user_details', [SystemAdminController::class, 'profileView'])->name('system_admin.user_details');
@@ -94,3 +97,4 @@ Route::get('/dean/dashboard', function () {
 
 Route::get('/dean/encoding', [CurriculumController::class, 'index'])->name('dean.curriculum.index');
 Route::post('/dean/encoding', [CurriculumController::class, 'store'])->name('dean.curriculum.store');
+Route::get('/dean/user_details', [DeanController::class, 'profileView'])->name('dean.user_details');
