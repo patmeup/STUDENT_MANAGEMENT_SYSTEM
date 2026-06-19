@@ -11,7 +11,6 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        // 1. I-validate ang input fields mula sa login form
         $request->validate([
             'login_id' => 'required|string',
             'password' => 'required|string',
@@ -20,7 +19,6 @@ class AuthController extends Controller
         $loginId = $request->input('login_id');
         $password = $request->input('password');
 
-        // 2. Hahanapin ang employee sa database gamit ang employee_id
         $user = User::where('employee_id', $loginId)->first();
 
         if ($user) {
@@ -36,10 +34,8 @@ class AuthController extends Controller
                 $isPasswordCorrect = Hash::check($password, $user->password);
             }
 
-            // 3. Kung tama ang password batay sa pagsusuri sa itaas
             if ($isPasswordCorrect) {
                 
-                // Proteksyon: Siguraduhing active ang status ng account
                 if ($user->status !== 'Active') {
                     return back()->withErrors(['error' => 'This account has been deactivated. Please contact HR.']);
                 }
@@ -62,7 +58,7 @@ class AuthController extends Controller
                 }
 
                 if ($user->role === 'dean') {
-                    return redirect()->route('dean.curriculum.index');
+                    return redirect()->route('dean.dashboard');
                 }
                 
                 if ($user->role === 'registrar') {

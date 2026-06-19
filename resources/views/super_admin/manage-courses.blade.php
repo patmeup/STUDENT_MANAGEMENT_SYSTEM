@@ -26,25 +26,38 @@
             @csrf
             
             <div class="form-grid-2">
+                {{-- 1. DROPDOWN PARA SA COURSE CODE --}}
                 <div class="form-group">
                     <label>Course / Program Acronym Code</label>
-                    <input type="text" name="course_code" placeholder="e.g., BSIT, BSCS, BSHM" class="uppercase-input" required>
-                    <small class="field-help">This will be used by the System Admin for curriculum binding.</small>
+                    <div class="custom-select-wrapper">
+                        <select name="course_code" id="course-code-select" class="custom-select-dropdown" required>
+                            <option value="" disabled selected hidden>Select Program</option>
+                            <option value="BSIT">BSIT</option>
+                            <option value="BSCS">BSCS</option>
+                        </select>
+                    </div>
+                    <small class="field-help">Capstone Scope: Limited to IT Department baseline.</small>
                 </div>
 
+                {{-- 2. AUTOMATED DEPARTMENT FIELD (Naka-lock para sa IT Dept) --}}
                 <div class="form-group">
                     <label>Assigned College Department</label>
-                    <input type="text" name="department" placeholder="e.g., CICS, CBA, CTE" class="uppercase-input" required>
+                    <div class="custom-select-wrapper">
+                        <select name="department" class="custom-select-dropdown" required>
+                            <option value="College of Computer Studies" selected>College of Computer Studies</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
+            {{-- 3. FULL TITLE FIELD (Kusa nating papapandayin gamit ang JS para iwas typo) --}}
             <div class="form-group">
                 <label>Full Descriptive Degree Title</label>
-                <input type="text" name="course_title" placeholder="e.g., Bachelor of Science in Information Technology" required>
+                <input type="text" name="course_title" id="course-title-input" placeholder="Select a program above to auto-populate" readonly required style="background-color: #f8fafc; cursor: not-allowed;">
             </div>
 
             <div class="form-actions-bar">
-                <button type="reset" class="btn-clear">Clear Form</button>
+                <button type="reset" class="btn-clear" id="btn-reset-form">Clear Form</button>
                 <button type="submit" class="btn-submit-subj" style="background-color: #000000;">Authorize & Save Course</button>
             </div>
         </form>
@@ -85,6 +98,33 @@
     </div>
 </div>
 
+{{-- JAVASCRIPT MECHANICS PARA AUTOMATIC ANG FULL TITLE --}}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const courseSelect = document.getElementById('course-code-select');
+        const titleInput = document.getElementById('course-title-input');
+        const resetBtn = document.getElementById('btn-reset-form');
+
+        // Mapa ng mga titulo para auto-fill agad
+        const programTitles = {
+            'BSIT': 'Bachelor of Science in Information Technology',
+            'BSCS': 'Bachelor of Science in Computer Science'
+        };
+
+        courseSelect.addEventListener('change', function() {
+            if (programTitles[this.value]) {
+                titleInput.value = programTitles[this.value];
+            } else {
+                titleInput.value = '';
+            }
+        });
+
+        resetBtn.addEventListener('click', function() {
+            titleInput.value = '';
+        });
+    });
+</script>
+
 <style>
     .subj-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; max-width: 900px; margin: 0 auto; padding-bottom: 50px; }
     .subj-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; }
@@ -97,6 +137,7 @@
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group label { font-size: 13px; font-weight: 600; color: #475569; }
     .form-group input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; font-size: 14px; outline: none; box-sizing: border-box; width: 100%; color: #0f172a; }
+    .form-group input:focus { border-color: #000000; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05); }
     .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
     .uppercase-input { text-transform: uppercase; }
     .field-help { font-size: 11px; color: #94a3b8; margin-top: 2px; }
@@ -115,5 +156,9 @@
     .subject-code-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; }
     .subject-title-text { font-weight: 500; color: #1e293b; }
     .empty-table-state { text-align: center; color: #64748b; padding: 40px !important; font-style: italic; }
+    .custom-select-wrapper { position: relative; width: 100%; }
+    .custom-select-dropdown { width: 100%; padding: 12px 40px 12px 14px; font-size: 14px; color: #0f172a; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; appearance: none; -webkit-appearance: none; cursor: pointer; outline: none; }
+    .custom-select-dropdown:focus { border-color: #000000; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05); }
+    .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 </style>
 @endsection

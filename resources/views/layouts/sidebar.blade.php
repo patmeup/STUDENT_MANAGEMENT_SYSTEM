@@ -57,6 +57,12 @@
                 </li>
 
                 <li>
+                    <a href="{{ route('system_admin.manage-faculty') }}" class="{{ Request::is('system_admin/manage-faculty') ? 'active' : '' }}">
+                        <i data-lucide="user-check"></i> <span>Manage Faculty</span>
+                    </a>
+                </li>
+
+                <li>
                     <a href="{{ route('system_admin.manage-subjects') }}" class="{{ Request::is('system_admin/manage-subjects') ? 'active' : '' }}">
                         <i data-lucide="book-open"></i> <span>Manage Subjects</span>
                     </a>
@@ -109,8 +115,8 @@
                 </li>
 
                 <li>
-                    <a href="{{ route('dean.curriculum.index') }}" class="{{ Request::is('dean/encoding') ? 'active' : '' }}">
-                        <i data-lucide="map"></i> <span>Curriculum Encoding</span>
+                    <a href="{{ route('dean.user_details') }}" class="{{ Request::is('dean/user_details') ? 'active' : '' }}">
+                        <i data-lucide="user"></i> <span>Profile</span>
                     </a>                    
                 </li>
             @endif

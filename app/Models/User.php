@@ -11,7 +11,6 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    // FIX ADDITION: Ituro natin sa 'employees' table na ginawa mo sa migration
     protected $table = 'employees';
 
     /**
@@ -27,8 +26,9 @@ class User extends Authenticatable
         'sex',
         'email',
         'role',
+        'department',
         'status',
-        'password'
+        'password',
     ];
 
     /**
