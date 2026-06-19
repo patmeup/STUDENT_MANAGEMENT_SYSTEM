@@ -9,6 +9,9 @@ use App\Models\Course;
 
 class CurriculumController extends Controller
 {
+    /**
+     * Display Main Page Panel View
+     */
     public function index()
     {
         if (session('user_role') !== 'system_admin') {
@@ -18,28 +21,64 @@ class CurriculumController extends Controller
         $courses = Course::all();
         $subjects = Subject::all();
 
-        $mappings = Curriculum::with('subject')->orderBy('course')->orderBy('year_level')->orderBy('semester')->get();
+        // Kunin ang active table blueprint structure list
+        $mappings = Curriculum::with('subject')
+            ->orderBy('course')
+            ->orderBy('year_level')
+            ->orderBy('semester')
+            ->get();
 
         return view('system_admin.manage-curriculum', compact('courses', 'subjects', 'mappings'));
     }
 
+    /**
+     * Advanced Multi-Parameter Smart Filtering Logic
+     */
+    public function getSubjectsByCourse(Request $request)
+    {
+        $course    = $request->query('course');
+        $yearLevel = $request->query('year_level');
+        $semester  = $request->query('semester');
+
+        if (!$course || !$yearLevel || !$semester) {
+            return response()->json([]);
+        }
+
+        // 1. Alamin kung anong mga subject IDs ang mayroon nang active mapping sa napiling Slot
+        $alreadyMappedIds = Curriculum::where('course', $course)
+            ->where('year_level', $yearLevel)
+            ->where('semester', $semester)
+            ->pluck('subject_id')
+            ->toArray();
+
+        // 2. Kukunin natin ang mga subjects na available mula sa masterlist 
+        // pero iiwasan nating ipakita ang mga naitatag na sa slot na ito para iwas redundancy!
+        $subjects = Subject::whereNotIn('id', $alreadyMappedIds)
+            ->get(['id', 'subject_code', 'subject_title', 'total_units']);
+
+        return response()->json($subjects);
+    }
+
+    /**
+     * Commit Action Form Handler
+     */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'subject_id' => 'required|exists:subjects,id',
-            'course' => 'required|string',
+            'course'     => 'required|string',
             'year_level' => 'required|string',
-            'semester' => 'required|string',
+            'semester'   => 'required|string',
         ]);
 
         $exists = Curriculum::where('course', $request->course)
-                            ->where('year_level', $request->year_level)
-                            ->where('semester', $request->semester)
-                            ->where('subject_id', $request->subject_id)
-                            ->exists();
+            ->where('year_level', $request->year_level)
+            ->where('semester', $request->semester)
+            ->where('subject_id', $request->subject_id)
+            ->exists();
 
         if ($exists) {
-            return redirect()->back()->withErrors(['error' => 'This current subject is already mapped to the selected course and semester.']);
+            return redirect()->back()->withErrors(['error' => 'This specific subject block link configuration already exists.']);
         }
 
         Curriculum::create($validated);

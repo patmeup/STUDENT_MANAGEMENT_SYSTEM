@@ -40,6 +40,7 @@ Route::post('/super_admin/manage-employee', [SuperAdminController::class, 'store
 Route::get('/super_admin/user_details', [SuperAdminController::class, 'profileView'])->name('super_admin.user_details');
 Route::get('/super_admin/manage-courses', [SuperAdminController::class, 'manageCourses'])->name('super_admin.manage-courses');
 Route::post('/super_admin/manage-courses', [SuperAdminController::class, 'storeCourse'])->name('super_admin.courses.store');
+Route::put('/super-admin/courses/update/{id}', [SuperAdminController::class, 'updateCourse'])->name('super_admin.courses.update');
 
 // SYSTEM ADMIN ROUTES
 Route::get('/system_admin/dashboard', function () {
@@ -49,7 +50,10 @@ Route::get('/system_admin/dashboard', function () {
     return view('system_admin.dashboard');
 })->name('system_admin.dashboard');
 
-Route::get('/system_admin/manage-subjects', [SystemAdminController::class, 'index'])->name('system_admin.manage-subjects');
+Route::get('/system-admin/curriculum/get-subjects-by-course', [CurriculumController::class, 'getSubjectsByCourse'])
+     ->name('system_admin.curriculum.get_subjects');
+
+Route::get('/system_admin/manage-subjects', [SubjectController::class, 'index'])->name('system_admin.manage-subjects');
 Route::post('/system_admin/manage-subjects', [SubjectController::class, 'store'])->name('system_admin.subjects.store');
 Route::get('/system_admin/user_details', [SystemAdminController::class, 'profileView'])->name('system_admin.user_details');
 Route::get('/system_admin/manage-curriculum', [CurriculumController::class, 'index'])->name('system_admin.manage-curriculum');
