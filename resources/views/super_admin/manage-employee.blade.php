@@ -180,7 +180,7 @@
     .count-tag { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 3px 10px; border-radius: 5px; font-weight: 700; }
     .empty-message-state { text-align: center; color: #94a3b8; padding: 50px 0; font-style: italic; font-size: 13.5px; }
 
-    /* 🛠️ Polished Custom Dropdown Element Styling */
+    /*Polished Custom Dropdown Element Styling */
     .custom-select-wrapper {
         position: relative;
         width: 100%;

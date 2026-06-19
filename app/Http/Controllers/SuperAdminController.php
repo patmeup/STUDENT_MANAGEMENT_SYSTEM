@@ -80,6 +80,25 @@ class SuperAdminController extends Controller
         return view('super_admin.manage-courses', compact('courses'));
     }
 
+    public function updateCourse(Request $request, $id)
+    {
+        $request->validate([
+            'course_code'  => 'required|string|max:20',
+            'department'   => 'required|string|max:50',
+            'course_title' => 'required|string|max:255',
+        ]);
+
+        // Gamitin kung anong pangalan ng Model mo (halimbawa ay Course)
+        $course = \App\Models\Course::findOrFail($id); 
+        $course->update([
+            'course_code'  => strtoupper($request->course_code),
+            'department'   => strtoupper($request->department),
+            'course_title' => $request->course_title,
+        ]);
+
+        return redirect()->back()->with('success', 'Course registry blueprint successfully modified.');
+    }
+
     public function storeCourse(Request $request)
     {
         if (session('user_role') !== 'super_admin') {
