@@ -139,7 +139,6 @@
     </div>
 </div>
 
-{{-- 👇 DYNAMIC JAVASCRIPT MECHANICS PARA SA DEPARTMENT SLIDE SHOW --}}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const roleSelect = document.getElementById('role-select');
@@ -148,14 +147,15 @@
 
         roleSelect.addEventListener('change', function () {
             if (this.value === 'dean') {
-                // Ipakita ang Department field at gawing mandatory (required) ang pagpili
+
                 departmentGroup.style.display = 'flex';
                 departmentSelect.setAttribute('required', 'required');
+
             } else {
-                // Itago ang field at alisin ang required para pwedeng mag-null sa submission
+
                 departmentGroup.style.display = 'none';
                 departmentSelect.removeAttribute('required');
-                departmentSelect.value = ''; // I-reset ang piniling option
+                departmentSelect.value = '';
             }
         });
     });

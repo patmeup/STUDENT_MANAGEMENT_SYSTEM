@@ -23,7 +23,6 @@
         </div>
     @endif
 
-    {{-- 1. CURRICULUM MAPPING FORM --}}
     <div class="subj-card">
         <div class="card-bar">
             <span><i class="fas fa-network-wired"></i> Map Subject to Academic Structure</span>
@@ -82,7 +81,6 @@
         </form>
     </div>
 
-    {{-- 2. CURRICULUM LIVE MASTERLIST MAP --}}
     <div class="subject-list-card">
         <div class="card-header-flex">
             <h3 class="card-title-list">Active Curriculum Structures</h3>

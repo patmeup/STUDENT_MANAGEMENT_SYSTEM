@@ -98,14 +98,12 @@
     </div>
 </div>
 
-{{-- JAVASCRIPT MECHANICS PARA AUTOMATIC ANG FULL TITLE --}}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const courseSelect = document.getElementById('course-code-select');
         const titleInput = document.getElementById('course-title-input');
         const resetBtn = document.getElementById('btn-reset-form');
 
-        // Mapa ng mga titulo para auto-fill agad
         const programTitles = {
             'BSIT': 'Bachelor of Science in Information Technology',
             'BSCS': 'Bachelor of Science in Computer Science'
