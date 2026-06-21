@@ -50,6 +50,15 @@
             @endif
         
             @if(session('user_role') === 'system_admin')
+                @php
+                    $currentUser = \App\Models\User::where('employee_id', session('employee_id'))->first();
+
+                    $isAccountLocked = false;
+                    if ($currentUser) {
+                        $isAccountLocked = \Illuminate\Support\Facades\Hash::check('Welcome@AU2026', $currentUser->password);
+                    }
+                @endphp
+                
                 <li>
                     <a href="{{ route('system_admin.dashboard') }}" class="{{ Request::is('system_admin/dashboard') ? 'active' : '' }}">
                         <i data-lucide="layout-dashboard"></i> <span>Dashboard</span>
@@ -57,21 +66,45 @@
                 </li>
 
                 <li>
-                    <a href="{{ route('system_admin.manage-faculty') }}" class="{{ Request::is('system_admin/manage-faculty') ? 'active' : '' }}">
-                        <i data-lucide="user-check"></i> <span>Manage Faculty</span>
-                    </a>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i> 
+                            <span>Manage Faculty</span>
+                        </a>
+                    @else
+                        <a href="{{ route('system_admin.manage-faculty') }}" class="{{ Request::is('system_admin/manage-faculty') ? 'active' : '' }}">
+                            <i data-lucide="user-check"></i> <span>Manage Faculty</span>
+                        </a>
+                    @endif
                 </li>
 
                 <li>
-                    <a href="{{ route('system_admin.manage-subjects') }}" class="{{ Request::is('system_admin/manage-subjects') ? 'active' : '' }}">
-                        <i data-lucide="book-open"></i> <span>Manage Subjects</span>
-                    </a>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i> 
+                            <span>Manage Subjects</span>
+                        </a>
+                    @else
+                        <a href="{{ route('system_admin.manage-subjects') }}" class="{{ Request::is('system_admin/manage-subjects') ? 'active' : '' }}">
+                            <i data-lucide="book-open"></i> <span>Manage Subjects</span>
+                        </a>
+                    @endif
                 </li>
 
                 <li>
-                    <a href="{{ route('system_admin.manage-curriculum') }}" class="{{ Request::is('system_admin/manage-curriculum') ? 'active' : '' }}">
-                        <i data-lucide="notebook-text"></i> <span>Manage Curriculum</span>
-                    </a>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i> 
+                            <span>Manage Curriculum</span>
+                        </a>
+                    @else
+                        <a href="{{ route('system_admin.manage-curriculum') }}" class="{{ Request::is('system_admin/manage-curriculum') ? 'active' : '' }}">
+                            <i data-lucide="notebook-text"></i> <span>Manage Curriculum</span>
+                        </a>
+                    @endif
                 </li>
 
                 <li>

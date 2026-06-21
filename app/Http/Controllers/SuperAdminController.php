@@ -66,7 +66,7 @@ class SuperAdminController extends Controller
             'role' => $request->role,
             'department' => $request->role === 'dean' ? $request->department : null,
             'status' => 'Active',
-            'password' => Hash::make('Welcome@AU2026'),
+            'password' => 'Welcome@AU2026',
         ]);
 
         return redirect()->back()->with('success', "Personnel account successfully created! ID: {$generatedId} | Default Pass: Welcome@AU2026");
@@ -113,7 +113,6 @@ class SuperAdminController extends Controller
             'department'   => 'required|string|max:100',
         ]);
 
-        // Gawing automatic nakasulat sa ALL CAPS para uniporme
         $validated['course_code'] = strtoupper($request->course_code);
         $validated['department'] = strtoupper($request->department);
 

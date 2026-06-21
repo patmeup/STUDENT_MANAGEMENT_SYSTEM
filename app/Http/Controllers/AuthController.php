@@ -40,7 +40,6 @@ class AuthController extends Controller
                     return back()->withErrors(['error' => 'This account has been deactivated. Please contact HR.']);
                 }
                 
-                // I-save ang mga mahahalagang impormasyon sa session
                 session([
                     'user_id'     => $user->id,
                     'employee_id' => $user->employee_id,
@@ -48,7 +47,6 @@ class AuthController extends Controller
                     'user_name'   => $user->first_name . ' ' . $user->last_name
                 ]);
 
-                // 4. DYNAMIC REDIRECTS DEPENDING ON ROLES
                 if ($user->role === 'super_admin') {
                     return redirect()->route('super_admin.dashboard');
                 } 

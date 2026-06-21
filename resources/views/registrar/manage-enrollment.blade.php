@@ -181,7 +181,7 @@
                 </div>
             </div>
 
-<div id="tab-credentials" class="sis-tab-content">
+            <div id="tab-credentials" class="sis-tab-content">
                 <h3 class="section-divider">Mandatory Enrollment Credentials Digital Capture</h3>
                 <p style="color: #64748b; font-size: 13px; margin-bottom: 20px;">
                     Please upload or drag-and-drop the scanned documents submitted by the applicant for <strong id="selected-type-label" style="color: #0033A0;">Freshman (New Student)</strong>:
@@ -275,7 +275,6 @@
                     <button type="submit" class="btn-primary">Compile & Secure ID Allocation</button>
                 </div>
             </div>
-
         </form>
     </div>
 </div>
