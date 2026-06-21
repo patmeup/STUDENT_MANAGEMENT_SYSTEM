@@ -210,11 +210,57 @@
     .count-tag { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 4px 10px; border-radius: 5px; font-weight: 700; }
     .empty-message-state { text-align: center; color: #94a3b8; padding: 50px 0; font-style: italic; font-size: 13.5px; }
 
+<<<<<<< HEAD
+    /*Polished Custom Dropdown Element Styling */
+    .custom-select-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .custom-select-dropdown {
+        width: 100%;
+        padding: 11px 40px 11px 14px;
+        font-size: 14px;
+        color: #0f172a;
+        background-color: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        box-sizing: border-box;
+        appearance: none; 
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        cursor: pointer;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+
+    .custom-select-dropdown:hover {
+        border-color: #94a3b8;
+    }
+
+    .custom-select-dropdown:focus {
+        border-color: #475569;
+        box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.15);
+    }
+
+    /* Elegant Custom CSS Arrow Indicator */
+    .custom-select-wrapper::after {
+        content: "▼";
+        font-size: 0.65rem;
+        color: #64748b;
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+    }
+=======
     .custom-select-wrapper { position: relative; width: 100%; }
     .custom-select-dropdown { width: 100%; padding: 10px 40px 10px 14px; font-size: 14px; color: #0f172a; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; appearance: none; -webkit-appearance: none; -moz-appearance: none; cursor: pointer; outline: none; transition: all 0.2s ease; }
     .custom-select-dropdown:hover { border-color: #94a3b8; }
     .custom-select-dropdown:focus { border-color: #475569; box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.15); }
     .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
     .field-help { font-size: 11px; margin-top: 2px; }
+>>>>>>> 5d78ce17e26018a3291e1f6fd3d1da3d86ac7f37
 </style>
 @endsection

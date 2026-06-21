@@ -76,7 +76,7 @@
                         <th>Course Code</th>
                         <th>Department</th>
                         <th>Full Program Title</th>
-                    </tr>
+                        <th style="text-align: center; width: 100px;">Actions</th> </tr>
                 </thead>
                 <tbody>
                     @forelse($courses as $course)
@@ -84,11 +84,15 @@
                             <td><span class="subject-code-tag" style="color: #10b981; background-color: #ecfdf5;">{{ $course->course_code }}</span></td>
                             <td><strong>{{ $course->department }}</strong></td>
                             <td class="subject-title-text">{{ $course->course_title }}</td>
+                            <td style="text-align: center;">
+                                <button type="button" class="btn-edit-action" onclick="openEditCourseModal({{ json_encode($course) }})">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="3" class="empty-table-state">
-                                No institutional course programs recorded yet.
+                            <td colspan="4" class="empty-table-state"> No institutional course programs recorded yet.
                             </td>
                         </tr>
                     @endforelse
@@ -98,6 +102,7 @@
     </div>
 </div>
 
+{{-- JAVASCRIPT MECHANICS PARA AUTOMATIC ANG FULL TITLE --}}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const courseSelect = document.getElementById('course-code-select');
@@ -121,6 +126,7 @@
             titleInput.value = '';
         });
     });
+>>>>>>> 5d78ce17e26018a3291e1f6fd3d1da3d86ac7f37
 </script>
 
 <style>
