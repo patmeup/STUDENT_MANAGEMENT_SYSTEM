@@ -98,6 +98,20 @@
                         <a href="javascript:void(0);" 
                         style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
                             <i data-lucide="lock" style="color: #ef4444;"></i> 
+                            <span>Manage Schedules</span>
+                        </a>
+                    @else
+                        <a href="{{ route('system_admin.schedules.index') }}" class="{{ Request::is('system_admin/manage-schedules*') ? 'active' : '' }}">
+                            <i data-lucide="calendar"></i> <span>Manage Schedules</span>
+                        </a>
+                    @endif
+                </li>
+
+                <li>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i> 
                             <span>Manage Curriculum</span>
                         </a>
                     @else

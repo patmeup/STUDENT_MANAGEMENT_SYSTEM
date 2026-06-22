@@ -10,6 +10,7 @@ use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\CurriculumController;
+use App\Http\Controllers\ScheduleController;
 
 // ACCOUNT ROUTES
 Route::get('/', function () {
@@ -58,9 +59,11 @@ Route::get('/system_admin/manage-faculty', [FacultyController::class, 'index'])-
 Route::post('/system_admin/manage-faculty', [FacultyController::class, 'store'])->name('system_admin.manage-faculty.store');
 Route::get('/system_admin/manage-subjects', [SubjectController::class, 'index'])->name('system_admin.manage-subjects');
 Route::post('/system_admin/manage-subjects', [SubjectController::class, 'store'])->name('system_admin.subjects.store');
-Route::get('/system_admin/user_details', [SystemAdminController::class, 'profileView'])->name('system_admin.user_details');
+Route::get('/system_admin/manage-schedules', [ScheduleController::class, 'index'])->name('system_admin.schedules.index');
+Route::post('/system_admin/manage-schedules/store', [ScheduleController::class, 'store'])->name('system_admin.schedules.store');
 Route::get('/system_admin/manage-curriculum', [CurriculumController::class, 'index'])->name('system_admin.manage-curriculum');
 Route::post('/system_admin/manage-curriculum', [CurriculumController::class, 'store'])->name('system_admin.curriculum.store');
+Route::get('/system_admin/user_details', [SystemAdminController::class, 'profileView'])->name('system_admin.user_details');
 
 // REGISTRAR ROUTES
 Route::group(['middleware' => function ($request, $next) {

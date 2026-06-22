@@ -9,13 +9,22 @@ class Subject extends Model
 {
     use HasFactory;
 
-    protected $table = 'subjects';
-
     protected $fillable = [
         'subject_code',
         'subject_title',
         'lecture_units',
         'lab_units',
-        'total_units'
+        'total_units',
+        'professor_id',
     ];
+
+    public function professor()
+    {
+        return $this->belongsTo(User::class, 'professor_id');
+    }
+
+    public function schedules()
+    {
+        return $this->hasMany(ClassSchedule::class, 'subject_id');
+    }
 }

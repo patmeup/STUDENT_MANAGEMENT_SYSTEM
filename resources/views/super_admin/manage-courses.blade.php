@@ -38,8 +38,7 @@
                     </div>
                     <small class="field-help">Capstone Scope: Limited to IT Department baseline.</small>
                 </div>
-
-                {{-- 2. AUTOMATED DEPARTMENT FIELD (Naka-lock para sa IT Dept) --}}
+                
                 <div class="form-group">
                     <label>Assigned College Department</label>
                     <div class="custom-select-wrapper">
@@ -102,7 +101,6 @@
     </div>
 </div>
 
-{{-- JAVASCRIPT MECHANICS PARA AUTOMATIC ANG FULL TITLE --}}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const courseSelect = document.getElementById('course-code-select');
@@ -126,7 +124,6 @@
             titleInput.value = '';
         });
     });
->>>>>>> 5d78ce17e26018a3291e1f6fd3d1da3d86ac7f37
 </script>
 
 <style>
