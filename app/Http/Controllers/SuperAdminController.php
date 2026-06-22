@@ -8,6 +8,8 @@ use App\Models\Course;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
+
+
 class SuperAdminController extends Controller
 {
     public function index()
@@ -71,6 +73,36 @@ class SuperAdminController extends Controller
 
         return redirect()->back()->with('success', "Personnel account successfully created! ID: {$generatedId} | Default Pass: Welcome@AU2026");
     }
+
+    public function toggleEmployeeStatus($id)
+{
+    // 1. Siguraduhing super_admin lang ang may karapatang pumindot nito
+    if (session('user_role') !== 'super_admin') {
+        return redirect()->back()->withErrors(['error' => 'Wala kang sapat na authorization para sa aksyong ito.']);
+    }
+
+    $employee = \App\Models\User::findOrFail($id);
+
+    // 2. SECURITY GUARD: Bawal i-disable ang sarili o ang ibang kapwa Super Admin
+    // I-match natin gamit ang email o primary id mula sa kasalukuyang session mo
+    if ($employee->email === session('user_email') || $employee->role === 'super_admin') {
+        return redirect()->back()->with('error', 'Hindi mo maaaring i-disable ang isang Super Admin account para sa seguridad ng system.');
+    }
+
+    // 3. I-toggle ang status (Gawing kabaligtaran ng kasalukuyan)
+    // Ginawa nating case-insensitive (.toLowerCase type approach) gamit ang ucfirst para malinis sa DB
+    if (ucfirst($employee->status) === 'Active') {
+        $employee->status = 'Disabled';
+        $message = "Ang account ni {$employee->first_name} {$employee->last_name} ay matagumpay na NAKALOCK.";
+    } else {
+        $employee->status = 'Active';
+        $message = "Ang account ni {$employee->first_name} {$employee->last_name} ay muling BINUHAY.";
+    }
+
+    $employee->save();
+
+    return redirect()->back()->with('success', $message);
+}
 
     public function manageCourses()
     {

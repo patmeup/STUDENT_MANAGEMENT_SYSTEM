@@ -41,7 +41,7 @@ Route::post('/super_admin/manage-employee', [SuperAdminController::class, 'store
 Route::get('/super_admin/user_details', [SuperAdminController::class, 'profileView'])->name('super_admin.user_details');
 Route::get('/super_admin/manage-courses', [SuperAdminController::class, 'manageCourses'])->name('super_admin.manage-courses');
 Route::post('/super_admin/manage-courses', [SuperAdminController::class, 'storeCourse'])->name('super_admin.courses.store');
-Route::put('/super-admin/courses/update/{id}', [SuperAdminController::class, 'updateCourse'])->name('super_admin.courses.update');
+Route::patch('/super-admin/courses/{id}', [SuperAdminController::class, 'updateCourse'])->name('super_admin.courses.update');
 
 // SYSTEM ADMIN ROUTES
 Route::get('/system_admin/dashboard', function () {
@@ -53,6 +53,9 @@ Route::get('/system_admin/dashboard', function () {
 
 Route::get('/system-admin/curriculum/get-subjects-by-course', [CurriculumController::class, 'getSubjectsByCourse'])
      ->name('system_admin.curriculum.get_subjects');
+
+Route::patch('/super-admin/employees/{id}/toggle-status', [App\Http\Controllers\SuperAdminController::class, 'toggleEmployeeStatus'])
+    ->name('super_admin.employees.toggle_status');
 
 Route::get('/system_admin/manage-faculty', [FacultyController::class, 'index'])->name('system_admin.manage-faculty');
 Route::post('/system_admin/manage-faculty', [FacultyController::class, 'store'])->name('system_admin.manage-faculty.store');
