@@ -17,6 +17,12 @@
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="sa-alert-error" style="background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px;">
+            <i class="fas fa-exclamation-triangle"></i> {{ session('error') }}
+        </div>
+    @endif
+
     <div class="sa-workspace">
         
         {{-- FORM PANEL --}}
@@ -84,14 +90,22 @@
             </form>
         </div>
 
+        {{-- TABLE PANEL WITH SEARCH FEATURE --}}
         <div class="sa-card table-panel">
-            <div class="card-bar d-flex-jsb">
+            <div class="card-bar d-flex-jsb table-header-flex">
                 <span>Active Infrastructure Personnel</span>
-                <span class="count-tag">Total Provisioned: {{ $employees->count() }}</span>
+                <div class="table-controls" style="display: flex; align-items: center; gap: 12px;">
+                    {{-- Embedded Live Search Bar --}}
+                    <div class="search-wrapper">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="personnel-search" placeholder="Query ID, name, email or role...">
+                    </div>
+                    <span class="count-tag">Total Provisioned: {{ $employees->count() }}</span>
+                </div>
             </div>
             
             <div class="table-wrap">
-                <table class="sa-table">
+                <table class="sa-table" id="personnel-table">
                     <thead>
                         <tr>
                             <th>Identified Personnel</th>
@@ -101,36 +115,66 @@
                     </thead>
                     <tbody>
                         @forelse($employees as $emp)
-                            <tr>
+                            <tr class="personnel-row">
                                 <td>
-                                    <strong class="emp-id-text">{{ $emp->employee_id }}</strong>
-                                    <br><span class="emp-name-text">{{ strtoupper($emp->last_name) }}, {{ strtoupper($emp->first_name) }}</span>
+                                    <strong class="emp-id-text search-target-id">{{ $emp->employee_id }}</strong>
+                                    <br><span class="emp-name-text search-target-name">{{ strtoupper($emp->last_name) }}, {{ strtoupper($emp->first_name) }}</span>
                                     
                                     @if($emp->department)
                                         <br><span class="emp-dept-text"><i class="fas fa-university"></i> {{ $emp->department }}</span>
                                     @endif
                                     
-                                    <br><small class="emp-email-text">{{ $emp->email }}</small>
+                                    <br><small class="emp-email-text search-target-email">{{ $emp->email }}</small>
                                 </td>
                                 <td>
-                                    <span class="role-badge-sa {{ $emp->role }}">
+                                    <span class="role-badge-sa {{ $emp->role }} search-target-role">
                                         {{ str_replace('_', ' ', strtoupper($emp->role)) }}
                                     </span>
                                 </td>
                                 <td>
-                                    <div class="status-indicator">
-                                        <span class="pulse-dot"></span>
-                                        <span class="status-label">{{ ucfirst($emp->status ?? 'Active') }}</span>
+                                    <div class="status-indicator-zone" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 12px;">
+                                        
+                                        <div class="status-indicator">
+                                            <span class="pulse-dot {{ strtolower($emp->status ?? 'Active') }}"></span>
+                                            <span class="status-label">{{ ucfirst($emp->status ?? 'Active') }}</span>
+                                        </div>
+
+                                        @if(strtolower($emp->role) !== 'super_admin' && $emp->email !== session('user_email'))
+                                            <form action="{{ route('super_admin.employees.toggle_status', $emp->id) }}" method="POST" style="margin: 0; display: inline-block;">
+                                                @csrf
+                                                @method('PATCH')
+                                                
+                                                @if(ucfirst($emp->status ?? 'Active') === 'Active')
+                                                    <button type="submit" class="btn-action-restrict" onclick="return confirm('Sigurado ka bang gusto mong i-disable ang access clearance ng empleyadong ito?')" title="Lock Account">
+                                                        <i class="fas fa-user-slash"></i> Restrict
+                                                    </button>
+                                                @else
+                                                    <button type="submit" class="btn-action-restore" onclick="return confirm('Gusto mo bang ibalik ang operational access ng empleyadong ito?')" title="Unlock Account">
+                                                        <i class="fas fa-user-check"></i> Restore
+                                                    </button>
+                                                @endif
+                                            </form>
+                                        @else
+                                            <span class="badge-root-immunity">Root Immunity</span>
+                                        @endif
+
                                     </div>
                                 </td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr class="static-empty-row">
                                 <td colspan="3" class="empty-message-state">
                                     No custom system roles provisioned yet. Use the control form to deploy accounts.
                                 </td>
                             </tr>
                         @endforelse
+                        {{-- Custom row generated via JS if matching record drops to zero --}}
+                        <tr id="no-search-results-row" style="display: none;">
+                            <td colspan="3" class="empty-message-state" style="text-align: center; color: #94a3b8; padding: 40px 0;">
+                                <i class="fas fa-database" style="font-size: 20px; display: block; margin-bottom: 8px;"></i>
+                                No matching clearance profiles found for your search query.
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -141,21 +185,52 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // --- DEPLOYMENT ROLE LOGIC ---
         const roleSelect = document.getElementById('role-select');
         const departmentGroup = document.getElementById('department-group');
         const departmentSelect = document.getElementById('department-select');
 
         roleSelect.addEventListener('change', function () {
             if (this.value === 'dean') {
-
                 departmentGroup.style.display = 'flex';
                 departmentSelect.setAttribute('required', 'required');
-
             } else {
-
                 departmentGroup.style.display = 'none';
                 departmentSelect.removeAttribute('required');
                 departmentSelect.value = '';
+            }
+        });
+
+        // --- REAL-TIME DATA ARCHITECTURE SEARCH ENGINE ---
+        const searchInput = document.getElementById('personnel-search');
+        const tableRows = document.querySelectorAll('.personnel-row');
+        const noResultsRow = document.getElementById('no-search-results-row');
+
+        searchInput.addEventListener('input', function () {
+            const query = this.value.toLowerCase().trim();
+            let visibleRecordsCount = 0;
+
+            tableRows.forEach(row => {
+                // Kunin ang mga text indicators sa loob ng kasalukuyang row
+                const empId = row.querySelector('.search-target-id').textContent.toLowerCase();
+                const name = row.querySelector('.search-target-name').textContent.toLowerCase();
+                const email = row.querySelector('.search-target-email').textContent.toLowerCase();
+                const role = row.querySelector('.search-target-role').textContent.toLowerCase();
+
+                // Itugma ang query sa kahit alin sa mga fields
+                if (empId.includes(query) || name.includes(query) || email.includes(query) || role.includes(query)) {
+                    row.style.display = ''; // Ipakita ang row kung tugma
+                    visibleRecordsCount++;
+                } else {
+                    row.style.display = 'none'; // Itago kung hindi tugma
+                }
+            });
+
+            // Ipakita ang custom alert message kapag walang nakitang match
+            if (visibleRecordsCount === 0 && tableRows.length > 0) {
+                noResultsRow.style.display = '';
+            } else {
+                noResultsRow.style.display = 'none';
             }
         });
     });
@@ -202,65 +277,49 @@
     .role-badge-sa.registrar { background: #eff6ff; color: #1e40af; border: 1px solid #dbeafe; }
 
     .status-indicator { display: flex; align-items: center; gap: 6px; }
-    .pulse-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; }
+    .pulse-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
     .status-label { font-size: 13px; color: #334155; font-weight: 500; }
 
     .sa-alert-success { background: #ecfdf5; color: #065f46; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #059669; font-size: 14px; }
     .d-flex-jsb { display: flex; justify-content: space-between; align-items: center; }
-    .count-tag { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 4px 10px; border-radius: 5px; font-weight: 700; }
+    .count-tag { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 4px 10px; border-radius: 5px; font-weight: 700; white-space: nowrap; }
     .empty-message-state { text-align: center; color: #94a3b8; padding: 50px 0; font-style: italic; font-size: 13.5px; }
 
-<<<<<<< HEAD
-    /*Polished Custom Dropdown Element Styling */
-    .custom-select-wrapper {
-        position: relative;
-        width: 100%;
-    }
-
-    .custom-select-dropdown {
-        width: 100%;
-        padding: 11px 40px 11px 14px;
-        font-size: 14px;
-        color: #0f172a;
-        background-color: #ffffff;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        box-sizing: border-box;
-        appearance: none; 
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        cursor: pointer;
-        outline: none;
-        transition: all 0.2s ease;
-    }
-
-    .custom-select-dropdown:hover {
-        border-color: #94a3b8;
-    }
-
-    .custom-select-dropdown:focus {
-        border-color: #475569;
-        box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.15);
-    }
-
-    /* Elegant Custom CSS Arrow Indicator */
-    .custom-select-wrapper::after {
-        content: "▼";
-        font-size: 0.65rem;
-        color: #64748b;
-        position: absolute;
-        right: 14px;
-        top: 50%;
-        transform: translateY(-50%);
-        pointer-events: none;
-    }
-=======
     .custom-select-wrapper { position: relative; width: 100%; }
-    .custom-select-dropdown { width: 100%; padding: 10px 40px 10px 14px; font-size: 14px; color: #0f172a; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; appearance: none; -webkit-appearance: none; -moz-appearance: none; cursor: pointer; outline: none; transition: all 0.2s ease; }
+    .custom-select-dropdown { width: 100%; padding: 11px 40px 11px 14px; font-size: 14px; color: #0f172a; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; appearance: none; -webkit-appearance: none; -moz-appearance: none; cursor: pointer; outline: none; transition: all 0.2s ease; }
     .custom-select-dropdown:hover { border-color: #94a3b8; }
     .custom-select-dropdown:focus { border-color: #475569; box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.15); }
     .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
-    .field-help { font-size: 11px; margin-top: 2px; }
->>>>>>> 5d78ce17e26018a3291e1f6fd3d1da3d86ac7f37
+
+    /* Status Engine & Button Controls Styling */
+    .pulse-dot.active { background: #22c55e; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); animation: pulseGreen 2s infinite; }
+    .pulse-dot.disabled { background: #dc2626; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); animation: pulseRed 2s infinite; }
+
+    .btn-action-restrict { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 5px; }
+    .btn-action-restrict:hover { background: #dc2626; color: #ffffff; border-color: #dc2626; }
+
+    .btn-action-restore { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 5px; }
+    .btn-action-restore:hover { background: #16a34a; color: #ffffff; border-color: #16a34a; }
+
+    .badge-root-immunity { font-size: 11px; color: #64748b; font-style: italic; font-weight: 700; background: #f1f5f9; padding: 5px 10px; border-radius: 6px; border: 1px solid #cbd5e1; text-transform: uppercase; letter-spacing: 0.3px; }
+
+    /* Core Search Bar UI Component Alignment */
+    .table-header-flex { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 15px; }
+    .search-wrapper { position: relative; display: flex; align-items: center; }
+    .search-icon { position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none; }
+    #personnel-search { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px 6px 32px; font-size: 12.5px; color: #0f172a; outline: none; background: #ffffff; width: 240px; transition: all 0.2s ease; font-weight: 500; }
+    #personnel-search:focus { border-color: #475569; width: 280px; box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.1); }
+
+    @keyframes pulseGreen {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
+
+    @keyframes pulseRed {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+    }
 </style>
 @endsection
