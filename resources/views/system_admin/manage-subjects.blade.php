@@ -18,8 +18,7 @@
     @endif
 
     <div class="sa-workspace">
-        
-        {{-- FORM PANEL (KALIWANG BAHAGI) --}}
+
         <div class="sa-card form-panel">
             <div class="card-bar">
                 <span><i class="fas fa-book-medical"></i> Subject Specifications Form</span>
