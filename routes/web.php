@@ -6,6 +6,7 @@ use App\Http\Controllers\AccountSettingsController;
 use App\Http\Controllers\SuperAdminController;
 use App\Http\Controllers\SystemAdminController;
 use App\Http\Controllers\RegistrarController;
+use App\Http\Controllers\DeptSecController;
 use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\SubjectController;
@@ -101,3 +102,18 @@ Route::get('/dean/dashboard', function () {
 Route::get('/dean/encoding', [CurriculumController::class, 'index'])->name('dean.curriculum.index');
 Route::post('/dean/encoding', [CurriculumController::class, 'store'])->name('dean.curriculum.store');
 Route::get('/dean/user_details', [DeanController::class, 'profileView'])->name('dean.user_details');
+
+// DEPARTMENT SECRETARY ROUTES
+Route::get('/department-secretary/dashboard', function () {
+    if (session('user_role') !== 'dept_sec') {
+        return redirect('/')->with('error', 'Unauthorized access.');
+    }
+    return view('department_secretary.dashboard');
+})->name('department_secretary.dashboard');
+
+Route::get('/department-secretary/dashboard', [DeptSecController::class, 'index'])->name('department_secretary.dashboard');
+Route::get('/department_secretary/subject-catalog', [DeptSecController::class, 'subjectCatalog'])->name('department_secretary.subject_catalog');
+Route::get('/department-secretary/masterlist', [DeptSecController::class, 'studentsList'])->name('department_secretary.students');
+Route::get('/department_secretary/student/{student_id}/plot', [DeptSecController::class, 'plotSubjects'])->name('department_secretary.plot_subjects');
+Route::post('/department_secretary/student/save-subjects', [DeptSecController::class, 'saveSubjects'])->name('department_secretary.save_subjects');
+Route::get('/department-secretary/user_details', [DeptSecController::class, 'profileView'])->name('department_secretary.user_details');

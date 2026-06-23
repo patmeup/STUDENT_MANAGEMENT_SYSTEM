@@ -129,22 +129,47 @@
             @endif
 
             @if(session('user_role') === 'registrar')
+                @php
+                    $currentUser = \App\Models\User::where('employee_id', session('employee_id'))->first();
+
+                    $isAccountLocked = false;
+                    if ($currentUser) {
+                        $isAccountLocked = \Illuminate\Support\Facades\Hash::check('Welcome@AU2026', $currentUser->password);
+                    }
+                @endphp
+
                 <li>
                     <a href="{{ route('registrar.dashboard') }}" class="{{ Request::is('registrar/dashboard') ? 'active' : '' }}">
                         <i data-lucide="layout-dashboard"></i> <span>Dashboard</span>
                     </a>
                 </li>
-
+                
                 <li>
-                    <a href="{{ route('registrar.masterlist') }}" class="{{ Request::is('registrar/masterlist') ? 'active' : '' }}">
-                        <i data-lucide="users"></i> <span>Student Masterlist</span>
-                    </a>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i> 
+                            <span>Manage Student</span>
+                        </a>
+                    @else
+                        <a href="{{ route('registrar.manage-student') }}" class="{{ Request::is('registrar/manage-student') ? 'active' : '' }}">
+                            <i data-lucide="user-check"></i> <span>Manage Student</span>
+                        </a>
+                    @endif
                 </li>
 
                 <li>
-                    <a href="{{ route('registrar.manage-enrollment') }}" class="{{ Request::is('registrar/manage-enrollment') ? 'active' : '' }}">
-                        <i data-lucide="user-check"></i> <span>Manage Enrollment</span>
-                    </a>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i>
+                            <span>Manage Enrollment</span>
+                        </a> 
+                    @else 
+                        <a href="{{ route('registrar.manage-enrollment') }}" class="{{ Request::is('registrar/manage-enrollment') ? 'active' : '' }}">
+                            <i data-lucide="user-check"></i> <span>Manage Enrollment</span>
+                        </a>
+                    @endif
                 </li>
 
                 <li>
@@ -163,6 +188,32 @@
 
                 <li>
                     <a href="{{ route('dean.user_details') }}" class="{{ Request::is('dean/user_details') ? 'active' : '' }}">
+                        <i data-lucide="user"></i> <span>Profile</span>
+                    </a>                    
+                </li>
+            @endif
+
+            @if(session('user_role') === 'dept_sec')
+                <li>
+                    <a href="{{ route('department_secretary.dashboard') }}" class="{{ Request::is('department-secretary/dashboard') ? 'active' : '' }}">
+                        <i data-lucide="layout-dashboard"></i> <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="{{ route('department_secretary.subject_catalog') }}" class="{{ Request::is('department_secretary/subject-catalog') ? 'active' : '' }}">
+                        <i data-lucide="book-open"></i> <span>Subject Catalog</span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="{{ route('department_secretary.students') }}" class="{{ Route::is('department_secretary.students') ? 'active' : '' }}">
+                        <i data-lucide="users"></i> <span>Student Masterlist</span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="{{ route('department_secretary.user_details') }}" class="{{ Request::is('department-secretary/user_details') ? 'active' : '' }}">
                         <i data-lucide="user"></i> <span>Profile</span>
                     </a>                    
                 </li>

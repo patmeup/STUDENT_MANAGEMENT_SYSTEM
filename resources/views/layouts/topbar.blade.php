@@ -29,7 +29,7 @@
                             @if($role == 'super_admin') SUPER ADMIN
                             @elseif($role == 'system_admin') SYSTEM ADMIN
                             @elseif($role == 'registrar') REGISTRAR
-                            @elseif($role == 'dept_sec') DEPT SECRETARY
+                            @elseif($role == 'dept_sec') DEPARTMENT SECRETARY
                             @elseif($role == 'professor') PROFESSOR
                             @elseif($role == 'dean') DEAN
                             @else {{ strtoupper($role) }}

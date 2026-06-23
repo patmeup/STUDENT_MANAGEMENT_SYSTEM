@@ -76,8 +76,15 @@
                 <div class="form-group">
                     <label>Select Subject to Bind</label>
                     <div class="custom-select-wrapper">
-                        <select name="subject_id" id="subjectSelect" required class="form-select-custom" disabled>
-                            <option value="" disabled selected hidden>Please fill out Course, Year, and Semester first...</option>
+                        <select name="subject_id" id="subjectSelect" required class="form-select-custom">
+                            <option value="" disabled selected hidden>-- Select Cataloged Subject --</option>
+                            @if(isset($subjects) && $subjects->count() > 0)
+                                @foreach($subjects as $subj)
+                                    <option value="{{ $subj->id }}">
+                                        [{{ strtoupper($subj->subject_code) }}] — {{ $subj->subject_title }}
+                                    </option>
+                                @endforeach
+                            @endif
                         </select>
                     </div>
                 </div>
@@ -140,25 +147,18 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        
-        // ==========================================
-        // ENGINE 1: VANILLA JAVASCRIPT LIVE SEARCH
-        // ==========================================
         const searchInput = document.getElementById('tableSearchInput');
         const tableRows = document.querySelectorAll('#curriculumTable tbody tr');
 
         if (searchInput) {
             searchInput.addEventListener('keyup', function () {
                 const searchTerm = searchInput.value.toLowerCase().trim();
-
                 tableRows.forEach(row => {
                     if (row.querySelector('.empty-table-state')) return;
-
                     const courseText = row.cells[0]?.textContent.toLowerCase() || '';
                     const yearText = row.cells[1]?.textContent.toLowerCase() || '';
                     const semText = row.cells[2]?.textContent.toLowerCase() || '';
                     const subjectText = row.cells[3]?.textContent.toLowerCase() || '';
-
                     const combinedText = `${courseText} ${yearText} ${semText} ${subjectText}`;
 
                     if (combinedText.includes(searchTerm)) {
@@ -170,9 +170,6 @@
             });
         }
 
-        // ==========================================
-        // ENGINE 2: MULTI-PARAMETER AJAX FILTER
-        // ==========================================
         const courseSelect = document.getElementById('courseSelect');
         const yearSelect = document.getElementById('yearSelect');
         const semesterSelect = document.getElementById('semesterSelect');
@@ -183,13 +180,10 @@
             const yearLevel = yearSelect.value;
             const semester = semesterSelect.value;
 
-            // Mangyayari lang ang AJAX fetch kapag kumpleto ang tatlong pangunahing input fields
+            // Gagana lang ang AJAX filter kapag kumpleto ang tatlo, pero HINDI na natin idi-disable ang select box kung hindi pa kumpleto
             if (courseCode && yearLevel && semester) {
-                
                 subjectSelect.innerHTML = '<option value="" disabled selected hidden>Loading matched subjects...</option>';
-                subjectSelect.disabled = true;
 
-                // Ipapadala natin ang tatlong parameters papunta sa iyong Laravel controller
                 const url = `/system-admin/curriculum/get-subjects-by-course?course=${encodeURIComponent(courseCode)}&year_level=${encodeURIComponent(yearLevel)}&semester=${encodeURIComponent(semester)}`;
 
                 fetch(url)
@@ -211,21 +205,13 @@
                             option.textContent = `[${subject.subject_code}] — ${subject.subject_title} (Units: ${subject.total_units || 'N/A'})`;
                             subjectSelect.appendChild(option);
                         });
-
-                        subjectSelect.disabled = false;
                     })
                     .catch(error => {
                         console.error('Error fetching filtered subjects:', error);
-                        subjectSelect.innerHTML = '<option value="" disabled selected hidden>Error loading data. Try again.</option>';
                     });
-            } else {
-                // I-lock at i-clear ang dropdown kung hindi pa kumpleto ang tatlong inputs sa itaas
-                subjectSelect.innerHTML = '<option value="" disabled selected hidden>Please fill out Course, Year, and Semester first...</option>';
-                subjectSelect.disabled = true;
             }
         }
 
-        // Patakbuhin ang verification mechanism tuwing may magbabago sa alinmang dropdown
         courseSelect.addEventListener('change', fetchFilteredSubjects);
         yearSelect.addEventListener('change', fetchFilteredSubjects);
         semesterSelect.addEventListener('change', fetchFilteredSubjects);
