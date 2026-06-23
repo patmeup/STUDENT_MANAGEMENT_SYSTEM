@@ -13,7 +13,7 @@ class SubjectController extends Controller
         if (session('user_role') !== 'system_admin') {
             return redirect('/')->with('error', 'Unauthorized access.');
         }
-        
+
         $subjects = Subject::all();
         $courses = Course::all();
 
@@ -42,5 +42,44 @@ class SubjectController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Global Subject catalog entry established successfully!');
+    }
+
+    public function update(Request $request, $id)
+    {
+        if (session('user_role') !== 'system_admin') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $subject = Subject::findOrFail($id);
+
+        $request->validate([
+            'subject_code'  => 'required|string|max:50|unique:subjects,subject_code,' . $subject->id,
+            'subject_title' => 'required|string|max:255',
+            'lecture_units' => 'required|integer|min:0|max:9',
+            'lab_units'     => 'required|integer|min:0|max:9',
+        ]);
+
+        $subject->update([
+            'subject_code'  => strtoupper($request->subject_code),
+            'subject_title' => $request->subject_title,
+            'lecture_units' => $request->lecture_units,
+            'lab_units'     => $request->lab_units,
+            'total_units'   => (int)$request->lecture_units + (int)$request->lab_units,
+        ]);
+
+        return redirect()->back()->with('success', "Subject [{$subject->subject_code}] updated successfully!");
+    }
+
+    public function destroy($id)
+    {
+        if (session('user_role') !== 'system_admin') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $subject = Subject::findOrFail($id);
+        $code = $subject->subject_code;
+        $subject->delete();
+
+        return redirect()->back()->with('success', "Subject [{$code}] has been removed from the catalog.");
     }
 }

@@ -65,6 +65,15 @@ Route::get('/system_admin/user_details', [SystemAdminController::class, 'profile
 Route::get('/system_admin/manage-curriculum', [CurriculumController::class, 'index'])->name('system_admin.manage-curriculum');
 Route::post('/system_admin/manage-curriculum', [CurriculumController::class, 'store'])->name('system_admin.curriculum.store');
 
+// FACULTY , SUBJECTS, CURRICULUM— Edit & Delete
+Route::patch('/system_admin/manage-faculty/{id}', [FacultyController::class, 'update'])->name('system_admin.manage-faculty.update');
+Route::delete('/system_admin/manage-faculty/{id}', [FacultyController::class, 'destroy'])->name('system_admin.manage-faculty.destroy');
+Route::patch('/system_admin/manage-subjects/{id}', [SubjectController::class, 'update'])->name('system_admin.subjects.update');
+Route::delete('/system_admin/manage-subjects/{id}', [SubjectController::class, 'destroy'])->name('system_admin.subjects.destroy');
+Route::delete('/system_admin/manage-curriculum/{id}', [CurriculumController::class, 'destroy'])->name('system_admin.curriculum.destroy');
+
+
+
 // REGISTRAR ROUTES
 Route::group(['middleware' => function ($request, $next) {
     if (session('user_role') !== 'registrar') {

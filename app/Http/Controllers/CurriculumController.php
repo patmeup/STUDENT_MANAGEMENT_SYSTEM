@@ -9,9 +9,6 @@ use App\Models\Course;
 
 class CurriculumController extends Controller
 {
-    /**
-     * Display Main Page Panel View
-     */
     public function index()
     {
         if (session('user_role') !== 'system_admin') {
@@ -21,7 +18,6 @@ class CurriculumController extends Controller
         $courses = Course::all();
         $subjects = Subject::all();
 
-        // Kunin ang active table blueprint structure list
         $mappings = Curriculum::with('subject')
             ->orderBy('course')
             ->orderBy('year_level')
@@ -31,9 +27,6 @@ class CurriculumController extends Controller
         return view('system_admin.manage-curriculum', compact('courses', 'subjects', 'mappings'));
     }
 
-    /**
-     * Advanced Multi-Parameter Smart Filtering Logic
-     */
     public function getSubjectsByCourse(Request $request)
     {
         $course    = $request->query('course');
@@ -44,24 +37,18 @@ class CurriculumController extends Controller
             return response()->json([]);
         }
 
-        // 1. Alamin kung anong mga subject IDs ang mayroon nang active mapping sa napiling Slot
         $alreadyMappedIds = Curriculum::where('course', $course)
             ->where('year_level', $yearLevel)
             ->where('semester', $semester)
             ->pluck('subject_id')
             ->toArray();
 
-        // 2. Kukunin natin ang mga subjects na available mula sa masterlist 
-        // pero iiwasan nating ipakita ang mga naitatag na sa slot na ito para iwas redundancy!
         $subjects = Subject::whereNotIn('id', $alreadyMappedIds)
             ->get(['id', 'subject_code', 'subject_title', 'total_units']);
 
         return response()->json($subjects);
     }
 
-    /**
-     * Commit Action Form Handler
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -84,5 +71,17 @@ class CurriculumController extends Controller
         Curriculum::create($validated);
 
         return redirect()->back()->with('success', 'Subject successfully mapped to the curriculum structure!');
+    }
+
+    public function destroy($id)
+    {
+        if (session('user_role') !== 'system_admin') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $mapping = Curriculum::findOrFail($id);
+        $mapping->delete();
+
+        return redirect()->back()->with('success', 'Curriculum link has been removed successfully.');
     }
 }
