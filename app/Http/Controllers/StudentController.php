@@ -17,6 +17,23 @@ class StudentController extends Controller
         return view('registrar.masterlist', compact('students'));
     }
 
+    public function viewStudentProfile($student_id)
+{
+    if (session('user_role') !== 'registrar') {
+        return redirect('/')->with('error', 'Unauthorized access.');
+    }
+
+    // Kukunin ang detalye ng estudyante gamit ang unique student_id
+    $student = DB::table('students')->where('student_id', $student_id)->first();
+
+    if (!$student) {
+        return redirect()->back()->with('error', 'Student record not found.');
+    }
+
+    // I-return ang view kasama ang student data (Palitan ang 'registrar.student_profile' kung iba ang view name mo)
+    return view('registrar.student_profile', compact('student'));
+}
+
     public function store(Request $request)
     {
         // 1. Validation Rules (Nananatiling protektado ang files)
