@@ -55,12 +55,16 @@ class AuthController extends Controller
                     return redirect()->route('system_admin.dashboard');
                 }
 
+                if ($user->role === 'registrar') {
+                    return redirect()->route('registrar.dashboard');
+                }
+
                 if ($user->role === 'dean') {
                     return redirect()->route('dean.dashboard');
                 }
                 
-                if ($user->role === 'registrar') {
-                    return redirect()->route('registrar.dashboard');
+                if ($user->role === 'dept_sec') {
+                    return redirect()->route('department_secretary.dashboard');
                 }
             }
         }

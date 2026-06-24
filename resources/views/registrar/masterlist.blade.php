@@ -51,7 +51,8 @@
                             </td>
                             
                             <td style="text-align: center;">
-                                <a href="#" class="btn-action-view" title="View/Edit Full Profile">
+                                {{-- Papalitan natin ang '#' ng dynamic route parameter --}}
+                                <a href="{{ route('registrar.student.profile', ['student_id' => $student->student_id]) }}" class="btn-action-view" title="View/Edit Full Profile">
                                     <i class="fas fa-folder-open"></i> View Profile
                                 </a>
                             </td>

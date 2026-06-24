@@ -6,12 +6,16 @@ use App\Http\Controllers\AccountSettingsController;
 use App\Http\Controllers\SuperAdminController;
 use App\Http\Controllers\SystemAdminController;
 use App\Http\Controllers\RegistrarController;
+use App\Http\Controllers\DeptSecController;
 use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\CurriculumController;
+use App\Http\Controllers\ScheduleController;
 
+// ==========================================
 // ACCOUNT ROUTES
+// ==========================================
 Route::get('/', function () {
     return view('login');
 })->name('login');
@@ -28,7 +32,9 @@ Route::get('/account/security', [AuthController::class, 'showSecurityPage'])->na
 Route::post('/account/security/update-password', [AuthController::class, 'updatePassword'])->name('account.update_password');
 Route::post('/account/security/update', [SuperAdminController::class, 'updatePassword'])->name('password.update');
 
+// ==========================================
 // SUPER ADMIN ROUTES
+// ==========================================
 Route::get('/super_admin/dashboard', function () {
     if (session('user_role') !== 'super_admin') {
         return redirect('/')->with('error', 'Unauthorized access.');
@@ -42,8 +48,11 @@ Route::get('/super_admin/user_details', [SuperAdminController::class, 'profileVi
 Route::get('/super_admin/manage-courses', [SuperAdminController::class, 'manageCourses'])->name('super_admin.manage-courses');
 Route::post('/super_admin/manage-courses', [SuperAdminController::class, 'storeCourse'])->name('super_admin.courses.store');
 Route::patch('/super-admin/courses/{id}', [SuperAdminController::class, 'updateCourse'])->name('super_admin.courses.update');
+Route::patch('/super-admin/employees/{id}/toggle-status', [SuperAdminController::class, 'toggleEmployeeStatus'])->name('super_admin.employees.toggle_status');
 
+// ==========================================
 // SYSTEM ADMIN ROUTES
+// ==========================================
 Route::get('/system_admin/dashboard', function () {
     if (session('user_role') !== 'system_admin') {
         return redirect('/')->with('error', 'Unauthorized access.');
@@ -51,21 +60,22 @@ Route::get('/system_admin/dashboard', function () {
     return view('system_admin.dashboard');
 })->name('system_admin.dashboard');
 
-Route::get('/system-admin/curriculum/get-subjects-by-course', [CurriculumController::class, 'getSubjectsByCourse'])
-     ->name('system_admin.curriculum.get_subjects');
-
-Route::patch('/super-admin/employees/{id}/toggle-status', [App\Http\Controllers\SuperAdminController::class, 'toggleEmployeeStatus'])
-    ->name('super_admin.employees.toggle_status');
-
+Route::get('/system-admin/curriculum/get-subjects-by-course', [CurriculumController::class, 'getSubjectsByCourse'])->name('system_admin.curriculum.get_subjects');
 Route::get('/system_admin/manage-faculty', [FacultyController::class, 'index'])->name('system_admin.manage-faculty');
 Route::post('/system_admin/manage-faculty', [FacultyController::class, 'store'])->name('system_admin.manage-faculty.store');
 Route::get('/system_admin/manage-subjects', [SubjectController::class, 'index'])->name('system_admin.manage-subjects');
 Route::post('/system_admin/manage-subjects', [SubjectController::class, 'store'])->name('system_admin.subjects.store');
-Route::get('/system_admin/user_details', [SystemAdminController::class, 'profileView'])->name('system_admin.user_details');
+Route::get('/system_admin/manage-schedules', [ScheduleController::class, 'index'])->name('system_admin.schedules.index');
+Route::post('/system_admin/manage-schedules/store', [ScheduleController::class, 'store'])->name('system_admin.schedules.store');
 Route::get('/system_admin/manage-curriculum', [CurriculumController::class, 'index'])->name('system_admin.manage-curriculum');
 Route::post('/system_admin/manage-curriculum', [CurriculumController::class, 'store'])->name('system_admin.curriculum.store');
+Route::get('/system_admin/user_details', [SystemAdminController::class, 'profileView'])->name('system_admin.user_details');
+Route::get('/system-admin/subject/{id}/edit', [SubjectController::class, 'editSubject'])->name('admin.subject.edit');
+Route::post('/system-admin/subject/update', [SubjectController::class, 'updateSubject'])->name('admin.subject.update');
 
+// ==========================================
 // REGISTRAR ROUTES
+// ==========================================
 Route::group(['middleware' => function ($request, $next) {
     if (session('user_role') !== 'registrar') {
         return redirect()->route('login')->with('error', 'Unauthorized access. Please login as Registrar.');
@@ -81,16 +91,24 @@ Route::group(['middleware' => function ($request, $next) {
         return view('registrar.manage-enrollment');
     })->name('registrar.manage-enrollment');
 
-    Route::post('/registrar/manage-enrollment', [StudentController::class, 'store'])
-         ->name('registrar.enroll.store');
 
-    Route::get('/registrar/masterlist', [StudentController::class, 'index'])
-         ->name('registrar.masterlist');
+    Route::post('/registrar/manage-enrollment', [StudentController::class, 'store'])->name('registrar.enroll.store');
+    
+    Route::get('/registrar/masterlist', [StudentController::class, 'index'])->name('registrar.masterlist');
+    
+    // BINAGO O DINAGDAG: Ito ang sasalo sa `registrar.manage-student` na tinatawag ng sidebar mo para hindi na ito mag-crash!
+    Route::get('/registrar/manage-student-alias', [StudentController::class, 'index'])->name('registrar.manage-student');
+
+    Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
+
+    Route::get('/registrar/student/{student_id}/profile', [StudentController::class, 'viewStudentProfile'])->name('registrar.student.profile');
 
     Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
 });
 
+// ==========================================
 // DEAN ROUTES
+// ==========================================
 Route::get('/dean/dashboard', function () {
     if (session('user_role') !== 'dean') {
         return redirect('/')->with('error', 'Unauthorized access.');
@@ -101,3 +119,14 @@ Route::get('/dean/dashboard', function () {
 Route::get('/dean/encoding', [CurriculumController::class, 'index'])->name('dean.curriculum.index');
 Route::post('/dean/encoding', [CurriculumController::class, 'store'])->name('dean.curriculum.store');
 Route::get('/dean/user_details', [DeanController::class, 'profileView'])->name('dean.user_details');
+
+// ==========================================
+// DEPARTMENT SECRETARY ROUTES
+// ==========================================
+// Nilinis ang mga duplicates para iwas conflict at errors
+Route::get('/department-secretary/dashboard', [DeptSecController::class, 'index'])->name('department_secretary.dashboard');
+Route::get('/department_secretary/subject-catalog', [DeptSecController::class, 'subjectCatalog'])->name('department_secretary.subject_catalog');
+Route::get('/department-secretary/masterlist', [DeptSecController::class, 'studentsList'])->name('department_secretary.students');
+Route::get('/department_secretary/student/{student_id}/plot', [DeptSecController::class, 'plotSubjects'])->name('department_secretary.plot_subjects');
+Route::post('/department-secretary/subjects/save', [DeptSecController::class, 'saveSubjects'])->name('department_secretary.save_subjects');
+Route::get('/department-secretary/user_details', [DeptSecController::class, 'profileView'])->name('department_secretary.user_details');
