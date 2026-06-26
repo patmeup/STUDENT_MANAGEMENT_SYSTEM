@@ -14,7 +14,6 @@ class FacultyController extends Controller
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
-        // Kunin ang mga may role na professor at dept_sec para lumabas sa listahan
         $faculties = User::whereIn('role', ['professor', 'dept_sec', 'dean'])->get();
 
         return view('system_admin.manage-faculty', compact('faculties'));
@@ -26,7 +25,6 @@ class FacultyController extends Controller
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
-        // Direct validation para sa role field na manggagaling sa form dropdown natin
         $request->validate([
             'first_name'  => 'required|string|max:255',
             'last_name'   => 'required|string|max:255',
@@ -34,7 +32,7 @@ class FacultyController extends Controller
             'sex'         => 'required|string',
             'email'       => 'required|email|unique:employees,email', 
             'department'  => 'required|string|max:255',
-            'role'        => 'required|string|in:professor,dept_sec', // Role validation
+            'role'        => 'required|string|in:dean,dept_sec,professor',
         ]);
 
         $yearShort = date('y');
@@ -49,7 +47,6 @@ class FacultyController extends Controller
         
         $generatedId = "EMP-{$yearShort}-{$nextNumber}";
 
-        // Eksaktong tugma na ito sa mga columns ng database mo!
         User::create([
             'employee_id' => $generatedId,
             'first_name'  => strtoupper($request->first_name),
@@ -57,7 +54,7 @@ class FacultyController extends Controller
             'middle_name' => $request->middle_name ? strtoupper($request->middle_name) : null,
             'sex'         => $request->sex,
             'email'       => $request->email,
-            'role'        => $request->role, // Diretso save kung professor o dept_sec
+            'role'        => $request->role,
             'department'  => $request->department,  
             'status'      => 'Active',
             'password'    => Hash::make('Welcome@AU2026'), 

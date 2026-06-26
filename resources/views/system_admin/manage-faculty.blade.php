@@ -65,8 +65,9 @@
                     <label>Faculty Designation / Job Title</label>
                     <div class="custom-select-wrapper">
                         <select name="role" class="custom-select-dropdown" required>
-                            <option value="professor">Professor</option>
+                            <option value="dean">Dean</option>
                             <option value="dept_sec">Department Secretary</option>
+                            <option value="professor">Professor</option>
                         </select>
                     </div>
                 </div>
@@ -107,7 +108,13 @@
                                     </td>
                                     <td style="text-align: center;">
                                         <span class="rank-badge {{ $faculty->role }}">
-                                            {{ $faculty->role === 'dept_sec' ? 'Department Secretary' : ($faculty->role === 'dean' ? 'Dean' : 'Professor') }}
+                                            @if($faculty->role === 'dean')
+                                                Dean
+                                            @elseif($faculty->role === 'dept_sec')
+                                                Department Secretary
+                                            @else
+                                                Professor
+                                            @endif
                                         </span>
                                     </td>
                                     <td style="text-align: center;">

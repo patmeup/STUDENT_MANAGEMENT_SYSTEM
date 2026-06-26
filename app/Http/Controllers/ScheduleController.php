@@ -11,7 +11,7 @@ class ScheduleController extends Controller
     // 1. Ipakita ang Manage Schedules Page
     public function index()
     {
-        if (session('user_role') !== 'system_admin') {
+        if (session('user_role') !== 'dept_sec') {
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
@@ -19,7 +19,7 @@ class ScheduleController extends Controller
         
         $subjects = Subject::orderBy('subject_code', 'asc')->get();
 
-        return view('system_admin.manage-schedules', compact('schedules', 'subjects'));
+        return view('department_secretary.manage-sections', compact('schedules', 'subjects'));
     }
 
     // 2. I-save ang ginawang Schedule

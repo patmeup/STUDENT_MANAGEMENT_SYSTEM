@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use App\Models\User;
 
 class DeptSecController extends Controller
 {
-    // Dashboard Summary Page
+    
     public function index()
     {
         if (session('user_role') !== 'dept_sec') {
@@ -65,22 +67,18 @@ class DeptSecController extends Controller
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
-        $dept = session('user_department'); // e.g., "College of Computer Studies"
+        $dept = session('user_department');
 
-        // Pagpasyahan kung anong kurso ang kabilang sa departamento ng Secretary
-        // Baguhin o dagdagan ang mga kurso sa ibaba depende sa mga kurso sa portal mo
         $allowedCourses = [];
         
         if (str_contains(strtolower($dept), 'computer') || str_contains(strtolower($dept), 'information technology')) {
-            $allowedCourses = ['BSIT', 'BSCS', 'BSIS']; // Mga kurso sa ilalim ng Computer Studies
+            $allowedCourses = ['BSIT', 'BSCS', 'BSIS'];
         } elseif (str_contains(strtolower($dept), 'business') || str_contains(strtolower($dept), 'hospitality')) {
-            $allowedCourses = ['BSBA', 'BSHM', 'BSTM']; // Mga kurso sa ilalim ng Business/Hospitality
+            $allowedCourses = ['BSBA', 'BSHM', 'BSTM'];
         } else {
-            // Fallback: Kung hindi tugma sa itaas, kunin na lang muna lahat ng kurso para may lumabas
             $allowedCourses = ['BSIT']; 
         }
 
-        // Kunin ang mga estudyante gamit ang 'course' column imbis na 'department'
         $students = DB::table('students')
             ->whereIn('course', $allowedCourses)
             ->get();
@@ -88,7 +86,6 @@ class DeptSecController extends Controller
         return view('department_secretary.masterlist', compact('students', 'dept'));
     }
 
-    // 2. Interface kung saan i-e-encode ang subjects ng napiling estudyante
     public function plotSubjects($student_id)
     {
         if (session('user_role') !== 'dept_sec') {
@@ -97,14 +94,12 @@ class DeptSecController extends Controller
 
         $dept = session('user_department');
 
-        // Hanapin ang profile ng estudyante gamit ang student number
         $student = DB::table('students')->where('student_id', $student_id)->first();
         
         if (!$student) {
             return redirect()->back()->with('error', 'Student record not found.');
         }
 
-        // Kunin ang mga kaukulang subjects ng kurso ng bata base sa 'curricula' table mo
         $curriculumSubjects = DB::table('curricula')
             ->join('subjects', 'curricula.subject_id', '=', 'subjects.id')
             ->select(
@@ -114,56 +109,87 @@ class DeptSecController extends Controller
                 'subjects.lecture_units', 
                 'subjects.lab_units'
             )
-            ->where('curricula.course', $student->course) // Halimbawa: BSIT
+            ->where('curricula.course', $student->course)
             ->orderBy('curricula.year_level')
             ->orderBy('curricula.semester')
             ->get();
 
-        return view('department_secretary.plot_subjects', compact('student', 'curriculumSubjects', 'dept'));
+        $classSchedules = DB::table('class_schedules')
+            ->get()
+            ->groupBy('subject_id');
+
+        return view('department_secretary.plot_subjects', compact('student', 'curriculumSubjects', 'dept', 'classSchedules'));
     }
 
-    // 3. Pag-save ng mga pinasok o tsek na subjects sa student record
     public function saveSubjects(Request $request)
-{
-    if (session('user_role') !== 'dept_sec') {
-        return redirect('/')->with('error', 'Unauthorized access.');
-    }
-
-    $request->validate([
-        'student_id' => 'required',
-        'subjects'   => 'required|array',
-    ], [
-        'subjects.required' => 'Maaari lamang pumili at mag-check ng kahit isang subject bago mag-save.'
-    ]);
-
-    try {
-        DB::beginTransaction();
-
-        $studentNumber = $request->input('student_id'); // Ito yung value na "26-00001" galing sa hidden input mo
-        $selectedSubjects = $request->input('subjects');
-
-        // Binago natin 'to para mag-match sa dynamic column name mo na 'student_number'
-        DB::table('student_subjects')->where('student_number', $studentNumber)->delete();
-
-        foreach ($selectedSubjects as $subjectId) {
-            DB::table('student_subjects')->insert([
-                'student_number' => $studentNumber, // Tumutugma sa 'student_number' col sa database mo
-                'subject_id'     => $subjectId,
-                'status'         => 'Enrolled',     // Nilagyan na natin ng default status para sa portal module mo
-                'created_at'     => now(),
-                'updated_at'     => now()
-            ]);
+    {
+        if (session('user_role') !== 'dept_sec') {
+            return redirect('/')->with('error', 'Unauthorized access.');
         }
 
-        DB::commit();
+        $request->validate([
+            'student_id' => 'required',
+            'schedules'  => 'required|array',
+        ], [
+            'schedules.required' => 'Maaari lamang pumili ng schedule/section sa kahit isang subject bago mag-save.'
+        ]);
 
-        return redirect()->route('department_secretary.students')
-                         ->with('success', 'Subjects have been successfully plotted and saved for this student!');
+        try {
+            DB::beginTransaction();
 
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return redirect()->back()
-                         ->with('error', 'May naganap na error habang isinusumite ang data: ' . $e->getMessage());
+            $studentNumber = $request->input('student_id');
+            
+            $selectedSchedules = $request->input('schedules'); 
+
+            $filteredSchedules = array_filter($selectedSchedules, function($value) {
+                return !empty($value);
+            });
+
+            if (empty($filteredSchedules)) {
+                return redirect()->back()->withInput()->with('error', 'Maaari lamang pumili ng schedule sa kahit isang subject bago mag-save.');
+            }
+
+            DB::table('student_subjects')->where('student_number', $studentNumber)->delete();
+
+            foreach ($filteredSchedules as $subjectId => $scheduleId) {
+                
+                $scheduleExists = DB::table('schedules')->where('id', $scheduleId)->exists();
+                
+                if ($scheduleExists) {
+                    DB::table('student_subjects')->insert([
+                        'student_number' => $studentNumber,
+                        'subject_id'     => $subjectId,  
+                        'schedule_id'    => $scheduleId,  
+                        'status'         => 'Enrolled',
+                        'created_at'     => now(),
+                        'updated_at'     => now()
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return redirect()->route('department_secretary.students')
+                            ->with('success', 'Subjects and class schedules have been successfully plotted and saved for this student!');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()
+                            ->with('error', 'May naganap na error habang isinusumite ang data: ' . $e->getMessage());
+        }
     }
-}
+
+    public function profileView()
+    {
+        $userId = session('user_id');
+        $user = User::find($userId);
+
+        if (!$user) {
+            return redirect('/')->withErrors(['error' => 'Session expired. Please login again.']);
+        }
+
+        $isLocked = !Str::startsWith($user->password, '$2y$');
+
+        return view('system_admin.user_details', compact('user', 'isLocked'));
+    } 
 }

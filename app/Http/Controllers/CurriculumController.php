@@ -74,4 +74,9 @@ class CurriculumController extends Controller
 
         return redirect()->back()->with('success', 'Subject successfully mapped to the curriculum structure!');
     }
+
+    public function subject()
+    {
+        return $this->belongsTo(Subject::class, 'subject_id', 'id');
+    }
 }

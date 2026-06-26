@@ -11,9 +11,26 @@
     </div>
 
     <div class="action-helper-card">
-        <h4><i class="fas fa-magic"></i> Freshmen / Regular Student Helper</h4>
-        <p>Kung ang estudyante ay regular na 1st Year, i-click ang button sa ibaba para awtomatikong mapili ang lahat ng subjects para sa 1st Year - 1st Semester.</p>
-        <button type="button" class="btn-helper" id="loadFreshmanBtn">Select 1st Year - 1st Sem Subjects</button>
+        <h4><i class="fas fa-magic"></i> Regular / Block Section Student Helper</h4>
+        <p>Piliin ang Year, Semester, at i-type ang Section upang awtomatikong i-plot ang buong Block Section schedule ng estudyante.</p>
+        
+        <div class="helper-controls">
+            <select id="helperYear" class="select-input-helper">
+                <option value="1st Year">1st Year</option>
+                <option value="2nd Year">2nd Year</option>
+                <option value="3rd Year">3rd Year</option>
+                <option value="4th Year">4th Year</option>
+            </select>
+
+            <select id="helperSem" class="select-input-helper">
+                <option value="1st Semester">1st Semester</option>
+                <option value="2nd Semester">2nd Semester</option>
+            </select>
+
+            <input type="text" id="helperSection" placeholder="e.g., A" class="input-helper-text">
+
+            <button type="button" class="btn-helper" id="autoBlockBtn">⚡ Apply Block Section</button>
+        </div>
     </div>
 
     <form action="{{ route('department_secretary.save_subjects') }}" method="POST">
@@ -29,7 +46,7 @@
                 <table class="minimal-table" id="subjectPlotTable">
                     <thead>
                         <tr>
-                            <th style="width: 50px; text-align: center;">Select</th>
+                            <th style="width: 280px; text-align: center;">Select Schedule / Section</th>
                             <th>Year Level</th>
                             <th>Semester</th>
                             <th>Subject Code</th>
@@ -38,16 +55,33 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($curriculumSubjects as $sub)
-                            <tr data-year="{{ $sub->year_level }}" data-sem="{{ $sub->semester }}">
+                        @foreach($curriculumSubjects as $curricula)
+                            <tr data-year="{{ $curricula->year_level }}" data-sem="{{ $curricula->semester }}">
                                 <td style="text-align: center;">
-                                    <input type="checkbox" name="subjects[]" value="{{ $sub->subject_id }}" class="sub-checkbox">
+                                    <select name="schedules[{{ $curricula->subject_id }}]" class="select-input table-dropdown sub-selector">
+                                        <option value="">-- Not Enrolled --</option>
+                                        
+                                        @php
+                                            // Hanapin kung may nakalaang schedules para sa subject_id na ito
+                                            $subjectSchedules = $classSchedules->get($curricula->subject_id);
+                                        @endphp
+
+                                        @if($subjectSchedules && $subjectSchedules->count() > 0)
+                                            @foreach($subjectSchedules as $sched)
+                                                <option value="{{ $sched->id }}">
+                                                    {{ strtoupper($sched->section_name) }} | {{ $sched->class_days }} ({{ date('g:i A', strtotime($sched->start_time)) }}-{{ date('g:i A', strtotime($sched->end_time)) }}) — {{ $sched->room_assignment }}
+                                                </option>
+                                            @endforeach
+                                        @else
+                                            <option value="" disabled>No Active Sections Created</option>
+                                        @endif
+                                    </select>
                                 </td>
-                                <td><span class="year-tag">{{ $sub->year_level }}</span></td>
-                                <td><span class="sem-tag">{{ $sub->semester }}</span></td>
-                                <td><strong class="code-highlight">{{ $sub->subject_code }}</strong></td>
-                                <td>{{ $sub->subject_title }}</td>
-                                <td style="text-align: center;">{{ $sub->lecture_units + $sub->lab_units }} Units</td>
+                                <td><span class="year-tag">{{ $curricula->year_level }}</span></td>
+                                <td><span class="sem-tag">{{ $curricula->semester }}</span></td>
+                                <td><strong class="code-highlight">{{ $curricula->subject_code }}</strong></td>
+                                <td>{{ $curricula->subject_title }}</td>
+                                <td style="text-align: center;">{{ $curricula->lecture_units + $curricula->lab_units }} Units</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -63,27 +97,65 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const loadFreshmanBtn = document.getElementById('loadFreshmanBtn');
-        const checkboxes = document.querySelectorAll('.sub-checkbox');
+        const autoBlockBtn = document.getElementById('autoBlockBtn');
 
-        if (loadFreshmanBtn) {
-            loadFreshmanBtn.addEventListener('click', function () {
-                // I-uncheck muna ang lahat bago iselect ang para sa 1st year
-                checkboxes.forEach(cb => cb.checked = false);
+        if (autoBlockBtn) {
+            autoBlockBtn.addEventListener('click', function () {
+                const targetYear = document.getElementById('helperYear').value;
+                const targetSem = document.getElementById('helperSem').value;
+                const sectionLetter = document.getElementById('helperSection').value.trim().toUpperCase();
 
-                // Hanapin ang mga rows na 1st Year at 1st Semester
-                const targetRows = document.querySelectorAll('#subjectPlotTable tbody tr');
-                targetRows.forEach(row => {
-                    const year = row.getAttribute('data-year');
-                    const sem = row.getAttribute('data-sem');
+                if (!sectionLetter) {
+                    alert('Paki-type muna kung anong Section (halimbawa: A, B, o C) ang nais mong i-apply.');
+                    return;
+                }
 
-                    if (year === '1st Year' && sem === '1st Semester') {
-                        const checkbox = row.querySelector('.sub-checkbox');
-                        if (checkbox) checkbox.checked = true;
+                const rows = document.querySelectorAll('#subjectPlotTable tbody tr');
+                let matchedCount = 0;
+                let totalTargetSubjects = 0;
+
+                rows.forEach(row => {
+                    const rowYear = row.getAttribute('data-year');
+                    const rowSem = row.getAttribute('data-sem');
+
+                    // Tiyakin na tugma ang Year at Sem sa pinili ng secretary
+                    if (rowYear === targetYear && rowSem === targetSem) {
+                        totalTargetSubjects++;
+                        const select = row.querySelector('.sub-selector');
+                        
+                        if (select) {
+                            let sectionFound = false;
+                            
+                            // I-loop ang mga options sa loob ng dropdown ng subject na ito
+                            for (let i = 0; i < select.options.length; i++) {
+                                const optionText = select.options[i].text.toUpperCase();
+                                
+                                // Hahanapin kung naglalaman ito ng target section identifier (e.g., "BSIT1-A" o "1-A")
+                                if (optionText.includes(sectionLetter) && select.options[i].value !== "") {
+                                    select.selectedIndex = i;
+                                    sectionFound = true;
+                                    matchedCount++;
+                                    break;
+                                }
+                            }
+                            
+                            // Kung walang nahanap na saktong block section para sa partikular na asignaturang ito, i-reset sa default
+                            if (!sectionFound) {
+                                select.value = "";
+                            }
+                        }
+                    } else {
+                        // Kung hindi sakop ng taon at sem na pinili, opsyonal na i-unenroll para malinis ang form submission
+                        const select = row.querySelector('.sub-selector');
+                        if (select) select.value = "";
                     }
                 });
-                
-                alert('1st Year - 1st Semester subjects have been selected! Review the list below then click Save.');
+
+                if (matchedCount > 0) {
+                    alert(`Success! Na-apply ang Section ${sectionLetter} sa ${matchedCount} out of ${totalTargetSubjects} na mga asignatura para sa ${targetYear} - ${targetSem}.`);
+                } else {
+                    alert(`Paumanhin, walang nahanap na mga schedule/sections na may markang "${sectionLetter}" para sa ${targetYear} (${targetSem}).`);
+                }
             });
         }
     });
@@ -99,7 +171,11 @@
     .action-helper-card { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 10px; margin-bottom: 25px; }
     .action-helper-card h4 { margin: 0 0 6px 0; color: #166534; font-size: 15px; }
     .action-helper-card p { margin: 0 0 14px 0; color: #475569; font-size: 13px; }
-    .btn-helper { background: #166534; color: white; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.2s; }
+    
+    .helper-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .select-input-helper { background-color: #ffffff; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 6px; font-size: 13px; color: #334155; width: 150px; cursor: pointer; }
+    .input-helper-text { background-color: #ffffff; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 6px; font-size: 13px; color: #334155; width: 120px; text-transform: uppercase; }
+    .btn-helper { background: #166534; color: white; border: none; padding: 9px 18px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.2s; }
     .btn-helper:hover { background: #14532d; }
 
     .sa-card { border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
@@ -108,9 +184,9 @@
 
     .minimal-table { width: 100%; border-collapse: collapse; font-size: 14px; }
     .minimal-table th { background: #f8fafc; padding: 12px 24px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; text-align: left; }
-    .minimal-table td { padding: 14px 24px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+    .minimal-table td { padding: 14px 24px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
     
-    .sub-checkbox { width: 17px; height: 17px; cursor: pointer; }
+    .table-dropdown { width: 100%; max-width: 260px; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #fff; color: #334155; font-size: 13px; cursor: pointer; }
     .year-tag { font-weight: 700; color: #1e293b; background: #f1f5f9; padding: 4px 8px; border-radius: 6px; font-size: 11px; }
     .sem-tag { font-weight: 600; color: #475569; background: #f8fafc; padding: 4px 8px; border-radius: 6px; font-size: 11px; border: 1px solid #e2e8f0; }
     .code-highlight { color: #2563eb; font-family: monospace; }

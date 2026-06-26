@@ -6,9 +6,9 @@
     <div class="sa-header">
         <div class="header-titles">
             <h2>Class Schedule Matrix</h2>
-            <p>Admin Control Panel — Section & Room Deployment Center</p>
+            <p>Department Secretary Panel — Section & Room Deployment Center</p>
         </div>
-        <div class="header-badge system-level">Admin Mode</div>
+        <div class="header-badge" style="background-color: #0284c7; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;">Secretary Mode</div>
     </div>
 
     @if(session('success'))
@@ -24,7 +24,7 @@
                 <span><i class="fas fa-calendar-plus"></i> Deployment Specifications Form</span>
             </div>
             
-            <form action="{{ route('system_admin.schedules.store') }}" method="POST" autocomplete="off" class="pure-form">
+            <form action="{{ route('department_secretary.schedules.store') }}" method="POST" autocomplete="off" class="pure-form">
                 @csrf
                 
                 <div class="form-group">
@@ -131,7 +131,7 @@
                                     </td>
                                     
                                     <td>
-                                        @if($sched->subject->professor)
+                                        @if($sched->subject && $sched->subject->professor)
                                             <span class="prof-assigned-tag">
                                                 <i class="fas fa-user-tie"></i> {{ $sched->subject->professor->last_name }}, {{ substr($sched->subject->professor->first_name, 0, 1) }}.
                                             </span>
@@ -167,7 +167,6 @@
     .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; }
     .header-titles h2 { margin: 0 0 4px 0; font-size: 28px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
     .header-titles p { margin: 0; font-size: 14.5px; color: #64748b; }
-    .system-level { background-color: #dc2626; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px; }
 
     /* Layout Grids */
     .sa-workspace { display: flex; flex-direction: row; gap: 28px; align-items: flex-start; justify-content: space-between; width: 100%; }
@@ -210,7 +209,7 @@
     .subject-code-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; color: #2563eb; background-color: #eff6ff; padding: 4px 8px; border-radius: 6px; font-size: 12px; display: inline-block; }
     
     /* Schedule specific labels */
-    .sched-info-tag { font-size: 11.5px; font-weight: 600; color: #1e293b; background-color: #f1f5f9; padding: 3px 8px; border-radius: 4px; display: inline-inline-block; margin-right: 4px; border: 1px solid #e2e8f0; }
+    .sched-info-tag { font-size: 11.5px; font-weight: 600; color: #1e293b; background-color: #f1f5f9; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-right: 4px; border: 1px solid #e2e8f0; }
     .sched-info-tag i { color: #475569; margin-right: 3px; }
 
     /* Professor Assignment Badges */
