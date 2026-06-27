@@ -3,12 +3,12 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Models\ClassSchedule;
 use App\Models\Subject;
 
 class ScheduleController extends Controller
 {
-    // 1. Ipakita ang Manage Schedules Page
     public function index()
     {
         if (session('user_role') !== 'dept_sec') {
@@ -19,10 +19,9 @@ class ScheduleController extends Controller
         
         $subjects = Subject::orderBy('subject_code', 'asc')->get();
 
-        return view('department_secretary.manage-sections', compact('schedules', 'subjects'));
+        return view('department_secretary.manage-schedules', compact('schedules', 'subjects'));
     }
 
-    // 2. I-save ang ginawang Schedule
     public function store(Request $request)
     {
         $request->validate([
@@ -37,5 +36,45 @@ class ScheduleController extends Controller
         ClassSchedule::create($request->all());
 
         return redirect()->back()->with('success', 'Class deployment schedule successfully established!');
+    }
+
+    public function update(Request $request, $id)
+    {
+        if (session('user_role') !== 'dept_sec') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $request->validate([
+            'section_name'    => 'required|string',
+            'class_days'      => 'required|string',
+            'room_assignment' => 'required|string',
+            'start_time'      => 'required',
+            'end_time'        => 'required',
+        ]);
+
+        DB::table('class_schedules')->where('id', $id)->update([
+            'section_name'    => strtoupper($request->input('section_name')),
+            'class_days'      => $request->input('class_days'),
+            'room_assignment' => strtoupper($request->input('room_assignment')),
+            'start_time'      => $request->input('start_time'),
+            'end_time'        => $request->input('end_time'),
+            'updated_at'      => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'Class deployment schedule successfully updated!');
+    }
+
+    public function delete($id)
+    {
+        if (session('user_role') !== 'dept_sec') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        DB::table('student_subjects')->where('schedule_id', $id)->delete();
+
+        // Pagkatapos ay burahin na ang mismong parent schedule row
+        DB::table('class_schedules')->where('id', $id)->delete();
+
+        return redirect()->back()->with('success', 'Class deployment record successfully deleted!');
     }
 }

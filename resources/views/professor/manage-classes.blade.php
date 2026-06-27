@@ -21,7 +21,7 @@
         <div class="prof-card table-panel-full">
             <div class="card-header-flex">
                 <h3 class="card-title-list">My Assigned Teaching Load</h3>
-                <span class="badge-count">{{ count($classes) }} Active Subjects</span>
+                <span class="badge-count">{{ count($classes) }} Active Class Sections</span>
             </div>
 
             <div class="table-responsive">
@@ -41,22 +41,26 @@
                                 <td>
                                     <strong class="subject-code-badge">{{ $class->subject_code }}</strong>
                                     <span class="subject-title-text">{{ $class->subject_title }}</span>
-                                    <small class="units-text">({{ $class->total_units ?? ($class->lecture_units + $class->lab_units) }} Units)</small>
+                                    <small class="units-text">({{ $class->lecture_units + $class->lab_units }} Units)</small>
                                 </td>
-                                <td><span class="section-tag">{{ $class->section ?? 'TBA' }}</span></td>
+                                
+                                <td><span class="section-tag">{{ strtoupper($class->section_name) }}</span></td>
+                                
                                 <td>
                                     <div class="sched-wrapper">
                                         <i class="far fa-calendar-alt" style="color: #64748b; margin-right: 4px;"></i>
-                                        <strong>{{ $class->schedule_day ?? 'TBA' }}</strong> 
-                                        <span class="time-text">| {{ $class->schedule_time ?? 'To Be Arranged' }}</span>
+                                        <strong>{{ $class->class_days }}</strong> 
+                                        <span class="time-text">| {{ date('g:i A', strtotime($class->start_time)) }} - {{ date('g:i A', strtotime($class->end_time)) }}</span>
                                     </div>
                                 </td>
+                                
                                 <td>
                                     <span class="room-text">
                                         <i class="fas fa-door-open" style="color: #94a3b8; margin-right: 4px;"></i>
-                                        {{ $class->room ?? 'TBA' }}
+                                        {{ strtoupper($class->room_assignment) }}
                                     </span>
                                 </td>
+                                
                                 <td style="text-align: center;">
                                     <a href="#" class="btn-action-view font-600">
                                         <i class="fas fa-users"></i> View Roster
@@ -69,7 +73,7 @@
                         @empty
                             <tr>
                                 <td colspan="5" class="empty-table-state">
-                                    No teaching subjects have been officially assigned to your roster yet for this term.
+                                    No teaching subjects or active schedules have been officially assigned to your roster yet for this term.
                                 </td>
                             </tr>
                         @endforelse

@@ -85,12 +85,12 @@ class RegistrarController extends Controller
             }
         }
 
-        // 4. Ipasok sa Database gamit ang Student Model
         $student = new Student();
         $student->student_id = $generatedStudentId;
         $student->registration_date = $request->registration_date;
         $student->student_type = $request->student_type;
         $student->course = $request->course;
+        $student->year_level = '1st Year';
         $student->last_name = strtoupper($request->last_name);
         $student->first_name = strtoupper($request->first_name);
         $student->middle_name = $request->middle_name ? strtoupper($request->middle_name) : null;

@@ -10,6 +10,12 @@
         <a href="{{ route('department_secretary.students') }}" class="btn-back">Back to List</a>
     </div>
 
+    @if(session('error'))
+        <div style="background: #fef2f2; color: #991b1b; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 5px solid #dc2626; font-weight: 600;">
+            {{ session('error') }}
+        </div>
+    @endif
+
     <div class="action-helper-card">
         <h4><i class="fas fa-magic"></i> Regular / Block Section Student Helper</h4>
         <p>Piliin ang Year, Semester, at i-type ang Section upang awtomatikong i-plot ang buong Block Section schedule ng estudyante.</p>
@@ -62,7 +68,6 @@
                                         <option value="">-- Not Enrolled --</option>
                                         
                                         @php
-                                            // Hanapin kung may nakalaang schedules para sa subject_id na ito
                                             $subjectSchedules = $classSchedules->get($curricula->subject_id);
                                         @endphp
 
@@ -118,7 +123,6 @@
                     const rowYear = row.getAttribute('data-year');
                     const rowSem = row.getAttribute('data-sem');
 
-                    // Tiyakin na tugma ang Year at Sem sa pinili ng secretary
                     if (rowYear === targetYear && rowSem === targetSem) {
                         totalTargetSubjects++;
                         const select = row.querySelector('.sub-selector');
@@ -126,12 +130,14 @@
                         if (select) {
                             let sectionFound = false;
                             
-                            // I-loop ang mga options sa loob ng dropdown ng subject na ito
                             for (let i = 0; i < select.options.length; i++) {
                                 const optionText = select.options[i].text.toUpperCase();
                                 
-                                // Hahanapin kung naglalaman ito ng target section identifier (e.g., "BSIT1-A" o "1-A")
-                                if (optionText.includes(sectionLetter) && select.options[i].value !== "") {
+                                // KUNIN ANG UNANG PARTE BAGO ANG '|' SYMBOL (e.g., "BSIT1-A ")
+                                const sectionPart = optionText.split('|')[0].trim();
+                                
+                                // TIYAKIN NA ANG SEKSYON AY NAGSAPE-TAPOS SA SAKTONG LETRA (e.g., nagtatapos sa "-B")
+                                if (sectionPart.endsWith('-' + sectionLetter) && select.options[i].value !== "") {
                                     select.selectedIndex = i;
                                     sectionFound = true;
                                     matchedCount++;
@@ -139,22 +145,17 @@
                                 }
                             }
                             
-                            // Kung walang nahanap na saktong block section para sa partikular na asignaturang ito, i-reset sa default
                             if (!sectionFound) {
-                                select.value = "";
+                                select.value = ""; // I-reset kung walang nahanap na B o C sa subject na ito
                             }
                         }
-                    } else {
-                        // Kung hindi sakop ng taon at sem na pinili, opsyonal na i-unenroll para malinis ang form submission
-                        const select = row.querySelector('.sub-selector');
-                        if (select) select.value = "";
                     }
                 });
 
                 if (matchedCount > 0) {
-                    alert(`Success! Na-apply ang Section ${sectionLetter} sa ${matchedCount} out of ${totalTargetSubjects} na mga asignatura para sa ${targetYear} - ${targetSem}.`);
+                    alert(`Success! Na-apply ang Section ${sectionLetter} sa ${matchedCount} na mga asignatura.`);
                 } else {
-                    alert(`Paumanhin, walang nahanap na mga schedule/sections na may markang "${sectionLetter}" para sa ${targetYear} (${targetSem}).`);
+                    alert(`Paumanhin, walang nahanap na mga schedule/sections na nagtatapos sa "-${sectionLetter}" para sa ${targetYear} (${targetSem}).`);
                 }
             });
         }

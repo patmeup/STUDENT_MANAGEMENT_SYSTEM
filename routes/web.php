@@ -95,10 +95,10 @@ Route::group(['middleware' => function ($request, $next) {
     })->name('registrar.manage-enrollment');
 
     Route::post('/registrar/manage-enrollment', [StudentController::class, 'store'])->name('registrar.enroll.store');
-    Route::get('/registrar/masterlist', [StudentController::class, 'index'])->name('registrar.masterlist');
-    Route::get('/registrar/manage-student-alias', [StudentController::class, 'index'])->name('registrar.manage-student');
+    Route::get('/registrar/manage-students', [StudentController::class, 'index'])->name('registrar.manage-students');
+    Route::get('/registrar/manage-students-alias', [StudentController::class, 'index'])->name('registrar.manage-students-alias');
     Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
-    Route::get('/registrar/student/{student_id}/profile', [StudentController::class, 'viewStudentProfile'])->name('registrar.student.profile');
+    Route::get('/registrar/students/{student_id}/profile', [StudentController::class, 'viewStudentProfile'])->name('registrar.students.profile');
     Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
 });
 
@@ -128,10 +128,14 @@ Route::get('/department-secretary/dashboard', function () {
 
 Route::get('/department_secretary/subject-catalog', [DeptSecController::class, 'subjectCatalog'])->name('department_secretary.subject_catalog');
 Route::get('/department-secretary/masterlist', [DeptSecController::class, 'studentsList'])->name('department_secretary.students');
+Route::get('/department-secretary/section/{section_name}', [DeptSecController::class, 'viewSectionRoster'])->name('department_secretary.view_section');
+Route::post('/department-secretary/section/bulk-enroll', [DeptSecController::class, 'bulkEnrollSection'])->name('department_secretary.bulk_enroll');
 Route::get('/department_secretary/student/{student_id}/plot', [DeptSecController::class, 'plotSubjects'])->name('department_secretary.plot_subjects');
 Route::post('/department-secretary/subjects/save', [DeptSecController::class, 'saveSubjects'])->name('department_secretary.save_subjects');
 Route::get('/department_secretary/manage-schedules', [ScheduleController::class, 'index'])->name('department_secretary.schedules.index');
 Route::post('/department_secretary/manage-schedules/store', [ScheduleController::class, 'store'])->name('department_secretary.schedules.store');
+Route::put('/department-secretary/manage-schedules/update/{id}', [ScheduleController::class, 'update'])->name('department_secretary.schedules.update');
+Route::delete('/department-secretary/manage-schedules/delete/{id}', [ScheduleController::class, 'delete'])->name('department_secretary.schedules.delete');
 Route::get('/department-secretary/user_details', [DeptSecController::class, 'profileView'])->name('department_secretary.user_details');
 
 // ==========================================

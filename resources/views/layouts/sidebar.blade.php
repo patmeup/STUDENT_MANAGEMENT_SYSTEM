@@ -138,7 +138,7 @@
                             <span>Manage Student</span>
                         </a>
                     @else
-                        <a href="{{ route('registrar.manage-student') }}" class="{{ Request::is('registrar/manage-student') ? 'active' : '' }}">
+                        <a href="{{ route('registrar.manage-students') }}" class="{{ Request::is('registrar/manage-students') ? 'active' : '' }}">
                             <i data-lucide="user-check"></i> <span>Manage Student</span>
                         </a>
                     @endif
@@ -226,7 +226,8 @@
                             <span>Student Masterlist</span>
                         </a>
                     @else
-                        <a href="{{ route('department_secretary.students') }}" class="{{ Request::is('department-secretary/masterlist*') || Request::is('department_secretary/student/*/plot') ? 'active' : '' }}">
+                        <a href="{{ route('department_secretary.students') }}" class="{{ Request::is('department-secretary/masterlist*') || 
+                            Request::is('department_secretary/student/*/plot') || Request::is('department-secretary/section*') ? 'active' : '' }}">
                             <i data-lucide="users"></i> <span>Student Masterlist</span>
                         </a>
                     @endif
