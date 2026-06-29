@@ -6,25 +6,65 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Models\User;
+use App\Models\Subject;
+use App\Models\Student;
+use App\Models\BlockSection;
+use App\Models\ClassSchedule;
 
 class DeptSecController extends Controller
 {
-    
-    public function index()
-    {
+    public function dashboard() {
+        // 1. Security check (from your old index method)
         if (session('user_role') !== 'dept_sec') {
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
         $dept = session('user_department');
-    
-        $totalStudents = DB::table('students')
-            ->join('courses', 'students.course', '=', 'courses.course_code')
-            ->where('courses.department', $dept)
-            ->count();
-        $totalSubjects = DB::table('curricula')->where('course', 'BSIT')->count();
 
-        return view('department_secretary.dashboard', compact('dept', 'totalStudents', 'totalSubjects'));
+        // 2. Set allowed courses based on department (matching your studentsList logic)
+        $allowedCourses = ['BSIT']; 
+        if (str_contains(strtolower($dept), 'computer studies') || str_contains(strtolower($dept), 'ccs')) {
+            $allowedCourses = ['BSIT', 'BSCS'];
+        } elseif (str_contains(strtolower($dept), 'business') || str_contains(strtolower($dept), 'cba')) {
+            $allowedCourses = ['BSBA'];
+        } elseif (str_contains(strtolower($dept), 'hospitality') || str_contains(strtolower($dept), 'chm')) {
+            $allowedCourses = ['BSHM', 'BSTM'];
+        }
+
+        // 3. Calculate metrics using your working DB tables
+        $trackedSubjectsCount = DB::table('curricula')
+            ->whereIn('course', $allowedCourses)
+            ->count();
+
+        $totalStudentsCount = DB::table('students')
+            ->whereIn('course', $allowedCourses)
+            ->count();
+
+        $activeBlocksCount = DB::table('class_schedules')
+            ->where(function($query) use ($allowedCourses) {
+                foreach ($allowedCourses as $course) {
+                    $query->orWhere('section_name', 'LIKE', $course . '%');
+                }
+            })
+            ->distinct('section_name')
+            ->count('section_name');
+
+        $deployedSlotsCount = DB::table('class_schedules')
+            ->where(function($query) use ($allowedCourses) {
+                foreach ($allowedCourses as $course) {
+                    $query->orWhere('section_name', 'LIKE', $course . '%');
+                }
+            })
+            ->count();
+
+        // 4. Return view with all dynamic metrics
+        return view('department_secretary.dashboard', compact(
+            'dept',
+            'trackedSubjectsCount', 
+            'totalStudentsCount', 
+            'activeBlocksCount', 
+            'deployedSlotsCount'
+        ));
     }
 
     public function subjectCatalog(Request $request)
