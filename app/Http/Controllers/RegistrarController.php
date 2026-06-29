@@ -90,7 +90,7 @@ class RegistrarController extends Controller
         $student->registration_date = $request->registration_date;
         $student->student_type = $request->student_type;
         $student->course = $request->course;
-        $student->year_level = '1st Year';
+        $student->academic_level = '1st Year, 1st Semester';
         $student->last_name = strtoupper($request->last_name);
         $student->first_name = strtoupper($request->first_name);
         $student->middle_name = $request->middle_name ? strtoupper($request->middle_name) : null;

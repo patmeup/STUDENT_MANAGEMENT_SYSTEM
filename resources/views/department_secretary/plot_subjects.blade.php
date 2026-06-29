@@ -35,7 +35,7 @@
 
             <input type="text" id="helperSection" placeholder="e.g., A" class="input-helper-text">
 
-            <button type="button" class="btn-helper" id="autoBlockBtn">⚡ Apply Block Section</button>
+            <button type="button" class="btn-helper" id="autoBlockBtn">Apply Block Section</button>
         </div>
     </div>
 
@@ -133,10 +133,8 @@
                             for (let i = 0; i < select.options.length; i++) {
                                 const optionText = select.options[i].text.toUpperCase();
                                 
-                                // KUNIN ANG UNANG PARTE BAGO ANG '|' SYMBOL (e.g., "BSIT1-A ")
                                 const sectionPart = optionText.split('|')[0].trim();
                                 
-                                // TIYAKIN NA ANG SEKSYON AY NAGSAPE-TAPOS SA SAKTONG LETRA (e.g., nagtatapos sa "-B")
                                 if (sectionPart.endsWith('-' + sectionLetter) && select.options[i].value !== "") {
                                     select.selectedIndex = i;
                                     sectionFound = true;
@@ -146,7 +144,7 @@
                             }
                             
                             if (!sectionFound) {
-                                select.value = ""; // I-reset kung walang nahanap na B o C sa subject na ito
+                                select.value = "";
                             }
                         }
                     }

@@ -14,14 +14,12 @@ use App\Models\ClassSchedule;
 class DeptSecController extends Controller
 {
     public function dashboard() {
-        // 1. Security check (from your old index method)
         if (session('user_role') !== 'dept_sec') {
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
         $dept = session('user_department');
 
-        // 2. Set allowed courses based on department (matching your studentsList logic)
         $allowedCourses = ['BSIT']; 
         if (str_contains(strtolower($dept), 'computer studies') || str_contains(strtolower($dept), 'ccs')) {
             $allowedCourses = ['BSIT', 'BSCS'];
@@ -127,14 +125,16 @@ class DeptSecController extends Controller
             ->get();
 
         $sections = DB::table('class_schedules')
-            ->select('section_name', DB::raw('count(id) as total_subjects'))
-            ->where(function($query) use ($allowedCourses) {
-                foreach ($allowedCourses as $course) {
-                    $query->orWhere('section_name', 'LIKE', $course . '%');
-                }
-            })
-            ->groupBy('section_name')
-            ->orderBy('section_name', 'asc')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->join('curricula', 'subjects.id', '=', 'curricula.subject_id')
+            ->select(
+                'class_schedules.section_name',
+                'curricula.year_level',
+                'curricula.semester',
+                DB::raw('count(distinct class_schedules.subject_id) as total_subjects')
+            )
+            ->groupBy('class_schedules.section_name', 'curricula.year_level', 'curricula.semester')
+            ->orderBy('class_schedules.section_name', 'asc')
             ->get();
 
         return view('department_secretary.masterlist', compact('students', 'sections', 'dept'));
@@ -220,7 +220,6 @@ class DeptSecController extends Controller
             $studentNumber = $request->input('student_id');
             $selectedSchedules = $request->input('schedules', []); 
 
-            // Salain ang mga totoong may valid na value (Aalisin ang null, empty string, o 0)
             $filteredSchedules = array_filter($selectedSchedules, function($value) {
                 return !empty($value);
             });

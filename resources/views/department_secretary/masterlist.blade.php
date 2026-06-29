@@ -48,7 +48,7 @@
                             <th>Student ID</th>
                             <th>Full Name</th>
                             <th>Course</th>
-                            <th>Year Level</th>
+                            <th>Academic Level</th>
                             <th style="text-align: center;">Action</th>
                         </tr>
                     </thead>
@@ -93,38 +93,62 @@
                     <thead>
                         <tr>
                             <th>Block Section Name</th>
-                            <th>Active Plotted Classes</th>
+                            <th>Academic Level</th>
                             <th style="text-align: center;">Actions & Bulk Enrollment Controls</th>
                         </tr>
                     </thead>
                     <tbody id="blockTableBody">
-                        @forelse($sections as $sec)
+                        @forelse($sections->groupBy('section_name') as $sectionName => $records)
+                            @php 
+                                $slug = Str::slug($sectionName); 
+                                $defaultYear = '1st Year';
+                                if (str_contains($sectionName, '1')) $defaultYear = '1st Year';
+                                elseif (str_contains($sectionName, '2')) $defaultYear = '2nd Year';
+                                elseif (str_contains($sectionName, '3')) $defaultYear = '3rd Year';
+                                elseif (str_contains($sectionName, '4')) $defaultYear = '4th Year';
+                            @endphp
                             <tr class="block-row">
-                                <td><span class="year-tag" style="font-size: 14px; padding: 6px 12px; background: #e0f2fe; color: #0369a1; border-color: #bae6fd;">{{ strtoupper($sec->section_name) }}</span></td>
-                                <td><strong>{{ $sec->total_subjects }}</strong> Active Subjects</td>
+                                <td>
+                                    <span class="year-tag" style="font-size: 14px; padding: 6px 12px; background: #e0f2fe; color: #0369a1; border-color: #bae6fd;">
+                                        {{ strtoupper($sectionName) }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span id="display-count-{{ $slug }}">
+                                        <strong>0</strong> Active Subjects
+                                    </span>
+
+                                    <div class="block-meta-dataset" style="display: none;" data-block-id="{{ $slug }}">
+                                        @foreach($records as $rec)
+                                            <span data-year="{{ $rec->year_level }}" data-sem="{{ $rec->semester }}" data-count="{{ $rec->total_subjects }}"></span>
+                                        @endforeach
+                                    </div>
+                                </td>
+
                                 <td style="text-align: center;">
-                                    <a href="{{ route('department_secretary.view_section', $sec->section_name) }}" class="btn-action-view">
+                                    <a href="{{ route('department_secretary.view_section', $sectionName) }}" class="btn-action-view">
                                         <i class="fas fa-users"></i> View Students
                                     </a>
 
                                     <form action="{{ route('department_secretary.bulk_enroll') }}" method="POST" style="display:inline-block; margin-left: 15px;">
                                         @csrf
-                                        <input type="hidden" name="current_section" value="{{ $sec->section_name }}">
+                                        <input type="hidden" name="current_section" value="{{ $sectionName }}">
                                         
-                                        <select name="target_year" class="select-input-helper" style="width: 105px; padding: 4px 6px; font-size: 12px;" required>
-                                            <option value="1st Year">1st Year</option>
-                                            <option value="2nd Year">2nd Year</option>
-                                            <option value="3rd Year">3rd Year</option>
-                                            <option value="4th Year">4th Year</option>
+                                        <select name="target_year" class="select-input-helper year-selector-js" data-target="{{ $slug }}" style="width: 105px; padding: 4px 6px; font-size: 12px;" required>
+                                            <option value="1st Year" {{ $defaultYear == '1st Year' ? 'selected' : '' }}>1st Year</option>
+                                            <option value="2nd Year" {{ $defaultYear == '2nd Year' ? 'selected' : '' }}>2nd Year</option>
+                                            <option value="3rd Year" {{ $defaultYear == '3rd Year' ? 'selected' : '' }}>3rd Year</option>
+                                            <option value="4th Year" {{ $defaultYear == '4th Year' ? 'selected' : '' }}>4th Year</option>
                                         </select>
 
-                                        <select name="target_semester" class="select-input-helper" style="width: 115px; padding: 4px 6px; font-size: 12px;" required>
-                                            <option value="1st Semester">1st Sem</option>
-                                            <option value="2nd Semester" selected>2nd Sem</option>
+                                        <select name="target_semester" class="select-input-helper sem-selector-js" data-target="{{ $slug }}" style="width: 115px; padding: 4px 6px; font-size: 12px;" required>
+                                            <option value="1st Semester" selected>1st Sem</option>
+                                            <option value="2nd Semester">2nd Sem</option>
                                         </select>
 
                                         <button type="submit" class="btn-helper" style="background: #16a34a; padding: 5px 10px; font-size: 12px;" onclick="return confirm('Nais mo bang i-bulk enroll ang buong block na ito sa piniling Taon at Sem?')">
-                                             Bulk Enroll Block
+                                            Bulk Enroll Block
                                         </button>
                                     </form>
                                 </td>
@@ -198,6 +222,40 @@
                 }
             });
         }
+    });
+
+    function updateSubjectCounter(slug, rowElement) {
+        const selectedYear = rowElement.querySelector('.year-selector-js').value;
+        const selectedSem = rowElement.querySelector('.sem-selector-js').value;
+        
+        const datasetSpans = rowElement.querySelectorAll('.block-meta-dataset span');
+        let matchedCount = 0;
+
+        datasetSpans.forEach(span => {
+            const itemYear = span.getAttribute('data-year');
+            const itemSem = span.getAttribute('data-sem');
+
+            if (itemYear === selectedYear && itemSem === selectedSem) {
+                matchedCount = parseInt(span.getAttribute('data-count')) || 0;
+            }
+        });
+
+        const targetDisplay = document.getElementById(`display-count-${slug}`);
+        if (targetDisplay) {
+            targetDisplay.innerHTML = `<strong>${matchedCount}</strong> Active Subjects`;
+        }
+    }
+
+    document.querySelectorAll('.year-selector-js, .sem-selector-js').forEach(dropdown => {
+        const row = dropdown.closest('tr');
+        const targetSlug = dropdown.getAttribute('data-target');
+
+        dropdown.addEventListener('change', function() {
+            updateSubjectCounter(targetSlug, row);
+        });
+
+        // Patakbuhin agad para makuha ang default active subjects pagkaload ng page
+        updateSubjectCounter(targetSlug, row);
     });
 </script>
 
