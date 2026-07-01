@@ -140,11 +140,71 @@ class StudentController extends Controller
         $student->path_dismissal = $filePaths['doc_dismissal'] ?? null;
         $student->path_good_moral_trans = $filePaths['doc_good_moral_trans'] ?? null;
         $student->path_permit = $filePaths['doc_permit'] ?? null;
-        
         $student->credentials = array_values($filePaths);
+        $student->password = Hash::make('Welcome@AU2026');
 
         $student->save();
 
         return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}");
     }
+
+    public function myClasses()
+    {
+        if (session('user_role') !== 'student') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $studentNumber = session('student_id');
+
+        $enrolledCountQuery = DB::table('student_subjects')
+            ->select(DB::raw('count(*)'))
+            ->whereColumn('student_subjects.schedule_id', 'class_schedules.id')
+            ->where('student_subjects.status', 'Enrolled');
+
+        $classes = DB::table('student_subjects')
+            ->join('subjects', 'student_subjects.subject_id', '=', 'subjects.id')
+            ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
+            ->leftJoin('employees', function($join) {
+                $join->on('subjects.professor_id', '=', 'employees.id')
+                    ->where('employees.role', '=', 'professor');
+            })
+            ->where('student_subjects.student_number', $studentNumber)
+            ->where('student_subjects.status', 'Enrolled')
+            ->select(
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'subjects.total_units',
+                'student_subjects.status',
+                'class_schedules.section_name',
+                'class_schedules.class_days',
+                'class_schedules.start_time',
+                'class_schedules.end_time',
+                'class_schedules.room_assignment',
+                'employees.first_name as prof_first_name',
+                'employees.last_name as prof_last_name'
+            )
+            ->selectSub($enrolledCountQuery, 'enrolled_students_count')
+            ->get();
+
+        return view('student.my_classes', compact('classes'));
+    }
+
+    public function profileView()
+    {
+        if (session('user_role') !== 'student') {
+            return redirect()->route('login')->with('error', 'Unauthorized access. Please login as a Student.');
+        }
+
+        $userId = session('user_id');
+        $user = \App\Models\Student::find($userId);
+
+        if (!$user) {
+            return redirect()->route('login')->with('error', 'User not found.');
+        }
+
+        $isLocked = \Illuminate\Support\Facades\Hash::check('Welcome@AU2026', $user->password);
+
+        return view('student.user_details', compact('user', 'isLocked'));
+    }
+
 }

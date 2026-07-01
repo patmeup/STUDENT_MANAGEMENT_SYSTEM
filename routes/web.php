@@ -15,9 +15,7 @@ use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\ScheduleController;
 
-// ==========================================
 // ACCOUNT ROUTES
-// ==========================================
 Route::get('/', function () {
     return view('login');
 })->name('login');
@@ -34,9 +32,7 @@ Route::get('/account/security', [AuthController::class, 'showSecurityPage'])->na
 Route::post('/account/security/update-password', [AuthController::class, 'updatePassword'])->name('account.update_password');
 Route::post('/account/security/update', [SuperAdminController::class, 'updatePassword'])->name('password.update');
 
-// ==========================================
 // SUPER ADMIN ROUTES
-// ==========================================
 Route::get('/super_admin/dashboard', function () {
     if (session('user_role') !== 'super_admin') {
         return redirect('/')->with('error', 'Unauthorized access.');
@@ -52,9 +48,7 @@ Route::post('/super_admin/manage-courses', [SuperAdminController::class, 'storeC
 Route::patch('/super-admin/courses/{id}', [SuperAdminController::class, 'updateCourse'])->name('super_admin.courses.update');
 Route::patch('/super-admin/employees/{id}/toggle-status', [SuperAdminController::class, 'toggleEmployeeStatus'])->name('super_admin.employees.toggle_status');
 
-// ==========================================
 // SYSTEM ADMIN ROUTES
-// ==========================================
 Route::get('/system_admin/dashboard', function () {
     if (session('user_role') !== 'system_admin') {
         return redirect('/')->with('error', 'Unauthorized access.');
@@ -76,9 +70,7 @@ Route::post('/system_admin/manage-curriculum', [CurriculumController::class, 'st
 
 Route::get('/system_admin/user_details', [SystemAdminController::class, 'profileView'])->name('system_admin.user_details');
 
-// ==========================================
 // REGISTRAR ROUTES
-// ==========================================
 Route::group(['middleware' => function ($request, $next) {
     if (session('user_role') !== 'registrar') {
         return redirect()->route('login')->with('error', 'Unauthorized access. Please login as Registrar.');
@@ -102,9 +94,7 @@ Route::group(['middleware' => function ($request, $next) {
     Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
 });
 
-// ==========================================
 // DEAN ROUTES
-// ==========================================
 Route::get('/dean/dashboard', function () {
     if (session('user_role') !== 'dean') {
         return redirect('/')->with('error', 'Unauthorized access.');
@@ -116,9 +106,7 @@ Route::get('/dean/dashboard', function () {
     Route::post('/dean/encoding', [CurriculumController::class, 'store'])->name('dean.curriculum.store');
     Route::get('/dean/user_details', [DeanController::class, 'profileView'])->name('dean.user_details');
 
-// ==========================================
 // DEPARTMENT SECRETARY ROUTES
-// ==========================================
 Route::get('/department-secretary/dashboard', function () {
     if (session('user_role') !== 'dept_sec') {
         return redirect('/')->with('error', 'Unauthorized access.');
@@ -140,9 +128,7 @@ Route::put('/department-secretary/manage-schedules/update/{id}', [ScheduleContro
 Route::delete('/department-secretary/manage-schedules/delete/{id}', [ScheduleController::class, 'delete'])->name('department_secretary.schedules.delete');
 Route::get('/department-secretary/user_details', [DeptSecController::class, 'profileView'])->name('department_secretary.user_details');
 
-// ==========================================
 // PROFESSOR ROUTES
-// ==========================================
 Route::get('/professor/dashboard', function () {
     if (session('user_role') !== 'professor') {
         return redirect('/')->with('error', 'Unauthorized access.');
@@ -150,5 +136,21 @@ Route::get('/professor/dashboard', function () {
     return view('professor.dashboard');
 })->name('professor.dashboard');
 
-Route::get('/professor/user_details', [ProfessorController::class, 'profileView'])->name('professor.user_details');
 Route::get('/professor/manage-classes', [ProfessorController::class, 'manageClasses'])->name('professor.manage-classes');
+Route::get('/professor/class_details/{schedule_id}', [ProfessorController::class, 'viewClassDashboard'])->name('professor.class_details');
+Route::post('/professor/save-activity', [ProfessorController::class, 'saveActivity'])->name('professor.save-activity');
+Route::post('/professor/update-activity/{id}', [ProfessorController::class, 'updateActivity'])->name('professor.update-activity');
+Route::post('/professor/delete-activity/{id}', [ProfessorController::class, 'deleteActivity'])->name('professor.delete-activity');
+Route::get('/professor/task-file/{id}', [ProfessorController::class, 'viewTaskFile'])->name('professor.task-file');
+Route::get('/professor/user_details', [ProfessorController::class, 'profileView'])->name('professor.user_details');
+
+// STUDENT ROUTES
+Route::get('/student/dashboard', function () {
+    if (session('user_role') !== 'student') {
+        return redirect('/')->with('error', 'Unauthorized access.');
+    }
+    return view('student.dashboard');
+})->name('student.dashboard');
+
+Route::get('/student/my-classes', [App\Http\Controllers\StudentController::class, 'myClasses'])->name('student.my_classes');
+Route::get('/student/user_details', [StudentController::class, 'profileView'])->name('student.user_details');

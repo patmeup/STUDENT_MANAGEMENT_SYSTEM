@@ -10,14 +10,16 @@ return new class extends Migration
     public function up()
     {
         Schema::table('students', function (Blueprint $table) {
-            $table->renameColumn('year_level', 'academic_level');
+            $table->renameColumn('academic_level', 'year_level');
+            $table->string('semester')->nullable()->after('year_level');
         });
     }
 
     public function down()
     {
         Schema::table('students', function (Blueprint $table) {
-            $table->renameColumn('academic_level', 'year_level');
+            $table->dropColumn('semester');
+            $table->renameColumn('year_level', 'academic_level');
         });
     }
 

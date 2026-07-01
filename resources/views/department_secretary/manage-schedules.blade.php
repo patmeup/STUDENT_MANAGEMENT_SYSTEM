@@ -153,7 +153,6 @@
                                     data-year="{{ $sched->year_level ?? '' }}"
                                     data-sem="{{ $sched->semester ?? '' }}">
 
-                                    {{-- SUBJECT INFO --}}
                                     <td>
                                         <span class="subject-code-tag">{{ strtoupper($sched->subject_code ?? '') }}</span>
                                         <div style="font-size: 12px; color: #64748b; margin-top: 4px; font-weight: 500;">
@@ -175,7 +174,6 @@
                                         </div>
                                     </td>
 
-                                    {{-- ASSIGNED FACULTY - also update edit button data attributes --}}
                                     <td>
                                         @if($sched->prof_last_name ?? null)
                                             <span class="prof-assigned-tag">

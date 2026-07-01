@@ -22,10 +22,11 @@
             <table class="custom-table">
                 <thead>
                     <tr>
-                        <th style="width: 15%;">Student Number</th>
-                        <th style="width: 35%;">Full Name</th>
-                        <th style="width: 15%;">Course</th>
-                        <th style="width: 15%;">Entry Type</th>
+                        <th style="width: 13%;">Student Number</th>
+                        <th style="width: 28%;">Full Name</th>
+                        <th style="width: 12%;">Course</th>
+                        <th style="width: 15%;">Year & Sem</th>
+                        <th style="width: 12%;">Entry Type</th>
                         <th style="width: 20%; text-align: center;">Actions</th>
                     </tr>
                 </thead>
@@ -43,7 +44,12 @@
                             <td class="student-course">
                                 <span class="course-tag">{{ $student->course }}</span>
                             </td>
-                            
+
+                            <td>
+                                <span class="year-sem-tag">{{ $student->year_level }}</span>
+                                <span class="year-sem-tag" style="margin-top: 4px;">{{ $student->semester }}</span>
+                            </td>
+
                             <td>
                                 <span class="type-badge {{ strtolower($student->student_type) }}">
                                     {{ $student->student_type }}
@@ -51,7 +57,6 @@
                             </td>
                             
                             <td style="text-align: center;">
-                                {{-- Papalitan natin ang '#' ng dynamic route parameter --}}
                                 <a href="{{ route('registrar.students.profile', ['student_id' => $student->student_id]) }}" class="btn-action-view" title="View/Edit Full Profile">
                                     <i class="fas fa-folder-open"></i> View Profile
                                 </a>
@@ -59,7 +64,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="empty-table-state">
+                            <td colspan="6" class="empty-table-state">
                                 <div class="empty-msg">
                                     <p>No student records captured yet inside the database.</p>
                                     <small>Go to "Manage Enrollment" to register your first student folder entry.</small>
@@ -82,7 +87,6 @@
         padding-bottom: 50px;
     }
 
-    /* Header Summary elements styling */
     .masterlist-header {
         display: flex;
         justify-content: space-between;
@@ -112,7 +116,6 @@
         border: 1px solid rgba(0, 51, 160, 0.1);
     }
 
-    /* Card Box container structural styling */
     .masterlist-card {
         background: white;
         border-radius: 12px;
@@ -129,7 +132,6 @@
         border-bottom: 1px solid #f1f5f9;
     }
 
-    /* Pure Responsive Table Layouts Engine */
     .table-responsive {
         width: 100%;
         overflow-x: auto;
@@ -160,7 +162,6 @@
         background-color: #f8fafc;
     }
 
-    /* Text components styling decorators */
     .student-id-badge {
         font-family: monospace;
         background-color: #0f172a;
@@ -180,7 +181,14 @@
         color: #475569;
     }
 
-    /* Flexible Type Badges */
+    .year-sem-tag {
+        display: block;
+        font-weight: 600;
+        color: #475569;
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
     .type-badge {
         display: inline-block;
         padding: 4px 12px;
@@ -202,7 +210,6 @@
         color: #0369a1;
     }
 
-    /* Compact View Action Trigger Control Buttons */
     .btn-action-view {
         display: inline-block;
         background-color: transparent;
@@ -221,7 +228,6 @@
         box-shadow: 0 2px 6px rgba(0, 51, 160, 0.2);
     }
 
-    /* Empty table states handlers */
     .empty-table-state {
         text-align: center !important;
         padding: 50px 0 !important;
