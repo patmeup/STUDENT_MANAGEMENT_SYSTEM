@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Subject;
 use App\Models\Course;
 use App\Models\User;
-use Illuminate\Support\Facades\DB; // Inimport natin ito para sa kaligtasan ng DB functions mo
+use Illuminate\Support\Facades\DB;
 
 class SubjectController extends Controller
 {
@@ -91,5 +91,10 @@ class SubjectController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Global Subject entry updated successfully!');
+    }
+
+    public function schedules()
+    {
+        return $this->hasMany(Schedule::class, 'subject_id', 'id'); 
     }
 }

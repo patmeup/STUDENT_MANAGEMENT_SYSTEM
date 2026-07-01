@@ -65,8 +65,9 @@
                     <label>Faculty Designation / Job Title</label>
                     <div class="custom-select-wrapper">
                         <select name="role" class="custom-select-dropdown" required>
-                            <option value="professor">Professor</option>
+                            <option value="dean">Dean</option>
                             <option value="dept_sec">Department Secretary</option>
+                            <option value="professor">Professor</option>
                         </select>
                     </div>
                 </div>
@@ -83,8 +84,16 @@
 
         <div class="admin-card table-panel">
             <div class="card-header-flex">
-                <h3 class="card-title-list">Active Institutional Faculty Roster</h3>
-                <span class="badge-count">{{ $faculties->count() }} Personnel Stationed</span>
+                <div>
+                    <h3 class="card-title-list">Active Institutional Faculty Roster</h3>
+                </div>
+                <div class="header-controls-flex">
+                    <div class="search-bar-container">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="adminFacultySearch" placeholder="Mag-hanap gamit ang Pangalan, ID, o Email..." class="custom-search-input">
+                    </div>
+                    <span class="badge-count">{{ $faculties->count() }} Personnel Stationed</span>
+                </div>
             </div>
 
             <div class="table-responsive">
@@ -96,10 +105,10 @@
                             <th style="text-align: center;">Network Status</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="adminFacultyTableBody">
                         @if($faculties->count() > 0)
                             @foreach($faculties as $faculty)
-                                <tr>
+                                <tr class="faculty-data-row">
                                     <td>
                                         <strong class="faculty-id-text">{{ $faculty->employee_id }}</strong>
                                         <br><span class="faculty-name-text">{{ strtoupper($faculty->last_name) }}, {{ strtoupper($faculty->first_name) }}</span>
@@ -107,7 +116,13 @@
                                     </td>
                                     <td style="text-align: center;">
                                         <span class="rank-badge {{ $faculty->role }}">
-                                            {{ $faculty->role === 'dept_sec' ? 'Department Secretary' : ($faculty->role === 'dean' ? 'Dean' : 'Professor') }}
+                                            @if($faculty->role === 'dean')
+                                                Dean
+                                            @elseif($faculty->role === 'dept_sec')
+                                                Department Secretary
+                                            @else
+                                                Professor
+                                            @endif
                                         </span>
                                     </td>
                                     <td style="text-align: center;">
@@ -149,8 +164,17 @@
     /* Cards UI */
     .admin-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.03); overflow: hidden; }
     .card-bar { background: #f8fafc; padding: 16px 22px; font-weight: 700; font-size: 14.5px; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
-    .card-header-flex { background-color: #f8fafc; padding: 16px 22px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+    
+    /* Combined card controls header alignment mechanics */
+    .card-header-flex { background-color: #f8fafc; padding: 12px 22px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
     .card-title-list { font-size: 14.5px; font-weight: 700; color: #1e293b; margin: 0; }
+    .header-controls-flex { display: flex; align-items: center; gap: 16px; }
+
+    /* Custom Input Search Bar Engine design specifications */
+    .search-bar-container { position: relative; display: flex; align-items: center; }
+    .search-icon { position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none; }
+    .custom-search-input { width: 260px; padding: 7px 12px 7px 32px; font-size: 12.5px; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; transition: all 0.15s ease; background: #ffffff; }
+    .custom-search-input:focus { border-color: #000000; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05); width: 300px; }
     
     /* Input structures */
     .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
@@ -181,10 +205,7 @@
     .rank-badge { display: inline-block; padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 4px; text-transform: uppercase; border: 1px solid transparent; }
     .rank-badge.professor { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
     .rank-badge.dept_sec { background: #fdf2f8; color: #be185d; border-color: #fbcfe8; }
-
-    /* RESERVED CODE FOR OTHER ROLES
-    .rank-badge.laboratory-coordinator { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
-    .rank-badge.program-chair { background: #f0f9ff; color: #075985; border-color: #bae6fd; } */
+    .rank-badge.dean { background: #fff7ed; color: #c2410c; border-color: #ffedd5; }
 
     .empty-table-state { text-align: center; color: #94a3b8; padding: 50px 0 !important; font-style: italic; }
 
@@ -203,4 +224,31 @@
     .custom-select-dropdown:focus { border-color: #000000; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05); }
     .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 </style>
+
+{{-- Script section block engine --}}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const facultySearchInput = document.getElementById('adminFacultySearch');
+    const facultyTableBody = document.getElementById('adminFacultyTableBody');
+    
+    if (facultySearchInput && facultyTableBody) {
+        const rows = facultyTableBody.getElementsByClassName('faculty-data-row');
+        
+        facultySearchInput.addEventListener('input', function () {
+            const filterQuery = facultySearchInput.value.toLowerCase().trim();
+            
+            for (let i = 0; i < rows.length; i++) {
+                // Dynamically parses and evaluates values within the identity metadata container row blocks
+                const rawRowContent = rows[i].textContent.toLowerCase();
+                
+                if (rawRowContent.includes(filterQuery)) {
+                    rows[i].style.display = ''; // Displays matching record rows
+                } else {
+                    rows[i].style.display = 'none'; // Drops visibility of non-matching values
+                }
+            }
+        });
+    }
+});
+</script>
 @endsection

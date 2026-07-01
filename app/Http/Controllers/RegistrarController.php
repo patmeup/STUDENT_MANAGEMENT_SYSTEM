@@ -16,6 +16,8 @@ class RegistrarController extends Controller
             'registration_date' => 'required|date',
             'student_type' => 'required|string',
             'course' => 'required|string',
+            'year_level' => 'required|string',
+            'semester' => 'required|string',
             'last_name' => 'required|string',
             'first_name' => 'required|string',
             'contact_no' => 'required|string',
@@ -48,7 +50,6 @@ class RegistrarController extends Controller
 
         $generatedStudentId = $currentYear . '-' . $nextSequence;
 
-        // 3. Folder Creation & File Storage Engine
         $filePaths = [];
         
         $fileFields = [
@@ -63,7 +64,6 @@ class RegistrarController extends Controller
             'doc_permit'            => 'cross_enroll_permit'
         ];
 
-        // PINAKAKRITIKAL NA BAHAGI: Puwersahing gawin ang subfolder sa local storage disk muna!
         $folderPath = "student_records/{$generatedStudentId}";
         if (!Storage::disk('local')->exists($folderPath)) {
             Storage::disk('local')->makeDirectory($folderPath);
@@ -77,7 +77,6 @@ class RegistrarController extends Controller
                     $extension = $file->getClientOriginalExtension();
                     $finalName = "{$cleanFileName}.{$extension}";
                     
-                    // Mas matatag na approach para sa Windows/Linux local servers
                     $file->storeAs($folderPath, $finalName, 'local');
                     
                     $filePaths[$inputName] = $finalName;
@@ -85,12 +84,13 @@ class RegistrarController extends Controller
             }
         }
 
-        // 4. Ipasok sa Database gamit ang Student Model
         $student = new Student();
         $student->student_id = $generatedStudentId;
         $student->registration_date = $request->registration_date;
         $student->student_type = $request->student_type;
         $student->course = $request->course;
+        $student->year_level = $request->year_level;
+        $student->semester = $request->semester;
         $student->last_name = strtoupper($request->last_name);
         $student->first_name = strtoupper($request->first_name);
         $student->middle_name = $request->middle_name ? strtoupper($request->middle_name) : null;
@@ -119,16 +119,15 @@ class RegistrarController extends Controller
         $student->college_school_address = $request->college_school_address;
         $student->college_school_year = $request->college_school_year;
 
-        // I-map ang file columns sa database structure mo
-        $student->path_psa               = $filePaths['doc_psa'] ?? null;
-        $student->path_2x2               = $filePaths['doc_2x2'] ?? null;
-        $student->path_f138              = $filePaths['doc_f138'] ?? null;
-        $student->path_good_moral_new    = $filePaths['doc_good_moral_new'] ?? null;
-        $student->path_diploma           = $filePaths['doc_diploma'] ?? null;
-        $student->path_tor               = $filePaths['doc_tor'] ?? null;
-        $student->path_dismissal         = $filePaths['doc_dismissal'] ?? null;
-        $student->path_good_moral_trans  = $filePaths['doc_good_moral_trans'] ?? null;
-        $student->path_permit            = $filePaths['doc_permit'] ?? null;
+        $student->path_psa = $filePaths['doc_psa'] ?? null;
+        $student->path_2x2 = $filePaths['doc_2x2'] ?? null;
+        $student->path_f138 = $filePaths['doc_f138'] ?? null;
+        $student->path_good_moral_new = $filePaths['doc_good_moral_new'] ?? null;
+        $student->path_diploma = $filePaths['doc_diploma'] ?? null;
+        $student->path_tor = $filePaths['doc_tor'] ?? null;
+        $student->path_dismissal = $filePaths['doc_dismissal'] ?? null;
+        $student->path_good_moral_trans = $filePaths['doc_good_moral_trans'] ?? null;
+        $student->path_permit = $filePaths['doc_permit'] ?? null;
         
         $student->save();
 
