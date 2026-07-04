@@ -11,33 +11,38 @@ use App\Models\User;
 class ProfessorController extends Controller
 {
     public function manageClasses()
-    {
-        if (session('user_role') !== 'professor') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
-        $professor_id = session('user_id'); 
-
-        $classes = \DB::table('class_schedules')
-            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-            ->select(
-                'class_schedules.id as schedule_id',
-                'class_schedules.section_name',
-                'class_schedules.class_days',
-                'class_schedules.start_time',
-                'class_schedules.end_time',
-                'class_schedules.room_assignment',
-                'subjects.subject_code', 
-                'subjects.subject_title',
-                'subjects.lecture_units',
-                'subjects.lab_units'
-            )
-            ->where('subjects.professor_id', $professor_id) 
-            ->orderBy('class_schedules.section_name')
-            ->get();
-
-        return view('professor.manage-classes', compact('classes'));
+{
+    if (session('user_role') !== 'professor') {
+        return redirect('/')->with('error', 'Unauthorized access.');
     }
+
+    $professor_id = session('user_id'); 
+
+    $classes = \DB::table('class_schedules')
+        ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+        ->select(
+            'class_schedules.id as schedule_id',
+            'class_schedules.section_name',
+            'class_schedules.class_days',
+            'class_schedules.start_time',
+            'class_schedules.end_time',
+            'class_schedules.room_assignment',
+            'subjects.subject_code', 
+            'subjects.subject_title',
+            'subjects.lecture_units',
+            'subjects.lab_units',
+            // --- ADDED THIS SUBQUERY SUB-SELECT TO COUNT THE ENROLLED STUDENTS ---
+            \DB::raw('(SELECT COUNT(*) 
+                       FROM student_subjects 
+                       WHERE student_subjects.schedule_id = class_schedules.id 
+                       AND student_subjects.status = "Enrolled") as students_count')
+        )
+        ->where('subjects.professor_id', $professor_id) 
+        ->orderBy('class_schedules.section_name')
+        ->get();
+
+    return view('professor.manage-classes', compact('classes'));
+}
 
     public function viewClassDashboard($schedule_id)
     {

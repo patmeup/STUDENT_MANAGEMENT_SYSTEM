@@ -6,10 +6,10 @@ use Illuminate\Http\Request;
 use App\Models\Student;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class StudentController extends Controller
 {
-
     public function index()
     {
         $students = Student::orderBy('created_at', 'desc')->get();
@@ -171,6 +171,7 @@ class StudentController extends Controller
             ->where('student_subjects.student_number', $studentNumber)
             ->where('student_subjects.status', 'Enrolled')
             ->select(
+                'class_schedules.id as schedule_id',
                 'subjects.subject_code',
                 'subjects.subject_title',
                 'subjects.total_units',
@@ -202,9 +203,68 @@ class StudentController extends Controller
             return redirect()->route('login')->with('error', 'User not found.');
         }
 
-        $isLocked = \Illuminate\Support\Facades\Hash::check('Welcome@AU2026', $user->password);
+        $isLocked = Hash::check('Welcome@AU2026', $user->password);
 
         return view('student.user_details', compact('user', 'isLocked'));
     }
 
+    public function viewClassDashboard($schedule_id, Request $request)
+    {
+        if (session('user_role') !== 'student') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $activeTab = $request->query('tab', 'materials');
+        // Capture clicked term if present (e.g., prelim, midterm, semifinal, final)
+        $selectedTerm = $request->query('term'); 
+
+        // 1. Fetch details for this specific class
+        $classDetails = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->where('class_schedules.id', $schedule_id)
+            ->select('class_schedules.*', 'subjects.subject_code', 'subjects.subject_title')
+            ->first();
+
+        if (!$classDetails) {
+            return redirect()->back()->with('error', 'Class workspace record could not be found.');
+        }
+
+        // 2. Fetch professor uploaded activities with optional Term Filtering
+        $activitiesQuery = DB::table('student_tasks') 
+            ->where('class_schedule_id', $schedule_id);
+
+        if (!empty($selectedTerm)) {
+            $activitiesQuery->where('term', 'LIKE', $selectedTerm . '%');
+        }
+
+        $activities = $activitiesQuery->orderBy('created_at', 'desc')->get();
+
+        // 3. Fallback for materials table if it doesn't exist yet
+        $materials = [];
+        if (\Illuminate\Support\Facades\Schema::hasTable('class_materials')) {
+            $materials = DB::table('class_materials')
+                ->where('class_schedule_id', $schedule_id)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+
+        return view('student.class_dashboard', compact('classDetails', 'activities', 'materials', 'activeTab'));
+    }
+
+    public function viewTaskDetails($id)
+    {
+        if (session('user_role') !== 'student') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $task = DB::table('student_tasks')
+            ->where('id', $id)
+            ->first();
+
+        if (!$task) {
+            return redirect()->back()->with('error', 'Task record could not be found.');
+        }
+
+        return view('student.task_details', compact('task'));
+    }
 }

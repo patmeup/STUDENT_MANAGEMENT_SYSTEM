@@ -60,7 +60,7 @@
 
                             <p class="roster-count mb-3">
                                 <i class="fa-solid fa-users"></i> 
-                                <span>Enrolled Students: <strong>{{ $class->enrolled_students_count ?? 0 }}</strong></span>
+                                <span>Enrolled Students: <strong>{{ $class->students_count ?? 0 }}</strong></span>
                             </p>
                         </div>
                         

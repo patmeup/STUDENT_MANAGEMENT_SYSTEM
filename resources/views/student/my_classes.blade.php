@@ -71,7 +71,9 @@
                     </div>
                     
                     <div class="card-footer">
-                        <button class="btn-view">View Materials</button>
+                        <a href="{{ route('student.class_details', $class->schedule_id) }}" class="btn-view text-center d-block text-decoration-none">
+                            View Materials
+                        </a>
                     </div>
                 </div>
             @endforeach
@@ -221,16 +223,19 @@
     }
 
     .btn-view {
-        width: 100%;
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px solid #1e2a5a;
-        background: transparent;
-        color: #1e2a5a;
-        font-weight: 600;
-        cursor: pointer;
-        transition: 0.3s;
-    }
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #1e2a5a;
+    background: transparent;
+    color: #1e2a5a;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+    display: inline-block;
+    text-align: center;
+    text-decoration: none;
+}
 
     .btn-view:hover {
         background: #1e2a5a;

@@ -154,3 +154,5 @@ Route::get('/student/dashboard', function () {
 
 Route::get('/student/my-classes', [App\Http\Controllers\StudentController::class, 'myClasses'])->name('student.my_classes');
 Route::get('/student/user_details', [StudentController::class, 'profileView'])->name('student.user_details');
+Route::get('/student/class-details/{schedule_id}', [App\Http\Controllers\StudentController::class, 'viewClassDashboard'])->name('student.class_details');
+Route::get('/student/task/{id}', [StudentController::class, 'viewTaskDetails'])->name('student.view-task');
