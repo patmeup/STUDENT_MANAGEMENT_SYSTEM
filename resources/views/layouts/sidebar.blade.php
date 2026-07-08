@@ -316,7 +316,8 @@
                             <span>My Classes</span>
                         </a>
                     @else
-                        <a href="{{ route('student.my_classes') }}" class="{{ Route::is('student.my_classes') ? 'active' : '' }}">
+                        <a href="{{ route('student.my_classes') }}" class="{{ Route::is('student.my_classes') || Route::is('student.class_details') || 
+                            Route::is('student.view-task') ? 'active' : '' }}">
                             <i data-lucide="calendar"></i> <span>My Classes</span>
                         </a>
                     @endif

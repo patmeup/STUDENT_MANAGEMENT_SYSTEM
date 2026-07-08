@@ -3,269 +3,138 @@
 @section('content')
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<div class="classes-container py-4">
-    <div class="page-header">
-        <div class="header-text">
-            <h1>My Enrolled Classes</h1>
-            <p>1st Semester | Academic Year 2026-2027</p>
+<div class="prof-container py-4">
+
+    <div class="prof-header">
+        <div class="header-titles">
+            <h2>My Enrolled Classes</h2>
+            <p>1st Semester — Academic Year 2026-2027</p>
         </div>
-        <div class="header-stats">
-            @if(!$classes->isEmpty())
-                <span class="stat-badge">Total Units: <strong>{{ $classes->sum('total_units') }}</strong></span>
-            @else
-                <span class="stat-badge">Total Units: <strong>0</strong></span>
-            @endif
-        </div>
+        <div class="header-badge student-level">Total Units: {{ $classes->isEmpty() ? 0 : $classes->sum('total_units') }}</div>
+    </div>
+
+    <div class="card-header-flex mb-4">
+        <h3 class="card-title-list">Currently Enrolled Subjects</h3>
+        <span class="badge-count">{{ count($classes) }} Active Class{{ count($classes) === 1 ? '' : 'es' }}</span>
     </div>
 
     @if($classes->isEmpty())
-        <div class="add-more-placeholder">
+        <div class="empty-placeholder-card">
             <i class="fa-solid fa-circle-plus fs-1 mb-2" style="color: #ccc;"></i>
             <p class="fw-medium mb-1" style="color: #666;">No classes plotted at the moment</p>
             <p class="small text-muted mb-0">Wait for Registrar to add more subjects</p>
         </div>
     @else
-        <div class="classes-grid">
+        <div class="prof-classes-grid">
             @foreach($classes as $index => $class)
-                <div class="class-card">
-                    <div class="card-accent" style="background: {{ $index % 2 == 0 ? '#1e2a5a' : '#facc15' }};"></div>
-                    
+                @php
+                    $isEven = $index % 2 == 0;
+                    $accentColor = $isEven ? '#1e2a5a' : '#facc15';
+                @endphp
+
+                <a href="{{ route('student.class_details', $class->schedule_id) }}" class="prof-class-card clickable-card">
+                    <div class="card-accent" style="background: {{ $accentColor }};"></div>
+
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <div class="subject-code">{{ strtoupper($class->subject_code) }}</div>
-                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill d-flex align-items-center gap-1" style="font-size: 0.7rem; font-weight: 600;">
-                                <span class="status-pulse-dot"></span>
-                                {{ $class->status }}
+                        <div class="card-top-row">
+                            <div class="card-top-meta">
+                                <span class="subject-code">{{ strtoupper($class->subject_code) }}</span>
+                            </div>
+                            <span class="badge-enrolled-status">
+                                <span class="status-pulse-dot"></span> {{ $class->status }}
                             </span>
                         </div>
 
                         <h3 class="subject-title" title="{{ $class->subject_title }}">
                             {{ $class->subject_title }}
                         </h3>
-                        
-                        <p class="instructor">
-                            <i class="fa-regular fa-user"></i> 
-                            <span>
-                                @if($class->prof_first_name && $class->prof_last_name)
-                                    Prof. {{ $class->prof_first_name }} {{ $class->prof_last_name }}
-                                @else
-                                    TBA (To Be Assigned)
-                                @endif
-                            </span>
-                        </p>
-                        
+
+                        <div class="card-info-specs">
+                            <p class="units-display mb-2">
+                                <i class="fa-regular fa-user"></i>
+                                <span>
+                                    @if($class->prof_first_name && $class->prof_last_name)
+                                        Prof. {{ $class->prof_first_name }} {{ $class->prof_last_name }}
+                                    @else
+                                        TBA (To Be Assigned)
+                                    @endif
+                                </span>
+                            </p>
+
+                            <p class="roster-count mb-0">
+                                <i class="fa-solid fa-users"></i>
+                                <span>Enrolled Students: <strong>{{ $class->enrolled_students_count ?? 0 }}</strong></span>
+                            </p>
+                        </div>
+
                         <div class="class-meta">
                             <span class="meta-item">
-                                <i class="fa-regular fa-clock"></i> 
+                                <i class="fa-regular fa-clock"></i>
                                 <strong>{{ $class->class_days }}:</strong> {{ \Carbon\Carbon::parse($class->start_time)->format('h:i A') }} - {{ \Carbon\Carbon::parse($class->end_time)->format('h:i A') }}
                             </span>
                             <span class="meta-item">
-                                <i class="fa-solid fa-location-dot"></i> 
+                                <i class="fa-solid fa-location-dot"></i>
                                 <span>Room: {{ $class->room_assignment }}</span>
-                            </span>
-                            <span class="meta-item">
-                                <i class="fa-solid fa-users"></i> 
-                                <span>Enrolled Students: <strong>{{ $class->enrolled_students_count ?? 0 }}</strong></span>
                             </span>
                         </div>
                     </div>
-                    
-                    <div class="card-footer">
-                        <button class="btn-view">View Materials</button>
-                    </div>
-                </div>
+                </a>
             @endforeach
-
-            <div class="add-more-placeholder">
-                <i class="fa-solid fa-circle-plus fs-2 mb-2" style="opacity: 0.6;"></i>
-                <p class="small mb-0">Wait for Registrar to add more subjects</p>
-            </div>
         </div>
     @endif
 </div>
 
 <style>
-    .classes-container {
-        max-width: 1100px;
-        margin: 0 auto;
-    }
+    .prof-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 1200px; margin: 0 auto; }
+    .prof-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #f1f3f9; padding-bottom: 20px; }
+    .header-titles h2 { font-size: 26px; color: #1e2a5a; font-weight: 800; margin-bottom: 5px; }
+    .header-titles p { color: #666; font-size: 14px; margin-bottom: 0; }
+    .student-level { background: #1e2a5a; color: white; padding: 8px 16px; border-radius: 50px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
-        border-bottom: 2px solid #f1f3f9;
-        padding-bottom: 20px;
-    }
+    .card-header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+    .card-title-list { font-size: 16px; font-weight: 700; margin: 0; color: #1e293b; }
+    .badge-count { background: #1e2a5a; color: white; font-size: 12px; padding: 5px 14px; border-radius: 20px; font-weight: 700; }
 
-    .header-text h1 {
-        font-size: 26px;
-        color: #1e2a5a;
-        font-weight: 800;
-        margin-bottom: 5px;
-    }
+    /* Grid Framework */
+    .prof-classes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 25px; }
 
-    .header-text p {
-        color: #666;
-        font-size: 14px;
-        margin-bottom: 0;
-    }
+    /* Clickable Card Core Elements */
+    .clickable-card { text-decoration: none !important; color: inherit !important; display: block; }
 
-    .stat-badge {
-        background: #1e2a5a;
-        color: white;
-        padding: 8px 16px;
-        border-radius: 50px;
-        font-size: 13px;
-    }
+    .prof-class-card { background: white; border-radius: 15px; overflow: hidden; border: 1px solid #e0e0e0; transition: transform 0.25s ease, box-shadow 0.25s ease; display: flex; flex-direction: column; }
+    .prof-class-card:hover { transform: translateY(-5px); box-shadow: 0 12px 24px rgba(30, 42, 90, 0.12); border-color: #cbd5e1; }
 
-    /* Grid Layout */
-    .classes-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 25px;
-    }
+    .card-accent { height: 6px; width: 100%; }
+    .card-body { padding: 22px; flex-grow: 1; display: flex; flex-direction: column; }
 
-    /* Card Styling */
-    .class-card {
-        background: white;
-        border-radius: 15px;
-        overflow: hidden;
-        border: 1px solid #e0e0e0;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        display: flex;
-        flex-direction: column;
-    }
+    .card-top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .card-top-meta { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: #0284c7; letter-spacing: 0.5px; }
 
-    .class-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+    .badge-enrolled-status {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 700;
+        padding: 3px 10px; border-radius: 20px; text-transform: capitalize;
     }
-
-    .card-accent {
-        height: 6px;
-        width: 100%;
-    }
-
-    .card-body {
-        padding: 20px;
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .subject-code {
-        font-size: 12px;
-        font-weight: 700;
-        color: #0284c7;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-
-    .subject-title {
-        font-size: 17px;
-        color: #1e293b;
-        font-weight: 700;
-        margin-top: 5px;
-        margin-bottom: 12px;
-        line-height: 1.4;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;  
-        overflow: hidden;
-        min-height: 48px;
-    }
-
-    .instructor {
-        font-size: 14px;
-        color: #475569;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 15px;
-    }
-
-    .instructor i {
-        width: 16px;
-        color: #64748b;
-    }
-
-    .class-meta {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        border-top: 1px solid #f1f5f9;
-        padding-top: 15px;
-        margin-top: auto;
-    }
-
-    .meta-item {
-        font-size: 13px;
-        color: #475569;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .meta-item i {
-        width: 14px;
-        color: #1e2a5a;
-        text-align: center;
-    }
-
-    .card-footer {
-        padding: 15px 20px;
-        background: #fcfcfc;
-        border-top: 1px solid #f1f3f9;
-    }
-
-    .btn-view {
-        width: 100%;
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px solid #1e2a5a;
-        background: transparent;
-        color: #1e2a5a;
-        font-weight: 600;
-        cursor: pointer;
-        transition: 0.3s;
-    }
-
-    .btn-view:hover {
-        background: #1e2a5a;
-        color: white;
-    }
-
-    .add-more-placeholder {
-        border: 2px dashed #cbd5e1;
-        border-radius: 15px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 30px;
-        color: #94a3b8;
-        text-align: center;
-        background: #f8fafc;
-        min-height: 250px;
-    }
-
-    .bg-success-subtle { background-color: #d1fae5 !important; color: #065f46 !important; }
-    
     .status-pulse-dot {
-        width: 6px;
-        height: 6px;
-        background-color: #10b981;
-        border-radius: 50%;
-        display: inline-block;
-        animation: pulseEffect 2s infinite;
+        width: 6px; height: 6px; background-color: #22c55e; border-radius: 50%;
+        display: inline-block; animation: pulseEffect 2s infinite;
+    }
+    @keyframes pulseEffect {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6); }
+        70% { transform: scale(1); box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
     }
 
-    @keyframes pulseEffect {
-        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-        70% { transform: scale(1); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
-        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-    }
+    .subject-title { font-size: 17px; color: #1e293b; font-weight: 700; margin-top: 4px; margin-bottom: 16px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 48px; }
+
+    .card-info-specs { border-bottom: 1px dashed #e2e8f0; padding-bottom: 12px; margin-bottom: 14px; }
+    .units-display, .roster-count { font-size: 13.5px; color: #475569; display: flex; align-items: center; gap: 8px; margin: 0; }
+    .units-display i, .roster-count i { width: 16px; color: #64748b; text-align: center; }
+
+    .class-meta { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+    .meta-item { font-size: 13px; color: #475569; display: flex; align-items: center; gap: 8px; }
+    .meta-item i { width: 14px; color: #1e2a5a; text-align: center; }
+
+    .empty-placeholder-card { border: 2px dashed #cbd5e1; border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; color: #94a3b8; text-align: center; background: #f8fafc; min-height: 250px; }
 </style>
 @endsection
