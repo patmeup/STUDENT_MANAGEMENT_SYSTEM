@@ -2,15 +2,54 @@
 
 @section('content')
 <div class="masterlist-container">
-    
+
     <div class="masterlist-header">
         <div class="header-titles">
             <h2>Student Masterlist Ledger</h2>
             <p>Arellano University — Andres Bonifacio Campus (Active Academic Registry)</p>
         </div>
         <div class="header-count">
-            Total Records: <strong>{{ $students->count() }}</strong>
+            Total Records: <strong>{{ $totalRecords }}</strong>
         </div>
+    </div>
+
+    <div class="filter-card" style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <form id="liveFilterForm" action="{{ route('registrar.manage-students') }}" method="GET" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+            
+            <div style="flex: 1; min-width: 250px;">
+                <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Search Directory</label>
+                <input type="text" id="searchInput" name="search" value="{{ request('search') }}" placeholder="Search ID, First Name, or Last Name..." 
+                       style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; box-sizing: border-box; color: #334155;">
+            </div>
+
+            <div style="width: 180px;">
+                <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Course</label>
+                <select name="course" class="auto-submit-select" style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; background-color: white; color: #334155; height: 41px; cursor: pointer;">
+                    <option value="">All Courses</option>
+                    <option value="BSIT" {{ request('course') == 'BSIT' ? 'selected' : '' }}>BSIT</option>
+                    <option value="BSCS" {{ request('course') == 'BSCS' ? 'selected' : '' }}>BSCS</option>
+                    <option value="BSIS" {{ request('course') == 'BSIS' ? 'selected' : '' }}>BSIS</option>
+                </select>
+            </div>
+
+            <div style="width: 180px;">
+                <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Entry Type</label>
+                <select name="student_type" class="auto-submit-select" style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; background-color: white; color: #334155; height: 41px; cursor: pointer;">
+                    <option value="">All Types</option>
+                    <option value="NEW" {{ request('student_type') == 'NEW' ? 'selected' : '' }}>NEW</option>
+                    <option value="TRANSFEREE" {{ request('student_type') == 'TRANSFEREE' ? 'selected' : '' }}>TRANSFEREE</option>
+                    <option value="CROSS ENROLEE" {{ request('student_type') == 'CROSS ENROLEE' ? 'selected' : '' }}>CROSS ENROLEE</option>
+                </select>
+            </div>
+
+            @if(request()->has('search') || request()->has('course') || request()->has('student_type'))
+                <div style="margin-top: 20px;">
+                    <a href="{{ route('registrar.manage-students') }}" style="background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; display: inline-block; transition: all 0.2s;">
+                        Clear Filters
+                    </a>
+                </div>
+            @endif
+        </form>
     </div>
 
     <div class="masterlist-card">
@@ -51,7 +90,7 @@
                             </td>
 
                             <td>
-                                <span class="type-badge {{ strtolower($student->student_type) }}">
+                                <span class="type-badge {{ strtolower(str_replace(' ', '-', $student->student_type)) }}">
                                     {{ $student->student_type }}
                                 </span>
                             </td>
@@ -84,7 +123,7 @@
         color: #1e293b;
         max-width: 1200px;
         margin: 0 auto;
-        padding-bottom: 50px;
+        padding: 20px 0 50px 0;
     }
 
     .masterlist-header {
@@ -205,7 +244,7 @@
         background-color: #fef9c3;
         color: #a16207;
     }
-    .type-badge.cross-enroll {
+    .type-badge.cross-enrolee {
         background-color: #e0f2fe;
         color: #0369a1;
     }
@@ -244,4 +283,36 @@
         font-size: 13px;
     }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const filterForm = document.getElementById('liveFilterForm');
+    const searchInput = document.getElementById('searchInput');
+    const selectDropdowns = document.querySelectorAll('.auto-submit-select');
+    
+    // 1. Instantly trigger submission when selection changes
+    selectDropdowns.forEach(dropdown => {
+        dropdown.addEventListener('change', () => {
+            filterForm.submit();
+        });
+    });
+
+    // 2. Debounce typing event: triggers 500ms after user pauses typing
+    let typingDebounceTimer;
+    searchInput.addEventListener('input', () => {
+        clearTimeout(typingDebounceTimer);
+        typingDebounceTimer = setTimeout(() => {
+            filterForm.submit();
+        }, 500); 
+    });
+
+    // 3. Keep the input focus clean upon asynchronous interface refresh
+    if (searchInput.value !== '') {
+        const textVal = searchInput.value;
+        searchInput.value = '';
+        searchInput.focus();
+        searchInput.value = textVal;
+    }
+});
+</script>
 @endsection

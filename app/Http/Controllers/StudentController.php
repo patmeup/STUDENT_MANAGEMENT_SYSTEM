@@ -7,13 +7,49 @@ use App\Models\Student;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class StudentController extends Controller
 {
-    public function index()
+    /**
+     * Display the filtered Student Masterlist Ledger for the Registrar side.
+     */
+    public function index(Request $request)
     {
-        $students = Student::orderBy('created_at', 'desc')->get();
-        return view('registrar.manage-students', compact('students'));
+        if (session('user_role') !== 'registrar') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        // Initialize the query builder
+        $query = Student::query();
+
+        // 1. Text Search Filter (ID Number or Name strings)
+        if ($request->has('search') && $request->search != '') {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('student_id', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('first_name', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('last_name', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // 2. Course Program Dropdown Filter
+        if ($request->has('course') && $request->course != '') {
+            $query->where('course', $request->course);
+        }
+
+        // 3. Entry Type Dropdown Filter (NEW / TRANSFEREE)
+        if ($request->has('student_type') && $request->student_type != '') {
+            $query->where('student_type', $request->student_type);
+        }
+
+        // Fetch filtered results ordered by the newest entry sequence first
+        $students = $query->orderBy('student_id', 'desc')->get();
+        
+        // Count total matching filtered records
+        $totalRecords = $students->count();
+
+        return view('registrar.manage-students', compact('students', 'totalRecords'));
     }
 
     public function viewStudentProfile($student_id)
@@ -215,7 +251,6 @@ class StudentController extends Controller
         }
 
         $activeTab = $request->query('tab', 'materials');
-        // Capture clicked term if present (e.g., prelim, midterm, semifinal, final)
         $selectedTerm = $request->query('term'); 
 
         // 1. Fetch details for this specific class
@@ -241,7 +276,7 @@ class StudentController extends Controller
 
         // 3. Fallback for materials table if it doesn't exist yet
         $materials = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('class_materials')) {
+        if (Schema::hasTable('class_materials')) {
             $materials = DB::table('class_materials')
                 ->where('class_schedule_id', $schedule_id)
                 ->orderBy('created_at', 'desc')
