@@ -47,6 +47,7 @@
                 </div>
 
                 {{-- 2. AUTOMATED DEPARTMENT FIELD --}}
+                
                 <div class="form-group">
                     <label>Assigned College Department</label>
                     <div class="custom-select-wrapper">
@@ -227,6 +228,7 @@
             this.style.width = '220px';
         });
     });
+<<<<<<< HEAD
 
     // --- MODAL WINDOW TRIGGERS AT SUBMIT LOCKFlow ENGINE ---
     function openEditCourseModal(course) {
@@ -292,6 +294,8 @@
     function closeEditCourseModal() {
         document.getElementById('editCourseModal').style.display = 'none';
     }
+=======
+>>>>>>> 9367affbf85637b7cc10f50b81275dfb8ae4941e
 </script>
 
 <style>

@@ -66,8 +66,9 @@
                     <label>Faculty Designation / Job Title</label>
                     <div class="custom-select-wrapper">
                         <select name="role" class="custom-select-dropdown" required>
-                            <option value="professor">Professor</option>
+                            <option value="dean">Dean</option>
                             <option value="dept_sec">Department Secretary</option>
+                            <option value="professor">Professor</option>
                         </select>
                     </div>
                 </div>
@@ -84,11 +85,16 @@
             <div class="card-header-flex">
                 <div class="card-title-container">
                     <h3 class="card-title-list">Active Institutional Faculty Roster</h3>
-                    <span class="badge-count">{{ $faculties->count() }} Personnel Stationed</span>
+                    <span class="badge-count"> {{ $faculties->count() }} Faculty Members </span>
                 </div>
+
                 <div class="table-search-box">
                     <i class="fas fa-search search-icon"></i>
-                    <input type="text" id="facultySearchInput" placeholder="Search name, ID, or role...">
+                    <input
+                        type="text"
+                        id="facultySearchInput"
+                        placeholder="Search faculty name, ID, or designation..."
+                    >
                 </div>
             </div>
 
@@ -126,13 +132,13 @@
                                         <button class="btn-action-edit"
                                             onclick="openEditFaculty(
                                                 {{ $faculty->id }},
-                                                '{{ $faculty->first_name }}',
-                                                '{{ $faculty->last_name }}',
-                                                '{{ $faculty->middle_name }}',
-                                                '{{ $faculty->sex }}',
-                                                '{{ $faculty->email }}',
-                                                '{{ $faculty->role }}',
-                                                '{{ $faculty->department }}'
+                                                @js($faculty->first_name),
+                                                @js($faculty->last_name),
+                                                @js($faculty->middle_name),
+                                                @js($faculty->sex),
+                                                @js($faculty->email),
+                                                @js($faculty->role),
+                                                @js($faculty->department)
                                             )">Edit</button>
                                         <button class="btn-action-delete"
                                             onclick="openDeleteFaculty({{ $faculty->id }}, '{{ strtoupper($faculty->last_name) }}, {{ strtoupper($faculty->first_name) }}')">Delete</button>
@@ -205,6 +211,7 @@
                 <label>Role / Designation</label>
                 <div class="custom-select-wrapper">
                     <select name="role" id="edit_role" class="custom-select-dropdown" required>
+                        <option value="dean">Dean</option>
                         <option value="professor">Professor</option>
                         <option value="dept_sec">Department Secretary</option>
                     </select>
@@ -247,7 +254,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const noResults   = document.getElementById('facultyNoResults');
 
     if (searchInput) {
-        searchInput.addEventListener('keyup', function () {
+        searchInput.addEventListener('input', function () {
             const term = searchInput.value.toLowerCase().trim();
             let visibleCount = 0;
             tableRows.forEach(row => {
@@ -264,18 +271,23 @@ document.addEventListener('DOMContentLoaded', function () {
 function openEditFaculty(id, firstName, lastName, middleName, sex, email, role, department) {
     document.getElementById('edit_first_name').value  = firstName;
     document.getElementById('edit_last_name').value   = lastName;
-    document.getElementById('edit_middle_name').value = middleName !== 'null' ? middleName : '';
+    document.getElementById('edit_middle_name').value = middleName && middleName !== 'null' ? middleName : '';
     document.getElementById('edit_sex').value         = sex;
     document.getElementById('edit_email').value       = email;
     document.getElementById('edit_role').value        = role;
     document.getElementById('edit_department').value  = department;
-    document.getElementById('editFacultyForm').action = `/system_admin/manage-faculty/${id}`;
+    let editUrl = "{{ route('system_admin.manage-faculty.update', ':id') }}";
+    editUrl = editUrl.replace(':id', id);
+
+    document.getElementById('editFacultyForm').action = editUrl;
     document.getElementById('editFacultyModal').style.display = 'flex';
 }
 
 function openDeleteFaculty(id, name) {
     document.getElementById('deleteFacultyName').textContent = name;
-    document.getElementById('deleteFacultyForm').action = `/system_admin/manage-faculty/${id}`;
+    let deleteUrl = "{{ route('system_admin.manage-faculty.destroy', ':id') }}";
+    deleteUrl = deleteUrl.replace(':id', id);
+    document.getElementById('deleteFacultyForm').action = deleteUrl;
     document.getElementById('deleteFacultyModal').style.display = 'flex';
 }
 
@@ -302,7 +314,7 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     .form-panel { flex: 1; min-width: 360px; background: #ffffff; }
     .table-panel { flex: 1.5; background: #ffffff; }
 
-    .admin-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px -2px rgba(0,0,0,0.03); overflow: hidden; }
+    .admin-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px -2px rgba(0,0,0,0.03); overflow: hidden; transition: .2s ease; }
     .card-bar { background: #f8fafc; padding: 16px 22px; font-weight: 700; font-size: 14.5px; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
     .card-header-flex { background-color: #f8fafc; padding: 16px 22px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
     .card-title-container { display: flex; align-items: center; gap: 12px; }
@@ -337,8 +349,11 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     .rank-badge { display: inline-block; padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 4px; text-transform: uppercase; border: 1px solid transparent; }
     .rank-badge.professor { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
     .rank-badge.dept_sec { background: #fdf2f8; color: #be185d; border-color: #fbcfe8; }
-    .rank-badge.dean { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    .rank-badge.dean { background: #fff7ed; color: #c2410c; border-color: #ffedd5; }
 
+    .empty-table-state { text-align: center; color: #94a3b8; padding: 50px 0 !important; font-style: italic; }
+
+    /* Activity markers */
     .status-indicator-center { display: flex; align-items: center; justify-content: center; gap: 6px; }
     .pulse-dot-green { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; }
     .status-label-text { font-size: 13px; color: #334155; font-weight: 500; }
@@ -349,7 +364,6 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     .btn-action-delete { background-color: transparent; border: 1px solid #fecaca; color: #dc2626; padding: 5px 12px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
     .btn-action-delete:hover { background-color: #fef2f2; color: #991b1b; border-color: #f87171; }
 
-    .empty-table-state { text-align: center; color: #94a3b8; padding: 50px 0 !important; font-style: italic; }
     .admin-alert-success { background: #ecfdf5; color: #065f46; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #059669; font-size: 14px; }
     .admin-alert-danger { background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; }
     .badge-count { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 4px 12px; border-radius: 20px; font-weight: 700; }

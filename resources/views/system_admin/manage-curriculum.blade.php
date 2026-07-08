@@ -76,8 +76,15 @@
                 <div class="form-group">
                     <label>Select Subject to Bind</label>
                     <div class="custom-select-wrapper">
-                        <select name="subject_id" id="subjectSelect" required class="form-select-custom" disabled>
-                            <option value="" disabled selected hidden>Please fill out Course, Year, and Semester first...</option>
+                        <select name="subject_id" id="subjectSelect" required disabled class="form-select-custom">
+                            <option value="" disabled selected hidden>-- Select Cataloged Subject --</option>
+                            @if(isset($subjects) && $subjects->count() > 0)
+                                @foreach($subjects as $subj)
+                                    <option value="{{ $subj->id }}">
+                                        [{{ strtoupper($subj->subject_code) }}] — {{ $subj->subject_title }}
+                                    </option>
+                                @endforeach
+                            @endif
                         </select>
                     </div>
                 </div>
@@ -171,8 +178,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-
-        // ======== LIVE SEARCH ========
         const searchInput = document.getElementById('tableSearchInput');
         const tableRows   = document.querySelectorAll('#curriculumTable tbody tr');
         const noResults   = document.getElementById('curriculumNoResults');
@@ -184,12 +189,18 @@
 
                 tableRows.forEach(row => {
                     if (row.querySelector('.empty-table-state')) return;
+
                     const match = row.textContent.toLowerCase().includes(term);
+
                     row.style.display = match ? '' : 'none';
+
                     if (match) visibleCount++;
                 });
 
-                noResults.style.display = visibleCount === 0 && term !== '' ? 'block' : 'none';
+                noResults.style.display =
+                    visibleCount === 0 && term !== ''
+                        ? 'block'
+                        : 'none';
             });
         }
 
@@ -199,41 +210,69 @@
         const semesterSelect = document.getElementById('semesterSelect');
         const subjectSelect  = document.getElementById('subjectSelect');
 
-        function fetchFilteredSubjects() {
-            const courseCode = courseSelect.value;
-            const yearLevel  = yearSelect.value;
-            const semester   = semesterSelect.value;
+            function fetchFilteredSubjects() {
+                const courseCode = courseSelect.value;
+                const yearLevel = yearSelect.value;
+                const semester = semesterSelect.value;
 
-            if (courseCode && yearLevel && semester) {
-                subjectSelect.innerHTML = '<option value="" disabled selected hidden>Loading matched subjects...</option>';
-                subjectSelect.disabled = true;
+                if (courseCode && yearLevel && semester) {
 
-                const url = `/system-admin/curriculum/get-subjects-by-course?course=${encodeURIComponent(courseCode)}&year_level=${encodeURIComponent(yearLevel)}&semester=${encodeURIComponent(semester)}`;
+                    subjectSelect.disabled = true;
 
-                fetch(url)
-                    .then(response => { if (!response.ok) throw new Error('Network error'); return response.json(); })
-                    .then(subjects => {
-                        subjectSelect.innerHTML = '<option value="" disabled selected hidden>Choose Subject Catalog Entry</option>';
-                        if (subjects.length === 0) {
-                            subjectSelect.innerHTML = '<option value="" disabled selected hidden>No subjects available for this setup</option>';
-                            return;
-                        }
-                        subjects.forEach(subject => {
-                            const option = document.createElement('option');
-                            option.value = subject.id;
-                            option.textContent = `[${subject.subject_code}] — ${subject.subject_title} (Units: ${subject.total_units || 'N/A'})`;
-                            subjectSelect.appendChild(option);
+                    subjectSelect.innerHTML =
+                        '<option value="" disabled selected hidden>Loading matched subjects...</option>';
+
+                    const url =
+                        "{{ route('system_admin.curriculum.get_subjects') }}" +
+                        `?course=${encodeURIComponent(courseCode)}` +
+                        `&year_level=${encodeURIComponent(yearLevel)}` +
+                        `&semester=${encodeURIComponent(semester)}`;
+
+                    fetch(url)
+                        .then(response => {
+                            if (!response.ok) throw new Error('Network error');
+                            return response.json();
+                        })
+                        .then(subjects => {
+
+                            subjectSelect.innerHTML =
+                                '<option value="" disabled selected hidden>Choose Subject Catalog Entry</option>';
+
+                                if (subjects.length === 0) {
+                                    subjectSelect.innerHTML =
+                                        '<option value="" disabled selected hidden>No subjects available for this setup</option>';
+
+                                    subjectSelect.disabled = true;
+                                    return;
+                                }
+
+                            subjects.forEach(subject => {
+                                const option = document.createElement('option');
+                                option.value = subject.id;
+                                option.textContent =
+                                    `[${subject.subject_code}] — ${subject.subject_title} (Units: ${subject.total_units || 'N/A'})`;
+                                subjectSelect.appendChild(option);
+                            });
+
+                            subjectSelect.disabled = false;
+                        })
+                        .catch(error => {
+                            console.error(error);
+
+                            subjectSelect.innerHTML =
+                                '<option value="" disabled selected hidden>Error loading data.</option>';
+
+                            subjectSelect.disabled = true;
                         });
-                        subjectSelect.disabled = false;
-                    })
-                    .catch(() => {
-                        subjectSelect.innerHTML = '<option value="" disabled selected hidden>Error loading data. Try again.</option>';
-                    });
-            } else {
-                subjectSelect.innerHTML = '<option value="" disabled selected hidden>Please fill out Course, Year, and Semester first...</option>';
-                subjectSelect.disabled = true;
+
+                } else {
+
+                    subjectSelect.innerHTML =
+                        '<option value="" disabled selected hidden>Please fill out Course, Year, and Semester first...</option>';
+
+                    subjectSelect.disabled = true;
+                }
             }
-        }
 
         courseSelect.addEventListener('change', fetchFilteredSubjects);
         yearSelect.addEventListener('change', fetchFilteredSubjects);
@@ -243,7 +282,10 @@
     function openDeleteCurriculum(id, course, subjectCode) {
         document.getElementById('deleteCurriculumCourse').textContent  = course;
         document.getElementById('deleteCurriculumSubject').textContent = subjectCode;
-        document.getElementById('deleteCurriculumForm').action = `/system_admin/manage-curriculum/${id}`;
+        let deleteUrl = "{{ route('system_admin.curriculum.destroy', ':id') }}";
+        deleteUrl = deleteUrl.replace(':id', id);
+        document.getElementById('deleteCurriculumForm').action = deleteUrl;
+
         document.getElementById('deleteCurriculumModal').style.display = 'flex';
     }
 

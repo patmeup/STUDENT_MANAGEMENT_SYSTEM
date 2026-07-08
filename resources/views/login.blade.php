@@ -67,6 +67,14 @@
         <div class="alert alert-danger p-2 small mb-3">{{ session('error') }}</div>
     @endif
 
+    @if($errors->any())
+        <div class="alert alert-danger p-2 small mb-3 text-start">
+            @foreach($errors->all() as $error)
+                <div>{{ $error }}</div>
+            @endforeach
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('login.submit') }}" autocomplete="off">
         @csrf
 

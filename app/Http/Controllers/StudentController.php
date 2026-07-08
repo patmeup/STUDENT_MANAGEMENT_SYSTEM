@@ -3,78 +3,86 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Student; // Siguraduhing may Student model ka na ginawa via php artisan make:model Student
+use App\Models\Student;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class StudentController extends Controller
 {
-
     public function index()
     {
-        // Kukunin natin lahat ng students mula sa database para ipakita sa Masterlist Table
         $students = Student::orderBy('created_at', 'desc')->get();
-        return view('registrar.masterlist', compact('students'));
+        return view('registrar.manage-students', compact('students'));
+    }
+
+    public function viewStudentProfile($student_id)
+    {
+        if (session('user_role') !== 'registrar') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $student = DB::table('students')->where('student_id', $student_id)->first();
+
+        if (!$student) {
+            return redirect()->back()->with('error', 'Student record not found.');
+        }
+
+        return view('registrar.student_profile', compact('student'));
     }
 
     public function store(Request $request)
     {
-        // 1. Validation Rules (Nananatiling protektado ang files)
         $request->validate([
             'registration_date' => 'required|date',
-            'student_type'      => 'required|string',
-            'course'            => 'required|string',
-            'last_name'         => 'required|string',
-            'first_name'        => 'required|string',
-            'contact_no'        => 'required|string',
-            
-            'doc_psa'               => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_2x2'               => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
-            'doc_f138'              => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_good_moral_new'    => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_diploma'           => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_tor'               => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_dismissal'         => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_good_moral_trans'  => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_permit'            => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'student_type' => 'required|string',
+            'course' => 'required|string',
+            'last_name' => 'required|string',
+            'first_name' => 'required|string',
+            'contact_no' => 'required|string',
+
+            'doc_psa' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_2x2' => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
+            'doc_f138' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_good_moral_new' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_diploma' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_tor' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_dismissal' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_good_moral_trans' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_permit' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
-        // 2. UPDATED SEQUENCE: Custom 5-Digit Student Number Generator (Format: 26-00001)
-        $currentYearShort = date('y'); // Kukuha ng huling dalawang numero ng taon (e.g., '26' para sa 2026)
+        $currentYearShort = date('y');
         $prefix = $currentYearShort . "-";
 
-        // Hahanapin ang huling estudyante na may simula na '26-'
         $lastStudent = DB::table('students')
             ->where('student_id', 'LIKE', $prefix . '%')
             ->orderBy('student_id', 'desc')
             ->first();
 
         if ($lastStudent) {
-            // Hahatiin ang string gamit ang '-' (e.g., mula sa "26-00527", kukunin ang "00527")
             $parts = explode('-', $lastStudent->student_id);
             $lastSequence = intval(end($parts));
-            
-            // Magdadagdag ng isa (+1) at gagawing may 5 zeros sa unahan (5-digit padding)
+
             $nextSequence = str_pad($lastSequence + 1, 5, '0', STR_PAD_LEFT);
         } else {
-            $nextSequence = '00001'; // Unang estudyante kung sakaling walang laman ang taon na ito
+            $nextSequence = '00001';
         }
 
-        $generatedStudentNumber = $prefix . $nextSequence; // Lalabas na halimbawa: 26-00001 o 26-00527
+        $generatedStudentNumber = $prefix . $nextSequence;
 
-        // 3. SECURE FILE HANDLING ENGINE (Student-Centric Flat Folder)
         $filePaths = [];
         
         $fileFields = [
-            'doc_psa'               => 'psa_birth_certificate',
-            'doc_2x2'               => '2x2_id_picture',
-            'doc_f138'              => 'form_138_report_card',
-            'doc_good_moral_new'    => 'good_moral_freshman',
-            'doc_diploma'           => 'high_school_diploma',
-            'doc_tor'               => 'transcript_of_records',
-            'doc_dismissal'         => 'honorable_dismissal',
-            'doc_good_moral_trans'  => 'good_moral_transferee',
-            'doc_permit'            => 'cross_enroll_permit'
+            'doc_psa' => 'psa_birth_certificate',
+            'doc_2x2' => '2x2_id_picture',
+            'doc_f138' => 'form_138_report_card',
+            'doc_good_moral_new' => 'good_moral_freshman',
+            'doc_diploma' => 'high_school_diploma',
+            'doc_tor' => 'transcript_of_records',
+            'doc_dismissal' => 'honorable_dismissal',
+            'doc_good_moral_trans' => 'good_moral_transferee',
+            'doc_permit' => 'cross_enroll_permit'
         ];
 
         foreach ($fileFields as $inputName => $cleanFileName) {
@@ -83,17 +91,14 @@ class StudentController extends Controller
                 $extension = $file->getClientOriginalExtension();
                 $finalFileName = "{$cleanFileName}.{$extension}";
                 
-                // Diretso sa student_records/{STUDENT_NUMBER}/ nang walang course separation para iwas aberya sa shifting!
-                // Path: storage/app/student_records/26-00527/psa_birth_certificate.pdf
                 $file->storeAs("student_records/{$generatedStudentNumber}", $finalFileName, 'local');
                 
                 $filePaths[$inputName] = $finalFileName;
             }
         }
 
-        // 4. ELOQUENT DATA RECORD CAPTURE
         $student = new Student();
-        $student->student_id = $generatedStudentNumber; // Isasave ang bagong format (e.g., 26-00001)
+        $student->student_id = $generatedStudentNumber;
         $student->registration_date = $request->registration_date;
         $student->student_type = $request->student_type;
         $student->course = $request->course;
@@ -126,21 +131,140 @@ class StudentController extends Controller
         $student->college_school_address = $request->college_school_address;
         $student->college_school_year = $request->college_school_year;
 
-        $student->path_psa               = $filePaths['doc_psa'] ?? null;
-        $student->path_2x2               = $filePaths['doc_2x2'] ?? null;
-        $student->path_f138              = $filePaths['doc_f138'] ?? null;
-        $student->path_good_moral_new    = $filePaths['doc_good_moral_new'] ?? null;
-        $student->path_diploma           = $filePaths['doc_diploma'] ?? null;
-        $student->path_tor               = $filePaths['doc_tor'] ?? null;
-        $student->path_dismissal         = $filePaths['doc_dismissal'] ?? null;
-        $student->path_good_moral_trans  = $filePaths['doc_good_moral_trans'] ?? null;
-        $student->path_permit            = $filePaths['doc_permit'] ?? null;
-        
+        $student->path_psa = $filePaths['doc_psa'] ?? null;
+        $student->path_2x2 = $filePaths['doc_2x2'] ?? null;
+        $student->path_f138 = $filePaths['doc_f138'] ?? null;
+        $student->path_good_moral_new = $filePaths['doc_good_moral_new'] ?? null;
+        $student->path_diploma = $filePaths['doc_diploma'] ?? null;
+        $student->path_tor = $filePaths['doc_tor'] ?? null;
+        $student->path_dismissal = $filePaths['doc_dismissal'] ?? null;
+        $student->path_good_moral_trans = $filePaths['doc_good_moral_trans'] ?? null;
+        $student->path_permit = $filePaths['doc_permit'] ?? null;
         $student->credentials = array_values($filePaths);
+        $student->password = Hash::make('Welcome@AU2026');
 
         $student->save();
 
-        // 5. SUCCESS ALERT WITH REALTIME ENROLLMENT NUMBER
         return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}");
+    }
+
+    public function myClasses()
+    {
+        if (session('user_role') !== 'student') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $studentNumber = session('student_id');
+
+        $enrolledCountQuery = DB::table('student_subjects')
+            ->select(DB::raw('count(*)'))
+            ->whereColumn('student_subjects.schedule_id', 'class_schedules.id')
+            ->where('student_subjects.status', 'Enrolled');
+
+        $classes = DB::table('student_subjects')
+            ->join('subjects', 'student_subjects.subject_id', '=', 'subjects.id')
+            ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
+            ->leftJoin('employees', function($join) {
+                $join->on('subjects.professor_id', '=', 'employees.id')
+                    ->where('employees.role', '=', 'professor');
+            })
+            ->where('student_subjects.student_number', $studentNumber)
+            ->where('student_subjects.status', 'Enrolled')
+            ->select(
+                'class_schedules.id as schedule_id',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'subjects.total_units',
+                'student_subjects.status',
+                'class_schedules.section_name',
+                'class_schedules.class_days',
+                'class_schedules.start_time',
+                'class_schedules.end_time',
+                'class_schedules.room_assignment',
+                'employees.first_name as prof_first_name',
+                'employees.last_name as prof_last_name'
+            )
+            ->selectSub($enrolledCountQuery, 'enrolled_students_count')
+            ->get();
+
+        return view('student.my_classes', compact('classes'));
+    }
+
+    public function profileView()
+    {
+        if (session('user_role') !== 'student') {
+            return redirect()->route('login')->with('error', 'Unauthorized access. Please login as a Student.');
+        }
+
+        $userId = session('user_id');
+        $user = \App\Models\Student::find($userId);
+
+        if (!$user) {
+            return redirect()->route('login')->with('error', 'User not found.');
+        }
+
+        $isLocked = Hash::check('Welcome@AU2026', $user->password);
+
+        return view('student.user_details', compact('user', 'isLocked'));
+    }
+
+    public function viewClassDashboard($schedule_id, Request $request)
+    {
+        if (session('user_role') !== 'student') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $activeTab = $request->query('tab', 'materials');
+        // Capture clicked term if present (e.g., prelim, midterm, semifinal, final)
+        $selectedTerm = $request->query('term'); 
+
+        // 1. Fetch details for this specific class
+        $classDetails = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->where('class_schedules.id', $schedule_id)
+            ->select('class_schedules.*', 'subjects.subject_code', 'subjects.subject_title')
+            ->first();
+
+        if (!$classDetails) {
+            return redirect()->back()->with('error', 'Class workspace record could not be found.');
+        }
+
+        // 2. Fetch professor uploaded activities with optional Term Filtering
+        $activitiesQuery = DB::table('student_tasks') 
+            ->where('class_schedule_id', $schedule_id);
+
+        if (!empty($selectedTerm)) {
+            $activitiesQuery->where('term', 'LIKE', $selectedTerm . '%');
+        }
+
+        $activities = $activitiesQuery->orderBy('created_at', 'desc')->get();
+
+        // 3. Fallback for materials table if it doesn't exist yet
+        $materials = [];
+        if (\Illuminate\Support\Facades\Schema::hasTable('class_materials')) {
+            $materials = DB::table('class_materials')
+                ->where('class_schedule_id', $schedule_id)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+
+        return view('student.class_dashboard', compact('classDetails', 'activities', 'materials', 'activeTab'));
+    }
+
+    public function viewTaskDetails($id)
+    {
+        if (session('user_role') !== 'student') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $task = DB::table('student_tasks')
+            ->where('id', $id)
+            ->first();
+
+        if (!$task) {
+            return redirect()->back()->with('error', 'Task record could not be found.');
+        }
+
+        return view('student.task_details', compact('task'));
     }
 }

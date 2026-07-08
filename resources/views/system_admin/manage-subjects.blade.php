@@ -30,44 +30,82 @@
                 <span><i class="fas fa-book-medical"></i> Subject Specifications Form</span>
             </div>
             
-            <form action="{{ route('system_admin.subjects.store') }}" method="POST" autocomplete="off" class="pure-form">
+            {{-- Binigyan natin ng ID ang form at dynamically babaguhin ang action path kapag Edit mode na --}}
+            <form id="subjectForm" action="{{ route('system_admin.subjects.store') }}" method="POST" autocomplete="off" class="pure-form">
                 @csrf
+                
+                <input
+                type="hidden"
+                name="_method"
+                id="form_method">
+
+                {{-- Mahalagang Hidden Input: Dito itatago ang ID ng isasalbuhang subject kapag mag-aupdate --}}
+                <input type="hidden" name="subject_id" id="form_subject_id">
+                
                 <div class="form-group">
                     <label>Subject Code / Acronym</label>
-                    <input type="text" name="subject_code" placeholder="e.g., COPRO1, GEC-RPH, NET101" class="uppercase-input" required>
+                    <input type="text" name="subject_code" id="form_subject_code" placeholder="e.g., COPRO1, GEC-RPH, NET101" class="uppercase-input" required>
                     <small class="field-help">This field must be completely unique inside the global database system.</small>
                 </div>
                 <div class="form-group">
                     <label>Subject Descriptive Title</label>
-                    <input type="text" name="subject_title" placeholder="e.g., Computer Programming 1 (Contextualized)" required>
+                    <input type="text" name="subject_title" id="form_subject_title" placeholder="e.g., Computer Programming 1 (Contextualized)" required>
                 </div>
                 <div class="form-grid-2">
                     <div class="form-group">
                         <label>Lecture Units Credit</label>
-                        <input type="number" name="lecture_units" min="0" max="9" value="3" required>
+                        <input type="number" name="lecture_units" id="form_lecture_units" min="0" max="9" value="3" required>
                     </div>
                     <div class="form-group">
                         <label>Laboratory Units Credit</label>
-                        <input type="number" name="lab_units" min="0" max="9" value="0" required>
+                        <input type="number" name="lab_units" id="form_lab_units" min="0" max="9" value="0" required>
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <label>Assigned Instructor / Professor</label>
+                    <select name="professor_id" id="form_professor_id" class="select-input">
+                        <option value="">-- Unassigned / Pool Assignment --</option>
+                        @if(isset($professors) && $professors->count() > 0)
+                            @foreach($professors as $prof)
+                                <option value="{{ $prof->id }}">
+                                    {{ strtoupper($prof->last_name) }}, {{ $prof->first_name }}
+                                </option>
+                            @endforeach
+                        @endif
+                    </select>
+                    <small class="field-help">Select an active instructor to handle this class section deployment.</small>
+                </div>
+
                 <div class="form-actions-bar">
-                    <button type="reset" class="btn-clear">Reset Form</button>
-                    <button type="submit" class="btn-submit-subj">Compile & Save</button>
+                    <button type="button" class="btn-clear" onclick="resetFormState()">Reset Form</button>
+                    <button type="submit" id="btn-submit-action" class="btn-submit-subj">Compile & Save</button>
                 </div>
             </form>
         </div>
 
         <div class="sa-card table-panel">
             <div class="card-header-flex">
+
                 <div class="card-title-container">
                     <h3 class="card-title-list">Global Subject Catalog</h3>
-                    <span class="badge-count">{{ isset($subjects) ? $subjects->count() : 0 }} Total Subjects</span>
                 </div>
-                <div class="table-search-box">
-                    <i class="fas fa-search search-icon"></i>
-                    <input type="text" id="subjectSearchInput" placeholder="Search code or title...">
+
+                <div class="header-controls-flex">
+                    <div class="search-bar-container">
+                        <i class="fas fa-search search-icon"></i>
+                        <input
+                            type="text"
+                            id="adminSubjectSearch"
+                            placeholder="Search Code, Title, or Professor..."
+                            class="custom-search-input">
+                    </div>
+
+                    <span class="badge-count">
+                        {{ isset($subjects) ? $subjects->count() : 0 }} Total Subjects
+                    </span>
                 </div>
+
             </div>
 
             <div class="table-responsive">
@@ -76,18 +114,30 @@
                         <tr>
                             <th>Subject Code</th>
                             <th>Descriptive Title</th>
+                            <th>Assigned Faculty</th>
                             <th style="text-align: center;">Lect</th>
                             <th style="text-align: center;">Lab</th>
                             <th style="text-align: center;">Total</th>
                             <th style="text-align: center;">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="adminSubjectTableBody">
                         @if(isset($subjects) && $subjects->count() > 0)
                             @foreach($subjects as $subject)
-                                <tr>
+                                <tr class="subject-data-row">
                                     <td><span class="subject-code-tag">{{ strtoupper($subject->subject_code) }}</span></td>
                                     <td class="subject-title-text">{{ $subject->subject_title }}</td>
+                                    
+                                    <td>
+                                        @if($subject->professor)
+                                            <span class="prof-assigned-tag">
+                                                <i class="fas fa-user-tie"></i> {{ strtoupper($subject->professor->last_name) }}, {{ $subject->professor->first_name }}
+                                            </span>
+                                        @else
+                                            <span class="prof-unassigned-tag">Vacant Pool</span>
+                                        @endif
+                                    </td>
+
                                     <td style="text-align: center;">{{ $subject->lecture_units }}</td>
                                     <td style="text-align: center;">{{ $subject->lab_units }}</td>
                                     <td style="text-align: center;">
@@ -95,23 +145,26 @@
                                     </td>
                                     <td style="text-align: center;">
                                         <div class="action-btn-group">
-                                            <button class="btn-action-edit"
-                                                onclick="openEditSubject(
-                                                    {{ $subject->id }},
-                                                    '{{ addslashes($subject->subject_code) }}',
-                                                    '{{ addslashes($subject->subject_title) }}',
-                                                    {{ $subject->lecture_units }},
-                                                    {{ $subject->lab_units }}
-                                                )">Edit</button>
-                                            <button class="btn-action-delete"
-                                                onclick="openDeleteSubject({{ $subject->id }}, '{{ addslashes($subject->subject_code) }}')">Delete</button>
+                                            <button
+                                                type="button"
+                                                class="btn-action-edit btn-trigger-edit"
+                                                data-id="{{ $subject->id }}">
+                                                Edit
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="btn-action-delete"
+                                                onclick="openDeleteSubject({{ $subject->id }}, '{{ addslashes($subject->subject_code) }}')">
+                                                Delete
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
                             @endforeach
                         @else
-                            <tr>
-                                <td colspan="6" class="empty-table-state">
+                            <tr id="emptyTableStateRow">
+                                <td colspan="7" class="empty-table-state">
                                     There's no registered subject found in the system records.
                                 </td>
                             </tr>
@@ -127,41 +180,6 @@
     </div>
 </div>
 
-{{-- ===================== EDIT MODAL ===================== --}}
-<div id="editSubjectModal" class="modal-overlay" style="display:none;">
-    <div class="modal-box">
-        <div class="modal-header">
-            <h3><i class="fas fa-book-open"></i> Edit Subject Record</h3>
-            <button class="modal-close" onclick="closeModal('editSubjectModal')">&times;</button>
-        </div>
-        <form id="editSubjectForm" method="POST" class="modal-form">
-            @csrf
-            @method('PATCH')
-            <div class="form-group">
-                <label>Subject Code / Acronym</label>
-                <input type="text" name="subject_code" id="edit_subject_code" class="uppercase-input" required>
-            </div>
-            <div class="form-group">
-                <label>Subject Descriptive Title</label>
-                <input type="text" name="subject_title" id="edit_subject_title" required>
-            </div>
-            <div class="form-grid-2">
-                <div class="form-group">
-                    <label>Lecture Units</label>
-                    <input type="number" name="lecture_units" id="edit_lecture_units" min="0" max="9" required>
-                </div>
-                <div class="form-group">
-                    <label>Laboratory Units</label>
-                    <input type="number" name="lab_units" id="edit_lab_units" min="0" max="9" required>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="btn-modal-cancel" onclick="closeModal('editSubjectModal')">Cancel</button>
-                <button type="submit" class="btn-modal-confirm-edit">Save Changes</button>
-            </div>
-        </form>
-    </div>
-</div>
 
 {{-- ===================== DELETE MODAL ===================== --}}
 <div id="deleteSubjectModal" class="modal-overlay" style="display:none;">
@@ -184,53 +202,6 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const searchInput = document.getElementById('subjectSearchInput');
-    const tableRows   = document.querySelectorAll('#subjectTable tbody tr');
-    const noResults   = document.getElementById('subjectNoResults');
-
-    if (searchInput) {
-        searchInput.addEventListener('keyup', function () {
-            const term = searchInput.value.toLowerCase().trim();
-            let visibleCount = 0;
-            tableRows.forEach(row => {
-                if (row.querySelector('.empty-table-state')) return;
-                const match = row.textContent.toLowerCase().includes(term);
-                row.style.display = match ? '' : 'none';
-                if (match) visibleCount++;
-            });
-            noResults.style.display = visibleCount === 0 && term !== '' ? 'block' : 'none';
-        });
-    }
-});
-
-function openEditSubject(id, code, title, lectureUnits, labUnits) {
-    document.getElementById('edit_subject_code').value    = code;
-    document.getElementById('edit_subject_title').value   = title;
-    document.getElementById('edit_lecture_units').value   = lectureUnits;
-    document.getElementById('edit_lab_units').value       = labUnits;
-    document.getElementById('editSubjectForm').action     = `/system_admin/manage-subjects/${id}`;
-    document.getElementById('editSubjectModal').style.display = 'flex';
-}
-
-function openDeleteSubject(id, code) {
-    document.getElementById('deleteSubjectCode').textContent = code;
-    document.getElementById('deleteSubjectForm').action = `/system_admin/manage-subjects/${id}`;
-    document.getElementById('deleteSubjectModal').style.display = 'flex';
-}
-
-function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
-}
-
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', function(e) {
-        if (e.target === this) closeModal(this.id);
-    });
-});
-</script>
-
 <style>
     .sa-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #0f172a; max-width: 1300px; margin: 0 auto; padding: 20px; }
     .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; }
@@ -238,30 +209,39 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     .header-titles p { margin: 0; font-size: 14.5px; color: #64748b; }
     .system-level { background-color: #dc2626; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    .sa-workspace { display: flex; flex-direction: row; gap: 28px; align-items: flex-start; width: 100%; }
+    /* Layout Grids */
+    .sa-workspace { display: flex; flex-direction: row; gap: 28px; align-items: flex-start; justify-content: space-between; width: 100%; }
     .form-panel { flex: 1; min-width: 380px; background: #ffffff; }
-    .table-panel { flex: 1.5; background: #ffffff; }
+    .table-panel { flex: 1.8; background: #ffffff; }
 
     .sa-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px -2px rgba(0,0,0,0.03); overflow: hidden; }
     .card-bar { background: #f8fafc; padding: 16px 22px; font-weight: 700; font-size: 14.5px; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
-    .card-header-flex { background-color: #f8fafc; padding: 16px 22px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
-    .card-title-container { display: flex; align-items: center; gap: 12px; }
+    
+    /* Flex Container layouts for Card Headers */
+    .card-header-flex { background-color: #f8fafc; padding: 12px 22px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
     .card-title-list { font-size: 14.5px; font-weight: 700; color: #1e293b; margin: 0; }
+    .header-controls-flex { display: flex; align-items: center; gap: 16px; }
 
-    .table-search-box { position: relative; max-width: 260px; width: 100%; }
-    .table-search-box input { width: 100%; padding: 8px 12px 8px 36px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; color: #0f172a; box-sizing: border-box; transition: all 0.2s ease; }
-    .table-search-box input:focus { border-color: #0033A0; box-shadow: 0 0 0 3px rgba(0,51,160,0.1); }
-    .table-search-box .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px; pointer-events: none; }
-
+    /* Clean Built-in Custom Search Inputs layout structures */
+    .search-bar-container { position: relative; display: flex; align-items: center; }
+    .search-icon { position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none; }
+    .custom-search-input { width: 280px; padding: 7px 12px 7px 32px; font-size: 12.5px; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; transition: all 0.15s ease; background: #ffffff; }
+    .custom-search-input:focus { border-color: #0033A0; box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.12); width: 320px; }
+    
+    /* Form Mechanics */
     .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group label { font-size: 12px; font-weight: 600; color: #475569; }
-    .form-group input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 14px; color: #0f172a; outline: none; background: #ffffff; box-sizing: border-box; width: 100%; }
-    .form-group input:focus { border-color: #0033A0; box-shadow: 0 0 0 3px rgba(0,51,160,0.15); }
+    .form-group input, .select-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 14px; color: #0f172a; outline: none; background: #ffffff; box-sizing: border-box; width: 100%; }
+    .form-group input:focus, .select-input:focus { border-color: #0033A0; box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.15); }
     .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .uppercase-input { text-transform: uppercase; }
     .field-help { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+    
+    /* Custom Dropdown Styling */
+    .select-input { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 12px center; background-repeat: no-repeat; background-size: 20px; -webkit-appearance: none; -moz-appearance: none; appearance: none; padding-right: 40px; cursor: pointer; }
 
+    /* Action Buttons */
     .form-actions-bar { display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 16px; }
     .btn-submit-subj { background: #0033A0; color: #ffffff; border: none; padding: 10px 20px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; }
     .btn-submit-subj:hover { background: #002270; }
@@ -276,6 +256,11 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 
     .subject-code-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; color: #2563eb; background-color: #eff6ff; padding: 4px 8px; border-radius: 6px; font-size: 12px; display: inline-block; }
     .subject-title-text { font-weight: 600; color: #1e293b; }
+    
+    /* Professor Assignment Badges */
+    .prof-assigned-tag { font-size: 12.5px; font-weight: 600; color: #047857; background-color: #ecfdf5; border: 1px solid #a7f3d0; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; }
+    .prof-unassigned-tag { font-size: 12px; font-weight: 500; color: #64748b; background-color: #f1f5f9; padding: 4px 10px; border-radius: 6px; display: inline-block; font-style: italic; }
+
     .total-units-text { color: #0f172a; font-weight: 700; }
     .empty-table-state { text-align: center; color: #94a3b8; padding: 50px 0 !important; font-style: italic; font-size: 13.5px; }
 
@@ -309,4 +294,114 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     .btn-modal-confirm-delete { background: #dc2626; color: #ffffff; border: none; padding: 9px 20px; font-size: 13px; font-weight: 700; border-radius: 6px; cursor: pointer; }
     .btn-modal-confirm-delete:hover { background: #b91c1c; }
 </style>
+
+{{-- JavaScript Section --}}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const editButtons = document.querySelectorAll('.btn-trigger-edit');
+    const formElement = document.getElementById('subjectForm');
+    const submitBtn = document.getElementById('btn-submit-action');
+
+    // --- Live Subject Catalog Filtering System Engine ---
+    const searchInput = document.getElementById('adminSubjectSearch');
+    const tableBody = document.getElementById('adminSubjectTableBody');
+    
+    if (searchInput && tableBody) {
+        const rows = tableBody.getElementsByClassName('subject-data-row');
+        
+        searchInput.addEventListener('input', function () {
+            const query = searchInput.value.toLowerCase().trim();
+            
+            for (let i = 0; i < rows.length; i++) {
+                // Instantly checks codes, descriptors, and instructor assignments elements
+                const contentText = rows[i].textContent.toLowerCase();
+                if (contentText.includes(query)) {
+                    rows[i].style.display = '';
+                } else {
+                    rows[i].style.display = 'none';
+                }
+            }
+        });
+    }
+
+    // --- Edit Mode Event Trigger Listeners ---
+    editButtons.forEach(button => {
+        button.addEventListener('click', function () {
+            const id = this.getAttribute('data-id');
+
+            // Gagamit tayo ng dynamic string replacement para i-inject ang ID sa tamang Laravel Route
+            let editUrl = "{{ route('admin.subject.edit', ':id') }}";
+            editUrl = editUrl.replace(':id', id);
+
+            fetch(editUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network query error');
+                    return response.json();
+                })
+                .then(data => {
+                    // Punuin ang input fields gamit ang natanggap na data
+                    document.getElementById('form_subject_id').value = data.id;
+                    document.getElementById('form_subject_code').value = data.subject_code;
+                    document.getElementById('form_subject_title').value = data.subject_title;
+                    document.getElementById('form_lecture_units').value = data.lecture_units;
+                    document.getElementById('form_lab_units').value = data.lab_units;
+                    document.getElementById('form_professor_id').value = data.professor_id || '';
+
+                    // Palitan ang Form Action at Button Design para maging malinaw na UPDATE operation
+                    let updateUrl = "{{ route('system_admin.subjects.update', ':id') }}";
+                    updateUrl = updateUrl.replace(':id', data.id);
+
+                    formElement.action = updateUrl;
+
+                    document.getElementById('form_method').value = 'PATCH';
+
+                    submitBtn.innerText = "Update Record Entry";
+                    submitBtn.style.backgroundColor = "#dc2626"; // Papalitan ng kulay admin-red
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    alert('Hindi makuha ang detalye ng subject. Pakisigurado na ang route name na "admin.subject.edit" ay rehistrado sa iyong web.php at gumagana ang Controller method nito.');
+                });
+        });
+    });
+});
+
+        function resetFormState() {
+            const formElement = document.getElementById('subjectForm');
+            const submitBtn = document.getElementById('btn-submit-action');
+            
+            formElement.reset();
+
+            document.getElementById('form_subject_id').value = '';
+
+            document.getElementById('form_method').value = '';
+
+            formElement.action = "{{ route('system_admin.subjects.store') }}";
+            
+            submitBtn.innerText = "Compile & Save";
+            submitBtn.style.backgroundColor = "#0033A0";
+        }
+
+            function openDeleteSubject(id, code) {
+
+                document.getElementById('deleteSubjectCode').textContent = code;
+
+                let deleteUrl = "{{ route('system_admin.subjects.destroy', ':id') }}";
+                deleteUrl = deleteUrl.replace(':id', id);
+
+                document.getElementById('deleteSubjectForm').action = deleteUrl;
+
+                document.getElementById('deleteSubjectModal').style.display = 'flex';
+            }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) closeModal(this.id);
+            });
+        });
+</script>
 @endsection

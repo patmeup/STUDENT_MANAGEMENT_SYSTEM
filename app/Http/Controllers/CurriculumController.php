@@ -65,12 +65,17 @@ class CurriculumController extends Controller
             ->exists();
 
         if ($exists) {
-            return redirect()->back()->withErrors(['error' => 'This specific subject block link configuration already exists.']);
+            return redirect()->back()->withErrors([
+                'error' => 'This specific subject block link configuration already exists.'
+            ]);
         }
 
         Curriculum::create($validated);
 
-        return redirect()->back()->with('success', 'Subject successfully mapped to the curriculum structure!');
+        return redirect()->back()->with(
+            'success',
+            'Subject successfully mapped to the curriculum structure!'
+        );
     }
 
     public function destroy($id)

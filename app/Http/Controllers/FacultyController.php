@@ -32,7 +32,7 @@ class FacultyController extends Controller
             'sex'         => 'required|string',
             'email'       => 'required|email|unique:employees,email',
             'department'  => 'required|string|max:255',
-            'role'        => 'required|string|in:professor,dept_sec',
+            'role'        => 'required|string|in:dean,dept_sec,professor',
         ]);
 
         $yearShort = date('y');
@@ -55,7 +55,7 @@ class FacultyController extends Controller
             'sex'         => $request->sex,
             'email'       => $request->email,
             'role'        => $request->role,
-            'department'  => $request->department,
+            'department'  => $request->department,  
             'status'      => 'Active',
             'password'    => Hash::make('Welcome@AU2026'),
         ]);
@@ -78,7 +78,7 @@ class FacultyController extends Controller
             'sex'         => 'required|string',
             'email'       => 'required|email|unique:employees,email,' . $faculty->id,
             'department'  => 'required|string|max:255',
-            'role'        => 'required|string|in:professor,dept_sec',
+            'role'        => 'required|string|in:dean,dept_sec,professor',
         ]);
 
         $faculty->update([
