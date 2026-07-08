@@ -13,6 +13,8 @@
         formType: 'quiz',
         formMaxScore: 100,
         formDueDate: '',
+        publishing: false,
+        fileSizeError: false,
         openCreateModal(term) {
             this.modalTerm = term;
             this.editingTaskId = null;
@@ -20,6 +22,8 @@
             this.formType = 'quiz';
             this.formMaxScore = 100;
             this.formDueDate = '';
+            this.publishing = false;
+            this.fileSizeError = false;
             this.showModal = true;
         },
         openEditModal(task) {
@@ -29,10 +33,12 @@
             this.formType = task.activity_type;
             this.formMaxScore = task.max_score;
             this.formDueDate = task.due_date;
+            this.publishing = false;
+            this.fileSizeError = false;
             this.showModal = true;
         },
         deleteTask(id, term) {
-            if (!confirm('Sigurado ka bang gusto mong i-delete ang task na ito?')) return;
+            if (!confirm('Are you sure you want to delete this task?')) return;
             fetch(`/professor/delete-activity/${id}`, {
                 method: 'POST',
                 headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
@@ -182,7 +188,9 @@
                                                     <td>{{ $task->due_date ?? 'No Deadline' }}</td>
                                                     <td class="text-center">
                                                         <div class="action-btn-group">
-                                                            <button class="btn-sm-outline btn-grade"><i class="fa-solid fa-marker"></i> Grade</button>
+                                                            <a href="{{ route('professor.task-submissions', $task->id) }}" class="btn-sm-outline btn-grade">
+                                                                <i class="fa fa-star"></i> Grade
+                                                            </a>
                                                             <button type="button" class="btn-sm-outline btn-edit"
                                                                 @click="openEditModal({ id: {{ $task->id }}, term: '{{ $key }}', activity_name: @js($task->activity_name), activity_type: '{{ $task->activity_type }}', max_score: {{ $task->max_score }}, due_date: '{{ $task->due_date }}' })">
                                                                 <i class="fa-solid fa-pen"></i>
@@ -219,29 +227,36 @@
             </div>
 
             <form id="addActivityForm" @submit.prevent="
-                    let formData = new FormData($el);
-                    formData.append('term', modalTerm);
-                    formData.append('schedule_id', '{{ $classDetails->schedule_id }}');
-                    if (selectedFile) formData.append('attachment', selectedFile);
+                publishing = true;
+                let formData = new FormData($el);
+                formData.append('term', modalTerm);
+                formData.append('schedule_id', '{{ $classDetails->schedule_id }}');
+                if (selectedFile) formData.append('attachment', selectedFile);
 
-                    let url = editingTaskId 
-                        ? `/professor/update-activity/${editingTaskId}` 
-                        : '{{ route('professor.save-activity') }}';
+                let url = editingTaskId 
+                    ? `/professor/update-activity/${editingTaskId}` 
+                    : '{{ route('professor.save-activity') }}';
 
-                    fetch(url, {
-                        method: 'POST',
-                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                        body: formData
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if(data.success) {
-                            window.location.reload();
-                        } else {
-                            alert('Error saving data');
-                        }
-                    })
-                ">
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.success) {
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Error saving data');
+                        publishing = false;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Something went wrong. Please try again.');
+                    publishing = false;
+                });
+            ">
 
                 <div class="modal-card-body">
                     <div class="field-group">
@@ -257,11 +272,13 @@
                                 <option value="assignment">Assignment</option>
                                 <option value="project">Project / Laboratory</option>
                                 <option value="exam">Major Exam</option>
+                                <option value="module">Module / Learning Material</option>
                             </select>
                         </div>
-                        <div class="field-group">
+                        
+                        <div class="field-group" x-show="formType !== 'module'">
                             <label class="field-label">Highest Score</label>
-                            <input type="number" name="max_score" class="field-input" x-model="formMaxScore" min="1" required>
+                            <input type="number" name="max_score" class="field-input" x-model="formMaxScore" min="1" :required="formType !== 'module'">
                         </div>
                     </div>
 
@@ -280,13 +297,29 @@
                             @drop.prevent="
                                 dragOver = false;
                                 const file = $event.dataTransfer.files[0];
-                                if (file) { selectedFile = file; fileName = file.name; fileSize = (file.size / 1024).toFixed(0) + ' KB'; }
+                                if (file) { 
+                                    if (file.size > 25 * 1024 * 1024) { 
+                                        fileSizeError = true; 
+                                        selectedFile = null;
+                                        $refs.fileInput.value = '';
+                                    } else {
+                                        fileSizeError = false;
+                                        selectedFile = file; 
+                                        fileName = file.name; 
+                                        fileSize = (file.size / 1024).toFixed(0) + ' KB'; 
+                                    }
+                                }
                             "
                             @click="$refs.fileInput.click()"
                             x-show="!selectedFile">
                             <i class="fa-solid fa-cloud-arrow-up"></i>
                             <p class="dz-title">Drag & drop file here</p>
-                            <p class="dz-subtitle">or click to browse — PDF, DOC, PPT, ZIP, JPG, PNG (max 10MB)</p>
+                            <p class="dz-subtitle">or click to browse — PDF, DOC, PPT, ZIP, JPG, PNG</p>
+                            <p class="text-xs text-gray-400 mt-1" style="font-size: 11px; opacity: 0.8;">Recommended size: Less than 25MB</p>
+                        </div>
+
+                        <div x-show="fileSizeError" x-cloak style="color: #dc3545; font-size: 13px; margin-top: 8px; font-weight: 600;">
+                            The file you selected is too large! Maximum allowed size is 25MB. Please compress it or choose a smaller file.
                         </div>
 
                         <div class="dz-file-preview" x-show="selectedFile" x-cloak>
@@ -295,7 +328,7 @@
                                 <span class="dz-file-name" x-text="fileName"></span>
                                 <span class="dz-file-size" x-text="fileSize"></span>
                             </div>
-                            <button type="button" class="dz-file-remove" @click="selectedFile = null; fileName = ''; fileSize = ''; $refs.fileInput.value = ''">
+                            <button type="button" class="dz-file-remove" @click="selectedFile = null; fileName = ''; fileSize = ''; fileSizeError = false; $refs.fileInput.value = ''">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
                         </div>
@@ -304,13 +337,32 @@
                             accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.jpg,.jpeg,.png"
                             @change="
                                 const file = $event.target.files[0];
-                                if (file) { selectedFile = file; fileName = file.name; fileSize = (file.size / 1024).toFixed(0) + ' KB'; }
+                                if (file) { 
+                                    if (file.size > 25 * 1024 * 1024) { 
+                                        fileSizeError = true; 
+                                        selectedFile = null;
+                                        $event.target.value = '';
+                                    } else {
+                                        fileSizeError = false;
+                                        selectedFile = file; 
+                                        fileName = file.name; 
+                                        fileSize = (file.size / 1024).toFixed(0) + ' KB'; 
+                                    }
+                                }
                             ">
                     </div>
                 </div>
-                <div class="modal-card-footer text-end">
-                    <button type="button" class="btn-cancel-portal" @click="showModal = false">Cancel</button>
-                    <button type="submit" class="btn btn-primary-portal" x-text="editingTaskId ? 'Update Task' : 'Publish Task'"></button>
+                <div class="modal-card-footer">
+                    <button type="button" class="btn-cancel-portal" @click="showModal = false">
+                        Cancel
+                    </button>
+
+                    <button type="submit" 
+                            class="btn-primary-portal" 
+                            :disabled="fileSizeError || publishing"
+                            :style="(fileSizeError || publishing) ? 'opacity: 0.6; cursor: not-allowed;' : ''">
+                        <span x-html="publishing ? '<i class=\'fa-solid fa-spinner fa-spin\' style=\'margin-right: 6px;\'></i> Publishing...' : (editingTaskId ? 'Save Changes' : 'Publish Task')"></span>
+                    </button>
                 </div>
             </form>
         </div>
@@ -382,15 +434,16 @@
         font-size: 12px; font-weight: 600; padding: 6px 10px;
         border-radius: 6px; cursor: pointer; transition: 0.15s;
         display: inline-flex; align-items: center; gap: 4px;
+        text-decoration: none;
     }
-    .btn-grade:hover { border-color: #1e2a5a; color: #1e2a5a; }
-    .btn-edit:hover { border-color: #d97706; color: #d97706; }
+    .btn-grade:hover { border-color: #1e2a5a; color: #1e2a5a; background: #eef1fb; }
+    .btn-edit:hover { border-color: #d97706; color: #d97706; background: #fffbeb; }
     .btn-delete:hover { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
     .modal-card-body { padding: 20px; }
     .modal-card-footer { padding: 14px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
-    .btn-primary-portal { background: #1e2a5a; color: white; border:none; padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; }
+    .btn-primary-portal { background: #1e2a5a; color: white; border:none; padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.15s; }
     .btn-primary-portal:hover { background: #141d40; }
-    .btn-cancel-portal { background: white; color: #475569; border: 1px solid #cbd5e1; padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; }
+    .btn-cancel-portal { background: white; color: #475569; border: 1px solid #cbd5e1; padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.15s; }
     .btn-cancel-portal:hover { background: #f8fafc; }
 
     .modal-term-tag { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }

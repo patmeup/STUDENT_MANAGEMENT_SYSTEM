@@ -190,6 +190,188 @@ class StudentController extends Controller
         return view('student.my_classes', compact('classes'));
     }
 
+    public function viewClassDashboard($schedule_id, Request $request)
+    {
+        if (session('user_role') !== 'student') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $studentNumber = session('student_id');
+
+        $isEnrolled = DB::table('student_subjects')
+            ->where('schedule_id', $schedule_id)
+            ->where('student_number', $studentNumber)
+            ->where('status', 'Enrolled')
+            ->exists();
+
+        if (!$isEnrolled) {
+            return redirect()->route('student.my_classes')->with('error', 'Unauthorized access to this class.');
+        }
+
+        $classDetails = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->where('class_schedules.id', $schedule_id)
+            ->select('class_schedules.*', 'subjects.subject_code', 'subjects.subject_title')
+            ->first();
+
+        if (!$classDetails) {
+            return redirect()->back()->with('error', 'Class workspace record could not be found.');
+        }
+
+        $activeTab = $request->query('tab', 'prelim');
+        $activeTab = strtolower($activeTab);
+
+        $activities = DB::table('student_tasks')
+            ->where('class_schedule_id', $schedule_id)
+            ->orderBy('due_date', 'asc')
+            ->get();
+            
+        return view('student.class_details', compact('classDetails', 'activities'));
+    }
+
+    public function viewTaskDetails($id)
+    {
+        if (session('user_role') !== 'student') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $studentNumber = session('student_id');
+
+        $task = DB::table('student_tasks')
+            ->join('class_schedules', 'student_tasks.class_schedule_id', '=', 'class_schedules.id')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->where('student_tasks.id', $id)
+            ->select(
+                'student_tasks.*',
+                'class_schedules.section_name',
+                'subjects.subject_code',
+                'subjects.subject_title'
+            )
+            ->first();
+
+        if (!$task) {
+            return redirect()->route('student.my_classes')->with('error', 'Task not found.');
+        }
+
+        // Siguraduhing enrolled ang student sa class na ito bago ipakita
+        $isEnrolled = DB::table('student_subjects')
+            ->where('schedule_id', $task->class_schedule_id)
+            ->where('student_number', $studentNumber)
+            ->where('status', 'Enrolled')
+            ->exists();
+
+        if (!$isEnrolled) {
+            return redirect()->route('student.my_classes')->with('error', 'Unauthorized access to this task.');
+        }
+
+        $submission = DB::table('task_submissions')
+            ->where('task_id', $id)
+            ->where('student_id', $studentNumber)
+            ->first();
+
+        return view('student.task_details', compact('task', 'submission'));
+    }
+
+    public function downloadTaskFile($id)
+    {
+        if (session('user_role') !== 'student') {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $studentNumber = session('student_id');
+
+        // 1. Kunin ang task records mula sa student_tasks table
+        $task = DB::table('student_tasks')
+            ->where('id', $id)
+            ->first();
+
+        if (!$task || !$task->file_path) {
+            abort(404, 'Task or attachment file record not found.');
+        }
+
+        // 2. Siguraduhing enrolled ang estudyante para sa security check
+        $isEnrolled = DB::table('student_subjects')
+            ->where('schedule_id', $task->class_schedule_id)
+            ->where('student_number', $studentNumber)
+            ->where('status', 'Enrolled')
+            ->exists();
+
+        if (!$isEnrolled) {
+            abort(403, 'You are not enrolled in this class.');
+        }
+
+        $fullPath = storage_path('app/private/' . $task->file_path);
+
+        if (!file_exists($fullPath)) {
+            abort(404, 'The physical file does not exist on the server directory: ' . $task->file_path);
+        }
+
+        $downloadName = $task->original_filename ?? basename($fullPath);
+
+        return response()->download($fullPath, $downloadName);
+    }
+
+    public function submitTask(Request $request, $id)
+    {
+        $task_id = $id;
+        $student_id = session('student_id');
+
+        $request->validate([
+            'attachment' => 'required|file|max:25600',
+        ]);
+
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+            $originalName = $file->getClientOriginalName();
+            $extension = $file->getClientOriginalExtension();
+
+            $taskInfo = DB::table('student_tasks')
+                ->join('class_schedules', 'student_tasks.class_schedule_id', '=', 'class_schedules.id')
+                ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+                ->where('student_tasks.id', $task_id)
+                ->select('subjects.subject_code', 'class_schedules.section_name', 'student_tasks.term')
+                ->first();
+
+            if (!$taskInfo) {
+                return redirect()->back()->with('error', 'Task details not found.');
+            }
+
+            // Inayos ang folder syntax para magkaroon ng space gaya ng "ITC 110_BSIT1-B"
+            $classFolder = strtoupper($taskInfo->subject_code . '_' . $taskInfo->section_name);
+
+            $termFolderMap = [
+                'prelim' => 'PRELIM_TERM',
+                'midterm' => 'MIDTERM_TERM',
+                'semifinal' => 'SEMI-FINAL_TERM',
+                'final' => 'FINAL_TERM',
+            ];
+            $termFolder = $termFolderMap[strtolower($taskInfo->term)] ?? strtoupper($taskInfo->term);
+
+            $folderPath = "task_submissions/{$classFolder}/{$termFolder}";
+
+            $finalName = $student_id . '_' . time() . '.' . $extension;
+
+            $file->storeAs($folderPath, $finalName, 'local');
+            
+            $filePath = "{$folderPath}/{$finalName}";
+
+            DB::table('task_submissions')->updateOrInsert(
+                ['task_id' => $task_id, 'student_id' => $student_id],
+                [
+                    'file_path' => $filePath, 
+                    'original_filename' => $originalName,
+                    'submitted_at' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]
+            );
+
+            return redirect()->back()->with('success', 'Task submitted successfully!');
+        }
+
+        return redirect()->back()->with('error', 'No file selected.');
+    }
+
     public function profileView()
     {
         if (session('user_role') !== 'student') {
@@ -206,65 +388,5 @@ class StudentController extends Controller
         $isLocked = Hash::check('Welcome@AU2026', $user->password);
 
         return view('student.user_details', compact('user', 'isLocked'));
-    }
-
-    public function viewClassDashboard($schedule_id, Request $request)
-    {
-        if (session('user_role') !== 'student') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
-        $activeTab = $request->query('tab', 'materials');
-        // Capture clicked term if present (e.g., prelim, midterm, semifinal, final)
-        $selectedTerm = $request->query('term'); 
-
-        // 1. Fetch details for this specific class
-        $classDetails = DB::table('class_schedules')
-            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-            ->where('class_schedules.id', $schedule_id)
-            ->select('class_schedules.*', 'subjects.subject_code', 'subjects.subject_title')
-            ->first();
-
-        if (!$classDetails) {
-            return redirect()->back()->with('error', 'Class workspace record could not be found.');
-        }
-
-        // 2. Fetch professor uploaded activities with optional Term Filtering
-        $activitiesQuery = DB::table('student_tasks') 
-            ->where('class_schedule_id', $schedule_id);
-
-        if (!empty($selectedTerm)) {
-            $activitiesQuery->where('term', 'LIKE', $selectedTerm . '%');
-        }
-
-        $activities = $activitiesQuery->orderBy('created_at', 'desc')->get();
-
-        // 3. Fallback for materials table if it doesn't exist yet
-        $materials = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('class_materials')) {
-            $materials = DB::table('class_materials')
-                ->where('class_schedule_id', $schedule_id)
-                ->orderBy('created_at', 'desc')
-                ->get();
-        }
-
-        return view('student.class_dashboard', compact('classDetails', 'activities', 'materials', 'activeTab'));
-    }
-
-    public function viewTaskDetails($id)
-    {
-        if (session('user_role') !== 'student') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
-        $task = DB::table('student_tasks')
-            ->where('id', $id)
-            ->first();
-
-        if (!$task) {
-            return redirect()->back()->with('error', 'Task record could not be found.');
-        }
-
-        return view('student.task_details', compact('task'));
     }
 }
