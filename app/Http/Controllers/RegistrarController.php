@@ -10,6 +10,67 @@ use Illuminate\Support\Str;
 
 class RegistrarController extends Controller
 {
+    public function dashboard()
+    {
+        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+        $totalStudents = DB::table('students')->count();
+        
+        return view('registrar.dashboard', compact('announcements', 'totalStudents'));
+    }
+
+    public function storeAnnouncement(Request $request)
+    {
+        if (session('user_role') !== 'registrar') {
+            abort(403, 'Unauthorized Access.');
+        }
+
+        $request->validate([
+            'banner_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        if ($request->hasFile('banner_image')) {
+            $image = $request->file('banner_image');
+            $path = $image->store('announcements', 'public');
+
+            DB::table('announcements')->insert([
+                'image_path' => $path,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return redirect()->back()->with('success', 'Announcement banner uploaded successfully!');
+        }
+
+        return redirect()->back()->with('error', 'Failed to upload announcement.');
+    }
+
+    public function destroyAnnouncement($id)
+    {
+        if (session('user_role') !== 'registrar') {
+            abort(403, 'Unauthorized Access.');
+        }
+
+        $announcement = DB::table('announcements')->where('id', $id)->first();
+
+        if ($announcement) {
+            Storage::disk('public')->delete($announcement->image_path);
+            DB::table('announcements')->where('id', $id)->delete();
+
+            return redirect()->back()->with('success', 'Announcement banner removed successfully.');
+        }
+
+        return redirect()->back()->with('error', 'Announcement not found.');
+    }
+
+    public function manageEnrollment()
+    {
+        if (session('user_role') !== 'registrar') {
+            return redirect()->route('login')->with('error', 'Unauthorized access. Please login as Registrar.');
+        }
+
+        return view('registrar.manage-enrollment');
+    }
+
     public function storeEnrollment(Request $request)
     {
         $request->validate([
@@ -33,7 +94,6 @@ class RegistrarController extends Controller
             'doc_permit' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
-        // 2. Automated Generation ng Student ID (Format: 2026-0001)
         $currentYear = date('Y');
         
         $lastStudent = DB::table('students')
