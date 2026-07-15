@@ -78,6 +78,8 @@ Route::delete('/system_admin/manage-curriculum/{id}', [CurriculumController::cla
 
 Route::get('/system_admin/user_details', [SystemAdminController::class, 'profileView'])->name('system_admin.user_details');
 
+Route::put('/curriculum/{id}',[CurriculumController::class,'update'])->name('system_admin.curriculum.update');
+
 // REGISTRAR ROUTES
 Route::group(['middleware' => function ($request, $next) {
     if (session('user_role') !== 'registrar') {

@@ -32,6 +32,7 @@ class CurriculumController extends Controller
         $course    = $request->query('course');
         $yearLevel = $request->query('year_level');
         $semester  = $request->query('semester');
+        $curriculum= $request->query('curriculum_id');
 
         if (!$course || !$yearLevel || !$semester) {
             return response()->json([]);
@@ -40,6 +41,9 @@ class CurriculumController extends Controller
         $alreadyMappedIds = Curriculum::where('course', $course)
             ->where('year_level', $yearLevel)
             ->where('semester', $semester)
+            ->when($curriculum, function ($query, $curriculum) {
+                return $query->where('id', '!=', $curriculum);
+            })
             ->pluck('subject_id')
             ->toArray();
 
@@ -88,5 +92,37 @@ class CurriculumController extends Controller
         $mapping->delete();
 
         return redirect()->back()->with('success', 'Curriculum link has been removed successfully.');
+    }
+
+    public function update(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'subject_id' => 'required|exists:subjects,id',
+            'course'     => 'required|string',
+            'year_level' => 'required|string',
+            'semester'   => 'required|string',
+        ]);
+
+        $duplicate = Curriculum::where('course', $request->course)
+            ->where('year_level', $request->year_level)
+            ->where('semester', $request->semester)
+            ->where('subject_id', $request->subject_id)
+            ->where('id', '!=', $id)
+            ->exists();
+
+        if ($duplicate) {
+            return redirect()->back()->withErrors([
+                'error' => 'This curriculum mapping already exists.'
+            ]);
+        }
+
+        $curriculum = Curriculum::findOrFail($id);
+
+        $curriculum->update($validated);
+
+        return redirect()->back()->with(
+            'success',
+            'Curriculum updated successfully.'
+        );
     }
 }
