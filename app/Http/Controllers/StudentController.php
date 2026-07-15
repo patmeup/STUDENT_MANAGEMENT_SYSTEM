@@ -11,9 +11,126 @@ use Illuminate\Support\Facades\Schema;
 
 class StudentController extends Controller
 {
-    /**
-     * Display the filtered Student Masterlist Ledger for the Registrar side.
-     */
+    public function dashboard()
+    {
+        if (session('user_role') !== 'student') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $studentNumber = session('student_id');
+
+        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+
+        // 1. Fetch Enrolled Classes details with subject units/credits
+        $enrolledClasses = DB::table('student_subjects')
+            ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->where('student_subjects.student_number', $studentNumber)
+            ->where('student_subjects.status', 'Enrolled')
+            ->select(
+                'class_schedules.id as schedule_id',
+                'subjects.id as subject_id',
+                'subjects.total_units',
+                'subjects.subject_code'
+            )
+            ->get();
+
+        $totalUnits = 0;
+        $weightedGradesSum = 0;
+        $hasGrades = false;
+
+        foreach ($enrolledClasses as $class) {
+            // Kunin ang graded task submissions sa subject na ito
+            $gradedSubmissions = DB::table('task_submissions')
+                ->join('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
+                ->where('student_tasks.class_schedule_id', $class->schedule_id)
+                ->where('task_submissions.student_id', $studentNumber)
+                ->whereNotNull('task_submissions.grade')
+                ->select('task_submissions.grade', 'student_tasks.activity_type')
+                ->get();
+
+            if ($gradedSubmissions->isNotEmpty()) {
+                $hasGrades = true;
+                $grouped = $gradedSubmissions->groupBy(function($item) {
+                    return strtolower(trim($item->activity_type));
+                });
+
+                $averages = [];
+                foreach ($grouped as $type => $items) {
+                    $averages[$type] = $items->avg('grade');
+                }
+
+                // Component values (60% Written, 40% Performance)
+                $majorExam = $averages['major exam'] ?? $averages['exam'] ?? 0;
+                
+                $writtenComponents = [];
+                if (isset($averages['written'])) $writtenComponents[] = $averages['written'];
+                if (isset($averages['quiz'])) $writtenComponents[] = $averages['quiz'];
+                if (isset($averages['activity'])) $writtenComponents[] = $averages['activity'];
+                
+                $currentWrittenWorks = count($writtenComponents) > 0 ? (array_sum($writtenComponents) / count($writtenComponents)) : 0;
+                $currentRecitation = $averages['recitation'] ?? 0;
+                $currentAttendance = $averages['attendance'] ?? 0;
+
+                $classStandingComponents = array_filter([$currentWrittenWorks, $currentRecitation, $currentAttendance]);
+                $classStandingAverage = count($classStandingComponents) > 0 ? (array_sum($classStandingComponents) / count($classStandingComponents)) : 0;
+
+                // I-apply ang weights
+                $classStandingContribution = $classStandingAverage * 0.60; // 60% Weight
+                $examContribution = $majorExam * 0.40;                      // 40% Weight
+
+                $subjectGrade = round($classStandingContribution + $examContribution, 2);
+
+                // Weighted Grade = Grade * Subject Units
+                $weightedGradesSum += ($subjectGrade * $class->total_units);
+                $totalUnits += $class->total_units;
+            } else {
+                // Kung walang grades pa, asikasuhin ang units para sa average computation (o i-skip muna)
+                $totalUnits += $class->total_units;
+            }
+        }
+
+        // Kumpitasyon para sa kabuuang predicted/current GWA
+        $predictedTermGWA = ($hasGrades && $totalUnits > 0) ? round($weightedGradesSum / $totalUnits, 2) : 0;
+
+        // I-set ang status base sa computed GWA
+        $gwaStatus = 'No grades computed yet';
+        $statusClass = 'text-secondary';
+        if ($predictedTermGWA > 0) {
+            if ($predictedTermGWA >= 75) {
+                $gwaStatus = 'PASSED (Good Standing)';
+                $statusClass = 'text-success';
+            } else {
+                $gwaStatus = 'AT RISK (Needs Improvement)';
+                $statusClass = 'text-danger';
+            }
+        }
+
+        // 2. Fetch student stats
+        $totalEnrolledClasses = $enrolledClasses->count();
+
+        // Count pending task submissions
+        $pendingTasksCount = DB::table('student_tasks')
+            ->join('student_subjects', 'student_tasks.class_schedule_id', '=', 'student_subjects.schedule_id')
+            ->leftJoin('task_submissions', function($join) use ($studentNumber) {
+                $join->on('student_tasks.id', '=', 'task_submissions.task_id')
+                     ->where('task_submissions.student_id', '=', $studentNumber);
+            })
+            ->where('student_subjects.student_number', $studentNumber)
+            ->where('student_subjects.status', 'Enrolled')
+            ->whereNull('task_submissions.id')
+            ->count();
+
+        return view('student.dashboard', compact(
+            'announcements',
+            'totalEnrolledClasses',
+            'pendingTasksCount',
+            'predictedTermGWA',
+            'gwaStatus',
+            'statusClass'
+        ));
+    }
+
     public function index(Request $request)
     {
         if (session('user_role') !== 'registrar') {
@@ -50,6 +167,137 @@ class StudentController extends Controller
         $totalRecords = $students->count();
 
         return view('registrar.manage-students', compact('students', 'totalRecords'));
+    }
+
+    public function viewClassDashboard($schedule_id, Request $request)
+    {
+        if (session('user_role') !== 'student') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $studentNumber = session('student_id');
+
+        // Security check kung enrolled nga ang student sa class na ito
+        $isEnrolled = DB::table('student_subjects')
+            ->where('schedule_id', $schedule_id)
+            ->where('student_number', $studentNumber)
+            ->where('status', 'Enrolled')
+            ->exists();
+
+        if (!$isEnrolled) {
+            return redirect()->route('student.my_classes')->with('error', 'Unauthorized access to this class.');
+        }
+
+        $activeTab = $request->query('tab', 'materials');
+
+        // Kunin ang detalye ng subject
+        $classDetails = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->where('class_schedules.id', $schedule_id)
+            ->select('class_schedules.*', 'subjects.subject_code', 'subjects.subject_title')
+            ->first();
+
+        // Kunin ang tasks/materials list (LMS side)
+        $activities = DB::table('student_tasks') 
+            ->leftJoin('task_submissions', function($join) use ($studentNumber) {
+                $join->on('student_tasks.id', '=', 'task_submissions.task_id')
+                     ->where('task_submissions.student_id', '=', $studentNumber);
+            })
+            ->where('student_tasks.class_schedule_id', $schedule_id)
+            ->select('student_tasks.*', 'task_submissions.grade as student_grade')
+            ->orderBy('student_tasks.created_at', 'desc')
+            ->get();
+
+        $materials = [];
+        if (Schema::hasTable('class_materials')) {
+            $materials = DB::table('class_materials')
+                ->where('class_schedule_id', $schedule_id)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+
+        $gradedSubmissions = DB::table('task_submissions')
+            ->join('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
+            ->where('student_tasks.class_schedule_id', $schedule_id)
+            ->where('task_submissions.student_id', $studentNumber)
+            ->whereNotNull('task_submissions.grade')
+            ->select('task_submissions.grade', 'student_tasks.activity_type')
+            ->get();
+
+        $grouped = $gradedSubmissions->groupBy(function($item) {
+            return strtolower(trim($item->activity_type));
+        });
+
+        $averages = [];
+        foreach ($grouped as $type => $items) {
+            $averages[$type] = $items->avg('grade');
+        }
+
+        $majorExam = $averages['major exam'] ?? $averages['exam'] ?? 0;
+        
+        $writtenComponents = [];
+        if (isset($averages['written'])) $writtenComponents[] = $averages['written'];
+        if (isset($averages['quiz'])) $writtenComponents[] = $averages['quiz'];
+        if (isset($averages['activity'])) $writtenComponents[] = $averages['activity'];
+        $currentWrittenWorks = count($writtenComponents) > 0 ? (array_sum($writtenComponents) / count($writtenComponents)) : 0;
+
+        $currentRecitation = $averages['recitation'] ?? 0;
+        $currentAttendance = $averages['attendance'] ?? 0;
+
+        $classStandingComponents = array_filter([$currentWrittenWorks, $currentRecitation, $currentAttendance]);
+        $classStandingAverage = count($classStandingComponents) > 0 ? (array_sum($classStandingComponents) / count($classStandingComponents)) : 0;
+
+        $classStandingContribution = $classStandingAverage * 0.60; 
+        $examContribution = $majorExam * 0.40;                      
+
+        $currentCalculatedGrade = round($classStandingContribution + $examContribution, 2);
+
+        return view('student.class_details', compact(
+            'classDetails', 
+            'activities', 
+            'materials', 
+            'activeTab',
+            'currentWrittenWorks',
+            'currentRecitation',
+            'currentAttendance',
+            'majorExam',
+            'currentCalculatedGrade'
+        ));
+    }
+
+    public function predictGrade(Request $request, $schedule_id)
+    {
+        if (session('user_role') !== 'student') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $writtenWorks = floatval($request->query('written_works', 0));
+        $recitation = floatval($request->query('recitation', 0));
+        $attendance = floatval($request->query('attendance', 0));
+
+        $possibleExamScores = [75, 80, 85, 90, 95, 100];
+        $predictions = [];
+
+        foreach ($possibleExamScores as $examScore) {
+            $writtenAverage = ($examScore + $writtenWorks) / 2;
+            $writtenContribution = $writtenAverage * 0.60;
+
+            $performanceAverage = ($recitation + $attendance) / 2;
+            $performanceContribution = $performanceAverage * 0.40;
+
+            $predictedGrade = round($writtenContribution + $performanceContribution, 2);
+
+            $predictions[] = [
+                'exam_score' => $examScore,
+                'predicted_grade' => $predictedGrade,
+                'status' => $predictedGrade >= 75 ? 'Passed' : 'At Risk',
+                'status_color' => $predictedGrade >= 75 ? 'text-success' : 'text-danger'
+            ];
+        }
+
+        return response()->json([
+            'predictions' => $predictions
+        ]);
     }
 
     public function viewStudentProfile($student_id)
@@ -224,66 +472,6 @@ class StudentController extends Controller
             ->get();
 
         return view('student.my_classes', compact('classes'));
-    }
-
-    public function viewClassDashboard($schedule_id, Request $request)
-    {
-        if (session('user_role') !== 'student') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
-        $studentNumber = session('student_id');
-
-        // Security enrollment authorization check
-        $isEnrolled = DB::table('student_subjects')
-            ->where('schedule_id', $schedule_id)
-            ->where('student_number', $studentNumber)
-            ->where('student_subjects.status', 'Enrolled')
-            ->exists();
-
-        if (!$isEnrolled) {
-            return redirect()->route('student.my_classes')->with('error', 'Unauthorized access to this class.');
-        }
-
-        $activeTab = $request->query('tab', 'materials');
-        $selectedTerm = $request->query('term'); 
-
-        // Fetch details for this specific class
-        $classDetails = DB::table('class_schedules')
-            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-            ->where('class_schedules.id', $schedule_id)
-            ->select('class_schedules.*', 'subjects.subject_code', 'subjects.subject_title')
-            ->first();
-
-        if (!$classDetails) {
-            return redirect()->back()->with('error', 'Class workspace record could not be found.');
-        }
-
-        // Fetch professor uploaded activities and leftJoin submission info to display scores
-        $activitiesQuery = DB::table('student_tasks') 
-            ->leftJoin('task_submissions', function($join) use ($studentNumber) {
-                $join->on('student_tasks.id', '=', 'task_submissions.task_id')
-                     ->where('task_submissions.student_id', '=', $studentNumber);
-            })
-            ->where('student_tasks.class_schedule_id', $schedule_id)
-            ->select('student_tasks.*', 'task_submissions.grade as student_grade');
-
-        if (!empty($selectedTerm)) {
-            $activitiesQuery->where('student_tasks.term', 'LIKE', $selectedTerm . '%');
-        }
-
-        $activities = $activitiesQuery->orderBy('student_tasks.created_at', 'desc')->get();
-
-        // Fallback for materials table if it doesn't exist yet
-        $materials = [];
-        if (Schema::hasTable('class_materials')) {
-            $materials = DB::table('class_materials')
-                ->where('class_schedule_id', $schedule_id)
-                ->orderBy('created_at', 'desc')
-                ->get();
-        }
-
-        return view('student.class_details', compact('classDetails', 'activities', 'materials', 'activeTab'));
     }
 
     public function viewTaskDetails($id)

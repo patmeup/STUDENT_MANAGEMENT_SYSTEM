@@ -7,42 +7,101 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
+use App\Models\Students;
 
 class ProfessorController extends Controller
 {
-    public function manageClasses()
-{
-    if (session('user_role') !== 'professor') {
-        return redirect('/')->with('error', 'Unauthorized access.');
+    public function dashboard()
+    {
+        if (session('user_role') !== 'professor') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $professor_id = session('user_id');
+
+        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+
+        $totalClasses = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->where('subjects.professor_id', $professor_id)
+            ->distinct('class_schedules.id')
+            ->count('class_schedules.id');
+
+        $totalStudents = DB::table('student_subjects')
+            ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->where('subjects.professor_id', $professor_id)
+            ->where('student_subjects.status', 'Enrolled')
+            ->distinct('student_subjects.student_number')
+            ->count('student_subjects.student_number');
+
+        $pendingGrading = DB::table('task_submissions')
+            ->join('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
+            ->join('class_schedules', 'student_tasks.class_schedule_id', '=', 'class_schedules.id')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->where('subjects.professor_id', $professor_id)
+            ->whereNull('task_submissions.grade')
+            ->count('task_submissions.id');
+
+        $classesList = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->select(
+                'class_schedules.id as schedule_id',
+                'class_schedules.section_name',
+                'class_schedules.class_days',
+                'class_schedules.start_time',
+                'class_schedules.end_time',
+                'class_schedules.room_assignment',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                DB::raw('(SELECT COUNT(*) FROM student_subjects WHERE student_subjects.schedule_id = class_schedules.id AND student_subjects.status = "Enrolled") as students_count')
+            )
+            ->where('subjects.professor_id', $professor_id)
+            ->orderBy('class_schedules.section_name')
+            ->get();
+
+        return view('professor.dashboard', compact(
+            'announcements',
+            'totalClasses', 
+            'totalStudents', 
+            'pendingGrading', 
+            'classesList'
+        ));
     }
 
-    $professor_id = session('user_id'); 
+    public function manageClasses()
+    {
+        if (session('user_role') !== 'professor') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
 
-    $classes = \DB::table('class_schedules')
-        ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-        ->select(
-            'class_schedules.id as schedule_id',
-            'class_schedules.section_name',
-            'class_schedules.class_days',
-            'class_schedules.start_time',
-            'class_schedules.end_time',
-            'class_schedules.room_assignment',
-            'subjects.subject_code', 
-            'subjects.subject_title',
-            'subjects.lecture_units',
-            'subjects.lab_units',
+        $professor_id = session('user_id'); 
 
-            \DB::raw('(SELECT COUNT(*) 
-                       FROM student_subjects 
-                       WHERE student_subjects.schedule_id = class_schedules.id 
-                       AND student_subjects.status = "Enrolled") as students_count')
-        )
-        ->where('subjects.professor_id', $professor_id) 
-        ->orderBy('class_schedules.section_name')
-        ->get();
+        $classes = \DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->select(
+                'class_schedules.id as schedule_id',
+                'class_schedules.section_name',
+                'class_schedules.class_days',
+                'class_schedules.start_time',
+                'class_schedules.end_time',
+                'class_schedules.room_assignment',
+                'subjects.subject_code', 
+                'subjects.subject_title',
+                'subjects.lecture_units',
+                'subjects.lab_units',
 
-    return view('professor.manage-classes', compact('classes'));
-}
+                \DB::raw('(SELECT COUNT(*) 
+                        FROM student_subjects 
+                        WHERE student_subjects.schedule_id = class_schedules.id 
+                        AND student_subjects.status = "Enrolled") as students_count')
+            )
+            ->where('subjects.professor_id', $professor_id) 
+            ->orderBy('class_schedules.section_name')
+            ->get();
+
+        return view('professor.manage-classes', compact('classes'));
+    }
 
     public function viewClassDashboard($schedule_id)
     {
@@ -96,6 +155,76 @@ class ProfessorController extends Controller
             ->get();
 
         return view('professor.class_details', compact('classDetails', 'students', 'tasks'));
+    }
+
+    public function showAttendanceSheet($schedule_id, Request $request)
+    {
+        $date = $request->query('date', date('Y-m-d'));
+
+        $students = DB::table('student_subjects')
+            ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
+            ->where('student_subjects.schedule_id', $schedule_id)
+            ->where('student_subjects.status', 'Enrolled')
+            ->select('students.student_id', 'students.first_name', 'students.last_name')
+            ->orderBy('students.last_name', 'asc')
+            ->get();
+
+        $existingAttendance = DB::table('attendances')
+            ->where('class_schedule_id', $schedule_id)
+            ->where('attendance_date', $date)
+            ->get()
+            ->keyBy('student_id');
+
+        return response()->json([
+            'students' => $students,
+            'existingAttendance' => $existingAttendance
+        ]);
+    }
+
+    public function saveAttendance(Request $request, $schedule_id)
+    {
+        $date = $request->input('attendance_date', date('Y-m-d'));
+        $attendanceData = $request->input('attendance', []); 
+        $remarksData = $request->input('remarks', []);       
+
+        DB::beginTransaction();
+        try {
+            foreach ($attendanceData as $studentId => $status) {
+                $remarks = $remarksData[$studentId] ?? null;
+
+                // Kunin ang current record
+                $record = DB::table('attendances')
+                    ->where('class_schedule_id', $schedule_id)
+                    ->where('student_id', $studentId)
+                    ->where('attendance_date', $date)
+                    ->first();
+
+                if ($record) {
+                    // Update lang, huwag galawin ang created_at
+                    DB::table('attendances')->where('id', $record->id)->update([
+                        'status' => $status,
+                        'remarks' => $remarks,
+                        'updated_at' => now(),
+                    ]);
+                } else {
+                    // Insert: dito dapat magka-value ang created_at
+                    DB::table('attendances')->insert([
+                        'class_schedule_id' => $schedule_id,
+                        'student_id' => $studentId,
+                        'attendance_date' => $date,
+                        'status' => $status,
+                        'remarks' => $remarks,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+            DB::commit();
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     public function saveActivity(Request $request)
@@ -171,7 +300,6 @@ class ProfessorController extends Controller
 
     public function updateActivity(Request $request, $id)
     {
-        // 1. Inayos ang validation para tanggapin ang module (nullable) at due_date
         $request->validate([
             'title' => 'required|string|max:255',
             'type' => 'required|string',
@@ -196,12 +324,11 @@ class ProfessorController extends Controller
             ];
 
             if ($request->hasFile('attachment')) {
-                // Burahin ang lumang file kung mayroon man
+
                 if ($task->file_path) {
                     Storage::disk('local')->delete($task->file_path);
                 }
                 
-                // 2. Ginawang dynamic ang folder structure kapareho ng saveActivity para organisado pa rin ang path
                 $classInfo = DB::table('class_schedules')
                     ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
                     ->where('class_schedules.id', $task->class_schedule_id)
@@ -273,7 +400,6 @@ class ProfessorController extends Controller
             return redirect()->back()->with('error', 'Task not found.');
         }
 
-        // Tinanggal natin ang task_submissions.grade para mawala ang SQL error
         $submissions = DB::table('student_subjects')
             ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
             ->leftJoin('task_submissions', function($join) use ($task_id) {
@@ -327,7 +453,6 @@ class ProfessorController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        // 2. Kunin ang record mula sa task_submissions table
         $submission = DB::table('task_submissions')
             ->where('id', $id)
             ->first();
@@ -336,15 +461,12 @@ class ProfessorController extends Controller
             abort(404, 'Submission record or file path not found in database.');
         }
 
-        // 3. Buuin ang absolute system path papunta sa private storage folder natin
         $fullPath = storage_path('app/private/' . $submission->file_path);
 
-        // 4. Siguraduhing umiiral talaga ang file sa file system ng computer/server niyo
         if (!file_exists($fullPath)) {
             abort(404, 'The physical file does not exist on the server directory.');
         }
 
-        // 5. I-download gamit ang orihinal na file name na ipinasa ng student (e.g., Thesis_Draft.pdf)
         $downloadName = $submission->original_filename ?? basename($fullPath);
 
         return response()->download($fullPath, $downloadName);

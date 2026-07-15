@@ -15,6 +15,19 @@
         formDueDate: '',
         publishing: false,
         fileSizeError: false,
+        
+        selectedDate: new Date().toLocaleDateString('en-CA'),
+        currentDate: new Date().toLocaleDateString('en-CA'),  
+        attendanceState: {}, 
+        remarksState: {},
+        isInitialized: false,
+        loadingAttendance: false,
+        saveStatus: { show: false, success: true, message: '' },
+
+        isPastDate() {
+            return this.selectedDate < this.currentDate;
+        },
+
         openCreateModal(term) {
             this.modalTerm = term;
             this.editingTaskId = null;
@@ -51,14 +64,121 @@
                     alert('Error deleting task');
                 }
             });
+        },
+        bulkMark(status) {
+            if (this.isPastDate()) return; // Lock check
+            Object.keys(this.attendanceState).forEach(key => {
+                this.attendanceState[key] = status;
+            });
+        },
+
+        markAll(status) {
+            Object.keys(this.attendanceState).forEach(studentId => {
+                this.attendanceState[studentId] = status;
+            });
+        },
+
+        loadAttendanceData() {
+            this.loadingAttendance = true;
+            this.isInitialized = false; 
+
+            fetch(`/professor/class/{{ $classDetails->schedule_id }}/attendance?date=${this.selectedDate}`)
+            .then(res => res.json())
+            .then(data => {
+                this.attendanceState = {};
+                this.remarksState = {};
+                
+                data.students.forEach(student => {
+                    const record = data.existingAttendance[student.student_id] || {};
+                    this.attendanceState[student.student_id] = record.status || null; 
+                    this.remarksState[student.student_id] = record.remarks || '';
+                });
+                this.isInitialized = true;
+            })
+            .finally(() => this.loadingAttendance = false);
+        },
+
+        resetGridValues() {
+            Object.keys(this.attendanceState).forEach(studentId => {
+                this.attendanceState[studentId] = 'Present';
+                this.remarksState[studentId] = '';
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+
+        saveAttendanceForm(e) {
+            this.loadingAttendance = true;
+            const formData = new FormData();
+            formData.append('_token', '{{ csrf_token() }}');
+            formData.append('attendance_date', this.selectedDate);
+
+            Object.keys(this.attendanceState).forEach(studentId => {
+                formData.append(`attendance[${studentId}]`, this.attendanceState[studentId]);
+                formData.append(`remarks[${studentId}]`, this.remarksState[studentId] || '');
+            });
+
+            fetch(`/professor/class/{{ $classDetails->schedule_id }}/attendance/save`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    this.hasSaved = true;
+                    alert('Attendance saved successfully!');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .finally(() => {
+                this.loadingAttendance = false;
+            });
+        },
+
+        hasSaved: false,
+        isLocked() {
+            return this.selectedDate < this.currentDate || this.hasSaved;
+        },
+
+        showToast(success, message) {
+            this.saveStatus.show = true;
+            this.saveStatus.success = success;
+            this.saveStatus.message = message;
+            setTimeout(() => { this.saveStatus.show = false; }, 4000);
         }
-    }">
+    }"
+    x-init="
+            @if(isset($attendanceRecords) && $attendanceRecords->isNotEmpty())
+                @foreach($attendanceRecords as $rec)
+                    attendanceState['{{ $rec->student_id }}'] = '{{ $rec->status }}';
+                    remarksState['{{ $rec->student_id }}'] = '{{ $rec->remarks }}';
+                @endforeach
+            @else
+                @foreach($students as $student)
+                    attendanceState['{{ $student->student_id }}'] = 'Present';
+                    remarksState['{{ $student->student_id }}'] = '';
+                @endforeach
+            @endif
+            
+            loadAttendanceData();
+        "
+>
 
     <div class="page-header-row">
         <a href="{{ route('professor.manage-classes') }}" class="btn-back-link">
             <i class="fa-solid fa-arrow-left-long"></i> Back to My Classes List
         </a>
         <span class="badge-portal">Class Control Panel</span>
+    </div>
+
+    <div x-show="saveStatus.show" 
+         x-transition 
+         class="alert mb-4 d-flex align-items-center justify-content-between py-3 px-4 rounded-3 border transition"
+         :class="saveStatus.success ? 'bg-success-subtle text-success border-success-subtle' : 'bg-danger-subtle text-danger border-danger-subtle'"
+         style="display: none; font-weight: 600;">
+        <span x-text="saveStatus.message"></span>
+        <button type="button" class="btn-close" @click="saveStatus.show = false" style="font-size: 12px;"></button>
     </div>
 
     <div class="dashboard-grid-wrapper">
@@ -89,8 +209,13 @@
             
             <div class="sidebar-navigation-card">
                 <div class="panel-title-label">ACADEMIC WORKSPACE</div>
+                
                 <button class="nav-tab-btn" :class="currentTab === 'masterlist' ? 'active-tab' : ''" @click="currentTab = 'masterlist'">
                     <i class="fa-solid fa-users-rectangle"></i> Student Masterlist
+                </button>
+
+                <button class="nav-tab-btn" :class="currentTab === 'attendance' ? 'active-tab' : ''" @click="currentTab = 'attendance'">
+                    <i class="fa-solid fa-calendar-check"></i> Class Attendance
                 </button>
                 
                 <div class="panel-title-label mt-4">TERM GRADE ENCODING</div>
@@ -143,6 +268,158 @@
                 </div>
             </div>
 
+            <div x-show="currentTab === 'attendance'" x-transition style="display: none;">
+                <div class="workspace-card">
+                    
+                    <form @submit.prevent="saveAttendanceForm($event)">
+                        
+                        <div class="attendance-control-panel-wrapper mb-4">
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                                <div>
+                                    <h4 class="m-0 fw-bold text-dark-blue d-flex align-items-center gap-2">
+                                        <span>Class Attendance Logs</span>
+                                        <template x-if="isPastDate()">
+                                            <span class="badge bg-amber-subtle text-amber border border-amber-subtle rounded-pill font-semibold px-2 py-1" style="font-size: 11px; background-color: #fef3c7; color: #d97706; border-color: #fde68a;">
+                                                <i class="fa-solid fa-lock me-1"></i> Read-Only Log
+                                            </span>
+                                        </template>
+                                    </h4>
+                                    <p class="small text-muted m-0 mt-1">Manage, evaluate, and mass-assign student logs efficiently.</p>
+                                </div>
+                                
+                                <div class="attendance-quick-stats">
+                                    <span class="stat-pill">
+                                        <i class="fa-solid fa-graduation-cap text-primary"></i> 
+                                        Enrolled: <strong>{{ count($students) }} Students</strong>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <hr class="control-panel-dividerMy my-3">
+
+                            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-3">
+                                <div class="modern-date-input-box">
+                                    <span class="modern-date-label">LOG DATE:</span>
+                                    <div class="input-date-inner">
+                                        <i class="fa-regular fa-calendar-check text-muted"></i>
+                                        <input type="date" 
+                                               name="attendance_date" 
+                                               x-model="selectedDate"
+                                               @change="loadAttendanceData()"
+                                               class="modern-date-picker">
+                                    </div>
+                                </div>
+
+                                <div class="modern-bulk-action-group" x-show="!isPastDate()">
+                                    <button type="button" @click="bulkMark('Present')" class="btn-modern-bulk status-bulk-present" :disabled="isPastDate()">
+                                        <i class="fa-solid fa-square-check"></i> Mark All Present
+                                    </button>
+                                    <button type="button" @click="bulkMark('Absent')" class="btn-modern-bulk status-bulk-absent" :disabled="isPastDate()">
+                                        <i class="fa-solid fa-square-xmark"></i> Mark All Absent
+                                    </button>
+                                </div>
+                                
+                                <div class="small fw-bold text-muted" x-show="isPastDate()" x-cloak>
+                                    <i class="fa-solid fa-circle-info text-warning me-1"></i> Past logs are archived and cannot be overridden.
+                                </div>
+                            </div>
+                        </div>
+
+                        @if($students->isEmpty())
+                            <div class="p-5 text-center text-muted">Cannot encode attendance. No students enrolled.</div>
+                        @else
+                            
+                            <div class="table-responsive position-relative rounded-3 border">
+                                <div x-show="loadingAttendance" 
+                                     class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white bg-opacity-75" 
+                                     style="z-index: 10; display: none;">
+                                    <div class="text-center text-primary">
+                                        <i class="fa-solid fa-spinner fa-spin fa-2x mb-2"></i>
+                                        <p class="small fw-bold m-0">Syncing record entries...</p>
+                                    </div>
+                                </div>
+
+                                <table class="table custom-portal-table align-middle m-0">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 70px;" class="text-center">#</th>
+                                            <th style="width: 165px;">Student ID</th>
+                                            <th>Full Name</th>
+                                            <th style="width: 310px;" class="text-center">Status Allocation</th>
+                                            <th>Internal Remarks</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($students as $index => $student)
+                                            <tr :class="isPastDate() ? 'bg-light-read-only' : ''">
+                                                <td class="text-center text-muted fw-bold">#{{ $index + 1 }}</td>
+                                                <td class="fw-semibold text-secondary font-mono" style="letter-spacing: 0.5px;">{{ $student->student_id }}</td>
+                                                <td class="text-uppercase fw-bold text-dark-slate" style="font-size: 13.5px;">{{ $student->last_name }}, {{ $student->first_name }}</td>
+                                                
+                                                <td>
+                                                    <div class="attendance-radio-group" :class="isPastDate() ? 'opacity-75 cursor-not-allowed' : ''">
+                                                        <label class="attendance-label-btn flex-fill">
+                                                            <input type="radio" 
+                                                                   name="attendance[{{ $student->student_id }}]" 
+                                                                   value="Present" 
+                                                                   x-model="attendanceState['{{ $student->student_id }}']" 
+                                                                   :disabled="isPastDate()"
+                                                                   class="attendance-radio-input">
+                                                            <span class="btn-state btn-present">Present</span>
+                                                        </label>
+
+                                                        <label class="attendance-label-btn flex-fill">
+                                                            <input type="radio" 
+                                                                   name="attendance[{{ $student->student_id }}]" 
+                                                                   value="Late" 
+                                                                   x-model="attendanceState['{{ $student->student_id }}']" 
+                                                                   :disabled="isPastDate()"
+                                                                   class="attendance-radio-input">
+                                                            <span class="btn-state btn-late">Late</span>
+                                                        </label>
+
+                                                        <label class="attendance-label-btn flex-fill">
+                                                            <input type="radio" 
+                                                                   name="attendance[{{ $student->student_id }}]" 
+                                                                   value="Absent" 
+                                                                   x-model="attendanceState['{{ $student->student_id }}']" 
+                                                                   :disabled="isPastDate()"
+                                                                   class="attendance-radio-input">
+                                                            <span class="btn-state btn-absent">Absent</span>
+                                                        </label>
+                                                    </div>
+                                                </td>
+
+                                                <td>
+                                                    <input type="text" 
+                                                           name="remarks[{{ $student->student_id }}]" 
+                                                           x-model="remarksState['{{ $student->student_id }}']"
+                                                           :disabled="isPastDate()"
+                                                           placeholder="e.g. Excused / Medical" 
+                                                           class="form-control attendance-remarks-field">
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="d-flex justify-content-end align-items-center mt-4 pt-3 border-top gap-3">
+                                <button type="button" @click="resetGridValues()" class="btn-cancel-portal px-4 py-2" :disabled="isLocked()">
+                                    <i class="fa-solid fa-arrows-rotate me-2"></i> Reset to Present
+                                </button>
+                                
+                                <button type="button" @click="saveAttendanceForm()" class="btn-primary-portal px-4 py-2" :disabled="isLocked() || loadingAttendance">
+                                    <i class="fa-solid fa-floppy-disk me-2"></i> 
+                                    <span x-text="loadingAttendance ? 'Saving...' : 'Save Attendance'"></span>
+                                </button>
+                            </div>
+                        @endif
+                    </form>
+
+                </div>
+            </div>
+
             @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key => $termLabel)
                 @php $termTasks = $tasks->where('term', $key); @endphp
                 <div x-show="currentTab === '{{ $key }}'" x-transition style="display: none;">
@@ -150,7 +427,7 @@
                         
                         <div class="card-workspace-header d-flex justify-content-between align-items-center mb-4">
                             <div>
-                                <h4 class="m-0 fw-bold text-dark-blue">📝 {{ $termLabel }} Term Panel</h4>
+                                <h4 class="m-0 fw-bold text-dark-blue">{{ $termLabel }} Term Panel</h4>
                                 <p class="small text-muted m-0">Manage activities, assignments, and quizzes for this term allocation</p>
                             </div>
                             <div class="action-form-buttons">
@@ -370,6 +647,9 @@
 </div>
 
 <style>
+    /* ==========================================================================
+       GLOBAL PORTAL BASE STYLES
+       ========================================================================== */
     [x-cloak] { display: none !important; }
 
     .page-header-row {
@@ -381,15 +661,41 @@
 
     .text-dark-blue { color: #1e2a5a; }
     .text-dark-slate { color: #334155; }
-    .btn-back-link { text-decoration: none; color: #475569; font-weight: 600; font-size: 13.5px; transition: 0.2s; }
+    
+    .btn-back-link { 
+        text-decoration: none; 
+        color: #475569; 
+        font-weight: 600; 
+        font-size: 13.5px; 
+        transition: 0.2s; 
+    }
     .btn-back-link:hover { color: #1e2a5a; }
-    .badge-portal { background: #f1f5f9; color: #475569; font-weight: 700; font-size: 11px; padding: 6px 14px; border-radius: 30px; text-transform: uppercase; border: 1px solid #cbd5e1; }
+    
+    .badge-portal { 
+        background: #f1f5f9; 
+        color: #475569; 
+        font-weight: 700; 
+        font-size: 11px; 
+        padding: 6px 14px; 
+        border-radius: 30px; 
+        text-transform: uppercase; 
+        border: 1px solid #cbd5e1; 
+    }
 
+    /* ==========================================================================
+       DASHBOARD GRID & SIDEBAR LAYOUT
+       ========================================================================== */
     .dashboard-grid-wrapper { display: flex; gap: 24px; align-items: stretch; width: 100%; }
     .unified-sidebar { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
     .unified-workspace { flex-grow: 1; min-width: 0; }
 
-    .sidebar-subject-card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; border-top: 5px solid #1e2a5a; }
+    .sidebar-subject-card { 
+        background: white; 
+        border-radius: 12px; 
+        padding: 20px; 
+        border: 1px solid #e2e8f0; 
+        border-top: 5px solid #1e2a5a; 
+    }
     .subject-tag-line { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; }
     .code-badge { color: #0284c7; }
     .bullet-sep { color: #94a3b8; }
@@ -401,33 +707,88 @@
 
     .sidebar-navigation-card { background: white; border-radius: 12px; padding: 16px; border: 1px solid #e2e8f0; }
     .panel-title-label { font-size: 10.5px; font-weight: 800; color: #94a3b8; letter-spacing: 0.5px; padding-left: 8px; margin-bottom: 8px; }
-    .nav-tab-btn { width: 100%; display: flex; align-items: center; gap: 10px; background: transparent; border: none; text-align: left; padding: 10px 14px; border-radius: 8px; font-size: 13.5px; font-weight: 600; color: #475569; margin-bottom: 4px; transition: 0.2s; cursor: pointer; }
+    
+    .nav-tab-btn { 
+        width: 100%; 
+        display: flex; 
+        align-items: center; 
+        gap: 10px; 
+        background: transparent; 
+        border: none; 
+        text-align: left; 
+        padding: 10px 14px; 
+        border-radius: 8px; 
+        font-size: 13.5px; 
+        font-weight: 600; 
+        color: #475569; 
+        margin-bottom: 4px; 
+        transition: 0.2s; 
+        cursor: pointer; 
+    }
     .nav-tab-btn:hover { background: #f8fafc; color: #1e2a5a; }
     .active-tab { background: #1e2a5a !important; color: white !important; }
     .active-tab i { color: #facc15 !important; }
 
+    /* ==========================================================================
+       WORKSPACE PANELS & TABLES
+       ========================================================================== */
     .workspace-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; min-height: 520px; }
     .students-count-badge { background: #eff6ff; color: #1e40af; font-size: 12.5px; font-weight: 700; padding: 6px 14px; border-radius: 30px; }
 
     .custom-portal-table { border: 1px solid #f1f5f9; width: 100%; }
-    .custom-portal-table th { background: #f8fafc; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #64748b; padding: 14px 12px; border-bottom: 2px solid #e2e8f0; }
+    .custom-portal-table th { 
+        background: #f8fafc; 
+        font-size: 12px; 
+        font-weight: 700; 
+        text-transform: uppercase; 
+        color: #64748b; 
+        padding: 14px 12px; 
+        border-bottom: 2px solid #e2e8f0; 
+    }
     .custom-portal-table td { padding: 14px 12px; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
     .badge-enrolled-status { background: #dcfce7; color: #15803d; font-size: 12px; padding: 4px 12px; font-weight: 700; border-radius: 20px; }
 
-    .btn-add-activity { background: #1e2a5a; border: none; color: white; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .btn-add-activity { 
+        background: #1e2a5a; 
+        border: none; 
+        color: white; 
+        font-size: 13px; 
+        font-weight: 600; 
+        padding: 8px 16px; 
+        border-radius: 6px; 
+        cursor: pointer; 
+        display: flex; 
+        align-items: center; 
+        gap: 6px; 
+    }
     .btn-add-activity:hover { background: #141d40; }
 
-    .empty-state-box { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 56px 24px; border: 2px dashed #e2e8f0; border-radius: 10px; background: #fafbfc; }
-    .empty-state-icon { width: 56px; height: 56px; border-radius: 50%; background: #eef1fb; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+    .empty-state-box { 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center; 
+        text-align: center; 
+        padding: 56px 24px; 
+        border: 2px dashed #e2e8f0; 
+        border-radius: 10px; 
+        background: #fafbfc; 
+    }
+    .empty-state-icon { 
+        width: 56px; 
+        height: 56px; 
+        border-radius: 50%; 
+        background: #eef1fb; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        margin-bottom: 16px; 
+    }
     .empty-state-icon i { font-size: 20px; color: #1e2a5a; }
     .empty-state-title { font-weight: 700; color: #334155; font-size: 15px; margin: 0 0 6px; }
     .empty-state-text { font-size: 13px; color: #94a3b8; max-width: 340px; margin: 0; }
 
-    .custom-modal-backdrop { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(15, 23, 42, 0.6); display:flex; justify-content:center; align-items:center; z-index:9999; backdrop-filter: blur(2px); }
-    .custom-modal-card { background: white; width: 550px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); overflow: hidden; animation: slideUp 0.2s ease-out; }
-    .modal-card-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-    .modal-card-header h4 { margin:0; font-size: 16px; font-weight: 700; color: #1e293b; }
-    .close-modal-btn { background: none; border:none; font-size: 24px; color: #94a3b8; cursor: pointer; }
+    /* Action buttons inside lists */
     .action-btn-group { display: flex; gap: 6px; justify-content: center; }
     .btn-sm-outline {
         background: white; border: 1px solid #cbd5e1; color: #475569;
@@ -439,8 +800,238 @@
     .btn-grade:hover { border-color: #1e2a5a; color: #1e2a5a; background: #eef1fb; }
     .btn-edit:hover { border-color: #d97706; color: #d97706; background: #fffbeb; }
     .btn-delete:hover { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+
+    /* ==========================================================================
+       NEW STREAMLINED ATTENDANCE CONTROL PANEL STYLES
+       ========================================================================== */
+    .attendance-control-panel-wrapper {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+
+    .control-panel-dividerMy {
+        border-top: 1px dashed #e2e8f0;
+        opacity: 1;
+    }
+
+    .attendance-quick-stats {
+        display: flex;
+        gap: 8px;
+    }
+
+    .stat-pill {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 6px 14px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .stat-pill strong {
+        color: #1e2a5a;
+        font-weight: 700;
+    }
+
+    .modern-date-input-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        padding: 6px 14px;
+        border-radius: 8px;
+        transition: border-color 0.2s ease;
+    }
+
+    .modern-date-input-box:focus-within {
+        border-color: #1e2a5a;
+        box-shadow: 0 0 0 2px rgba(30, 42, 90, 0.05);
+    }
+
+    .modern-date-label {
+        font-size: 11px;
+        font-weight: 800;
+        color: #64748b;
+        letter-spacing: 0.5px;
+    }
+
+    .input-date-inner {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .modern-date-picker {
+        border: none;
+        background: transparent;
+        font-weight: 700;
+        color: #1e2a5a;
+        font-size: 13.5px;
+        outline: none;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    .modern-bulk-action-group {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-modern-bulk {
+        border: none;
+        outline: none;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+    }
+
+    .status-bulk-present {
+        background-color: #e6f7ed;
+        color: #1e7e34;
+        border: 1px solid #c3e6cb;
+    }
+
+    .status-bulk-present:hover {
+        background-color: #1e7e34;
+        color: #ffffff;
+        border-color: #1e7e34;
+        box-shadow: 0 4px 10px rgba(30, 126, 52, 0.15);
+    }
+
+    .status-bulk-absent {
+        background-color: #fde8e8;
+        color: #bd2130;
+        border: 1px solid #f5c6cb;
+    }
+
+    .status-bulk-absent:hover {
+        background-color: #bd2130;
+        color: #ffffff;
+        border-color: #bd2130;
+        box-shadow: 0 4px 10px rgba(189, 33, 48, 0.15);
+    }
+
+    /* ==========================================================================
+       STUDENT ROW ATTENDANCE STATUS SELECTION (RADIO GROUP)
+       ========================================================================== */
+    .attendance-radio-group {
+        display: flex;
+        background: #f1f5f9;
+        padding: 4px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+    }
+
+    .attendance-label-btn {
+        margin: 0;
+        padding: 0;
+        cursor: pointer;
+    }
+
+    .attendance-radio-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        opacity: 0;
+    }
+
+    .btn-state {
+        display: block;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 800;
+        padding: 6px 14px;
+        border-radius: 6px;
+        color: #64748b;
+        transition: all 0.15s ease-in-out;
+        text-transform: uppercase;
+    }
+
+    .attendance-label-btn:hover .btn-state {
+        background: rgba(226, 232, 240, 0.9);
+        color: #334155;
+    }
+    
+    .attendance-radio-input:checked + .btn-present,
+    .attendance-radio-input:checked + .btn-present:hover {
+        background: #15803d !important;
+        color: white !important;
+        box-shadow: 0 2px 4px rgba(21, 128, 61, 0.25);
+    }
+
+    .attendance-radio-input:checked + .btn-late,
+    .attendance-radio-input:checked + .btn-late:hover {
+        background: #b45309 !important;
+        color: white !important;
+        box-shadow: 0 2px 4px rgba(180, 83, 9, 0.25);
+    }
+
+    .attendance-radio-input:checked + .btn-absent,
+    .attendance-radio-input:checked + .btn-absent:hover {
+        background: #b91c1c !important;
+        color: white !important;
+        box-shadow: 0 2px 4px rgba(185, 28, 28, 0.25);
+    }
+
+    .attendance-remarks-field {
+        font-size: 12.5px !important; 
+        padding: 6px 12px !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        background-color: white !important;
+        transition: all 0.15s ease;
+    }
+    
+    .attendance-remarks-field:focus {
+        border-color: #1e2a5a !important;
+        box-shadow: 0 0 0 3px rgba(30,42,90,0.1) !important;
+        outline: none;
+    }
+
+    /* Past Date Read Only Visual Styling */
+    .bg-light-read-only {
+        background-color: #f8fafc !important;
+        opacity: 0.92;
+    }
+    .cursor-not-allowed {
+        cursor: not-allowed !important;
+    }
+
+    /* ==========================================================================
+       MODAL POPUPS & UPLOAD CONTROLS
+       ========================================================================== */
+    .custom-modal-backdrop { 
+        position: fixed; top:0; left:0; width:100%; height:100%; 
+        background: rgba(15, 23, 42, 0.6); display:flex; 
+        justify-content:center; align-items:center; z-index:9999; 
+        backdrop-filter: blur(2px); 
+    }
+    .custom-modal-card { 
+        background: white; width: 550px; border-radius: 12px; 
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); overflow: hidden; 
+        animation: slideUp 0.2s ease-out; 
+    }
+    .modal-card-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+    .modal-card-header h4 { margin:0; font-size: 16px; font-weight: 700; color: #1e293b; }
+    .close-modal-btn { background: none; border:none; font-size: 24px; color: #94a3b8; cursor: pointer; }
     .modal-card-body { padding: 20px; }
     .modal-card-footer { padding: 14px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
+    
     .btn-primary-portal { background: #1e2a5a; color: white; border:none; padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.15s; }
     .btn-primary-portal:hover { background: #141d40; }
     .btn-cancel-portal { background: white; color: #475569; border: 1px solid #cbd5e1; padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.15s; }
