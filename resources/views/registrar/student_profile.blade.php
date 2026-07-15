@@ -9,7 +9,7 @@
             <p style="margin: 0; font-size: 14px; color: #64748b;">Academic Year File Registry Overview</p>
         </div>
         <div>
-            <a href="{{ route('registrar.manage-student') }}" class="btn-action-view" style="display: inline-block; background-color: transparent; color: #0033A0; border: 1px solid #0033A0; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none;">
+            <a href="{{ route('registrar.manage-students') }}" class="btn-action-view" style="display: inline-block; background-color: transparent; color: #0033A0; border: 1px solid #0033A0; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none;">
                 <i class="fas fa-arrow-left"></i> Back to Ledger
             </a>
         </div>

@@ -104,8 +104,6 @@ class SuperAdminController extends Controller
 
     $employee = \App\Models\User::findOrFail($id);
 
-    // 2. SECURITY GUARD: Bawal i-disable ang sarili o ang ibang kapwa Super Admin
-    // I-match natin gamit ang email o primary id mula sa kasalukuyang session mo
     if ($employee->email === session('user_email') || $employee->role === 'super_admin') {
         return redirect()->back()->with('error', 'Hindi mo maaaring i-disable ang isang Super Admin account para sa seguridad ng system.');
     }

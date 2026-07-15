@@ -13,12 +13,15 @@ use App\Models\ClassSchedule;
 
 class DeptSecController extends Controller
 {
+
     public function dashboard() {
         if (session('user_role') !== 'dept_sec') {
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
         $dept = session('user_department');
+
+        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
 
         $allowedCourses = ['BSIT']; 
         if (str_contains(strtolower($dept), 'computer studies') || str_contains(strtolower($dept), 'ccs')) {
@@ -29,7 +32,6 @@ class DeptSecController extends Controller
             $allowedCourses = ['BSHM', 'BSTM'];
         }
 
-        // 3. Calculate metrics using your working DB tables
         $trackedSubjectsCount = DB::table('curricula')
             ->whereIn('course', $allowedCourses)
             ->count();
@@ -55,13 +57,35 @@ class DeptSecController extends Controller
             })
             ->count();
 
-        // 4. Return view with all dynamic metrics
+        $blockSummaryList = DB::table('class_schedules')
+            ->where(function($query) use ($allowedCourses) {
+                foreach ($allowedCourses as $course) {
+                    $query->orWhere('class_schedules.section_name', 'LIKE', $course . '%');
+                }
+            })
+            ->select(
+                'class_schedules.section_name',
+                DB::raw('(
+                    select count(distinct student_subjects.student_number)
+                    from student_subjects
+                    inner join class_schedules as cs2 on student_subjects.schedule_id = cs2.id
+                    where cs2.section_name = class_schedules.section_name
+                    and student_subjects.status = "Enrolled"
+                ) as total_students')
+            )
+            ->groupBy('class_schedules.section_name')
+            ->orderBy('class_schedules.section_name', 'asc')
+            ->take(5)
+            ->get();
+
         return view('department_secretary.dashboard', compact(
             'dept',
+            'announcements',
             'trackedSubjectsCount', 
             'totalStudentsCount', 
             'activeBlocksCount', 
-            'deployedSlotsCount'
+            'deployedSlotsCount',
+            'blockSummaryList'
         ));
     }
 
@@ -99,7 +123,6 @@ class DeptSecController extends Controller
 
     public function studentsList(Request $request)
     {
-
         if (session('user_role') !== 'dept_sec') {
             return redirect('/')->with('error', 'Unauthorized access.');
         }
@@ -114,7 +137,6 @@ class DeptSecController extends Controller
         } elseif (str_contains(strtolower($dept), 'hospitality') || str_contains(strtolower($dept), 'chm')) {
             $allowedCourses = ['BSHM', 'BSTM'];
         } else {
-            // Default fallback safe state
             $allowedCourses = ['BSIT']; 
         }
 
@@ -131,7 +153,14 @@ class DeptSecController extends Controller
                 'class_schedules.section_name',
                 'curricula.year_level',
                 'curricula.semester',
-                DB::raw('count(distinct class_schedules.subject_id) as total_subjects')
+                DB::raw('count(distinct class_schedules.subject_id) as total_subjects'),
+                DB::raw('(
+                    select count(distinct student_subjects.student_number)
+                    from student_subjects
+                    inner join class_schedules as cs2 on student_subjects.schedule_id = cs2.id
+                    where cs2.section_name = class_schedules.section_name
+                    and student_subjects.status = "Enrolled"
+                ) as enrolled_count')
             )
             ->groupBy('class_schedules.section_name', 'curricula.year_level', 'curricula.semester')
             ->orderBy('class_schedules.section_name', 'asc')
@@ -208,7 +237,6 @@ class DeptSecController extends Controller
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
-        // Gagawa nating 'nullable' ang array validation para hindi magkaroon ng internal conflict sa empty keys
         $request->validate([
             'student_id' => 'required',
             'schedules'  => 'nullable|array',
@@ -224,15 +252,12 @@ class DeptSecController extends Controller
                 return !empty($value);
             });
 
-            // Dito natin haharangin nang may malinis na error message kung walang pinili kahit isa
             if (empty($filteredSchedules)) {
                 return redirect()->back()->withInput()->with('error', 'Maaari lamang pumili ng schedule/section sa kahit isang subject bago mag-save.');
             }
 
-            // I-clear ang lumang plotted classes para sa bagong enrollment matrix list
             DB::table('student_subjects')->where('student_number', $studentNumber)->delete();
 
-            // I-insert na ang mga valid schedules
             foreach ($filteredSchedules as $subjectId => $scheduleId) {
                 $scheduleExists = DB::table('class_schedules')->where('id', $scheduleId)->exists();
                 

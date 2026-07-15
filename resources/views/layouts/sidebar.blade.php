@@ -182,6 +182,48 @@
                 </li>
 
                 <li>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i>
+                            <span>Student Masterlist</span>
+                        </a>
+                    @else
+                        <a href="{{ route('dean.masterlist') }}" class="{{ Request::is('dean/masterlist') || Request::is('dean/section/*') ? 'active' : '' }}">
+                            <i data-lucide="users"></i> <span>Student Masterlist</span>
+                        </a>
+                    @endif
+                </li>
+
+                <li>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i>
+                            <span>Schedule List</span> 
+                        </a>
+                    @else
+                        <a href="{{ route('dean.schedule.list') }}" class="{{ Request::is('dean/schedule_list') ? 'active' : '' }}">
+                            <i data-lucide="calendar"></i> <span>Schedule List</span>
+                        </a>
+                    @endif
+                </li>
+
+                <li>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i>
+                            <span>Subject Catalog</span>
+                        </a>
+                    @else
+                        <a href="{{ route('dean.subject_list') }}" class="{{ Request::is('dean/subject_list') ? 'active' : '' }}">
+                            <i data-lucide="book-open"></i> <span>Subject Catalog</span>
+                        </a>
+                    @endif
+                </li>
+
+                <li>
                     <a href="{{ route('dean.user_details') }}" class="{{ Request::is('dean/user_details') ? 'active' : '' }}">
                         <i data-lucide="user"></i> <span>Profile</span>
                     </a>                    
@@ -209,20 +251,6 @@
                         <a href="javascript:void(0);" 
                         style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
                             <i data-lucide="lock" style="color: #ef4444;"></i> 
-                            <span>Subject Catalog</span>
-                        </a>
-                    @else
-                        <a href="{{ route('department_secretary.subject_catalog') }}" class="{{ Request::is('department_secretary/subject-catalog*') ? 'active' : '' }}">
-                            <i data-lucide="book-open"></i> <span>Subject Catalog</span>
-                        </a>
-                    @endif
-                </li>
-
-                <li>
-                    @if($isAccountLocked)
-                        <a href="javascript:void(0);" 
-                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
-                            <i data-lucide="lock" style="color: #ef4444;"></i> 
                             <span>Student Masterlist</span>
                         </a>
                     @else
@@ -243,6 +271,20 @@
                     @else
                         <a href="{{ route('department_secretary.schedules.index') }}" class="{{ Request::is('department_secretary/manage-schedules*') ? 'active' : '' }}">
                             <i data-lucide="calendar"></i> <span>Manage Schedules</span>
+                        </a>
+                    @endif
+                </li>
+
+                <li>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i> 
+                            <span>Subject Catalog</span>
+                        </a>
+                    @else
+                        <a href="{{ route('department_secretary.subject_catalog') }}" class="{{ Request::is('department_secretary/subject-catalog*') ? 'active' : '' }}">
+                            <i data-lucide="book-open"></i> <span>Subject Catalog</span>
                         </a>
                     @endif
                 </li>
@@ -279,7 +321,7 @@
                         </a>
                     @else
                         <a href="{{ route('professor.manage-classes') }}" class="{{ Request::is('professor/manage-classes') || 
-                            Request::is('professor/class_details/*') ? 'active' : '' }}">
+                            Request::is('professor/class_details/*') || Request::is('professor/task/*/submissions') || Request::is('professor/task-grading/*') ? 'active' : '' }}">
                             <i data-lucide="book-open"></i> <span>My Classes</span>
                         </a>
                     @endif

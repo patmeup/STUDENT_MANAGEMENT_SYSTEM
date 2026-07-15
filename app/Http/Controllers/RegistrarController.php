@@ -226,4 +226,17 @@ class RegistrarController extends Controller
 
         return view('registrar.user_details', compact('user', 'isLocked'));
     }
+
+    public function viewStudentProfile($student_id)
+    {
+        if (session('user_role') !== 'registrar') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        // Find the student by their student_id (e.g., 2026-00087)
+        $student = Student::where('student_id', $student_id)->firstOrFail();
+
+        // Return the profile blade view and pass the student data
+        return view('registrar.student_profile', compact('student'));
+    }
 }

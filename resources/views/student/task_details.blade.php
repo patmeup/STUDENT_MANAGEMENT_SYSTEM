@@ -47,6 +47,14 @@
                     <i class="fa-solid fa-star"></i> {{ $task->max_score }} points
                 </span>
             @endif
+
+            @if($submission && !is_null($submission->grade))
+                <span class="meta-pill" style="background: #f0fdf4; border-color: #bbf7d0; color: #166534;">
+                    <i class="fa-solid fa-award" style="color: #22c55e;"></i> 
+                    <strong>Your Score:</strong> {{ number_format($submission->grade, 2) }} / {{ $task->max_score }}
+                </span>
+            @endif
+            
             @php
                 $isOverdue = $task->due_date && \Carbon\Carbon::parse($task->due_date)->endOfDay()->isPast() && !$submission;
             @endphp

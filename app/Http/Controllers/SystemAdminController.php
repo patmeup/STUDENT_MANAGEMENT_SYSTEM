@@ -3,21 +3,37 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Models\User;
+use App\Models\Subject;
+use App\Models\Course;
 
 class SystemAdminController extends Controller
 {
-    public function index()
-    {
 
+    public function dashboard()
+    {
         if (session('user_role') !== 'system_admin') {
-            return redirect()->route('system_admin.dashboard');
+            return redirect('/')->with('error', 'Unauthorized access.');
         }
 
-        return view('system_admin.manage-subjects');
+        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+
+        $totalEmployees = User::whereIn('role', ['professor', 'dept_sec', 'dean'])->count();
+        $totalStudents = DB::table('students')->count();
+        $totalCourses = Course::count();
+        $totalSubjects = Subject::count();
+
+        return view('system_admin.dashboard', compact(
+            'announcements',
+            'totalEmployees', 
+            'totalStudents', 
+            'totalCourses', 
+            'totalSubjects'
+        ));
     }
-    
+        
     public function profileView()
     {
         $userId = session('user_id');
