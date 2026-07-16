@@ -23,6 +23,7 @@
         isInitialized: false,
         loadingAttendance: false,
         saveStatus: { show: false, success: true, message: '' },
+        hasSaved: false,
 
         isPastDate() {
             return this.selectedDate < this.currentDate;
@@ -66,13 +67,14 @@
             });
         },
         bulkMark(status) {
-            if (this.isPastDate()) return; // Lock check
+            if (this.isPastDate() || this.hasSaved) return; // Lock check
             Object.keys(this.attendanceState).forEach(key => {
                 this.attendanceState[key] = status;
             });
         },
 
         markAll(status) {
+            if (this.hasSaved) return;
             Object.keys(this.attendanceState).forEach(studentId => {
                 this.attendanceState[studentId] = status;
             });
@@ -88,17 +90,26 @@
                 this.attendanceState = {};
                 this.remarksState = {};
                 
+                const hasExisting = data.existingAttendance && Object.keys(data.existingAttendance).length > 0;
+                this.hasSaved = hasExisting; 
+                
                 data.students.forEach(student => {
                     const record = data.existingAttendance[student.student_id] || {};
-                    this.attendanceState[student.student_id] = record.status || null; 
+                    this.attendanceState[student.student_id] = record.status || 'Present'; 
                     this.remarksState[student.student_id] = record.remarks || '';
                 });
                 this.isInitialized = true;
             })
-            .finally(() => this.loadingAttendance = false);
+            .catch(err => {
+                console.error('Error loading attendance:', err);
+            })
+            .finally(() => {
+                this.loadingAttendance = false;
+            });
         },
 
         resetGridValues() {
+            if (this.hasSaved) return;
             Object.keys(this.attendanceState).forEach(studentId => {
                 this.attendanceState[studentId] = 'Present';
                 this.remarksState[studentId] = '';
@@ -125,18 +136,21 @@
             .then(data => {
                 if (data.success) {
                     this.hasSaved = true;
-                    alert('Attendance saved successfully!');
+                    this.showToast(true, 'Attendance saved successfully!');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
-                    alert('Error: ' + data.message);
+                    this.showToast(false, 'Error: ' + data.message);
                 }
+            })
+            .catch(err => {
+                console.error(err);
+                this.showToast(false, 'An unexpected error occurred while saving.');
             })
             .finally(() => {
                 this.loadingAttendance = false;
             });
         },
 
-        hasSaved: false,
         isLocked() {
             return this.selectedDate < this.currentDate || this.hasSaved;
         },
@@ -146,18 +160,39 @@
             this.saveStatus.success = success;
             this.saveStatus.message = message;
             setTimeout(() => { this.saveStatus.show = false; }, 4000);
+        },
+
+        // Dito natin ligtas na ipapasa ang default student values mula sa backend papunta sa Alpine JS
+        initAttendance() {
+            const initialRecords = @js($attendanceRecords ?? []);
+            const studentList = @js($students ?? []);
+
+            if (initialRecords && initialRecords.length > 0) {
+                initialRecords.forEach(rec => {
+                    this.attendanceState[rec.student_id] = rec.status;
+                    this.remarksState[rec.student_id] = rec.remarks || '';
+                });
+            } else {
+                studentList.forEach(student => {
+                    this.attendanceState[student.student_id] = 'Present';
+                    this.remarksState[student.student_id] = '';
+                });
+            }
+
+            this.loadAttendanceData();
         }
     }"
-    x-init="
+    x-init="initAttendance()"
+
             @if(isset($attendanceRecords) && $attendanceRecords->isNotEmpty())
                 @foreach($attendanceRecords as $rec)
-                    attendanceState['{{ $rec->student_id }}'] = '{{ $rec->status }}';
-                    remarksState['{{ $rec->student_id }}'] = '{{ $rec->remarks }}';
+                    this.attendanceState['{{ $rec->student_id }}'] = '{{ $rec->status }}';
+                    this.remarksState['{{ $rec->student_id }}'] = '{{ $rec->remarks }}';
                 @endforeach
             @else
                 @foreach($students as $student)
-                    attendanceState['{{ $student->student_id }}'] = 'Present';
-                    remarksState['{{ $student->student_id }}'] = '';
+                    this.attendanceState['{{ $student->student_id }}'] = 'Present';
+                    this.remarksState['{{ $student->student_id }}'] = '';
                 @endforeach
             @endif
             
@@ -278,7 +313,7 @@
                                 <div>
                                     <h4 class="m-0 fw-bold text-dark-blue d-flex align-items-center gap-2">
                                         <span>Class Attendance Logs</span>
-                                        <template x-if="isPastDate()">
+                                        <template x-if="isPastDate() || hasSaved">
                                             <span class="badge bg-amber-subtle text-amber border border-amber-subtle rounded-pill font-semibold px-2 py-1" style="font-size: 11px; background-color: #fef3c7; color: #d97706; border-color: #fde68a;">
                                                 <i class="fa-solid fa-lock me-1"></i> Read-Only Log
                                             </span>
@@ -310,17 +345,17 @@
                                     </div>
                                 </div>
 
-                                <div class="modern-bulk-action-group" x-show="!isPastDate()">
-                                    <button type="button" @click="bulkMark('Present')" class="btn-modern-bulk status-bulk-present" :disabled="isPastDate()">
+                                <div class="modern-bulk-action-group" x-show="!isPastDate() && !hasSaved">
+                                    <button type="button" @click="bulkMark('Present')" class="btn-modern-bulk status-bulk-present" :disabled="isPastDate() || hasSaved">
                                         <i class="fa-solid fa-square-check"></i> Mark All Present
                                     </button>
-                                    <button type="button" @click="bulkMark('Absent')" class="btn-modern-bulk status-bulk-absent" :disabled="isPastDate()">
+                                    <button type="button" @click="bulkMark('Absent')" class="btn-modern-bulk status-bulk-absent" :disabled="isPastDate() || hasSaved">
                                         <i class="fa-solid fa-square-xmark"></i> Mark All Absent
                                     </button>
                                 </div>
                                 
-                                <div class="small fw-bold text-muted" x-show="isPastDate()" x-cloak>
-                                    <i class="fa-solid fa-circle-info text-warning me-1"></i> Past logs are archived and cannot be overridden.
+                                <div class="small fw-bold text-muted" x-show="isPastDate() || hasSaved" x-cloak>
+                                    <i class="fa-solid fa-circle-info text-warning me-1"></i> Logs are locked and cannot be overridden.
                                 </div>
                             </div>
                         </div>
@@ -351,52 +386,68 @@
                                     </thead>
                                     <tbody>
                                         @foreach($students as $index => $student)
-                                            <tr :class="isPastDate() ? 'bg-light-read-only' : ''">
+                                            <tr :class="(isPastDate() || hasSaved) ? 'bg-light-read-only' : ''">
                                                 <td class="text-center text-muted fw-bold">#{{ $index + 1 }}</td>
                                                 <td class="fw-semibold text-secondary font-mono" style="letter-spacing: 0.5px;">{{ $student->student_id }}</td>
                                                 <td class="text-uppercase fw-bold text-dark-slate" style="font-size: 13.5px;">{{ $student->last_name }}, {{ $student->first_name }}</td>
                                                 
                                                 <td>
-                                                    <div class="attendance-radio-group" :class="isPastDate() ? 'opacity-75 cursor-not-allowed' : ''">
-                                                        <label class="attendance-label-btn flex-fill">
-                                                            <input type="radio" 
-                                                                   name="attendance[{{ $student->student_id }}]" 
-                                                                   value="Present" 
-                                                                   x-model="attendanceState['{{ $student->student_id }}']" 
-                                                                   :disabled="isPastDate()"
-                                                                   class="attendance-radio-input">
-                                                            <span class="btn-state btn-present">Present</span>
-                                                        </label>
+                                                    <!-- KAPAG HINDI PA NA-SAVE -->
+                                                    <template x-if="!hasSaved">
+                                                        <div class="attendance-radio-group" :class="isPastDate() ? 'opacity-75 cursor-not-allowed' : ''">
+                                                            <label class="attendance-label-btn flex-fill">
+                                                                <input type="radio" 
+                                                                       name="attendance[{{ $student->student_id }}]" 
+                                                                       value="Present" 
+                                                                       x-model="attendanceState['{{ $student->student_id }}']" 
+                                                                       :disabled="isPastDate()"
+                                                                       class="attendance-radio-input">
+                                                                <span class="btn-state btn-present">Present</span>
+                                                            </label>
 
-                                                        <label class="attendance-label-btn flex-fill">
-                                                            <input type="radio" 
-                                                                   name="attendance[{{ $student->student_id }}]" 
-                                                                   value="Late" 
-                                                                   x-model="attendanceState['{{ $student->student_id }}']" 
-                                                                   :disabled="isPastDate()"
-                                                                   class="attendance-radio-input">
-                                                            <span class="btn-state btn-late">Late</span>
-                                                        </label>
+                                                            <label class="attendance-label-btn flex-fill">
+                                                                <input type="radio" 
+                                                                       name="attendance[{{ $student->student_id }}]" 
+                                                                       value="Late" 
+                                                                       x-model="attendanceState['{{ $student->student_id }}']" 
+                                                                       :disabled="isPastDate()"
+                                                                       class="attendance-radio-input">
+                                                                <span class="btn-state btn-late">Late</span>
+                                                            </label>
 
-                                                        <label class="attendance-label-btn flex-fill">
-                                                            <input type="radio" 
-                                                                   name="attendance[{{ $student->student_id }}]" 
-                                                                   value="Absent" 
-                                                                   x-model="attendanceState['{{ $student->student_id }}']" 
-                                                                   :disabled="isPastDate()"
-                                                                   class="attendance-radio-input">
-                                                            <span class="btn-state btn-absent">Absent</span>
-                                                        </label>
-                                                    </div>
+                                                            <label class="attendance-label-btn flex-fill">
+                                                                <input type="radio" 
+                                                                       name="attendance[{{ $student->student_id }}]" 
+                                                                       value="Absent" 
+                                                                       x-model="attendanceState['{{ $student->student_id }}']" 
+                                                                       :disabled="isPastDate()"
+                                                                       class="attendance-radio-input">
+                                                                <span class="btn-state btn-absent">Absent</span>
+                                                            </label>
+                                                        </div>
+                                                    </template>
+
+                                                    <!-- KAPAG NA-SAVE NA / LOCK -->
+                                                    <template x-if="hasSaved">
+                                                        <div class="d-flex justify-content-center">
+                                                            <span :class="{
+                                                                'badge bg-success px-3 py-2 rounded text-white': attendanceState['{{ $student->student_id }}'] === 'Present',
+                                                                'badge bg-warning px-3 py-2 rounded text-dark': attendanceState['{{ $student->student_id }}'] === 'Late',
+                                                                'badge bg-danger px-3 py-2 rounded text-white': attendanceState['{{ $student->student_id }}'] === 'Absent'
+                                                            }" x-text="attendanceState['{{ $student->student_id }}'] || 'Present'" style="font-size: 11px; font-weight: bold; min-width: 90px; text-align: center; text-transform: uppercase; border-radius: 4px;">
+                                                            </span>
+                                                        </div>
+                                                    </template>
                                                 </td>
 
                                                 <td>
                                                     <input type="text" 
                                                            name="remarks[{{ $student->student_id }}]" 
                                                            x-model="remarksState['{{ $student->student_id }}']"
-                                                           :disabled="isPastDate()"
+                                                           :disabled="isPastDate() || hasSaved"
                                                            placeholder="e.g. Excused / Medical" 
-                                                           class="form-control attendance-remarks-field">
+                                                           class="form-control attendance-remarks-field"
+                                                           :class="hasSaved ? 'bg-light text-muted border-0' : ''">
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -405,11 +456,20 @@
                             </div>
 
                             <div class="d-flex justify-content-end align-items-center mt-4 pt-3 border-top gap-3">
-                                <button type="button" @click="resetGridValues()" class="btn-cancel-portal px-4 py-2" :disabled="isLocked()">
+                                <!-- RESET BUTTON -->
+                                <button type="button" 
+                                        @click="resetGridValues()" 
+                                        class="btn-cancel-portal px-4 py-2" 
+                                        :disabled="isLocked()"
+                                        :class="isLocked() ? 'btn-disabled-gray' : ''">
                                     <i class="fa-solid fa-arrows-rotate me-2"></i> Reset to Present
                                 </button>
                                 
-                                <button type="button" @click="saveAttendanceForm()" class="btn-primary-portal px-4 py-2" :disabled="isLocked() || loadingAttendance">
+                                <!-- SAVE BUTTON -->
+                                <button type="submit" 
+                                        class="btn-primary-portal px-4 py-2" 
+                                        :disabled="isLocked() || loadingAttendance"
+                                        :class="(isLocked() || loadingAttendance) ? 'btn-disabled-gray' : ''">
                                     <i class="fa-solid fa-floppy-disk me-2"></i> 
                                     <span x-text="loadingAttendance ? 'Saving...' : 'Save Attendance'"></span>
                                 </button>
@@ -905,7 +965,7 @@
         border: 1px solid #c3e6cb;
     }
 
-    .status-bulk-present:hover {
+    .status-bulk-present:hover:not(:disabled) {
         background-color: #1e7e34;
         color: #ffffff;
         border-color: #1e7e34;
@@ -918,7 +978,7 @@
         border: 1px solid #f5c6cb;
     }
 
-    .status-bulk-absent:hover {
+    .status-bulk-absent:hover:not(:disabled) {
         background-color: #bd2130;
         color: #ffffff;
         border-color: #bd2130;
@@ -960,6 +1020,19 @@
         color: #64748b;
         transition: all 0.15s ease-in-out;
         text-transform: uppercase;
+    }
+    .btn-disabled-gray {
+        background-color: #e2e8f0 !important; /* Light gray background */
+        border-color: #cbd5e1 !important;     /* Slate gray border */
+        color: #94a3b8 !important;            /* Muted text color */
+        cursor: not-allowed !important;       /* Palitang "not-allowed" ang mouse cursor */
+        pointer-events: none;                 /* I-block ang anumang mouse clicks o hover effects */
+        box-shadow: none !important;          /* Tanggalin ang mga anino o shadow */
+    }
+    
+    /* Siguraduhing hindi mag-iiba ang itsura ng icon sa loob ng disabled button */
+    .btn-disabled-gray i {
+        color: #94a3b8 !important;
     }
 
     .attendance-label-btn:hover .btn-state {
@@ -1033,9 +1106,9 @@
     .modal-card-footer { padding: 14px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
     
     .btn-primary-portal { background: #1e2a5a; color: white; border:none; padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.15s; }
-    .btn-primary-portal:hover { background: #141d40; }
+    .btn-primary-portal:hover:not(:disabled) { background: #141d40; }
     .btn-cancel-portal { background: white; color: #475569; border: 1px solid #cbd5e1; padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.15s; }
-    .btn-cancel-portal:hover { background: #f8fafc; }
+    .btn-cancel-portal:hover:not(:disabled) { background: #f8fafc; }
 
     .modal-term-tag { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
 
