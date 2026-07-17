@@ -18,7 +18,11 @@
         
         selectedDate: new Date().toLocaleDateString('en-CA'),
         currentDate: new Date().toLocaleDateString('en-CA'),  
-        attendanceState: {}, 
+        attendanceState: {
+            @foreach($students as $student)
+                '{{ $student->student_id }}': null,
+            @endforeach
+        }, 
         remarksState: {},
         isInitialized: false,
         loadingAttendance: false,
@@ -87,21 +91,19 @@
             fetch(`/professor/class/{{ $classDetails->schedule_id }}/attendance?date=${this.selectedDate}`)
             .then(res => res.json())
             .then(data => {
+                const attendanceKeys = Object.keys(data.existingAttendance || {});
+                this.hasSaved = attendanceKeys.length > 0; 
+                
                 this.attendanceState = {};
                 this.remarksState = {};
                 
-                const hasExisting = data.existingAttendance && Object.keys(data.existingAttendance).length > 0;
-                this.hasSaved = hasExisting; 
+            data.students.forEach(student => {
+                const record = data.existingAttendance[student.student_id] || {};
+                this.attendanceState[student.student_id] = record.status || null; 
+                this.remarksState[student.student_id] = record.remarks || '';
+            });
                 
-                data.students.forEach(student => {
-                    const record = data.existingAttendance[student.student_id] || {};
-                    this.attendanceState[student.student_id] = record.status || 'Present'; 
-                    this.remarksState[student.student_id] = record.remarks || '';
-                });
                 this.isInitialized = true;
-            })
-            .catch(err => {
-                console.error('Error loading attendance:', err);
             })
             .finally(() => {
                 this.loadingAttendance = false;
@@ -110,23 +112,25 @@
 
         resetGridValues() {
             if (this.hasSaved) return;
+
             Object.keys(this.attendanceState).forEach(studentId => {
-                this.attendanceState[studentId] = 'Present';
+                this.attendanceState[studentId] = null; 
                 this.remarksState[studentId] = '';
             });
+            
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
 
         saveAttendanceForm(e) {
-            this.loadingAttendance = true;
-            const formData = new FormData();
-            formData.append('_token', '{{ csrf_token() }}');
-            formData.append('attendance_date', this.selectedDate);
+            const allStudentsMarked = Object.values(this.attendanceState).every(status => status !== null);
 
-            Object.keys(this.attendanceState).forEach(studentId => {
-                formData.append(`attendance[${studentId}]`, this.attendanceState[studentId]);
-                formData.append(`remarks[${studentId}]`, this.remarksState[studentId] || '');
-            });
+            if (!allStudentsMarked) {
+                this.showToast(false, 'Please choose a status for every student.');
+                return;
+            }
+
+            this.loadingAttendance = true;
+            const formData = new FormData(e.target); // Kunin ang data mula sa form
 
             fetch(`/professor/class/{{ $classDetails->schedule_id }}/attendance/save`, {
                 method: 'POST',
@@ -137,22 +141,15 @@
                 if (data.success) {
                     this.hasSaved = true;
                     this.showToast(true, 'Attendance saved successfully!');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
                     this.showToast(false, 'Error: ' + data.message);
                 }
             })
-            .catch(err => {
-                console.error(err);
-                this.showToast(false, 'An unexpected error occurred while saving.');
-            })
-            .finally(() => {
-                this.loadingAttendance = false;
-            });
+            .finally(() => { this.loadingAttendance = false; });
         },
 
         isLocked() {
-            return this.selectedDate < this.currentDate || this.hasSaved;
+            return (this.isPastDate() && !this.hasSaved) || this.hasSaved;
         },
 
         showToast(success, message) {
@@ -162,44 +159,45 @@
             setTimeout(() => { this.saveStatus.show = false; }, 4000);
         },
 
-        // Dito natin ligtas na ipapasa ang default student values mula sa backend papunta sa Alpine JS
         initAttendance() {
-            const initialRecords = @js($attendanceRecords ?? []);
-            const studentList = @js($students ?? []);
 
+            this.attendanceState = {};
+            this.remarksState = {};
+
+            const studentList = @js($students ?? []);
+            studentList.forEach(student => {
+                this.attendanceState[student.student_id] = null;
+                this.remarksState[student.student_id] = '';
+            });
+
+            const initialRecords = @js($attendanceRecords ?? []);
             if (initialRecords && initialRecords.length > 0) {
                 initialRecords.forEach(rec => {
                     this.attendanceState[rec.student_id] = rec.status;
                     this.remarksState[rec.student_id] = rec.remarks || '';
                 });
-            } else {
-                studentList.forEach(student => {
-                    this.attendanceState[student.student_id] = 'Present';
-                    this.remarksState[student.student_id] = '';
-                });
+                this.hasSaved = true; 
             }
-
-            this.loadAttendanceData();
         }
     }"
-    x-init="initAttendance()"
 
-            @if(isset($attendanceRecords) && $attendanceRecords->isNotEmpty())
-                @foreach($attendanceRecords as $rec)
-                    this.attendanceState['{{ $rec->student_id }}'] = '{{ $rec->status }}';
-                    this.remarksState['{{ $rec->student_id }}'] = '{{ $rec->remarks }}';
-                @endforeach
-            @else
-                @foreach($students as $student)
-                    this.attendanceState['{{ $student->student_id }}'] = 'Present';
-                    this.remarksState['{{ $student->student_id }}'] = '';
-                @endforeach
-            @endif
-            
-            loadAttendanceData();
-        "
->
+        x-init="initAttendance()"
 
+                @if(isset($attendanceRecords) && $attendanceRecords->isNotEmpty())
+                    @foreach($attendanceRecords as $rec)
+                        this.attendanceState['{{ $rec->student_id }}'] = '{{ $rec->status }}';
+                        this.remarksState['{{ $rec->student_id }}'] = '{{ $rec->remarks }}';
+                    @endforeach
+                @else
+                    @foreach($students as $student)
+                        this.attendanceState['{{ $student->student_id }}'] = 'Present';
+                        this.remarksState['{{ $student->student_id }}'] = '';
+                    @endforeach
+                @endif
+                
+                loadAttendanceData();
+            ">
+        
     <div class="page-header-row">
         <a href="{{ route('professor.manage-classes') }}" class="btn-back-link">
             <i class="fa-solid fa-arrow-left-long"></i> Back to My Classes List
@@ -305,28 +303,22 @@
 
             <div x-show="currentTab === 'attendance'" x-transition style="display: none;">
                 <div class="workspace-card">
-                    
                     <form @submit.prevent="saveAttendanceForm($event)">
-                        
+                        @csrf
+
+                        <!-- Header Section -->
                         <div class="attendance-control-panel-wrapper mb-4">
                             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                                 <div>
                                     <h4 class="m-0 fw-bold text-dark-blue d-flex align-items-center gap-2">
                                         <span>Class Attendance Logs</span>
-                                        <template x-if="isPastDate() || hasSaved">
+                                        <template x-if="hasSaved">
                                             <span class="badge bg-amber-subtle text-amber border border-amber-subtle rounded-pill font-semibold px-2 py-1" style="font-size: 11px; background-color: #fef3c7; color: #d97706; border-color: #fde68a;">
                                                 <i class="fa-solid fa-lock me-1"></i> Read-Only Log
                                             </span>
                                         </template>
                                     </h4>
                                     <p class="small text-muted m-0 mt-1">Manage, evaluate, and mass-assign student logs efficiently.</p>
-                                </div>
-                                
-                                <div class="attendance-quick-stats">
-                                    <span class="stat-pill">
-                                        <i class="fa-solid fa-graduation-cap text-primary"></i> 
-                                        Enrolled: <strong>{{ count($students) }} Students</strong>
-                                    </span>
                                 </div>
                             </div>
 
@@ -338,24 +330,21 @@
                                     <div class="input-date-inner">
                                         <i class="fa-regular fa-calendar-check text-muted"></i>
                                         <input type="date" 
-                                               name="attendance_date" 
-                                               x-model="selectedDate"
-                                               @change="loadAttendanceData()"
-                                               class="modern-date-picker">
+                                            name="attendance_date" 
+                                            x-model="selectedDate" 
+                                            @change="loadAttendanceData()" 
+                                            class="modern-date-picker" 
+                                            max="{{ now()->setTimezone('Asia/Manila')->format('Y-m-d') }}">
                                     </div>
                                 </div>
 
-                                <div class="modern-bulk-action-group" x-show="!isPastDate() && !hasSaved">
-                                    <button type="button" @click="bulkMark('Present')" class="btn-modern-bulk status-bulk-present" :disabled="isPastDate() || hasSaved">
+                                <div class="bulk-actions-wrapper" x-show="!hasSaved && !isPastDate()">
+                                    <button type="button" @click="bulkMark('Present')" class="btn-modern-bulk status-bulk-present">
                                         <i class="fa-solid fa-square-check"></i> Mark All Present
                                     </button>
-                                    <button type="button" @click="bulkMark('Absent')" class="btn-modern-bulk status-bulk-absent" :disabled="isPastDate() || hasSaved">
+                                    <button type="button" @click="bulkMark('Absent')" class="btn-modern-bulk status-bulk-absent">
                                         <i class="fa-solid fa-square-xmark"></i> Mark All Absent
                                     </button>
-                                </div>
-                                
-                                <div class="small fw-bold text-muted" x-show="isPastDate() || hasSaved" x-cloak>
-                                    <i class="fa-solid fa-circle-info text-warning me-1"></i> Logs are locked and cannot be overridden.
                                 </div>
                             </div>
                         </div>
@@ -363,120 +352,115 @@
                         @if($students->isEmpty())
                             <div class="p-5 text-center text-muted">Cannot encode attendance. No students enrolled.</div>
                         @else
-                            
+                            <!-- Main Container -->
                             <div class="table-responsive position-relative rounded-3 border">
-                                <div x-show="loadingAttendance" 
-                                     class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white bg-opacity-75" 
-                                     style="z-index: 10; display: none;">
+                                <!-- Loading Overlay -->
+                                <div x-show="loadingAttendance" class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white bg-opacity-75" style="z-index: 10; display: none;">
                                     <div class="text-center text-primary">
                                         <i class="fa-solid fa-spinner fa-spin fa-2x mb-2"></i>
                                         <p class="small fw-bold m-0">Syncing record entries...</p>
                                     </div>
                                 </div>
 
-                                <table class="table custom-portal-table align-middle m-0">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 70px;" class="text-center">#</th>
-                                            <th style="width: 165px;">Student ID</th>
-                                            <th>Full Name</th>
-                                            <th style="width: 310px;" class="text-center">Status Allocation</th>
-                                            <th>Internal Remarks</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+                                <div x-show="!loadingAttendance && !hasSaved && isPastDate()" class="empty-attendance-container">
+                                    <div class="empty-attendance-icon">
+                                        <i class="fa-solid fa-calendar-xmark"></i>
+                                    </div>
+                                    <h5 class="fw-bold text-dark-slate">No attendance for that day</h5>
+                                    <p class="small">No records were found for the selected date.</p>
+                                </div>
+
+                                <div x-show="!loadingAttendance && (hasSaved || !isPastDate())">
+                                    <table class="table custom-portal-table align-middle m-0">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 70px;" class="text-center">#</th>
+                                                <th>Student ID</th>
+                                                <th>Full Name</th>
+                                                <th style="width: 310px;" class="text-center">Status Allocation</th>
+                                                <th class="text-center">Internal Remarks</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
                                         @foreach($students as $index => $student)
-                                            <tr :class="(isPastDate() || hasSaved) ? 'bg-light-read-only' : ''">
+                                            <tr>
                                                 <td class="text-center text-muted fw-bold">#{{ $index + 1 }}</td>
-                                                <td class="fw-semibold text-secondary font-mono" style="letter-spacing: 0.5px;">{{ $student->student_id }}</td>
-                                                <td class="text-uppercase fw-bold text-dark-slate" style="font-size: 13.5px;">{{ $student->last_name }}, {{ $student->first_name }}</td>
+                                                <td class="fw-semibold text-secondary">{{ $student->student_id }}</td>
+                                                <td class="text-uppercase fw-bold text-dark-slate">{{ $student->last_name }}, {{ $student->first_name }}</td>
                                                 
-                                                <td>
-                                                    <!-- KAPAG HINDI PA NA-SAVE -->
-                                                    <template x-if="!hasSaved">
-                                                        <div class="attendance-radio-group" :class="isPastDate() ? 'opacity-75 cursor-not-allowed' : ''">
-                                                            <label class="attendance-label-btn flex-fill">
-                                                                <input type="radio" 
-                                                                       name="attendance[{{ $student->student_id }}]" 
-                                                                       value="Present" 
-                                                                       x-model="attendanceState['{{ $student->student_id }}']" 
-                                                                       :disabled="isPastDate()"
-                                                                       class="attendance-radio-input">
-                                                                <span class="btn-state btn-present">Present</span>
-                                                            </label>
+                                                <td class="text-center align-middle">
+                                                    <input type="hidden" 
+                                                        :name="'attendance[' + '{{ $student->student_id }}' + ']'" 
+                                                        :value="attendanceState['{{ $student->student_id }}']">
 
-                                                            <label class="attendance-label-btn flex-fill">
-                                                                <input type="radio" 
-                                                                       name="attendance[{{ $student->student_id }}]" 
-                                                                       value="Late" 
-                                                                       x-model="attendanceState['{{ $student->student_id }}']" 
-                                                                       :disabled="isPastDate()"
-                                                                       class="attendance-radio-input">
-                                                                <span class="btn-state btn-late">Late</span>
-                                                            </label>
-
-                                                            <label class="attendance-label-btn flex-fill">
-                                                                <input type="radio" 
-                                                                       name="attendance[{{ $student->student_id }}]" 
-                                                                       value="Absent" 
-                                                                       x-model="attendanceState['{{ $student->student_id }}']" 
-                                                                       :disabled="isPastDate()"
-                                                                       class="attendance-radio-input">
-                                                                <span class="btn-state btn-absent">Absent</span>
-                                                            </label>
-                                                        </div>
+                                                    <template x-if="hasSaved">
+                                                        <span class="badge" 
+                                                            :class="{
+                                                                'bg-success': attendanceState['{{ $student->student_id }}'] === 'Present',
+                                                                'bg-warning': attendanceState['{{ $student->student_id }}'] === 'Late',
+                                                                'bg-danger': attendanceState['{{ $student->student_id }}'] === 'Absent',
+                                                                'bg-secondary': !attendanceState['{{ $student->student_id }}']
+                                                            }" 
+                                                            x-text="attendanceState['{{ $student->student_id }}'] || 'N/A'">
+                                                        </span>
                                                     </template>
 
-                                                    <!-- KAPAG NA-SAVE NA / LOCK -->
-                                                    <template x-if="hasSaved">
-                                                        <div class="d-flex justify-content-center">
-                                                            <span :class="{
-                                                                'badge bg-success px-3 py-2 rounded text-white': attendanceState['{{ $student->student_id }}'] === 'Present',
-                                                                'badge bg-warning px-3 py-2 rounded text-dark': attendanceState['{{ $student->student_id }}'] === 'Late',
-                                                                'badge bg-danger px-3 py-2 rounded text-white': attendanceState['{{ $student->student_id }}'] === 'Absent'
-                                                            }" x-text="attendanceState['{{ $student->student_id }}'] || 'Present'" style="font-size: 11px; font-weight: bold; min-width: 90px; text-align: center; text-transform: uppercase; border-radius: 4px;">
-                                                            </span>
+                                                    <template x-if="!hasSaved">
+                                                        <div class="btn-group-toggle">
+                                                            <button type="button" 
+                                                                class="attendance-toggle-btn"
+                                                                :class="attendanceState['{{ $student->student_id }}'] === 'Present' ? 'active-present' : ''"
+                                                                @click="attendanceState['{{ $student->student_id }}'] = 'Present'">
+                                                                Present
+                                                            </button>
+                                                            <button type="button" 
+                                                                class="attendance-toggle-btn"
+                                                                :class="attendanceState['{{ $student->student_id }}'] === 'Late' ? 'active-late' : ''"
+                                                                @click="attendanceState['{{ $student->student_id }}'] = 'Late'">
+                                                                Late
+                                                            </button>
+                                                            <button type="button" 
+                                                                class="attendance-toggle-btn"
+                                                                :class="attendanceState['{{ $student->student_id }}'] === 'Absent' ? 'active-absent' : ''"
+                                                                @click="attendanceState['{{ $student->student_id }}'] = 'Absent'">
+                                                                Absent
+                                                            </button>
                                                         </div>
                                                     </template>
                                                 </td>
 
-                                                <td>
-                                                    <input type="text" 
-                                                           name="remarks[{{ $student->student_id }}]" 
-                                                           x-model="remarksState['{{ $student->student_id }}']"
-                                                           :disabled="isPastDate() || hasSaved"
-                                                           placeholder="e.g. Excused / Medical" 
-                                                           class="form-control attendance-remarks-field"
-                                                           :class="hasSaved ? 'bg-light text-muted border-0' : ''">
+                                                <td class="align-middle text-center">
+                                                    <template x-if="hasSaved">
+                                                        <span class="text-muted small" x-text="remarksState['{{ $student->student_id }}'] && remarksState['{{ $student->student_id }}'].trim() !== '' ? remarksState['{{ $student->student_id }}'] : '—'"></span>
+                                                    </template>
+                                                    <template x-if="!hasSaved">
+                                                        <input type="text" 
+                                                            :name="'remarks[' + '{{ $student->student_id }}' + ']'" 
+                                                            x-model="remarksState['{{ $student->student_id }}']" 
+                                                            placeholder="Add remarks..." 
+                                                            class="form-control attendance-remarks-field">
+                                                    </template>
                                                 </td>
                                             </tr>
                                         @endforeach
-                                    </tbody>
-                                </table>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
 
-                            <div class="d-flex justify-content-end align-items-center mt-4 pt-3 border-top gap-3">
-                                <!-- RESET BUTTON -->
-                                <button type="button" 
-                                        @click="resetGridValues()" 
-                                        class="btn-cancel-portal px-4 py-2" 
-                                        :disabled="isLocked()"
-                                        :class="isLocked() ? 'btn-disabled-gray' : ''">
-                                    <i class="fa-solid fa-arrows-rotate me-2"></i> Reset to Present
-                                </button>
-                                
-                                <!-- SAVE BUTTON -->
-                                <button type="submit" 
-                                        class="btn-primary-portal px-4 py-2" 
-                                        :disabled="isLocked() || loadingAttendance"
-                                        :class="(isLocked() || loadingAttendance) ? 'btn-disabled-gray' : ''">
-                                    <i class="fa-solid fa-floppy-disk me-2"></i> 
-                                    <span x-text="loadingAttendance ? 'Saving...' : 'Save Attendance'"></span>
-                                </button>
-                            </div>
+                            <!-- Footer Buttons -->
+                            <template x-if="!hasSaved && !isPastDate()">
+                                <div class="d-flex justify-content-end align-items-center mt-4 pt-3 border-top gap-3">
+                                    <button type="button" @click="resetGridValues()" class="btn-cancel-portal px-4 py-2">
+                                        <i class="fa-solid fa-arrows-rotate me-2"></i> Reset
+                                    </button>
+                                    <button type="submit" class="btn-primary-portal px-4 py-2" :disabled="loadingAttendance">
+                                        <i class="fa-solid fa-floppy-disk me-2"></i> Save Attendance
+                                    </button>
+                                </div>
+                            </template>
                         @endif
                     </form>
-
                 </div>
             </div>
 
@@ -707,9 +691,6 @@
 </div>
 
 <style>
-    /* ==========================================================================
-       GLOBAL PORTAL BASE STYLES
-       ========================================================================== */
     [x-cloak] { display: none !important; }
 
     .page-header-row {
@@ -742,9 +723,6 @@
         border: 1px solid #cbd5e1; 
     }
 
-    /* ==========================================================================
-       DASHBOARD GRID & SIDEBAR LAYOUT
-       ========================================================================== */
     .dashboard-grid-wrapper { display: flex; gap: 24px; align-items: stretch; width: 100%; }
     .unified-sidebar { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
     .unified-workspace { flex-grow: 1; min-width: 0; }
@@ -805,7 +783,7 @@
         padding: 14px 12px; 
         border-bottom: 2px solid #e2e8f0; 
     }
-    .custom-portal-table td { padding: 14px 12px; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
+    .custom-portal-table td { padding: 14px 12px; font-size: 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
     .badge-enrolled-status { background: #dcfce7; color: #15803d; font-size: 12px; padding: 4px 12px; font-weight: 700; border-radius: 20px; }
 
     .btn-add-activity { 
@@ -848,7 +826,6 @@
     .empty-state-title { font-weight: 700; color: #334155; font-size: 15px; margin: 0 0 6px; }
     .empty-state-text { font-size: 13px; color: #94a3b8; max-width: 340px; margin: 0; }
 
-    /* Action buttons inside lists */
     .action-btn-group { display: flex; gap: 6px; justify-content: center; }
     .btn-sm-outline {
         background: white; border: 1px solid #cbd5e1; color: #475569;
@@ -861,9 +838,38 @@
     .btn-edit:hover { border-color: #d97706; color: #d97706; background: #fffbeb; }
     .btn-delete:hover { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
 
-    /* ==========================================================================
-       NEW STREAMLINED ATTENDANCE CONTROL PANEL STYLES
-       ========================================================================== */
+    .btn-group-toggle {
+        display: flex;
+        gap: 5px;
+        justify-content: center;
+    }
+
+    .attendance-toggle-btn {
+        padding: 6px 12px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-radius: 6px;
+        text-transform: uppercase;
+    }
+
+    .attendance-toggle-btn:hover { background: #f8fafc; }
+
+    .active-present { background: #15803d !important; color: white !important; border-color: #15803d !important; }
+    .active-late { background: #b45309 !important; color: white !important; border-color: #b45309 !important; }
+    .active-absent { background: #b91c1c !important; color: white !important; border-color: #b91c1c !important; }
+
+    .bulk-actions-wrapper {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
     .attendance-control-panel-wrapper {
         background: #ffffff;
         border: 1px solid #e2e8f0;
@@ -985,15 +991,13 @@
         box-shadow: 0 4px 10px rgba(189, 33, 48, 0.15);
     }
 
-    /* ==========================================================================
-       STUDENT ROW ATTENDANCE STATUS SELECTION (RADIO GROUP)
-       ========================================================================== */
     .attendance-radio-group {
         display: flex;
         background: #f1f5f9;
         padding: 4px;
         border-radius: 8px;
         border: 1px solid #cbd5e1;
+        justify-content: center;
     }
 
     .attendance-label-btn {
@@ -1068,6 +1072,10 @@
         border-radius: 6px !important;
         background-color: white !important;
         transition: all 0.15s ease;
+        width: 100%;
+        max-width: 200px;
+        margin: 0 auto;
+        display: block;
     }
     
     .attendance-remarks-field:focus {
@@ -1155,6 +1163,23 @@
     .dz-file-size { font-size: 11.5px; color: #94a3b8; }
     .dz-file-remove { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px; }
     .dz-file-remove:hover { color: #dc2626; }
+
+    .empty-attendance-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 300px; /* Adjust base sa gusto mong taas */
+        text-align: center;
+        padding: 2rem;
+        color: #64748b; /* Grayish text */
+    }
+
+    .empty-attendance-icon {
+        font-size: 3rem;
+        color: #cbd5e1; /* Light gray color para sa icon */
+        margin-bottom: 1rem;
+    }
 
     @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 </style>

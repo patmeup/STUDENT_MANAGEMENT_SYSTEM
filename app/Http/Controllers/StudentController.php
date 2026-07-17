@@ -177,7 +177,6 @@ class StudentController extends Controller
 
         $studentNumber = session('student_id');
 
-        // Security check kung enrolled nga ang student sa class na ito
         $isEnrolled = DB::table('student_subjects')
             ->where('schedule_id', $schedule_id)
             ->where('student_number', $studentNumber)
@@ -188,16 +187,20 @@ class StudentController extends Controller
             return redirect()->route('student.my_classes')->with('error', 'Unauthorized access to this class.');
         }
 
+        $attendanceRecords = DB::table('attendances')
+            ->where('class_schedule_id', $schedule_id)
+            ->where('student_id', $studentNumber)
+            ->orderBy('attendance_date', 'desc')
+            ->get();
+
         $activeTab = $request->query('tab', 'materials');
 
-        // Kunin ang detalye ng subject
         $classDetails = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->where('class_schedules.id', $schedule_id)
             ->select('class_schedules.*', 'subjects.subject_code', 'subjects.subject_title')
             ->first();
 
-        // Kunin ang tasks/materials list (LMS side)
         $activities = DB::table('student_tasks') 
             ->leftJoin('task_submissions', function($join) use ($studentNumber) {
                 $join->on('student_tasks.id', '=', 'task_submissions.task_id')
@@ -261,7 +264,8 @@ class StudentController extends Controller
             'currentRecitation',
             'currentAttendance',
             'majorExam',
-            'currentCalculatedGrade'
+            'currentCalculatedGrade',
+            'attendanceRecords'
         ));
     }
 

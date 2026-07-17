@@ -95,6 +95,13 @@
             </div>
 
             <div class="sidebar-navigation-card">
+
+                <div class="panel-title-label">CLASSWORK & RECORDS</div>
+
+                    <button class="nav-tab-btn" :class="currentTab === 'attendance' ? 'active-tab' : ''" @click="currentTab = 'attendance'">
+                        <i class="fa-solid fa-calendar-check"></i> Attendance Logs
+                    </button>
+
                 <div class="panel-title-label">TERM GRADE ENCODING</div>
                 @foreach(['prelim' => 'Prelim Term', 'midterm' => 'Midterm Term', 'semifinal' => 'Semi-Final Term', 'final' => 'Final Term'] as $key => $label)
                     <button class="nav-tab-btn" :class="currentTab === '{{ $key }}' ? 'active-tab' : ''" @click="currentTab = '{{ $key }}'">
@@ -105,6 +112,38 @@
         </div>
 
         <div class="unified-workspace">
+
+            <div x-show="currentTab === 'attendance'" x-transition>
+                <div class="workspace-card">
+                    <div class="card-workspace-header mb-3">
+                        <h4 class="m-0 fw-bold text-dark-blue">My Attendance Logs</h4>
+                        <p class="small text-muted m-0">Total Records: {{ $attendanceRecords->count() }}</p>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table custom-portal-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;">Date</th>
+                                    <th style="width: 30%;">Status</th>
+                                    <th style="width: 40%;">Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($attendanceRecords as $rec)
+                                    <tr>
+                                        <td>{{ \Carbon\Carbon::parse($rec->attendance_date)->format('M d, Y') }}</td>
+                                        <td>{{ $rec->status }}</td>
+                                        <td>{{ $rec->remarks ?? '—' }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="3" class="text-center">No records found.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
             @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key => $termLabel)
                 @php

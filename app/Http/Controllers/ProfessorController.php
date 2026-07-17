@@ -187,12 +187,15 @@ class ProfessorController extends Controller
         $attendanceData = $request->input('attendance', []); 
         $remarksData = $request->input('remarks', []);       
 
+        $request->validate([
+            'attendance_date' => 'required|date|before_or_equal:today',
+        ]);
+
         DB::beginTransaction();
         try {
             foreach ($attendanceData as $studentId => $status) {
                 $remarks = $remarksData[$studentId] ?? null;
 
-                // Kunin ang current record
                 $record = DB::table('attendances')
                     ->where('class_schedule_id', $schedule_id)
                     ->where('student_id', $studentId)
@@ -200,14 +203,12 @@ class ProfessorController extends Controller
                     ->first();
 
                 if ($record) {
-                    // Update lang, huwag galawin ang created_at
                     DB::table('attendances')->where('id', $record->id)->update([
                         'status' => $status,
                         'remarks' => $remarks,
                         'updated_at' => now(),
                     ]);
                 } else {
-                    // Insert: dito dapat magka-value ang created_at
                     DB::table('attendances')->insert([
                         'class_schedule_id' => $schedule_id,
                         'student_id' => $studentId,
