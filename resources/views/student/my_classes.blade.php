@@ -95,10 +95,8 @@
     .card-title-list { font-size: 16px; font-weight: 700; margin: 0; color: #1e293b; }
     .badge-count { background: #1e2a5a; color: white; font-size: 12px; padding: 5px 14px; border-radius: 20px; font-weight: 700; }
 
-    /* Grid Framework */
     .prof-classes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 25px; }
 
-    /* Clickable Card Core Elements */
     .clickable-card { text-decoration: none !important; color: inherit !important; display: block; }
 
     .prof-class-card { background: white; border-radius: 15px; overflow: hidden; border: 1px solid #e0e0e0; transition: transform 0.25s ease, box-shadow 0.25s ease; display: flex; flex-direction: column; }

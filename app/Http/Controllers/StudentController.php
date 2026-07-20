@@ -21,7 +21,6 @@ class StudentController extends Controller
 
         $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
 
-        // 1. Fetch Enrolled Classes details with subject units/credits
         $enrolledClasses = DB::table('student_subjects')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
@@ -40,7 +39,6 @@ class StudentController extends Controller
         $hasGrades = false;
 
         foreach ($enrolledClasses as $class) {
-            // Kunin ang graded task submissions sa subject na ito
             $gradedSubmissions = DB::table('task_submissions')
                 ->join('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
                 ->where('student_tasks.class_schedule_id', $class->schedule_id)
@@ -60,7 +58,6 @@ class StudentController extends Controller
                     $averages[$type] = $items->avg('grade');
                 }
 
-                // Component values (60% Written, 40% Performance)
                 $majorExam = $averages['major exam'] ?? $averages['exam'] ?? 0;
                 
                 $writtenComponents = [];
@@ -75,25 +72,20 @@ class StudentController extends Controller
                 $classStandingComponents = array_filter([$currentWrittenWorks, $currentRecitation, $currentAttendance]);
                 $classStandingAverage = count($classStandingComponents) > 0 ? (array_sum($classStandingComponents) / count($classStandingComponents)) : 0;
 
-                // I-apply ang weights
-                $classStandingContribution = $classStandingAverage * 0.60; // 60% Weight
-                $examContribution = $majorExam * 0.40;                      // 40% Weight
+                $classStandingContribution = $classStandingAverage * 0.60; 
+                $examContribution = $majorExam * 0.40;                      
 
                 $subjectGrade = round($classStandingContribution + $examContribution, 2);
 
-                // Weighted Grade = Grade * Subject Units
                 $weightedGradesSum += ($subjectGrade * $class->total_units);
                 $totalUnits += $class->total_units;
             } else {
-                // Kung walang grades pa, asikasuhin ang units para sa average computation (o i-skip muna)
                 $totalUnits += $class->total_units;
             }
         }
 
-        // Kumpitasyon para sa kabuuang predicted/current GWA
         $predictedTermGWA = ($hasGrades && $totalUnits > 0) ? round($weightedGradesSum / $totalUnits, 2) : 0;
 
-        // I-set ang status base sa computed GWA
         $gwaStatus = 'No grades computed yet';
         $statusClass = 'text-secondary';
         if ($predictedTermGWA > 0) {
@@ -106,10 +98,8 @@ class StudentController extends Controller
             }
         }
 
-        // 2. Fetch student stats
         $totalEnrolledClasses = $enrolledClasses->count();
 
-        // Count pending task submissions
         $pendingTasksCount = DB::table('student_tasks')
             ->join('student_subjects', 'student_tasks.class_schedule_id', '=', 'student_subjects.schedule_id')
             ->leftJoin('task_submissions', function($join) use ($studentNumber) {
@@ -137,10 +127,8 @@ class StudentController extends Controller
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
-        // Initialize the query builder
         $query = Student::query();
 
-        // 1. Text Search Filter (ID Number or Name strings)
         if ($request->has('search') && $request->search != '') {
             $searchTerm = $request->search;
             $query->where(function($q) use ($searchTerm) {
@@ -150,20 +138,16 @@ class StudentController extends Controller
             });
         }
 
-        // 2. Course Program Dropdown Filter
         if ($request->has('course') && $request->course != '') {
             $query->where('course', $request->course);
         }
 
-        // 3. Entry Type Dropdown Filter (NEW / TRANSFEREE)
         if ($request->has('student_type') && $request->student_type != '') {
             $query->where('student_type', $request->student_type);
         }
 
-        // Fetch filtered results ordered by the newest entry sequence first
         $students = $query->orderBy('student_id', 'desc')->get();
         
-        // Count total matching filtered records
         $totalRecords = $students->count();
 
         return view('registrar.manage-students', compact('students', 'totalRecords'));
@@ -177,7 +161,6 @@ class StudentController extends Controller
 
         $studentNumber = session('student_id');
 
-        // Security check kung enrolled nga ang student sa class na ito
         $isEnrolled = DB::table('student_subjects')
             ->where('schedule_id', $schedule_id)
             ->where('student_number', $studentNumber)
@@ -188,16 +171,20 @@ class StudentController extends Controller
             return redirect()->route('student.my_classes')->with('error', 'Unauthorized access to this class.');
         }
 
+        $attendanceRecords = DB::table('attendances')
+            ->where('class_schedule_id', $schedule_id)
+            ->where('student_id', $studentNumber)
+            ->orderBy('attendance_date', 'desc')
+            ->get();
+
         $activeTab = $request->query('tab', 'materials');
 
-        // Kunin ang detalye ng subject
         $classDetails = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->where('class_schedules.id', $schedule_id)
             ->select('class_schedules.*', 'subjects.subject_code', 'subjects.subject_title')
             ->first();
 
-        // Kunin ang tasks/materials list (LMS side)
         $activities = DB::table('student_tasks') 
             ->leftJoin('task_submissions', function($join) use ($studentNumber) {
                 $join->on('student_tasks.id', '=', 'task_submissions.task_id')
@@ -235,20 +222,36 @@ class StudentController extends Controller
 
         $majorExam = $averages['major exam'] ?? $averages['exam'] ?? 0;
         
-        $writtenComponents = [];
-        if (isset($averages['written'])) $writtenComponents[] = $averages['written'];
-        if (isset($averages['quiz'])) $writtenComponents[] = $averages['quiz'];
-        if (isset($averages['activity'])) $writtenComponents[] = $averages['activity'];
-        $currentWrittenWorks = count($writtenComponents) > 0 ? (array_sum($writtenComponents) / count($writtenComponents)) : 0;
+        $quizAverage = $averages['quiz'] ?? 0;
+        $activityAverage = $averages['activity'] ?? 0;
+        $assignmentAverage = $averages['assignment'] ?? $averages['written'] ?? 0;
 
-        $currentRecitation = $averages['recitation'] ?? 0;
-        $currentAttendance = $averages['attendance'] ?? 0;
+        $taskComponents = array_filter([$quizAverage, $activityAverage, $assignmentAverage]);
+        $currentTaskAverage = count($taskComponents) > 0 ? (array_sum($taskComponents) / count($taskComponents)) : 0;
 
-        $classStandingComponents = array_filter([$currentWrittenWorks, $currentRecitation, $currentAttendance]);
-        $classStandingAverage = count($classStandingComponents) > 0 ? (array_sum($classStandingComponents) / count($classStandingComponents)) : 0;
+        $totalAttendanceCount = $attendanceRecords->count();
+        if ($totalAttendanceCount > 0) {
+            $presentCount = $attendanceRecords->where('status', 'Present')->count();
+            $currentAttendance = ($presentCount / $totalAttendanceCount) * 100;
+        } else {
+            $currentAttendance = $averages['attendance'] ?? 0; 
+        }
+
+        $hasTasks = count($taskComponents) > 0;
+        $hasAttendance = ($totalAttendanceCount > 0 || isset($averages['attendance']));
+
+        if ($hasTasks && $hasAttendance) {
+            $classStandingAverage = ($currentTaskAverage * 0.75) + ($currentAttendance * 0.25);
+        } elseif ($hasTasks) {
+            $classStandingAverage = $currentTaskAverage;
+        } elseif ($hasAttendance) {
+            $classStandingAverage = $currentAttendance;
+        } else {
+            $classStandingAverage = 0;
+        }
 
         $classStandingContribution = $classStandingAverage * 0.60; 
-        $examContribution = $majorExam * 0.40;                      
+        $examContribution = $majorExam * 0.40;                  
 
         $currentCalculatedGrade = round($classStandingContribution + $examContribution, 2);
 
@@ -257,11 +260,13 @@ class StudentController extends Controller
             'activities', 
             'materials', 
             'activeTab',
-            'currentWrittenWorks',
-            'currentRecitation',
+            'quizAverage',
+            'activityAverage',
+            'assignmentAverage',
             'currentAttendance',
             'majorExam',
-            'currentCalculatedGrade'
+            'currentCalculatedGrade',
+            'attendanceRecords'
         ));
     }
 
@@ -271,31 +276,88 @@ class StudentController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $writtenWorks = floatval($request->query('written_works', 0));
-        $recitation = floatval($request->query('recitation', 0));
-        $attendance = floatval($request->query('attendance', 0));
+        $studentNumber = session('student_id');
+
+        $attendanceRecords = DB::table('attendances')
+            ->where('class_schedule_id', $schedule_id)
+            ->where('student_id', $studentNumber)
+            ->get();
+
+        $gradedSubmissions = DB::table('task_submissions')
+            ->join('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
+            ->where('student_tasks.class_schedule_id', $schedule_id)
+            ->where('task_submissions.student_id', $studentNumber)
+            ->whereNotNull('task_submissions.grade')
+            ->select('task_submissions.grade', 'student_tasks.activity_type')
+            ->get();
+
+        $grouped = $gradedSubmissions->groupBy(function($item) {
+            return strtolower(trim($item->activity_type));
+        });
+
+        $averages = [];
+        foreach ($grouped as $type => $items) {
+            $averages[$type] = $items->avg('grade');
+        }
+
+        $writtenComponents = [];
+        if (isset($averages['written'])) $writtenComponents[] = $averages['written'];
+        if (isset($averages['quiz'])) $writtenComponents[] = $averages['quiz'];
+        if (isset($averages['activity'])) $writtenComponents[] = $averages['activity'];
+        if (isset($averages['assignment'])) $writtenComponents[] = $averages['assignment'];
+        
+        $currentWrittenWorks = count($writtenComponents) > 0 ? (array_sum($writtenComponents) / count($writtenComponents)) : 0;
+        $currentRecitation = $averages['recitation'] ?? 0;
+
+        $taskComponents = array_filter([$currentWrittenWorks, $currentRecitation]);
+        $taskAverage = count($taskComponents) > 0 ? (array_sum($taskComponents) / count($taskComponents)) : 0;
+
+        $totalAttendanceCount = $attendanceRecords->count();
+        if ($totalAttendanceCount > 0) {
+            $presentCount = $attendanceRecords->where('status', 'Present')->count();
+            $currentAttendance = ($presentCount / $totalAttendanceCount) * 100;
+        } else {
+            $currentAttendance = $averages['attendance'] ?? 0; 
+        }
+
+        if ($totalAttendanceCount > 0 || isset($averages['attendance'])) {
+            $classStandingAverage = ($taskAverage * 0.80) + ($currentAttendance * 0.20); 
+        } else {
+            $classStandingAverage = $taskAverage; 
+        }
+
+        $classStandingContribution = $classStandingAverage * 0.60;
 
         $possibleExamScores = [75, 80, 85, 90, 95, 100];
         $predictions = [];
 
         foreach ($possibleExamScores as $examScore) {
-            $writtenAverage = ($examScore + $writtenWorks) / 2;
-            $writtenContribution = $writtenAverage * 0.60;
+            $examContribution = $examScore * 0.40;
+            $predictedPercentage = round($classStandingContribution + $examContribution, 2);
 
-            $performanceAverage = ($recitation + $attendance) / 2;
-            $performanceContribution = $performanceAverage * 0.40;
-
-            $predictedGrade = round($writtenContribution + $performanceContribution, 2);
+            $pointGrade = "5.00";
+            if ($predictedPercentage >= 97) $pointGrade = "1.00";
+            elseif ($predictedPercentage >= 94) $pointGrade = "1.25";
+            elseif ($predictedPercentage >= 91) $pointGrade = "1.50";
+            elseif ($predictedPercentage >= 88) $pointGrade = "1.75";
+            elseif ($predictedPercentage >= 85) $pointGrade = "2.00";
+            elseif ($predictedPercentage >= 82) $pointGrade = "2.25";
+            elseif ($predictedPercentage >= 79) $pointGrade = "2.50";
+            elseif ($predictedPercentage >= 76) $pointGrade = "2.75";
+            elseif ($predictedPercentage >= 75) $pointGrade = "3.00";
+            else $pointGrade = "5.00";
 
             $predictions[] = [
                 'exam_score' => $examScore,
-                'predicted_grade' => $predictedGrade,
-                'status' => $predictedGrade >= 75 ? 'Passed' : 'At Risk',
-                'status_color' => $predictedGrade >= 75 ? 'text-success' : 'text-danger'
+                'predicted_percentage' => $predictedPercentage,
+                'equivalent_grade' => $pointGrade,
+                'status' => $predictedPercentage >= 75 ? 'Passed' : 'At Risk',
+                'status_color' => $predictedPercentage >= 75 ? 'text-success' : 'text-danger'
             ];
         }
 
         return response()->json([
+            'current_class_standing' => round($classStandingAverage, 2),
             'predictions' => $predictions
         ]);
     }
@@ -498,7 +560,6 @@ class StudentController extends Controller
             return redirect()->route('student.my_classes')->with('error', 'Task not found.');
         }
 
-        // Security check: Make sure student is enrolled
         $isEnrolled = DB::table('student_subjects')
             ->where('schedule_id', $task->class_schedule_id)
             ->where('student_number', $studentNumber)

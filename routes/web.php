@@ -98,8 +98,8 @@ Route::get('/department-secretary/user_details', [DeptSecController::class, 'pro
 Route::get('/professor/dashboard', [ProfessorController::class, 'dashboard'])->name('professor.dashboard');
 Route::get('/professor/manage-classes', [ProfessorController::class, 'manageClasses'])->name('professor.manage-classes');
 Route::get('/professor/class_details/{schedule_id}', [ProfessorController::class, 'viewClassDashboard'])->name('professor.class_details');
-Route::get('/professor/class/{schedule_id}/attendance', [ProfessorController::class, 'getAttendanceData'])->name('professor.attendance.data');
-Route::post('/professor/class/{schedule_id}/attendance/save', [ProfessorController::class, 'saveAttendanceData'])->name('professor.save-attendance');
+Route::get('/professor/class/{schedule_id}/attendance', [ProfessorController::class, 'showAttendanceSheet'])->name('professor.attendance.data');
+Route::post('/professor/class/{schedule_id}/attendance/save', [ProfessorController::class, 'saveAttendance'])->name('professor.save-attendance');
 Route::post('/professor/save-activity', [ProfessorController::class, 'saveActivity'])->name('professor.save-activity');
 Route::post('/professor/update-activity/{id}', [ProfessorController::class, 'updateActivity'])->name('professor.update-activity');
 Route::post('/professor/delete-activity/{id}', [ProfessorController::class, 'deleteActivity'])->name('professor.delete-activity');

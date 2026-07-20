@@ -68,19 +68,6 @@
                 <i class="fa-solid fa-clock-rotate-left"></i>
             </div>
         </div>
-
-        <div class="stat-premium-card card-prediction-highlight">
-            <div class="stat-number-side {{ $predictedTermGWA >= 75 ? 'text-green' : 'text-red' }}">
-                {{ $predictedTermGWA > 0 ? $predictedTermGWA . '%' : 'N/A' }}
-            </div>
-            <div class="stat-label-side">
-                <span class="lbl-main">Predicted Term GWA</span>
-                <span class="lbl-sub {{ $statusClass }} fw-bold">{{ $gwaStatus }}</span>
-            </div>
-            <div class="stat-icon-watermark text-prediction-icon">
-                <i class="fa-solid fa-chart-line"></i>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -115,7 +102,6 @@
 </script>
 
 <style>
-    /* Styling matched exactly to your system_admin dashboard for design consistency */
     .dashboard-wrapper {
         max-width: 1140px; 
         margin: 0 auto; 
