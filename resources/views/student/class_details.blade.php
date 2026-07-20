@@ -79,7 +79,6 @@
 
                 <hr class="sidebar-divider">
 
-                <!-- Centered & Styled Computed Grade Box -->
                 <div class="au-prediction-display-box text-center p-3 rounded-10 bg-light-gray">
                     <span class="font-xxs text-uppercase fw-bold text-muted tracking-wider d-block mb-1">Current Computed Grade</span>
                     

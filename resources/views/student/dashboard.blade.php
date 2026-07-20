@@ -102,7 +102,6 @@
 </script>
 
 <style>
-    /* Styling matched exactly to your system_admin dashboard for design consistency */
     .dashboard-wrapper {
         max-width: 1140px; 
         margin: 0 auto; 
