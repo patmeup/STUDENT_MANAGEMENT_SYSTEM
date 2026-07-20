@@ -5,45 +5,53 @@
     </div>
 
     <div class="topbar-right">
-        @if(session()->has('employee_id') || Auth::check())
-            @php
-                $user = Auth::user() ?? \App\Models\User::where('employee_id', session('employee_id'))->first();
-                $role = session('user_role') ?? ($user->role ?? 'user');
-            @endphp
+        {{-- Sinuri na natin kung merong employee_id, student_id, o standard Auth login --}}
+        @php
+            $user = null;
+            if (Auth::check()) {
+                $user = Auth::user();
+            } elseif (session()->has('employee_id')) {
+                $user = \App\Models\User::where('employee_id', session('employee_id'))->first();
+            } elseif (session()->has('student_id')) {
+                $user = \App\Models\Student::where('student_id', session('student_id'))->first(); // Baguhin ang Model kung iba ang pangalan ng Student model mo
+            }
 
-            @if($user)
-                <div class="user-profile-wrapper">
-                    
-                    {{-- Gagawa tayo ng column container para sa Pangalan at Badge para magka-patong sila --}}
-                    <div class="user-details-column">
-                        {{-- 1. Pangalan sa Itaas (Surname First) --}}
-                        <div class="name">
-                            {{ strtoupper($user->last_name) }}, {{ strtoupper($user->first_name) }}
-                            @if(!empty($user->middle_name))
-                                {{ strtoupper(substr($user->middle_name, 0, 1)) }}.
-                            @endif
-                        </div>
+            // Kunin ang role galing sa session o user model, default sa 'student' kung wala
+            $role = session('user_role') ?? ($user->role ?? (session()->has('student_id') ? 'student' : 'user'));
+        @endphp
 
-                        {{-- 2. Role Badge sa Ibaba pero Naka-center sa Pangalan --}}
-                        <div class="role-badge badge-{{ $role }}">
-                            @if($role == 'super_admin') SUPER ADMIN
-                            @elseif($role == 'system_admin') SYSTEM ADMIN
-                            @elseif($role == 'registrar') REGISTRAR
-                            @elseif($role == 'dept_sec') DEPARTMENT SECRETARY
-                            @elseif($role == 'professor') PROFESSOR
-                            @elseif($role == 'dean') DEAN
-                            @else {{ strtoupper($role) }}
-                            @endif
-                        </div>
+        @if($user)
+            <div class="user-profile-wrapper">
+                
+                <div class="user-details-column">
+                    {{-- 1. Pangalan sa Itaas (Surname First) --}}
+                    <div class="name">
+                        {{ strtoupper($user->last_name) }}, {{ strtoupper($user->first_name) }}
+                        @if(!empty($user->middle_name))
+                            {{ strtoupper(substr($user->middle_name, 0, 1)) }}.
+                        @endif
                     </div>
 
-                    {{-- 3. Avatar Icon sa dulong kanan --}}
-                    <div class="avatar">
-                        <img src="https://api.dicebear.com/7.x/initials/svg?seed={{ $user->first_name }}+{{ $user->last_name }}&backgroundType=solid&backgroundColor=cbd5e1" alt="Profile">
+                    {{-- 2. Role Badge sa Ibaba pero Naka-center sa Pangalan --}}
+                    <div class="role-badge badge-{{ $role }}">
+                        @if($role == 'super_admin') SUPER ADMIN
+                        @elseif($role == 'system_admin') SYSTEM ADMIN
+                        @elseif($role == 'registrar') REGISTRAR
+                        @elseif($role == 'dept_sec') DEPARTMENT SECRETARY
+                        @elseif($role == 'professor') PROFESSOR
+                        @elseif($role == 'dean') DEAN
+                        @elseif($role == 'student') STUDENT
+                        @else {{ strtoupper($role) }}
+                        @endif
                     </div>
-
                 </div>
-            @endif
+
+                {{-- 3. Avatar Icon sa dulong kanan --}}
+                <div class="avatar">
+                    <img src="https://api.dicebear.com/7.x/initials/svg?seed={{ $user->first_name }}+{{ $user->last_name }}&backgroundType=solid&backgroundColor=cbd5e1" alt="Profile">
+                </div>
+
+            </div>
         @endif
     </div>
 </div>
@@ -91,16 +99,15 @@
     .user-profile-wrapper {
         display: flex;
         align-items: center;
-        gap: 15px; /* Distansya mula sa dulo ng pangalan/badge patungo sa avatar */
+        gap: 15px;
     }
 
-    /* Ito ang sikreto: Ginawa nating column at ini-center ang mga items */
     .user-details-column {
         display: flex;
         flex-direction: column;
-        align-items: center; /* Hinihila nito ang badge sa eksaktong gitna sa ilalim ng pangalan */
+        align-items: center;
         justify-content: center;
-        gap: 4px; /* Maliit na patlang sa pagitan ng pangalan at badge */
+        gap: 4px;
     }
 
     .user-details-column .name {
@@ -108,7 +115,7 @@
         font-size: 14px;
         color: white;
         letter-spacing: 0.3px;
-        text-align: center; /* Sinisigurong naka-center ang text distribution */
+        text-align: center;
     }
 
     /* Role Badge Design Settings */
@@ -134,6 +141,7 @@
     .role-badge.badge-dept_sec { background: #ec4899; border-color: #f472b6; }    
     .role-badge.badge-professor { background: #64748b; border-color: #475569; }   
     .role-badge.badge-registrar { background: #0284c7; border-color: #0ea5e9; }   
+    .role-badge.badge-student { background: #059669; border-color: #10b981; } /* Kulay berde para sa mga estudyante */
 
     .avatar img {
         width: 45px;

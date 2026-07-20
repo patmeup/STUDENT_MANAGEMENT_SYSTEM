@@ -75,13 +75,11 @@ class StudentController extends Controller
                 $classStandingComponents = array_filter([$currentWrittenWorks, $currentRecitation, $currentAttendance]);
                 $classStandingAverage = count($classStandingComponents) > 0 ? (array_sum($classStandingComponents) / count($classStandingComponents)) : 0;
 
-                // I-apply ang weights
                 $classStandingContribution = $classStandingAverage * 0.60; // 60% Weight
                 $examContribution = $majorExam * 0.40;                      // 40% Weight
 
                 $subjectGrade = round($classStandingContribution + $examContribution, 2);
 
-                // Weighted Grade = Grade * Subject Units
                 $weightedGradesSum += ($subjectGrade * $class->total_units);
                 $totalUnits += $class->total_units;
             } else {
@@ -90,7 +88,6 @@ class StudentController extends Controller
             }
         }
 
-        // Kumpitasyon para sa kabuuang predicted/current GWA
         $predictedTermGWA = ($hasGrades && $totalUnits > 0) ? round($weightedGradesSum / $totalUnits, 2) : 0;
 
         // I-set ang status base sa computed GWA
@@ -236,22 +233,45 @@ class StudentController extends Controller
             $averages[$type] = $items->avg('grade');
         }
 
+        // 1. Major Exam Score (40% alone)
         $majorExam = $averages['major exam'] ?? $averages['exam'] ?? 0;
         
-        $writtenComponents = [];
-        if (isset($averages['written'])) $writtenComponents[] = $averages['written'];
-        if (isset($averages['quiz'])) $writtenComponents[] = $averages['quiz'];
-        if (isset($averages['activity'])) $writtenComponents[] = $averages['activity'];
-        $currentWrittenWorks = count($writtenComponents) > 0 ? (array_sum($writtenComponents) / count($writtenComponents)) : 0;
+        // 2. Hiwalay na kukunin ang bawat isa sa tatlong task components para malinaw ang pormat
+        $quizAverage = $averages['quiz'] ?? 0;
+        $activityAverage = $averages['activity'] ?? 0;
+        $assignmentAverage = $averages['assignment'] ?? $averages['written'] ?? 0;
 
-        $currentRecitation = $averages['recitation'] ?? 0;
-        $currentAttendance = $averages['attendance'] ?? 0;
+        // Kunin ang average ng tatlong task components na ito kung meron mang laman
+        $taskComponents = array_filter([$quizAverage, $activityAverage, $assignmentAverage]);
+        $currentTaskAverage = count($taskComponents) > 0 ? (array_sum($taskComponents) / count($taskComponents)) : 0;
 
-        $classStandingComponents = array_filter([$currentWrittenWorks, $currentRecitation, $currentAttendance]);
-        $classStandingAverage = count($classStandingComponents) > 0 ? (array_sum($classStandingComponents) / count($classStandingComponents)) : 0;
+        // 3. Attendance Percentage Computation
+        $totalAttendanceCount = $attendanceRecords->count();
+        if ($totalAttendanceCount > 0) {
+            $presentCount = $attendanceRecords->where('status', 'Present')->count();
+            $currentAttendance = ($presentCount / $totalAttendanceCount) * 100;
+        } else {
+            $currentAttendance = $averages['attendance'] ?? 0; 
+        }
 
+        // 4. Pagsasama ng Tasks (Quiz, Activities, Assignments) at Attendance para mabuo ang Class Standing (60%)
+        // Dito, pantay silang hinahati (halimbawa: 75% Tasks average at 25% Attendance, o kaya ay simpleng average ng dalawa)
+        $hasTasks = count($taskComponents) > 0;
+        $hasAttendance = ($totalAttendanceCount > 0 || isset($averages['attendance']));
+
+        if ($hasTasks && $hasAttendance) {
+            $classStandingAverage = ($currentTaskAverage * 0.75) + ($currentAttendance * 0.25);
+        } elseif ($hasTasks) {
+            $classStandingAverage = $currentTaskAverage;
+        } elseif ($hasAttendance) {
+            $classStandingAverage = $currentAttendance;
+        } else {
+            $classStandingAverage = 0;
+        }
+
+        // Final Calculation: 60% Class Standing + 40% Major Exam
         $classStandingContribution = $classStandingAverage * 0.60; 
-        $examContribution = $majorExam * 0.40;                      
+        $examContribution = $majorExam * 0.40;                  
 
         $currentCalculatedGrade = round($classStandingContribution + $examContribution, 2);
 
@@ -260,8 +280,9 @@ class StudentController extends Controller
             'activities', 
             'materials', 
             'activeTab',
-            'currentWrittenWorks',
-            'currentRecitation',
+            'quizAverage',
+            'activityAverage',
+            'assignmentAverage',
             'currentAttendance',
             'majorExam',
             'currentCalculatedGrade',
@@ -275,31 +296,88 @@ class StudentController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $writtenWorks = floatval($request->query('written_works', 0));
-        $recitation = floatval($request->query('recitation', 0));
-        $attendance = floatval($request->query('attendance', 0));
+        $studentNumber = session('student_id');
+
+        $attendanceRecords = DB::table('attendances')
+            ->where('class_schedule_id', $schedule_id)
+            ->where('student_id', $studentNumber)
+            ->get();
+
+        $gradedSubmissions = DB::table('task_submissions')
+            ->join('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
+            ->where('student_tasks.class_schedule_id', $schedule_id)
+            ->where('task_submissions.student_id', $studentNumber)
+            ->whereNotNull('task_submissions.grade')
+            ->select('task_submissions.grade', 'student_tasks.activity_type')
+            ->get();
+
+        $grouped = $gradedSubmissions->groupBy(function($item) {
+            return strtolower(trim($item->activity_type));
+        });
+
+        $averages = [];
+        foreach ($grouped as $type => $items) {
+            $averages[$type] = $items->avg('grade');
+        }
+
+        $writtenComponents = [];
+        if (isset($averages['written'])) $writtenComponents[] = $averages['written'];
+        if (isset($averages['quiz'])) $writtenComponents[] = $averages['quiz'];
+        if (isset($averages['activity'])) $writtenComponents[] = $averages['activity'];
+        if (isset($averages['assignment'])) $writtenComponents[] = $averages['assignment'];
+        
+        $currentWrittenWorks = count($writtenComponents) > 0 ? (array_sum($writtenComponents) / count($writtenComponents)) : 0;
+        $currentRecitation = $averages['recitation'] ?? 0;
+
+        $taskComponents = array_filter([$currentWrittenWorks, $currentRecitation]);
+        $taskAverage = count($taskComponents) > 0 ? (array_sum($taskComponents) / count($taskComponents)) : 0;
+
+        $totalAttendanceCount = $attendanceRecords->count();
+        if ($totalAttendanceCount > 0) {
+            $presentCount = $attendanceRecords->where('status', 'Present')->count();
+            $currentAttendance = ($presentCount / $totalAttendanceCount) * 100;
+        } else {
+            $currentAttendance = $averages['attendance'] ?? 0; 
+        }
+
+        if ($totalAttendanceCount > 0 || isset($averages['attendance'])) {
+            $classStandingAverage = ($taskAverage * 0.80) + ($currentAttendance * 0.20); 
+        } else {
+            $classStandingAverage = $taskAverage; 
+        }
+
+        $classStandingContribution = $classStandingAverage * 0.60;
 
         $possibleExamScores = [75, 80, 85, 90, 95, 100];
         $predictions = [];
 
         foreach ($possibleExamScores as $examScore) {
-            $writtenAverage = ($examScore + $writtenWorks) / 2;
-            $writtenContribution = $writtenAverage * 0.60;
+            $examContribution = $examScore * 0.40;
+            $predictedPercentage = round($classStandingContribution + $examContribution, 2);
 
-            $performanceAverage = ($recitation + $attendance) / 2;
-            $performanceContribution = $performanceAverage * 0.40;
-
-            $predictedGrade = round($writtenContribution + $performanceContribution, 2);
+            $pointGrade = "5.00";
+            if ($predictedPercentage >= 97) $pointGrade = "1.00";
+            elseif ($predictedPercentage >= 94) $pointGrade = "1.25";
+            elseif ($predictedPercentage >= 91) $pointGrade = "1.50";
+            elseif ($predictedPercentage >= 88) $pointGrade = "1.75";
+            elseif ($predictedPercentage >= 85) $pointGrade = "2.00";
+            elseif ($predictedPercentage >= 82) $pointGrade = "2.25";
+            elseif ($predictedPercentage >= 79) $pointGrade = "2.50";
+            elseif ($predictedPercentage >= 76) $pointGrade = "2.75";
+            elseif ($predictedPercentage >= 75) $pointGrade = "3.00";
+            else $pointGrade = "5.00";
 
             $predictions[] = [
                 'exam_score' => $examScore,
-                'predicted_grade' => $predictedGrade,
-                'status' => $predictedGrade >= 75 ? 'Passed' : 'At Risk',
-                'status_color' => $predictedGrade >= 75 ? 'text-success' : 'text-danger'
+                'predicted_percentage' => $predictedPercentage,
+                'equivalent_grade' => $pointGrade,
+                'status' => $predictedPercentage >= 75 ? 'Passed' : 'At Risk',
+                'status_color' => $predictedPercentage >= 75 ? 'text-success' : 'text-danger'
             ];
         }
 
         return response()->json([
+            'current_class_standing' => round($classStandingAverage, 2),
             'predictions' => $predictions
         ]);
     }

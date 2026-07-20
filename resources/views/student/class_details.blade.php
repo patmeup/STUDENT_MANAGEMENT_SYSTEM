@@ -49,48 +49,87 @@
             </div>
 
             <div class="sidebar-navigation-card border-au-blue">
-                <div class="panel-title-label d-flex justify-content-between align-items-center">
-                    <span>🔮 AU-LINK GRADE SIMULATOR</span>
+                <div class="panel-title-label d-flex justify-content-between align-items-center mb-1">
+                    <span><i class="fa-solid fa-chart-pie me-1 text-dark-blue"></i> CURRENT STANDING & GRADE</span>
                 </div>
-                <p class="text-muted font-xs mb-3">Baguhin ang inputs gamit ang slider o sa pamamagitan ng pag-type sa box para makita ang iyong predicted grade.</p>
+                <p class="text-muted font-xs mb-3">Predictive Grade based on current performance.</p>
 
-                <div class="mb-3">
-                    <label class="d-block text-dark-blue font-xs fw-bold mb-1">Class Standing (Quizzes/Tasks):</label>
-                    <div class="d-flex align-items-center gap-2">
-                        <input type="range" class="prediction-slider flex-grow-1" id="standing_slider" min="50" max="100" value="{{ $currentWrittenWorks > 0 ? round($currentWrittenWorks) : 75 }}" oninput="syncInputs('standing', this.value)">
-                        <input type="number" class="form-control form-control-sm text-center font-xs fw-bold slider-number-input" id="standing_number" min="50" max="100" value="{{ $currentWrittenWorks > 0 ? round($currentWrittenWorks) : 75 }}" oninput="syncInputs('standing', this.value)">
-                        <span class="font-xs fw-bold text-muted">%</span>
+                <div class="performance-breakdown-modern mb-3">
+                    <div class="breakdown-row">
+                        <span class="text-muted"><i class="fa-solid fa-file-pen text-secondary me-1"></i> Quiz:</span>
+                        <strong class="text-dark-blue">{{ $quizAverage > 0 ? number_format($quizAverage, 1) . '%' : 'No grades yet' }}</strong>
+                    </div>
+                    <div class="breakdown-row">
+                        <span class="text-muted"><i class="fa-solid fa-list-check text-secondary me-1"></i> Activities:</span>
+                        <strong class="text-dark-blue">{{ $activityAverage > 0 ? number_format($activityAverage, 1) . '%' : 'No grades yet' }}</strong>
+                    </div>
+                    <div class="breakdown-row">
+                        <span class="text-muted"><i class="fa-solid fa-book text-secondary me-1"></i> Assignment:</span>
+                        <strong class="text-dark-blue">{{ $assignmentAverage > 0 ? number_format($assignmentAverage, 1) . '%' : 'No grades yet' }}</strong>
+                    </div>
+                    <div class="breakdown-row">
+                        <span class="text-muted"><i class="fa-solid fa-calendar-check text-secondary me-1"></i> Attendance:</span>
+                        <strong class="text-dark-blue">{{ $currentAttendance > 0 ? number_format($currentAttendance, 1) . '%' : 'No logs yet' }}</strong>
+                    </div>
+                    <div class="breakdown-row border-0 pb-0">
+                        <span class="text-muted"><i class="fa-solid fa-graduation-cap text-secondary me-1"></i> Major Exam:</span>
+                        <strong class="text-dark-blue">{{ $majorExam > 0 ? number_format($majorExam, 1) . '%' : 'Not yet taken' }}</strong>
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <label class="d-block text-dark-blue font-xs fw-bold mb-1">Attendance & Recitation:</label>
-                    <div class="d-flex align-items-center gap-2">
-                        <input type="range" class="prediction-slider flex-grow-1" id="attendance_slider" min="50" max="100" value="{{ $currentAttendance > 0 ? round($currentAttendance) : 90 }}" oninput="syncInputs('attendance', this.value)">
-                        <input type="number" class="form-control form-control-sm text-center font-xs fw-bold slider-number-input" id="attendance_number" min="50" max="100" value="{{ $currentAttendance > 0 ? round($currentAttendance) : 90 }}" oninput="syncInputs('attendance', this.value)">
-                        <span class="font-xs fw-bold text-muted">%</span>
-                    </div>
-                </div>
+                <hr class="sidebar-divider">
 
-                <div class="mb-4">
-                    <label class="d-block text-dark-blue font-xs fw-bold mb-1">Target Major Exam Score:</label>
-                    <div class="d-flex align-items-center gap-2">
-                        <input type="range" class="prediction-slider flex-grow-1 slider-gold-accent" id="exam_slider" min="50" max="100" value="85" oninput="syncInputs('exam', this.value)">
-                        <input type="number" class="form-control form-control-sm text-center font-xs fw-bold slider-number-input" id="exam_number" min="50" max="100" value="85" oninput="syncInputs('exam', this.value)">
-                        <span class="font-xs fw-bold text-muted">%</span>
-                    </div>
-                </div>
-
+                <!-- Centered & Styled Computed Grade Box -->
                 <div class="au-prediction-display-box text-center p-3 rounded-10 bg-light-gray">
-                    <span class="font-xxs text-uppercase fw-bold text-muted tracking-wider">Your Predicted Point Grade</span>
+                    <span class="font-xxs text-uppercase fw-bold text-muted tracking-wider d-block mb-1">Current Computed Grade</span>
                     
-                    <div class="predicted-grade-number my-2" id="display_point_grade">--</div>
+                    <div class="predicted-grade-number my-1">
+                        @php
+                            $percentage = $currentCalculatedGrade;
+                            $pointGrade = "5.00";
+                            $desc = "No grades computed yet";
+                            $badgeClass = "badge-failed";
+                            $statusText = "NO RECORDS YET";
+
+                            if ($percentage >= 97) {
+                                $pointGrade = "1.00"; $desc = "Excellent"; $badgeClass = "badge-excellent"; $statusText = "PASSED (GOOD STANDING)";
+                            } elseif ($percentage >= 94) {
+                                $pointGrade = "1.25"; $desc = "Superior"; $badgeClass = "badge-excellent"; $statusText = "PASSED (GOOD STANDING)";
+                            } elseif ($percentage >= 91) {
+                                $pointGrade = "1.50"; $desc = "Very Good"; $badgeClass = "badge-passed"; $statusText = "PASSED (GOOD STANDING)";
+                            } elseif ($percentage >= 88) {
+                                $pointGrade = "1.75"; $desc = "Above Average"; $badgeClass = "badge-passed"; $statusText = "PASSED (GOOD STANDING)";
+                            } elseif ($percentage >= 85) {
+                                $pointGrade = "2.00"; $desc = "Good"; $badgeClass = "badge-passed"; $statusText = "PASSED (GOOD STANDING)";
+                            } elseif ($percentage >= 82) {
+                                $pointGrade = "2.25"; $desc = "Satisfactory"; $badgeClass = "badge-passed"; $statusText = "PASSED (GOOD STANDING)";
+                            } elseif ($percentage >= 79) {
+                                $pointGrade = "2.50"; $desc = "Fairly Satisfactory"; $badgeClass = "badge-passed"; $statusText = "PASSED (GOOD STANDING)";
+                            } elseif ($percentage >= 76) {
+                                $pointGrade = "2.75"; $desc = "Fair / Passing"; $badgeClass = "badge-passed"; $statusText = "PASSED (GOOD STANDING)";
+                            } elseif ($percentage >= 75) {
+                                $pointGrade = "3.00"; $desc = "Passing"; $badgeClass = "badge-passed"; $statusText = "PASSED (GOOD STANDING)";
+                            } elseif ($percentage > 0) {
+                                $pointGrade = "5.00"; $desc = "Failure"; $badgeClass = "badge-failed"; $statusText = "AT RISK (FAILED)";
+                            } else {
+                                $pointGrade = "--";
+                            }
+                        @endphp
+
+                        {{ $pointGrade }}
+                    </div>
                     
                     <div class="mb-2">
-                        <span class="badge" id="display_status_badge">Calculating</span>
+                        <span class="badge {{ $badgeClass }} px-2 py-1">{{ $statusText }}</span>
                     </div>
                     
-                    <p class="font-xs text-muted m-0" id="display_description">Adjust sliders to calculate grade status.</p>
+                    <p class="font-xs text-muted m-0">
+                        @if($percentage > 0)
+                            Equivalent to <strong>{{ number_format($percentage, 1) }}%</strong> ({{ $desc }})
+                        @else
+                            This will be updated once you have grades recorded for this class. Please check back later.
+                        @endif
+                    </p>
                 </div>
             </div>
 
@@ -244,133 +283,71 @@
     </div>
 </div>
 
-<script>
-function syncInputs(type, val) {
-    // I-sanitize ang lumampas sa limits (50 to 100)
-    let sanitizedVal = parseInt(val) || 50;
-    if (sanitizedVal > 100) sanitizedVal = 100;
-    if (sanitizedVal < 50) sanitizedVal = 50;
-
-    // I-synchronize ang parehong Slider at Number Box
-    document.getElementById(`${type}_slider`).value = sanitizedVal;
-    document.getElementById(`${type}_number`).value = sanitizedVal;
-
-    // Patakbuhin ang real-time prediction base sa Arellano criteria
-    calculateAUPrediction();
-}
-
-function calculateAUPrediction() {
-    // 1. Kunin ang mga value mula sa active sliders/inputs
-    const standing = parseFloat(document.getElementById('standing_slider').value) || 0;
-    const attendance = parseFloat(document.getElementById('attendance_slider').value) || 0;
-    const exam = parseFloat(document.getElementById('exam_slider').value) || 0;
-
-    // 2. I-compute ang weighted elements (60% Written/Standing, 40% Performance/Attendance)
-    // Ang Exam at Quizzes/Tasks ay naghahati sa 60% Written component
-    const writtenAverage = (exam + standing) / 2;
-    const writtenContribution = writtenAverage * 0.60;
-
-    // Ang attendance at class participation ay naghahati sa 40% Performance component
-    const performanceContribution = attendance * 0.40;
-
-    const finalPercentage = writtenContribution + performanceContribution;
-
-    // 3. Arellano University point grade matching algorithm
-    let pointGrade = "5.00";
-    let desc = "Failure";
-    let badgeClass = "badge-failed";
-
-    if (finalPercentage >= 97) {
-        pointGrade = "1.00"; desc = "Excellent"; badgeClass = "badge-excellent";
-    } else if (finalPercentage >= 94) {
-        pointGrade = "1.25"; desc = "Superior"; badgeClass = "badge-excellent";
-    } else if (finalPercentage >= 91) {
-        pointGrade = "1.50"; desc = "Very Good"; badgeClass = "badge-passed";
-    } else if (finalPercentage >= 88) {
-        pointGrade = "1.75"; desc = "Above Average"; badgeClass = "badge-passed";
-    } else if (finalPercentage >= 85) {
-        pointGrade = "2.00"; desc = "Good"; badgeClass = "badge-passed";
-    } else if (finalPercentage >= 82) {
-        pointGrade = "2.25"; desc = "Satisfactory"; badgeClass = "badge-passed";
-    } else if (finalPercentage >= 79) {
-        pointGrade = "2.50"; desc = "Fairly Satisfactory"; badgeClass = "badge-passed";
-    } else if (finalPercentage >= 76) {
-        pointGrade = "2.75"; desc = "Fair / Passing"; badgeClass = "badge-passed";
-    } else if (finalPercentage >= 75) {
-        pointGrade = "3.00"; desc = "Passing"; badgeClass = "badge-passed";
-    }
-
-    // 4. I-update ang front-end elements
-    const displayGrade = document.getElementById('display_point_grade');
-    const displayBadge = document.getElementById('display_status_badge');
-    const displayDesc = document.getElementById('display_description');
-
-    displayGrade.innerText = pointGrade;
-    displayDesc.innerText = `Equivalent to ${finalPercentage.toFixed(1)}% (${desc})`;
-
-    // Palitan ang badge text at class style
-    displayBadge.className = `badge ${badgeClass}`;
-    if (pointGrade === "5.00") {
-        displayBadge.innerText = "❌ AT RISK (FAILED)";
-    } else {
-        displayBadge.innerText = "🟢 PASSED (GOOD STANDING)";
-    }
-}
-
-// Patakbuhin ang kalkulasyon sa unang load ng website
-document.addEventListener("DOMContentLoaded", calculateAUPrediction);
-</script>
-
 <style>
     [x-cloak] { display: none !important; }
 
-    /* ARELLANO BLUE/GOLD PORTAL STYLING */
     .border-au-blue { border-top: 5px solid #1e2a5a !important; }
-    .text-teal { color: #1e2a5a !important; }
-    .bg-light-gray { background-color: #f8fafc; border: 1px solid #e2e8f0; }
     .font-xs { font-size: 12px; }
     .font-xxs { font-size: 10px; letter-spacing: 0.5px; }
-    .slider-number-input { width: 55px; border-radius: 6px; border: 1px solid #cbd5e1; height: 28px; padding: 2px 4px; }
-    .slider-number-input:focus { border-color: #1e2a5a; box-shadow: 0 0 0 1px #1e2a5a; }
+    .text-dark-blue { color: #1e2a5a; }
 
-    /* Range Sliders */
-    .prediction-slider {
-        -webkit-appearance: none;
-        width: 100%;
-        height: 5px;
-        border-radius: 5px;
-        background: #cbd5e1;
-        outline: none;
+    .performance-breakdown-modern {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 10px 12px;
     }
-    .prediction-slider::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: #0d6efd; /* AU Blue Accent */
-        cursor: pointer;
-        transition: transform 0.1s;
+    
+    .breakdown-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        padding: 6px 0;
+        border-bottom: 1px dashed #e2e8f0;
     }
-    .prediction-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
-    .slider-gold-accent::-webkit-slider-thumb { background: #eab308 !important; } /* Goal/Exam gold accent */
 
-    /* Results Dashboard Box inside Sidebar */
     .au-prediction-display-box {
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+        background-color: #ffffff;
+        border: 1px solid #cbd5e1;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        border-radius: 12px;
+        padding: 18px !important;
+        text-align: center !important;
     }
+    
     .predicted-grade-number {
-        font-size: 32px;
-        font-weight: 850;
+        font-size: 38px;
+        font-weight: 900;
         color: #1e2a5a;
-        line-height: 1;
+        line-height: 1.1;
+        letter-spacing: -1px;
     }
 
-    /* Passing and At-Risk Badges */
-    .badge-excellent { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; padding: 4px 8px; font-size: 10px; }
-    .badge-passed { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 4px 8px; font-size: 10px; }
-    .badge-failed { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 4px 8px; font-size: 10px; }
+    .badge-excellent { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; font-size: 10px; font-weight: 700; }
+    .badge-passed { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-size: 10px; font-weight: 700; }
+    .badge-failed { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; font-size: 10px; font-weight: 700; }
 
+    .sidebar-navigation-card { 
+        background: white; 
+        border-radius: 12px; 
+        padding: 18px; 
+        border: 1px solid #e2e8f0; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    
+    .panel-title-label { 
+        font-size: 11px; 
+        font-weight: 800; 
+        color: #475569; 
+        letter-spacing: 0.5px; 
+    }
+    
+    .sidebar-divider { 
+        margin: 16px 0; 
+        border-color: #e2e8f0; 
+    }
+        
     .page-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     .text-dark-blue { color: #1e2a5a; }
     .btn-back-link { text-decoration: none; color: #475569; font-weight: 600; font-size: 13.5px; transition: 0.2s; }
@@ -391,12 +368,9 @@ document.addEventListener("DOMContentLoaded", calculateAUPrediction);
     .bullet-sep { color: #94a3b8; }
     .section-badge { color: #1e2a5a; }
     .sidebar-subject-title { font-size: 16px; font-weight: 800; color: #1e293b; margin: 4px 0; }
-    .sidebar-divider { margin: 14px 0; border-color: #e2e8f0; }
     .sidebar-meta-list { display: flex; flex-direction: column; gap: 12px; }
     .meta-item { display: flex; gap: 10px; font-size: 13px; color: #475569; }
 
-    .sidebar-navigation-card { background: white; border-radius: 12px; padding: 16px; border: 1px solid #e2e8f0; }
-    .panel-title-label { font-size: 10.5px; font-weight: 800; color: #94a3b8; letter-spacing: 0.5px; padding-left: 8px; margin-bottom: 8px; }
     .nav-tab-btn { width: 100%; display: flex; align-items: center; gap: 10px; background: transparent; border: none; text-align: left; padding: 10px 14px; border-radius: 8px; font-size: 13.5px; font-weight: 600; color: #475569; margin-bottom: 4px; transition: 0.2s; cursor: pointer; }
     .nav-tab-btn:hover { background: #f8fafc; color: #1e2a5a; }
     .active-tab { background: #1e2a5a !important; color: white !important; }
