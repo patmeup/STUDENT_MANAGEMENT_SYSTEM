@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Models\Students;
+use App\Support\TermHelper;
 
 class ProfessorController extends Controller
 {
@@ -105,7 +106,6 @@ class ProfessorController extends Controller
 
     public function viewClassDashboard($schedule_id)
     {
-
         if (session('user_role') !== 'professor') {
             return redirect()->route('login')->with('error', 'Unauthorized access.');
         }
@@ -149,6 +149,7 @@ class ProfessorController extends Controller
             ->orderBy('students.last_name', 'asc')
             ->get();
             
+        // ➔ DAPAT GANITO: Kunin ang LAHAT ng tasks ng schedule na ito nang walang term filter
         $tasks = DB::table('student_tasks')
             ->where('class_schedule_id', $schedule_id)
             ->orderBy('due_date', 'asc')
@@ -495,6 +496,88 @@ class ProfessorController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Grade and feedback updated successfully!');
+    }
+
+public function viewStudentBreakdown($schedule_id, $student_id, Request $request)
+{
+    if (session('user_role') !== 'professor') {
+        return redirect()->route('login')->with('error', 'Unauthorized access.');
+    }
+
+    $professorId = session('user_id');
+    $selectedTerm = $request->query('term'); // prelim, midterm, semifinal, final
+
+    $classDetails = DB::table('class_schedules')
+        ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+        ->where('class_schedules.id', $schedule_id)
+        ->where('subjects.professor_id', $professorId)
+        ->select(
+            'class_schedules.id as id', 
+            'class_schedules.id as schedule_id',
+            'class_schedules.section_name',
+            'class_schedules.class_days',
+            'class_schedules.start_time',
+            'class_schedules.end_time',
+            'class_schedules.room_assignment',
+            'subjects.subject_code',
+            'subjects.subject_title'
+        )
+        ->first();
+
+    if (!$classDetails) {
+        return redirect()->route('professor.manage-classes')->with('error', 'Class section not found or unauthorized.');
+    }
+
+    $student = DB::table('students')
+        ->where('student_id', $student_id)
+        ->first();
+
+    if (!$student) {
+        return redirect()->back()->with('error', 'Student not found.');
+    }
+
+    $query = DB::table('student_tasks')
+        ->where('class_schedule_id', $schedule_id)
+        ->leftJoin('task_submissions', function($join) use ($student_id) {
+            $join->on('student_tasks.id', '=', 'task_submissions.task_id')
+                ->where('task_submissions.student_id', '=', $student_id);
+        })
+        ->select(
+            'student_tasks.*',
+            'task_submissions.grade',
+            'task_submissions.feedback',
+            'task_submissions.submitted_at',
+            'task_submissions.id as submission_id'
+        );
+
+    // Kung may piniling specific term, i-filter natin dito
+    if ($selectedTerm) {
+        $query->where('student_tasks.term', $selectedTerm);
+    }
+
+    $tasksWithGrades = $query->orderBy('student_tasks.due_date', 'asc')
+        ->get()
+        ->groupBy('term');
+
+    $attendances = DB::table('attendances')
+        ->where('class_schedule_id', $schedule_id)
+        ->where('student_id', $student_id)
+        ->orderBy('attendance_date', 'desc')
+        ->get();
+
+    $term = $selectedTerm;
+
+    return view('professor.grades_breakdown', compact('classDetails', 'student', 'tasksWithGrades', 'attendances', 'term'));
+}
+
+    public function viewBreakdown($student_id, $class_id, $term) {
+        $tasksWithGrades = [
+            $term => Task::where('class_id', $class_id)
+                        ->where('term', $term)
+                        ->get()
+        ];
+        
+        return view('professor.grades_breakdown', compact('student_id', 'classDetails', 'tasksWithGrades', 'term', 'attendances'));
     }
 
     public function profileView()

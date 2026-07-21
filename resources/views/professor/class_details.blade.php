@@ -71,7 +71,7 @@
             });
         },
         bulkMark(status) {
-            if (this.isPastDate() || this.hasSaved) return; // Lock check
+            if (this.isPastDate() || this.hasSaved) return;
             Object.keys(this.attendanceState).forEach(key => {
                 this.attendanceState[key] = status;
             });
@@ -130,7 +130,7 @@
             }
 
             this.loadingAttendance = true;
-            const formData = new FormData(e.target); // Kunin ang data mula sa form
+            const formData = new FormData(e.target);
 
             fetch(`/professor/class/{{ $classDetails->schedule_id }}/attendance/save`, {
                 method: 'POST',
@@ -160,7 +160,6 @@
         },
 
         initAttendance() {
-
             this.attendanceState = {};
             this.remarksState = {};
 
@@ -181,22 +180,7 @@
         }
     }"
 
-        x-init="initAttendance()"
-
-                @if(isset($attendanceRecords) && $attendanceRecords->isNotEmpty())
-                    @foreach($attendanceRecords as $rec)
-                        this.attendanceState['{{ $rec->student_id }}'] = '{{ $rec->status }}';
-                        this.remarksState['{{ $rec->student_id }}'] = '{{ $rec->remarks }}';
-                    @endforeach
-                @else
-                    @foreach($students as $student)
-                        this.attendanceState['{{ $student->student_id }}'] = 'Present';
-                        this.remarksState['{{ $student->student_id }}'] = '';
-                    @endforeach
-                @endif
-                
-                loadAttendanceData();
-            ">
+    x-init="initAttendance()">
         
     <div class="page-header-row">
         <a href="{{ route('professor.manage-classes') }}" class="btn-back-link">
@@ -216,6 +200,7 @@
 
     <div class="dashboard-grid-wrapper">
         
+        <!-- SIDEBAR -->
         <div class="unified-sidebar">
             <div class="sidebar-subject-card">
                 <div class="subject-tag-line mb-2">
@@ -260,8 +245,10 @@
             </div>
         </div>
 
+        <!-- MAIN WORKSPACE -->
         <div class="unified-workspace">
             
+            <!-- Student Masterlist Tab -->
             <div x-show="currentTab === 'masterlist'" x-transition>
                 <div class="workspace-card">
                     <div class="card-workspace-header d-flex justify-content-between align-items-center mb-3">
@@ -301,12 +288,11 @@
                 </div>
             </div>
 
+            <!-- Class Attendance Tab -->
             <div x-show="currentTab === 'attendance'" x-transition style="display: none;">
                 <div class="workspace-card">
                     <form @submit.prevent="saveAttendanceForm($event)">
                         @csrf
-
-                        <!-- Header Section -->
                         <div class="attendance-control-panel-wrapper mb-4">
                             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                                 <div>
@@ -352,9 +338,7 @@
                         @if($students->isEmpty())
                             <div class="p-5 text-center text-muted">Cannot encode attendance. No students enrolled.</div>
                         @else
-                            <!-- Main Container -->
                             <div class="table-responsive position-relative rounded-3 border">
-                                <!-- Loading Overlay -->
                                 <div x-show="loadingAttendance" class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white bg-opacity-75" style="z-index: 10; display: none;">
                                     <div class="text-center text-primary">
                                         <i class="fa-solid fa-spinner fa-spin fa-2x mb-2"></i>
@@ -362,10 +346,8 @@
                                     </div>
                                 </div>
 
-                                <div x-show="!loadingAttendance && !hasSaved && isPastDate()" class="empty-attendance-container">
-                                    <div class="empty-attendance-icon">
-                                        <i class="fa-solid fa-calendar-xmark"></i>
-                                    </div>
+                                <div x-show="!loadingAttendance && !hasSaved && isPastDate()" class="empty-attendance-container" style="display: none;">
+                                    <div class="empty-attendance-icon"><i class="fa-solid fa-calendar-xmark"></i></div>
                                     <h5 class="fw-bold text-dark-slate">No attendance for that day</h5>
                                     <p class="small">No records were found for the selected date.</p>
                                 </div>
@@ -389,9 +371,7 @@
                                                 <td class="text-uppercase fw-bold text-dark-slate">{{ $student->last_name }}, {{ $student->first_name }}</td>
                                                 
                                                 <td class="text-center align-middle">
-                                                    <input type="hidden" 
-                                                        :name="'attendance[' + '{{ $student->student_id }}' + ']'" 
-                                                        :value="attendanceState['{{ $student->student_id }}']">
+                                                    <input type="hidden" :name="'attendance[' + '{{ $student->student_id }}' + ']'" :value="attendanceState['{{ $student->student_id }}']">
 
                                                     <template x-if="hasSaved">
                                                         <span class="badge" 
@@ -407,24 +387,9 @@
 
                                                     <template x-if="!hasSaved">
                                                         <div class="btn-group-toggle">
-                                                            <button type="button" 
-                                                                class="attendance-toggle-btn"
-                                                                :class="attendanceState['{{ $student->student_id }}'] === 'Present' ? 'active-present' : ''"
-                                                                @click="attendanceState['{{ $student->student_id }}'] = 'Present'">
-                                                                Present
-                                                            </button>
-                                                            <button type="button" 
-                                                                class="attendance-toggle-btn"
-                                                                :class="attendanceState['{{ $student->student_id }}'] === 'Late' ? 'active-late' : ''"
-                                                                @click="attendanceState['{{ $student->student_id }}'] = 'Late'">
-                                                                Late
-                                                            </button>
-                                                            <button type="button" 
-                                                                class="attendance-toggle-btn"
-                                                                :class="attendanceState['{{ $student->student_id }}'] === 'Absent' ? 'active-absent' : ''"
-                                                                @click="attendanceState['{{ $student->student_id }}'] = 'Absent'">
-                                                                Absent
-                                                            </button>
+                                                            <button type="button" class="attendance-toggle-btn" :class="attendanceState['{{ $student->student_id }}'] === 'Present' ? 'active-present' : ''" @click="attendanceState['{{ $student->student_id }}'] = 'Present'">Present</button>
+                                                            <button type="button" class="attendance-toggle-btn" :class="attendanceState['{{ $student->student_id }}'] === 'Late' ? 'active-late' : ''" @click="attendanceState['{{ $student->student_id }}'] = 'Late'">Late</button>
+                                                            <button type="button" class="attendance-toggle-btn" :class="attendanceState['{{ $student->student_id }}'] === 'Absent' ? 'active-absent' : ''" @click="attendanceState['{{ $student->student_id }}'] = 'Absent'">Absent</button>
                                                         </div>
                                                     </template>
                                                 </td>
@@ -434,11 +399,7 @@
                                                         <span class="text-muted small" x-text="remarksState['{{ $student->student_id }}'] && remarksState['{{ $student->student_id }}'].trim() !== '' ? remarksState['{{ $student->student_id }}'] : '—'"></span>
                                                     </template>
                                                     <template x-if="!hasSaved">
-                                                        <input type="text" 
-                                                            :name="'remarks[' + '{{ $student->student_id }}' + ']'" 
-                                                            x-model="remarksState['{{ $student->student_id }}']" 
-                                                            placeholder="Add remarks..." 
-                                                            class="form-control attendance-remarks-field">
+                                                        <input type="text" :name="'remarks[' + '{{ $student->student_id }}' + ']'" x-model="remarksState['{{ $student->student_id }}']" placeholder="Add remarks..." class="form-control attendance-remarks-field">
                                                     </template>
                                                 </td>
                                             </tr>
@@ -448,7 +409,6 @@
                                 </div>
                             </div>
 
-                            <!-- Footer Buttons -->
                             <template x-if="!hasSaved && !isPastDate()">
                                 <div class="d-flex justify-content-end align-items-center mt-4 pt-3 border-top gap-3">
                                     <button type="button" @click="resetGridValues()" class="btn-cancel-portal px-4 py-2">
@@ -464,62 +424,157 @@
                 </div>
             </div>
 
+            <!-- Term Tabs (Prelim, Midterm, Semi-Final, Final) with Deliverables & Grade Encoding Matrix -->
             @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key => $termLabel)
-                @php $termTasks = $tasks->where('term', $key); @endphp
-                <div x-show="currentTab === '{{ $key }}'" x-transition style="display: none;">
+                @php 
+                    $termTasks = $tasks->where('term', $key); 
+                @endphp
+                <div x-show="currentTab === '{{ $key }}'" x-transition style="display: none;" 
+                     x-data="{ termSubTab: 'deliverables' }">
                     <div class="workspace-card">
                         
-                        <div class="card-workspace-header d-flex justify-content-between align-items-center mb-4">
+                        <!-- Panel Header with Sub-Tabs Toggle -->
+                        <div class="card-workspace-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
                             <div>
                                 <h4 class="m-0 fw-bold text-dark-blue">{{ $termLabel }} Term Panel</h4>
-                                <p class="small text-muted m-0">Manage activities, assignments, and quizzes for this term allocation</p>
+                                <p class="small text-muted m-0">Manage activities, deliverables, and official grade entries for this term.</p>
                             </div>
-                            <div class="action-form-buttons">
-                                <button type="button" class="btn-add-activity" @click="openCreateModal('{{ $key }}')">
-                                    <i class="fa-solid fa-plus"></i> Create New Activity / Assignment
-                                </button>
+                            
+                            <!-- Sub-Tab Switcher & Actions -->
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <div class="btn-group bg-light p-1 rounded-3 border" role="group">
+                                    <button type="button" class="btn btn-sm px-3 fw-bold" :class="termSubTab === 'deliverables' ? 'sub-tab-active' : 'text-muted'" @click="termSubTab = 'deliverables'">
+                                        <i class="fa-solid fa-folder-open me-1"></i> Deliverables
+                                    </button>
+                                    <button type="button" class="btn btn-sm px-3 fw-bold" :class="termSubTab === 'encoding' ? 'sub-tab-active' : 'text-muted'" @click="termSubTab = 'encoding'">
+                                        <i class="fa-solid fa-calculator me-1"></i> Grade Encoding
+                                    </button>
+                                </div>
+
+                                <template x-if="termSubTab === 'deliverables'">
+                                    <button type="button" class="btn-add-activity" @click="openCreateModal('{{ $key }}')">
+                                        <i class="fa-solid fa-plus"></i> Add Task
+                                    </button>
+                                </template>
+
+                                <template x-if="termSubTab === 'encoding'">
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn-sm-outline text-dark-blue fw-bold bg-white">
+                                            <i class="fa-solid fa-floppy-disk me-1"></i> Save Draft
+                                        </button>
+                                        <button type="button" class="btn-primary-portal py-1 px-3" style="font-size: 12px;">
+                                            <i class="fa-solid fa-paper-plane me-1"></i> Submit to Registrar
+                                        </button>
+                                    </div>
+                                </template>
                             </div>
                         </div>
 
-                        <div class="activity-list-container">
-                            @if($termTasks->isEmpty())
-                                <div class="empty-state-box">
-                                    <div class="empty-state-icon"><i class="fa-solid fa-folder-plus"></i></div>
-                                    <h5 class="empty-state-title">No {{ $termLabel }} Deliverables Configured Yet</h5>
-                                    <p class="empty-state-text">Click the button above to add standard quizzes, classworks, or assignments.</p>
-                                </div>
+                        <!-- Sub-Tab 1: Deliverables / Activities View -->
+                        <div x-show="termSubTab === 'deliverables'">
+                            <div class="activity-list-container">
+                                @if($termTasks->isEmpty())
+                                    <div class="empty-state-box">
+                                        <div class="empty-state-icon"><i class="fa-solid fa-folder-plus"></i></div>
+                                        <h5 class="empty-state-title">No {{ $termLabel }} Deliverables Configured Yet</h5>
+                                        <p class="empty-state-text">Click the button above to add standard quizzes, classworks, or assignments.</p>
+                                    </div>
+                                @else
+                                    <div class="table-responsive">
+                                        <table class="table custom-portal-table align-middle">
+                                            <thead>
+                                                <tr>
+                                                    <th>Activity Title</th>
+                                                    <th>Type</th>
+                                                    <th>Max Score</th>
+                                                    <th>Due Date</th>
+                                                    <th class="text-center">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($termTasks as $task)
+                                                    <tr>
+                                                        <td><strong class="text-dark-blue">{{ $task->activity_name }}</strong></td>
+                                                        <td><span class="badge bg-secondary text-uppercase">{{ $task->activity_type }}</span></td>
+                                                        <td>{{ $task->max_score }} pts</td>
+                                                        <td>{{ $task->due_date ?? 'No Deadline' }}</td>
+                                                        <td class="text-center">
+                                                            <div class="action-btn-group">
+                                                                <a href="{{ route('professor.task-submissions', $task->id) }}" class="btn-sm-outline btn-grade">
+                                                                    <i class="fa fa-star"></i> Grade
+                                                                </a>
+                                                                <button type="button" class="btn-sm-outline btn-edit"
+                                                                    @click="openEditModal({ id: {{ $task->id }}, term: '{{ $key }}', activity_name: @js($task->activity_name), activity_type: '{{ $task->activity_type }}', max_score: {{ $task->max_score }}, due_date: '{{ $task->due_date }}' })">
+                                                                    <i class="fa-solid fa-pen"></i>
+                                                                </button>
+                                                                <button type="button" class="btn-sm-outline btn-delete" @click="deleteTask({{ $task->id }}, '{{ $key }}')">
+                                                                    <i class="fa-solid fa-trash"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <!-- Sub-Tab 2: Grade Encoding Matrix View with Breakdown Link -->
+                        <div x-show="termSubTab === 'encoding'" style="display: none;" x-data="{ manualOverrides: {} }">
+                            @if($students->isEmpty())
+                                <div class="p-5 text-center text-muted">No students available for grade encoding.</div>
                             @else
                                 <div class="table-responsive">
                                     <table class="table custom-portal-table align-middle">
                                         <thead>
                                             <tr>
-                                                <th>Activity Title</th>
-                                                <th>Type</th>
-                                                <th>Max Score</th>
-                                                <th>Due Date</th>
-                                                <th class="text-center">Action</th>
+                                                <th style="width: 5%;">#</th>
+                                                <th style="width: 15%;">Student ID</th>
+                                                <th style="width: 25%;">Full Name</th>
+                                                <th style="width: 20%;" class="text-center">Class Standing (60%)</th>
+                                                <th style="width: 15%;" class="text-center">Major Exam (40%)</th>
+                                                <th style="width: 10%;" class="text-center">Equivalent</th>
+                                                <th style="width: 10%;" class="text-center">Mode</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @foreach($termTasks as $task)
+                                            @foreach($students as $index => $student)
                                                 <tr>
-                                                    <td><strong class="text-dark-blue">{{ $task->activity_name }}</strong></td>
-                                                    <td><span class="badge bg-secondary text-uppercase">{{ $task->activity_type }}</span></td>
-                                                    <td>{{ $task->max_score }} pts</td>
-                                                    <td>{{ $task->due_date ?? 'No Deadline' }}</td>
+                                                    <td><strong>{{ $index + 1 }}</strong></td>
+                                                    <td class="fw-semibold text-secondary">{{ $student->student_id }}</td>
+                                                    <td class="text-uppercase fw-bold text-dark-slate">{{ $student->last_name }}, {{ $student->first_name }}</td>
+                                                    
+                                                    <!-- Class Standing with Breakdown Link -->
                                                     <td class="text-center">
-                                                        <div class="action-btn-group">
-                                                            <a href="{{ route('professor.task-submissions', $task->id) }}" class="btn-sm-outline btn-grade">
-                                                                <i class="fa fa-star"></i> Grade
+                                                        <div class="d-flex flex-column align-items-center gap-1">
+                                                            <input type="number" step="0.01" class="form-control form-control-sm text-center mx-auto fw-bold text-dark-blue" style="max-width: 110px;" placeholder="Auto (0-100)" :readonly="!manualOverrides['{{ $student->student_id }}']">
+                                                            <a href="{{ route('professor.grades.breakdown', ['schedule_id' => $classDetails->schedule_id, 'student_id' => $student->student_id, 'term' => $key]) }}" class="breakdown-link" title="View individual activity scores and attendance breakdown">
+                                                                <i class="fa-solid fa-eye me-1"></i> View Breakdown
                                                             </a>
-                                                            <button type="button" class="btn-sm-outline btn-edit"
-                                                                @click="openEditModal({ id: {{ $task->id }}, term: '{{ $key }}', activity_name: @js($task->activity_name), activity_type: '{{ $task->activity_type }}', max_score: {{ $task->max_score }}, due_date: '{{ $task->due_date }}' })">
-                                                                <i class="fa-solid fa-pen"></i>
-                                                            </button>
-                                                            <button type="button" class="btn-sm-outline btn-delete" @click="deleteTask({{ $task->id }}, '{{ $key }}')">
-                                                                <i class="fa-solid fa-trash"></i>
-                                                            </button>
                                                         </div>
+                                                    </td>
+
+                                                    <!-- Major Exam -->
+                                                    <td class="text-center">
+                                                        <input type="number" step="0.01" class="form-control form-control-sm text-center mx-auto" style="max-width: 100px;" placeholder="0-100">
+                                                    </td>
+
+                                                    <!-- Equivalent Grade -->
+                                                    <td class="text-center">
+                                                        <input type="text" class="form-control form-control-sm text-center mx-auto fw-bold text-success" style="max-width: 75px;" placeholder="1.00">
+                                                    </td>
+
+                                                    <!-- Toggle Manual Override Button -->
+                                                    <td class="text-center">
+                                                        <button type="button" 
+                                                            class="btn btn-xs override-toggle-btn" 
+                                                            :class="manualOverrides['{{ $student->student_id }}'] ? 'btn-warning text-dark fw-bold' : 'btn-light text-muted border'"
+                                                            @click="manualOverrides['{{ $student->student_id }}'] = !manualOverrides['{{ $student->student_id }}']"
+                                                            :title="manualOverrides['{{ $student->student_id }}'] ? 'Manual Override Active' : 'Click to Enable Manual Override'">
+                                                            <i class="fa-solid" :class="manualOverrides['{{ $student->student_id }}'] ? 'fa-lock-open' : 'fa-lock'"></i>
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             @endforeach
@@ -536,6 +591,7 @@
         </div>
     </div>
 
+    <!-- Modal Form for Tasks -->
     <div class="custom-modal-backdrop" x-show="showModal" style="display: none;" x-transition
         x-data="{ dragOver: false, selectedFile: null, fileName: '', fileSize: '' }">
         <div class="custom-modal-card" @click.away="showModal = false">
@@ -636,11 +692,10 @@
                             <i class="fa-solid fa-cloud-arrow-up"></i>
                             <p class="dz-title">Drag & drop file here</p>
                             <p class="dz-subtitle">or click to browse — PDF, DOC, PPT, ZIP, JPG, PNG</p>
-                            <p class="text-xs text-gray-400 mt-1" style="font-size: 11px; opacity: 0.8;">Recommended size: Less than 25MB</p>
                         </div>
 
                         <div x-show="fileSizeError" x-cloak style="color: #dc3545; font-size: 13px; margin-top: 8px; font-weight: 600;">
-                            The file you selected is too large! Maximum allowed size is 25MB. Please compress it or choose a smaller file.
+                            The file you selected is too large! Maximum allowed size is 25MB.
                         </div>
 
                         <div class="dz-file-preview" x-show="selectedFile" x-cloak>
@@ -674,14 +729,8 @@
                     </div>
                 </div>
                 <div class="modal-card-footer">
-                    <button type="button" class="btn-cancel-portal" @click="showModal = false">
-                        Cancel
-                    </button>
-
-                    <button type="submit" 
-                            class="btn-primary-portal" 
-                            :disabled="fileSizeError || publishing"
-                            :style="(fileSizeError || publishing) ? 'opacity: 0.6; cursor: not-allowed;' : ''">
+                    <button type="button" class="btn-cancel-portal" @click="showModal = false">Cancel</button>
+                    <button type="submit" class="btn-primary-portal" :disabled="fileSizeError || publishing">
                         <span x-html="publishing ? '<i class=\'fa-solid fa-spinner fa-spin\' style=\'margin-right: 6px;\'></i> Publishing...' : (editingTaskId ? 'Save Changes' : 'Publish Task')"></span>
                     </button>
                 </div>
@@ -692,48 +741,16 @@
 
 <style>
     [x-cloak] { display: none !important; }
-
-    .page-header-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-    }
-
+    .page-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     .text-dark-blue { color: #1e2a5a; }
     .text-dark-slate { color: #334155; }
-    
-    .btn-back-link { 
-        text-decoration: none; 
-        color: #475569; 
-        font-weight: 600; 
-        font-size: 13.5px; 
-        transition: 0.2s; 
-    }
+    .btn-back-link { text-decoration: none; color: #475569; font-weight: 600; font-size: 13.5px; transition: 0.2s; }
     .btn-back-link:hover { color: #1e2a5a; }
-    
-    .badge-portal { 
-        background: #f1f5f9; 
-        color: #475569; 
-        font-weight: 700; 
-        font-size: 11px; 
-        padding: 6px 14px; 
-        border-radius: 30px; 
-        text-transform: uppercase; 
-        border: 1px solid #cbd5e1; 
-    }
-
+    .badge-portal { background: #f1f5f9; color: #475569; font-weight: 700; font-size: 11px; padding: 6px 14px; border-radius: 30px; text-transform: uppercase; border: 1px solid #cbd5e1; }
     .dashboard-grid-wrapper { display: flex; gap: 24px; align-items: stretch; width: 100%; }
     .unified-sidebar { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
     .unified-workspace { flex-grow: 1; min-width: 0; }
-
-    .sidebar-subject-card { 
-        background: white; 
-        border-radius: 12px; 
-        padding: 20px; 
-        border: 1px solid #e2e8f0; 
-        border-top: 5px solid #1e2a5a; 
-    }
+    .sidebar-subject-card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; border-top: 5px solid #1e2a5a; }
     .subject-tag-line { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; }
     .code-badge { color: #0284c7; }
     .bullet-sep { color: #94a3b8; }
@@ -742,445 +759,69 @@
     .sidebar-divider { margin: 14px 0; border-color: #e2e8f0; }
     .sidebar-meta-list { display: flex; flex-direction: column; gap: 12px; }
     .meta-item { display: flex; gap: 10px; font-size: 13px; color: #475569; }
-
     .sidebar-navigation-card { background: white; border-radius: 12px; padding: 16px; border: 1px solid #e2e8f0; }
     .panel-title-label { font-size: 10.5px; font-weight: 800; color: #94a3b8; letter-spacing: 0.5px; padding-left: 8px; margin-bottom: 8px; }
-    
-    .nav-tab-btn { 
-        width: 100%; 
-        display: flex; 
-        align-items: center; 
-        gap: 10px; 
-        background: transparent; 
-        border: none; 
-        text-align: left; 
-        padding: 10px 14px; 
-        border-radius: 8px; 
-        font-size: 13.5px; 
-        font-weight: 600; 
-        color: #475569; 
-        margin-bottom: 4px; 
-        transition: 0.2s; 
-        cursor: pointer; 
-    }
+    .nav-tab-btn { width: 100%; display: flex; align-items: center; gap: 10px; background: transparent; border: none; text-align: left; padding: 10px 14px; border-radius: 8px; font-size: 13.5px; font-weight: 600; color: #475569; margin-bottom: 4px; transition: 0.2s; cursor: pointer; }
     .nav-tab-btn:hover { background: #f8fafc; color: #1e2a5a; }
     .active-tab { background: #1e2a5a !important; color: white !important; }
     .active-tab i { color: #facc15 !important; }
-
-    /* ==========================================================================
-       WORKSPACE PANELS & TABLES
-       ========================================================================== */
-    .workspace-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; min-height: 520px; }
+    .workspace-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; min-height: 520px; box-shadow: 0 1px 3px rgba(0,0,0,0.01); }
     .students-count-badge { background: #eff6ff; color: #1e40af; font-size: 12.5px; font-weight: 700; padding: 6px 14px; border-radius: 30px; }
-
     .custom-portal-table { border: 1px solid #f1f5f9; width: 100%; }
-    .custom-portal-table th { 
-        background: #f8fafc; 
-        font-size: 12px; 
-        font-weight: 700; 
-        text-transform: uppercase; 
-        color: #64748b; 
-        padding: 14px 12px; 
-        border-bottom: 2px solid #e2e8f0; 
-    }
-    .custom-portal-table td { padding: 14px 12px; font-size: 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    .custom-portal-table th { background: #f8fafc; font-size: 11.5px; font-weight: 700; text-transform: uppercase; color: #64748b; padding: 14px 12px; border-bottom: 2px solid #e2e8f0; letter-spacing: 0.3px; }
+    .custom-portal-table td { padding: 12px; font-size: 13.5px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
     .badge-enrolled-status { background: #dcfce7; color: #15803d; font-size: 12px; padding: 4px 12px; font-weight: 700; border-radius: 20px; }
-
-    .btn-add-activity { 
-        background: #1e2a5a; 
-        border: none; 
-        color: white; 
-        font-size: 13px; 
-        font-weight: 600; 
-        padding: 8px 16px; 
-        border-radius: 6px; 
-        cursor: pointer; 
-        display: flex; 
-        align-items: center; 
-        gap: 6px; 
-    }
+    .sub-tab-active { background: #1e2a5a !important; color: white !important; }
+    .btn-add-activity { background: #1e2a5a; border: none; color: white; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
     .btn-add-activity:hover { background: #141d40; }
-
-    .empty-state-box { 
-        display: flex; 
-        flex-direction: column; 
-        align-items: center; 
-        justify-content: center; 
-        text-align: center; 
-        padding: 56px 24px; 
-        border: 2px dashed #e2e8f0; 
-        border-radius: 10px; 
-        background: #fafbfc; 
-    }
-    .empty-state-icon { 
-        width: 56px; 
-        height: 56px; 
-        border-radius: 50%; 
-        background: #eef1fb; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        margin-bottom: 16px; 
-    }
+    .empty-state-box { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 56px 24px; border: 2px dashed #e2e8f0; border-radius: 10px; background: #fafbfc; }
+    .empty-state-icon { width: 56px; height: 56px; border-radius: 50%; background: #eef1fb; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
     .empty-state-icon i { font-size: 20px; color: #1e2a5a; }
     .empty-state-title { font-weight: 700; color: #334155; font-size: 15px; margin: 0 0 6px; }
     .empty-state-text { font-size: 13px; color: #94a3b8; max-width: 340px; margin: 0; }
-
     .action-btn-group { display: flex; gap: 6px; justify-content: center; }
-    .btn-sm-outline {
-        background: white; border: 1px solid #cbd5e1; color: #475569;
-        font-size: 12px; font-weight: 600; padding: 6px 10px;
-        border-radius: 6px; cursor: pointer; transition: 0.15s;
-        display: inline-flex; align-items: center; gap: 4px;
-        text-decoration: none;
-    }
+    .btn-sm-outline { background: white; border: 1px solid #cbd5e1; color: #475569; font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: 0.15s; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
     .btn-grade:hover { border-color: #1e2a5a; color: #1e2a5a; background: #eef1fb; }
     .btn-edit:hover { border-color: #d97706; color: #d97706; background: #fffbeb; }
     .btn-delete:hover { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
-
-    .btn-group-toggle {
-        display: flex;
-        gap: 5px;
-        justify-content: center;
-    }
-
-    .attendance-toggle-btn {
-        padding: 6px 12px;
-        border: 1px solid #e2e8f0;
-        background: #ffffff;
-        color: #64748b;
-        font-size: 11px;
-        font-weight: 800;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        border-radius: 6px;
-        text-transform: uppercase;
-    }
-
-    .attendance-toggle-btn:hover { background: #f8fafc; }
-
+    .breakdown-link { font-size: 11px; color: #0284c7; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; transition: 0.15s; }
+    .breakdown-link:hover { color: #0369a1; text-decoration: underline; }
+    .override-toggle-btn { width: 30px; height: 30px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; transition: 0.2s; }
+    .btn-group-toggle { display: flex; gap: 5px; justify-content: center; }
+    .attendance-toggle-btn { padding: 6px 12px; border: 1px solid #e2e8f0; background: #ffffff; color: #64748b; font-size: 11px; font-weight: 800; cursor: pointer; transition: all 0.2s ease; border-radius: 6px; text-transform: uppercase; }
     .active-present { background: #15803d !important; color: white !important; border-color: #15803d !important; }
     .active-late { background: #b45309 !important; color: white !important; border-color: #b45309 !important; }
     .active-absent { background: #b91c1c !important; color: white !important; border-color: #b91c1c !important; }
-
-    .bulk-actions-wrapper {
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-        margin-top: 15px;
-    }
-
-    .attendance-control-panel-wrapper {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-    }
-
-    .control-panel-dividerMy {
-        border-top: 1px dashed #e2e8f0;
-        opacity: 1;
-    }
-
-    .attendance-quick-stats {
-        display: flex;
-        gap: 8px;
-    }
-
-    .stat-pill {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        color: #475569;
-        font-size: 13px;
-        font-weight: 600;
-        padding: 6px 14px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .stat-pill strong {
-        color: #1e2a5a;
-        font-weight: 700;
-    }
-
-    .modern-date-input-box {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        background: #f8fafc;
-        border: 1px solid #cbd5e1;
-        padding: 6px 14px;
-        border-radius: 8px;
-        transition: border-color 0.2s ease;
-    }
-
-    .modern-date-input-box:focus-within {
-        border-color: #1e2a5a;
-        box-shadow: 0 0 0 2px rgba(30, 42, 90, 0.05);
-    }
-
-    .modern-date-label {
-        font-size: 11px;
-        font-weight: 800;
-        color: #64748b;
-        letter-spacing: 0.5px;
-    }
-
-    .input-date-inner {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .modern-date-picker {
-        border: none;
-        background: transparent;
-        font-weight: 700;
-        color: #1e2a5a;
-        font-size: 13.5px;
-        outline: none;
-        cursor: pointer;
-        padding: 0;
-    }
-
-    .modern-bulk-action-group {
-        display: flex;
-        gap: 10px;
-    }
-
-    .btn-modern-bulk {
-        border: none;
-        outline: none;
-        font-size: 12px;
-        font-weight: 700;
-        padding: 8px 16px;
-        border-radius: 8px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        transition: all 0.2s ease;
-    }
-
-    .status-bulk-present {
-        background-color: #e6f7ed;
-        color: #1e7e34;
-        border: 1px solid #c3e6cb;
-    }
-
-    .status-bulk-present:hover:not(:disabled) {
-        background-color: #1e7e34;
-        color: #ffffff;
-        border-color: #1e7e34;
-        box-shadow: 0 4px 10px rgba(30, 126, 52, 0.15);
-    }
-
-    .status-bulk-absent {
-        background-color: #fde8e8;
-        color: #bd2130;
-        border: 1px solid #f5c6cb;
-    }
-
-    .status-bulk-absent:hover:not(:disabled) {
-        background-color: #bd2130;
-        color: #ffffff;
-        border-color: #bd2130;
-        box-shadow: 0 4px 10px rgba(189, 33, 48, 0.15);
-    }
-
-    .attendance-radio-group {
-        display: flex;
-        background: #f1f5f9;
-        padding: 4px;
-        border-radius: 8px;
-        border: 1px solid #cbd5e1;
-        justify-content: center;
-    }
-
-    .attendance-label-btn {
-        margin: 0;
-        padding: 0;
-        cursor: pointer;
-    }
-
-    .attendance-radio-input {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        opacity: 0;
-    }
-
-    .btn-state {
-        display: block;
-        text-align: center;
-        font-size: 11px;
-        font-weight: 800;
-        padding: 6px 14px;
-        border-radius: 6px;
-        color: #64748b;
-        transition: all 0.15s ease-in-out;
-        text-transform: uppercase;
-    }
-    .btn-disabled-gray {
-        background-color: #e2e8f0 !important; /* Light gray background */
-        border-color: #cbd5e1 !important;     /* Slate gray border */
-        color: #94a3b8 !important;            /* Muted text color */
-        cursor: not-allowed !important;       /* Palitang "not-allowed" ang mouse cursor */
-        pointer-events: none;                 /* I-block ang anumang mouse clicks o hover effects */
-        box-shadow: none !important;          /* Tanggalin ang mga anino o shadow */
-    }
-    
-    /* Siguraduhing hindi mag-iiba ang itsura ng icon sa loob ng disabled button */
-    .btn-disabled-gray i {
-        color: #94a3b8 !important;
-    }
-
-    .attendance-label-btn:hover .btn-state {
-        background: rgba(226, 232, 240, 0.9);
-        color: #334155;
-    }
-    
-    .attendance-radio-input:checked + .btn-present,
-    .attendance-radio-input:checked + .btn-present:hover {
-        background: #15803d !important;
-        color: white !important;
-        box-shadow: 0 2px 4px rgba(21, 128, 61, 0.25);
-    }
-
-    .attendance-radio-input:checked + .btn-late,
-    .attendance-radio-input:checked + .btn-late:hover {
-        background: #b45309 !important;
-        color: white !important;
-        box-shadow: 0 2px 4px rgba(180, 83, 9, 0.25);
-    }
-
-    .attendance-radio-input:checked + .btn-absent,
-    .attendance-radio-input:checked + .btn-absent:hover {
-        background: #b91c1c !important;
-        color: white !important;
-        box-shadow: 0 2px 4px rgba(185, 28, 28, 0.25);
-    }
-
-    .attendance-remarks-field {
-        font-size: 12.5px !important; 
-        padding: 6px 12px !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 6px !important;
-        background-color: white !important;
-        transition: all 0.15s ease;
-        width: 100%;
-        max-width: 200px;
-        margin: 0 auto;
-        display: block;
-    }
-    
-    .attendance-remarks-field:focus {
-        border-color: #1e2a5a !important;
-        box-shadow: 0 0 0 3px rgba(30,42,90,0.1) !important;
-        outline: none;
-    }
-
-    /* Past Date Read Only Visual Styling */
-    .bg-light-read-only {
-        background-color: #f8fafc !important;
-        opacity: 0.92;
-    }
-    .cursor-not-allowed {
-        cursor: not-allowed !important;
-    }
-
-    /* ==========================================================================
-       MODAL POPUPS & UPLOAD CONTROLS
-       ========================================================================== */
-    .custom-modal-backdrop { 
-        position: fixed; top:0; left:0; width:100%; height:100%; 
-        background: rgba(15, 23, 42, 0.6); display:flex; 
-        justify-content:center; align-items:center; z-index:9999; 
-        backdrop-filter: blur(2px); 
-    }
-    .custom-modal-card { 
-        background: white; width: 550px; border-radius: 12px; 
-        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); overflow: hidden; 
-        animation: slideUp 0.2s ease-out; 
-    }
+    .bulk-actions-wrapper { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+    .attendance-control-panel-wrapper { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+    .control-panel-dividerMy { border-top: 1px dashed #e2e8f0; opacity: 1; }
+    .modern-date-input-box { display: flex; align-items: center; gap: 10px; background: #f8fafc; border: 1px solid #cbd5e1; padding: 6px 14px; border-radius: 8px; transition: border-color 0.2s ease; }
+    .modern-date-label { font-size: 11px; font-weight: 800; color: #64748b; letter-spacing: 0.5px; }
+    .input-date-inner { display: flex; align-items: center; gap: 6px; }
+    .modern-date-picker { border: none; background: transparent; font-weight: 700; color: #1e2a5a; font-size: 13.5px; outline: none; cursor: pointer; padding: 0; }
+    .btn-modern-bulk { border: none; outline: none; font-size: 12px; font-weight: 700; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease; }
+    .status-bulk-present { background-color: #e6f7ed; color: #1e7e34; border: 1px solid #c3e6cb; }
+    .status-bulk-absent { background-color: #fde8e8; color: #bd2130; border: 1px solid #f5c6cb; }
+    .attendance-remarks-field { font-size: 12.5px !important; padding: 6px 12px !important; border: 1px solid #cbd5e1 !important; border-radius: 6px !important; background-color: white !important; width: 100%; max-width: 200px; margin: 0 auto; display: block; }
+    .custom-modal-backdrop { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(15, 23, 42, 0.6); display:flex; justify-content:center; align-items:center; z-index:9999; backdrop-filter: blur(2px); }
+    .custom-modal-card { background: white; width: 550px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); overflow: hidden; }
     .modal-card-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
     .modal-card-header h4 { margin:0; font-size: 16px; font-weight: 700; color: #1e293b; }
     .close-modal-btn { background: none; border:none; font-size: 24px; color: #94a3b8; cursor: pointer; }
     .modal-card-body { padding: 20px; }
     .modal-card-footer { padding: 14px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
-    
     .btn-primary-portal { background: #1e2a5a; color: white; border:none; padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.15s; }
-    .btn-primary-portal:hover:not(:disabled) { background: #141d40; }
-    .btn-cancel-portal { background: white; color: #475569; border: 1px solid #cbd5e1; padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.15s; }
-    .btn-cancel-portal:hover:not(:disabled) { background: #f8fafc; }
-
+    .btn-cancel-portal { background: white; color: #475569; border: 1px solid #cbd5e1; padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; }
     .modal-term-tag { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
-
     .field-group { margin-bottom: 16px; }
     .field-row { display: flex; gap: 16px; }
     .field-row .field-group { flex: 1; }
     .field-label { display: block; font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; }
     .field-optional { font-weight: 400; color: #94a3b8; }
-    .field-input {
-        width: 100%; box-sizing: border-box;
-        padding: 10px 12px; font-size: 14px; color: #1e293b;
-        border: 1px solid #cbd5e1; border-radius: 8px; background: #fff;
-        transition: 0.15s;
-    }
-    .field-input:focus { outline: none; border-color: #1e2a5a; box-shadow: 0 0 0 3px rgba(30,42,90,0.1); }
-    select.field-input { cursor: pointer; }
-
-    .visually-hidden-input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
-
-    .dropzone {
-        border: 2px dashed #cbd5e1;
-        background: #f8fafc;
-        border-radius: 10px;
-        padding: 28px 16px;
-        text-align: center;
-        cursor: pointer;
-        transition: 0.2s;
-    }
-    .dropzone:hover { border-color: #94a3b8; background: #f1f5f9; }
-    .dropzone-active { border-color: #1e2a5a; background: #eef1fb; }
-    .dropzone i { font-size: 26px; color: #94a3b8; margin-bottom: 8px; }
-    .dropzone-active i { color: #1e2a5a; }
-    .dz-title { font-size: 13.5px; font-weight: 700; color: #334155; margin: 0; }
-    .dz-subtitle { font-size: 12px; color: #94a3b8; margin: 4px 0 0; }
-
-    .dz-file-preview {
-        display: flex; align-items: center; gap: 12px;
-        border: 1px solid #e2e8f0; background: #f8fafc;
-        border-radius: 10px; padding: 12px 14px;
-    }
-    .dz-file-preview i { font-size: 20px; color: #15803d; }
-    .dz-file-info { display: flex; flex-direction: column; flex-grow: 1; min-width: 0; }
-    .dz-file-name { font-size: 13px; font-weight: 700; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .dz-file-size { font-size: 11.5px; color: #94a3b8; }
-    .dz-file-remove { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px; }
-    .dz-file-remove:hover { color: #dc2626; }
-
-    .empty-attendance-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 300px; /* Adjust base sa gusto mong taas */
-        text-align: center;
-        padding: 2rem;
-        color: #64748b; /* Grayish text */
-    }
-
-    .empty-attendance-icon {
-        font-size: 3rem;
-        color: #cbd5e1; /* Light gray color para sa icon */
-        margin-bottom: 1rem;
-    }
-
-    @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .field-input { width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: 14px; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
+    .dropzone { border: 2px dashed #cbd5e1; background: #f8fafc; border-radius: 10px; padding: 28px 16px; text-align: center; cursor: pointer; }
+    .dz-file-preview { display: flex; align-items: center; gap: 12px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 10px; padding: 12px 14px; }
+    .empty-attendance-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; text-align: center; padding: 2rem; color: #64748b; }
+    .empty-attendance-icon { font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem; }
 </style>
 @endsection
