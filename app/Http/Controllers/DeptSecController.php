@@ -187,7 +187,7 @@ class DeptSecController extends Controller
 
             // Dito natin haharangin nang may malinis na error message kung walang pinili kahit isa
             if (empty($filteredSchedules)) {
-                return redirect()->back()->withInput()->with('error', 'Maaari lamang pumili ng schedule/section sa kahit isang subject bago mag-save.');
+                return redirect()->back()->withInput()->with('error', 'Please select a schedule/section for at least one subject before saving.');
             }
 
             // I-clear ang lumang plotted classes para sa bagong enrollment matrix list
@@ -217,7 +217,7 @@ class DeptSecController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
-                            ->with('error', 'May naganap na error habang isinusumite ang data: ' . $e->getMessage());
+                            ->with('error', 'An error occurred while submitting the data: ' . $e->getMessage());
         }
     }
     

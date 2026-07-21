@@ -111,7 +111,7 @@
                 
                 <div class="table-search-box" style="position: relative; width: 100%;">
                     <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px;"></i>
-                    <input type="text" id="scheduleSearchInput" placeholder="Mag-hanap gamit ang Subject Code, Pamagat, Seksyon, o Silid-Aralan..." 
+                    <input type="text" id="scheduleSearchInput" placeholder="Search by Subject Code, Title, Section, or Classroom..." 
                            style="width: 100%; padding: 10px 10px 10px 40px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; outline: none; box-sizing: border-box;">
                 </div>
             </div>
@@ -176,7 +176,7 @@
                                                 Edit
                                             </button>
 
-                                            <form action="{{ route('department_secretary.schedules.delete', $sched->id) }}" method="POST" onsubmit="return confirm('Sigurado ka ba na nais mong burahin ang deployment schedule na ito? Permanenteng mawawala ang records nito.');" style="display: inline-block; margin: 0; padding: 0;">
+                                            <form action="{{ route('department_secretary.schedules.delete', $sched->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this deployment schedule? Its records will be permanently lost.');" style="display: inline-block; margin: 0; padding: 0;">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="btn-action-delete" title="Remove Deployment">

@@ -78,7 +78,7 @@ class SuperAdminController extends Controller
 {
     // 1. Siguraduhing super_admin lang ang may karapatang pumindot nito
     if (session('user_role') !== 'super_admin') {
-        return redirect()->back()->withErrors(['error' => 'Wala kang sapat na authorization para sa aksyong ito.']);
+        return redirect()->back()->withErrors(['error' => 'You do not have the required permissions for this action.']);
     }
 
     $employee = \App\Models\User::findOrFail($id);
@@ -86,17 +86,17 @@ class SuperAdminController extends Controller
     // 2. SECURITY GUARD: Bawal i-disable ang sarili o ang ibang kapwa Super Admin
     // I-match natin gamit ang email o primary id mula sa kasalukuyang session mo
     if ($employee->email === session('user_email') || $employee->role === 'super_admin') {
-        return redirect()->back()->with('error', 'Hindi mo maaaring i-disable ang isang Super Admin account para sa seguridad ng system.');
+        return redirect()->back()->with('error', 'For system security, you are not permitted to disable a Super Admin account.');
     }
 
     // 3. I-toggle ang status (Gawing kabaligtaran ng kasalukuyan)
     // Ginawa nating case-insensitive (.toLowerCase type approach) gamit ang ucfirst para malinis sa DB
     if (ucfirst($employee->status) === 'Active') {
         $employee->status = 'Disabled';
-        $message = "Ang account ni {$employee->first_name} {$employee->last_name} ay matagumpay na NAKALOCK.";
+        $message = "The account of {$employee->first_name} {$employee->last_name} has been successfully locked out of the system.";
     } else {
         $employee->status = 'Active';
-        $message = "Ang account ni {$employee->first_name} {$employee->last_name} ay muling BINUHAY.";
+        $message = "The account of {$employee->first_name} {$employee->last_name} has been successfully restored.";
     }
 
     $employee->save();
@@ -185,13 +185,13 @@ class SuperAdminController extends Controller
         $request->validate([
             'current_password' => ['required', function ($attribute, $value, $fail) use ($user) {
                 if (!Hash::check($value, $user->password) && $value !== $user->password) {
-                    $fail('Ang kasalukuyang password ay hindi tama.');
+                    $fail('The current password is incorrect.');
                 }
             }],
             'password' => ['required', 'string', 'min:' . $minCharacters, 'confirmed'],
         ], [
-            'password.min' => "Ang bagong password ay dapat may hindi bababa sa {$minCharacters} karakter.",
-            'password.confirmed' => 'Hindi nagtutugma ang Bagong Password at Kumpirmasyon.',
+            'password.min' => "The new password must be at least {$minCharacters} characters.",
+            'password.confirmed' => 'The new password and confirmation do not match.',
         ]);
 
         $user->password = Hash::make($request->password);
