@@ -7,8 +7,7 @@ use App\Models\User;
 use App\Models\Course;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-
-
+use Illuminate\Support\Facades\DB;
 
 class SuperAdminController extends Controller
 {
@@ -28,6 +27,28 @@ class SuperAdminController extends Controller
                          ->get();
 
         return view('super_admin.manage-employee', compact('employees'));
+    }
+
+    public function dashboard()
+    {
+        if (session('user_role') !== 'super_admin') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+
+        $totalStudents = DB::table('students')->count();
+        $totalEmployees = DB::table('employees')->count();
+        $totalCourses   = DB::table('courses')->count();
+        $totalSubjects  = DB::table('subjects')->count();
+
+        return view('super_admin.dashboard', compact(
+            'announcements', 
+            'totalStudents', 
+            'totalEmployees', 
+            'totalCourses', 
+            'totalSubjects'
+        ));
     }
 
     public function store(Request $request)
@@ -83,8 +104,6 @@ class SuperAdminController extends Controller
 
     $employee = \App\Models\User::findOrFail($id);
 
-    // 2. SECURITY GUARD: Bawal i-disable ang sarili o ang ibang kapwa Super Admin
-    // I-match natin gamit ang email o primary id mula sa kasalukuyang session mo
     if ($employee->email === session('user_email') || $employee->role === 'super_admin') {
         return redirect()->back()->with('error', 'Hindi mo maaaring i-disable ang isang Super Admin account para sa seguridad ng system.');
     }

@@ -93,6 +93,7 @@
                     <thead>
                         <tr>
                             <th>Block Section Name</th>
+                            <th>Enrolled Students</th>
                             <th>Academic Level</th>
                             <th style="text-align: center;">Actions & Bulk Enrollment Controls</th>
                         </tr>
@@ -111,6 +112,12 @@
                                 <td>
                                     <span class="year-tag" style="font-size: 14px; padding: 6px 12px; background: #e0f2fe; color: #0369a1; border-color: #bae6fd;">
                                         {{ strtoupper($sectionName) }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="enrolled-count-badge">
+                                        <i class="fas fa-users"></i> {{ $records->first()->enrolled_count }} Students
                                     </span>
                                 </td>
 
@@ -153,11 +160,11 @@
                                     </form>
                                 </td>
                             </tr>
-                        @empty
-                            <tr id="blockEmptyRow">
-                                <td colspan="3" style="text-align: center; padding: 40px; color: #64748b;">No active block sections mapped in schedule matrix for your courses.</td>
-                            </tr>
-                        @endforelse
+                            @empty
+                                <tr id="blockEmptyRow">
+                                    <td colspan="4" style="text-align: center; padding: 40px; color: #64748b;">No active block sections mapped in schedule matrix for your courses.</td>
+                                </tr>
+                            @endforelse
                     </tbody>
                 </table>
             </div>
@@ -309,6 +316,13 @@
     .card-header-flex { background-color: #f8fafc; padding: 16px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
     .card-title-list { font-size: 14.5px; font-weight: 700; margin: 0; color: #1e293b; }
     .badge-count { background: #0f172a; color: white; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
+
+    .enrolled-count-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: #f0fdf4; color: #166534; font-weight: 700;
+        padding: 5px 12px; border-radius: 20px; font-size: 12.5px;
+        border: 1px solid #bbf7d0;
+    }
 
     .minimal-table { width: 100%; border-collapse: collapse; font-size: 14px; }
     .minimal-table th { background: #f8fafc; padding: 12px 24px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; text-align: left; }

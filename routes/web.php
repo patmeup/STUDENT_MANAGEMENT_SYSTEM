@@ -14,6 +14,7 @@ use App\Http\Controllers\StudentController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\AnnouncementController;
 
 // ACCOUNT ROUTES
 Route::get('/', function () {
@@ -33,13 +34,9 @@ Route::post('/account/security/update-password', [AuthController::class, 'update
 Route::post('/account/security/update', [SuperAdminController::class, 'updatePassword'])->name('password.update');
 
 // SUPER ADMIN ROUTES
-Route::get('/super_admin/dashboard', function () {
-    if (session('user_role') !== 'super_admin') {
-        return redirect('/')->with('error', 'Unauthorized access.');
-    }
-    return view('super_admin.dashboard');
-})->name('super_admin.dashboard');
-
+Route::get('/super_admin/dashboard', [SuperAdminController::class, 'dashboard'])->name('super_admin.dashboard');
+Route::post('/super_admin/announcements/store', [AnnouncementController::class, 'store'])->name('super_admin.announcements.store');
+Route::delete('/super_admin/announcements/delete/{id}', [AnnouncementController::class, 'destroy'])->name('super_admin.announcements.destroy');
 Route::get('/super_admin/manage-employee', [SuperAdminController::class, 'index'])->name('super_admin.manage-employee');
 Route::post('/super_admin/manage-employee', [SuperAdminController::class, 'store'])->name('super_admin.employee.store');
 Route::get('/super_admin/user_details', [SuperAdminController::class, 'profileView'])->name('super_admin.user_details');
@@ -49,24 +46,19 @@ Route::patch('/super-admin/courses/{id}', [SuperAdminController::class, 'updateC
 Route::patch('/super-admin/employees/{id}/toggle-status', [SuperAdminController::class, 'toggleEmployeeStatus'])->name('super_admin.employees.toggle_status');
 
 // SYSTEM ADMIN ROUTES
-Route::get('/system_admin/dashboard', function () {
-    if (session('user_role') !== 'system_admin') {
-        return redirect('/')->with('error', 'Unauthorized access.');
-    }
-    return view('system_admin.dashboard');
-})->name('system_admin.dashboard');
-
+Route::get('/system_admin/dashboard', [SystemAdminController::class, 'dashboard'])->name('system_admin.dashboard');
+Route::post('/system_admin/announcements/store', [AnnouncementController::class, 'store'])->name('system_admin.announcements.store');
+Route::delete('/system_admin/announcements/delete/{id}', [AnnouncementController::class, 'destroy'])->name('system_admin.announcements.destroy');
 Route::get('/system_admin/manage-faculty', [FacultyController::class, 'index'])->name('system_admin.manage-faculty');
 Route::post('/system_admin/manage-faculty', [FacultyController::class, 'store'])->name('system_admin.manage-faculty.store');
-
 Route::get('/system_admin/manage-subjects', [SubjectController::class, 'index'])->name('system_admin.manage-subjects');
 Route::post('/system_admin/manage-subjects', [SubjectController::class, 'store'])->name('system_admin.subjects.store');
 Route::get('/system-admin/subject/{id}/edit', [SubjectController::class, 'editSubject'])->name('admin.subject.edit');
 Route::post('/system-admin/subject/update', [SubjectController::class, 'updateSubject'])->name('admin.subject.update');
-
 Route::get('/system-admin/curriculum/get-subjects-by-course', [CurriculumController::class, 'getSubjectsByCourse'])->name('system_admin.curriculum.get_subjects');
 Route::get('/system_admin/manage-curriculum', [CurriculumController::class, 'index'])->name('system_admin.manage-curriculum');
 Route::post('/system_admin/manage-curriculum', [CurriculumController::class, 'store'])->name('system_admin.curriculum.store');
+
 
 // FACULTY , SUBJECTS, CURRICULUM— Edit & Delete
 Route::patch('/system_admin/manage-faculty/{id}', [FacultyController::class, 'update'])->name('system_admin.manage-faculty.update');
@@ -76,55 +68,38 @@ Route::delete('/system_admin/manage-subjects/{id}', [SubjectController::class, '
 Route::delete('/system_admin/manage-curriculum/{id}', [CurriculumController::class, 'destroy'])->name('system_admin.curriculum.destroy');
 
 
+
+Route::get('/system-admin/academic_periods', [SystemAdminController::class, 'academicPeriods'])->name('system_admin.academic_periods');
+Route::post('/system-admin/academic_periods', [SystemAdminController::class, 'storeAcademicPeriod'])->name('system_admin.store_academic_period');
+Route::post('/system-admin/academic_periods/{id}/activate', [SystemAdminController::class, 'activateAcademicPeriod'])->name('system_admin.activate_academic_period');
+Route::post('/system-admin/term-periods', [SystemAdminController::class, 'storeTermPeriod'])->name('system_admin.store_term_period');
+Route::delete('/system-admin/academic_periods/{id}', [SystemAdminController::class, 'deleteAcademicPeriod'])->name('system_admin.delete_academic_period');
+
 Route::get('/system_admin/user_details', [SystemAdminController::class, 'profileView'])->name('system_admin.user_details');
 
 Route::put('/curriculum/{id}',[CurriculumController::class,'update'])->name('system_admin.curriculum.update');
 
 // REGISTRAR ROUTES
-Route::group(['middleware' => function ($request, $next) {
-    if (session('user_role') !== 'registrar') {
-        return redirect()->route('login')->with('error', 'Unauthorized access. Please login as Registrar.');
-    }
-    return $next($request);
-}], function () {
-
-    Route::get('/registrar/dashboard', function () {
-        return view('registrar.dashboard');
-    })->name('registrar.dashboard');
-
-    Route::get('/registrar/manage-enrollment', function () {
-        return view('registrar.manage-enrollment');
-    })->name('registrar.manage-enrollment');
-
-    Route::post('/registrar/manage-enrollment', [StudentController::class, 'store'])->name('registrar.enroll.store');
-    Route::get('/registrar/manage-students', [StudentController::class, 'index'])->name('registrar.manage-students');
-    Route::get('/registrar/manage-students-alias', [StudentController::class, 'index'])->name('registrar.manage-students-alias');
-    Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
-    Route::get('/registrar/students/{student_id}/profile', [StudentController::class, 'viewStudentProfile'])->name('registrar.students.profile');
-    Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
-});
+Route::get('/registrar/dashboard', [RegistrarController::class, 'dashboard'])->name('registrar.dashboard');
+Route::post('/registrar/announcements/store', [RegistrarController::class, 'storeAnnouncement'])->name('registrar.announcements.store');
+Route::delete('/registrar/announcements/delete/{id}', [RegistrarController::class, 'destroyAnnouncement'])->name('registrar.announcements.destroy');
+Route::get('/registrar/manage-enrollment', [RegistrarController::class, 'manageEnrollment'])->name('registrar.manage-enrollment');
+Route::post('/registrar/manage-enrollment', [StudentController::class, 'store'])->name('registrar.enroll.store');
+Route::get('/registrar/manage-students', [StudentController::class, 'index'])->name('registrar.manage-students');
+Route::get('/registrar/manage-students-alias', [StudentController::class, 'index'])->name('registrar.manage-students-alias');
+Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
+Route::get('/registrar/students/{student_id}/profile', [StudentController::class, 'viewStudentProfile'])->name('registrar.students.profile');
+Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
 
 // DEAN ROUTES
-Route::get('/dean/dashboard', function () {
-    if (session('user_role') !== 'dean') {
-        return redirect('/')->with('error', 'Unauthorized access.');
-    }
-    return view('dean.dashboard');
-})->name('dean.dashboard');
-
-    Route::get('/dean/encoding', [CurriculumController::class, 'index'])->name('dean.curriculum.index');
-    Route::post('/dean/encoding', [CurriculumController::class, 'store'])->name('dean.curriculum.store');
-    Route::get('/dean/user_details', [DeanController::class, 'profileView'])->name('dean.user_details');
+Route::get('/dean/dashboard', [DeanController::class, 'dashboard'])->name('dean.dashboard');
+Route::get('/dean/schedule_list', [DeanController::class, 'viewScheduleList'])->name('dean.schedule.list');
+Route::get('/dean/masterlist', [DeanController::class, 'viewMasterlist'])->name('dean.masterlist');
+Route::get('/dean/section/{section_name}', [DeanController::class, 'viewSectionRoster'])->name('dean.view_section');
+Route::get('/dean/subject_list', [DeanController::class, 'viewSubjectCatalog'])->name('dean.subject_list');
+Route::get('/dean/user_details', [DeanController::class, 'profileView'])->name('dean.user_details');
 
 // DEPARTMENT SECRETARY ROUTES
-Route::get('/department-secretary/dashboard', function () {
-    if (session('user_role') !== 'dept_sec') {
-        return redirect('/')->with('error', 'Unauthorized access.');
-    }
-    return view('department_secretary.dashboard');
-})->name('department_secretary.dashboard');
-
-
 Route::get('/department-secretary/dashboard', [DeptSecController::class, 'dashboard'])->name('department_secretary.dashboard');
 Route::get('/department_secretary/subject-catalog', [DeptSecController::class, 'subjectCatalog'])->name('department_secretary.subject_catalog');
 Route::get('/department-secretary/masterlist', [DeptSecController::class, 'studentsList'])->name('department_secretary.students');
@@ -138,31 +113,32 @@ Route::put('/department-secretary/manage-schedules/update/{id}', [ScheduleContro
 Route::delete('/department-secretary/manage-schedules/delete/{id}', [ScheduleController::class, 'delete'])->name('department_secretary.schedules.delete');
 Route::get('/department-secretary/user_details', [DeptSecController::class, 'profileView'])->name('department_secretary.user_details');
 
-// PROFESSOR ROUTES
-Route::get('/professor/dashboard', function () {
-    if (session('user_role') !== 'professor') {
-        return redirect('/')->with('error', 'Unauthorized access.');
-    }
-    return view('professor.dashboard');
-})->name('professor.dashboard');
-
+// PROFESSOR ROUTE
+Route::get('/professor/dashboard', [ProfessorController::class, 'dashboard'])->name('professor.dashboard');
 Route::get('/professor/manage-classes', [ProfessorController::class, 'manageClasses'])->name('professor.manage-classes');
 Route::get('/professor/class_details/{schedule_id}', [ProfessorController::class, 'viewClassDashboard'])->name('professor.class_details');
+Route::get('/professor/class/{schedule_id}/attendance', [ProfessorController::class, 'showAttendanceSheet'])->name('professor.attendance.data');
+Route::post('/professor/class/{schedule_id}/attendance/save', [ProfessorController::class, 'saveAttendance'])->name('professor.save-attendance');
 Route::post('/professor/save-activity', [ProfessorController::class, 'saveActivity'])->name('professor.save-activity');
 Route::post('/professor/update-activity/{id}', [ProfessorController::class, 'updateActivity'])->name('professor.update-activity');
 Route::post('/professor/delete-activity/{id}', [ProfessorController::class, 'deleteActivity'])->name('professor.delete-activity');
 Route::get('/professor/task-file/{id}', [ProfessorController::class, 'viewTaskFile'])->name('professor.task-file');
+Route::get('/professor/task/{task_id}/submissions', [ProfessorController::class, 'viewTaskSubmissions'])->name('professor.task-submissions');
+Route::get('/professor/task-grading/{submission_id}', [ProfessorController::class, 'viewTaskGrading'])->name('professor.task_grading');
+Route::get('/professor/submission/download/{id}', [ProfessorController::class, 'downloadStudentSubmission'])->name('professor.submission.download');
+Route::post('/professor/task-grading/{submission_id}/submit', [ProfessorController::class, 'submitGrade'])->name('professor.submit-grade');
+Route::get('/professor/class/{schedule_id}/student/{student_id}/breakdown', [ProfessorController::class, 'viewStudentBreakdown'])->name('professor.grades.breakdown');
+
+
 Route::get('/professor/user_details', [ProfessorController::class, 'profileView'])->name('professor.user_details');
 
 // STUDENT ROUTES
-Route::get('/student/dashboard', function () {
-    if (session('user_role') !== 'student') {
-        return redirect('/')->with('error', 'Unauthorized access.');
-    }
-    return view('student.dashboard');
-})->name('student.dashboard');
-
-Route::get('/student/my-classes', [App\Http\Controllers\StudentController::class, 'myClasses'])->name('student.my_classes');
-Route::get('/student/user_details', [StudentController::class, 'profileView'])->name('student.user_details');
-Route::get('/student/class-details/{schedule_id}', [App\Http\Controllers\StudentController::class, 'viewClassDashboard'])->name('student.class_details');
+Route::get('/student/dashboard', [StudentController::class, 'dashboard'])->name('student.dashboard');
+Route::get('/student/my-classes', [StudentController::class, 'myClasses'])->name('student.my_classes');
+Route::get('/student/class/{id}', [StudentController::class, 'viewClassDashboard'])->name('student.class.details');
+Route::get('/student/class/{id}/predict', [StudentController::class, 'predictGrade'])->name('student.class.predict');
+Route::get('/student/class-details/{schedule_id}', [StudentController::class, 'viewClassDashboard'])->name('student.class_details');
 Route::get('/student/task/{id}', [StudentController::class, 'viewTaskDetails'])->name('student.view-task');
+Route::get('/student/task/download/{id}', [StudentController::class, 'downloadTaskFile'])->name('student.task.download');
+Route::post('/student/task/{id}/submit', [StudentController::class, 'submitTask'])->name('student.submit_task');
+Route::get('/student/user_details', [StudentController::class, 'profileView'])->name('student.user_details');

@@ -22,7 +22,7 @@
             <button type="button" class="tab-link" data-filter="1st Year">1st Year</button>
             <button type="button" class="tab-link" data-filter="2nd Year">2nd Year</button>
             <button type="button" class="tab-link" data-filter="3rd Year">3rd Year</button>
-            <button type="button" class="tab-link" data-filter="4th Year">4th Year</button>
+            <button type="button" clfass="tab-link" data-filter="4th Year">4th Year</button>
         </div>
     </div>
 

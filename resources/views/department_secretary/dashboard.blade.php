@@ -1,234 +1,343 @@
 @extends('layouts.app')
 
 @section('content')
-<style>
-    .dashboard-container {
-        padding: 24px;
-        background-color: #f8fafc;
-        min-height: 100vh;
-        width: 100%;
-        font-family: system-ui, -apple-system, sans-serif;
-        box-sizing: border-box;
-    }
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<div class="dashboard-wrapper py-4 px-3">
     
-    .welcome-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background-color: #ffffff;
-        padding: 24px;
-        border-radius: 8px;
-        border: 1px solid #f1f5f9;
-        margin-bottom: 24px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-
-    .welcome-title {
-        font-size: 24px;
-        font-weight: 700;
-        color: #1e293b;
-        margin: 0 0 4px 0;
-    }
-
-    .welcome-subtitle {
-        font-size: 14px;
-        color: #64748b;
-        margin: 0;
-    }
-
-    .btn-deploy {
-        background-color: #0b44ad;
-        color: #ffffff;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-size: 14px;
-        font-weight: 500;
-        text-decoration: none;
-        transition: background-color 0.2s;
-    }
-    .btn-deploy:hover {
-        background-color: #1d4ed8;
-    }
-
-    /* Metric Grid Layout */
-    .metric-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 16px;
-        margin-bottom: 24px;
-    }
-
-    .metric-card {
-        background-color: #ffffff;
-        padding: 20px;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        position: relative;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-
-    .card-title {
-        font-size: 12px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #94a3b8;
-        margin: 0;
-    }
-
-    .card-value {
-        font-size: 30px;
-        font-weight: 700;
-        color: #1e293b;
-        margin: 8px 0 0 0;
-    }
-
-    .card-badge {
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        font-size: 12px;
-        font-weight: 700;
-        padding: 4px 8px;
-        border-radius: 4px;
-    }
-    .badge-blue { bg-color wrapper imitation */ background-color: #eff6ff; color: #0b44ad; }
-    .badge-gray { background-color: #f1f5f9; color: #475569; }
-    .badge-green { background-color: #ecfdf5; color: #059669; }
-
-    /* Bottom Split Grid Layout */
-    .split-grid {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 24px;
-    }
-    @media (max-width: 992px) {
-        .split-grid { grid-template-columns: 1fr; }
-    }
-
-    .panel-card {
-        background-color: #ffffff;
-        padding: 20px;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-
-    .panel-title {
-        font-size: 18px;
-        font-weight: 700;
-        color: #1e293b;
-        margin: 0 0 16px 0;
-    }
-
-    .empty-text {
-        color: #94a3b8;
-        font-size: 14px;
-        text-align: center;
-        margin: 40px 0;
-    }
-
-    /* Block Items list */
-    .block-list {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .block-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px;
-        background-color: #f8fafc;
-        border-radius: 8px;
-        border: 1px solid #f1f5f9;
-    }
-
-    .block-badge {
-        background-color: #eff6ff;
-        color: #2563eb;
-        font-weight: 700;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 12px;
-    }
-
-    .block-info {
-        font-size: 14px;
-        color: #475569;
-    }
-</style>
-
-<div class="dashboard-container">
-  
-  <div class="welcome-row">
-    <div>
-      <h1 class="welcome-title">Department Dashboard</h1>
-      <p class="welcome-subtitle">Department: {{ $dept ?? '—' }} Academic Year Center Overview</p>
-    </div>
-    <div>
-      <a href="/department_secretary/manage-schedules" class="btn-deploy">+ Deploy Class</a>
-    </div>
-  </div>
-
-  <div class="metric-grid">
-    <div class="metric-card">
-      <p class="card-title">Tracked Subjects</p>
-      <p class="card-value">{{ $trackedSubjectsCount }}</p>
-      <span class="card-badge badge-blue">Curriculum</span>
-    </div>
-    
-    <div class="metric-card">
-      <p class="card-title">Total Students</p>
-      <p class="card-value">{{ $totalStudentsCount }}</p>
-      <span class="card-badge badge-gray">Enrolled</span>
-    </div>
-
-    <div class="metric-card">
-      <p class="card-title">Active Blocks</p>
-      <p class="card-value">{{ $activeBlocksCount }}</p>
-      <span class="card-badge badge-green">Live</span>
-    </div>
-
-    <div class="metric-card">
-      <p class="card-title">Deployed Slots</p>
-      <p class="card-value">{{ $deployedSlotsCount }}</p>
-      <span class="card-badge badge-blue">Active Classes</span>
-    </div>
-  </div>
-
-  <div class="split-grid">
-    <div class="panel-card">
-      <h3 class="panel-title" style="text-align: left;">Today's Deployment Highlights</h3>
-      <p class="empty-text">No recent schedule modification alerts for today.</p>
-    </div>
-
-    <div class="panel-card">
-      <h3 class="panel-title">Quick Block Summary</h3>
-      <div class="block-list">
-        <div class="block-item">
-          <span class="block-badge">BSIT1-A</span>
-          <span class="block-info">4 Active Subjects</span>
+    @if(session('success'))
+        <div class="alert-banner alert-success"><i class="fa-solid fa-circle-check"></i> {{ session('success') }}</div>
+    @endif
+    @if($errors->any())
+        <div class="alert-banner alert-danger">
+            <i class="fa-solid fa-circle-exclamation"></i> Upload error! Paki-check ang size o format ng image.
         </div>
-        <div class="block-item">
-          <span class="block-badge">BSIT1-B</span>
-          <span class="block-info">4 Active Subjects</span>
-        </div>
-        <div class="block-item">
-          <span class="block-badge">BSIT1-C</span>
-          <span class="block-info">4 Active Subjects</span>
-        </div>
-      </div>
-    </div>
-  </div>
+    @endif
 
+    <div class="announcement-carousel-wrapper">
+        <div class="announcement-box">
+            <span class="announcement-tag">ANNOUNCEMENT:</span>
+            
+            <div class="carousel-track" id="carouselTrack">
+                @forelse($announcements as $index => $item)
+                    <div class="carousel-slide {{ $index === 0 ? 'active' : '' }}">
+                        <img src="{{ asset('storage/' . $item->image_path) }}" alt="{{ $item->title ?? 'Announcement Banner' }}">
+                    </div>
+                @empty
+                    <div class="carousel-slide active">
+                        <div class="no-banner-placeholder">
+                            <i class="fa-regular fa-image fa-3x"></i>
+                            <p>No active announcements.</p>
+                        </div>
+                    </div>
+                @endforelse
+            </div>
+        </div>
+
+        @if($announcements->count() > 0)
+            <div class="carousel-dots">
+                @foreach($announcements as $index => $item)
+                    <span class="dot {{ $index === 0 ? 'active' : '' }}" onclick="currentSlide({{ $index }})"></span>
+                @endforeach
+            </div>
+        @endif
+    </div>
+
+    <div class="stats-dashboard-grid mb-5">
+      
+        <div class="stat-premium-card">
+            <div class="stat-number-side text-blue">
+                {{ $trackedSubjectsCount }}
+            </div>
+            <div class="stat-label-side">
+                <span class="lbl-main">Tracked</span>
+                <span class="lbl-sub">Subjects</span>
+            </div>
+            <div class="stat-icon-watermark text-blue-icon">
+                <i class="fa-solid fa-bookmark"></i>
+            </div>
+        </div>
+        
+        <div class="stat-premium-card">
+            <div class="stat-number-side text-green">
+                {{ $totalStudentsCount }}
+            </div>
+            <div class="stat-label-side">
+                <span class="lbl-main">Total</span>
+                <span class="lbl-sub">Students</span>
+            </div>
+            <div class="stat-icon-watermark text-green-icon">
+                <i class="fa-solid fa-user-graduate"></i>
+            </div>
+        </div>
+
+        <div class="stat-premium-card">
+            <div class="stat-number-side text-orange">
+                {{ $activeBlocksCount }}
+            </div>
+            <div class="stat-label-side">
+                <span class="lbl-main">Total Block</span>
+                <span class="lbl-sub">Sections</span>
+            </div>
+            <div class="stat-icon-watermark text-orange-icon">
+                <i class="fa-solid fa-users-rectangle"></i>
+            </div>
+        </div>
+
+        <div class="stat-premium-card">
+            <div class="stat-number-side text-purple">
+                {{ $deployedSlotsCount }}
+            </div>
+            <div class="stat-label-side">
+                <span class="lbl-main">Scheduled</span>
+                <span class="lbl-sub">Classes</span>
+            </div>
+            <div class="stat-icon-watermark text-purple-icon">
+                <i class="fa-solid fa-calendar-days"></i>
+            </div>
+        </div>
+
+    </div>
+
+    <hr class="my-5">
+
+    <div class="split-layout-grid">
+        
+        <div class="panel-card-premium">
+            <h3 class="panel-title-premium"><i class="fa-solid fa-bolt"></i> Today's Deployment Highlights</h3>
+            <div class="panel-card-content">
+                <p class="empty-text-premium">No recent schedule modification alerts for today.</p>
+            </div>
+        </div>
+
+          <div class="panel-card-premium">
+            <h3 class="panel-title-premium"><i class="fa-solid fa-list-check"></i> Quick Block Summary</h3>
+            <div class="panel-card-content">
+                <div class="block-list-premium">
+                    @forelse($blockSummaryList as $block)
+                        <div class="block-item-premium">
+                            <span class="block-badge-tag">{{ $block->section_name }}</span>
+                            <span class="block-info-text">
+                                {{ $block->total_students }} Enrolled {{ $block->total_students <= 1 ? 'Student' : 'Students' }}
+                            </span>
+                        </div>
+                    @empty
+                        <p class="empty-text-premium" style="margin: 20px 0;">No active sections found.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        console.log("Secretary Dashboard Script Ready!");
-        // You can add your interactive dashboard alerts or click listeners here later!
-    });
+    let slideIndex = 0;
+    const slides = document.querySelectorAll('.carousel-slide');
+    const dots = document.querySelectorAll('.dot');
+
+    function showSlides(index) {
+        if (slides.length === 0) return;
+        if (index >= slides.length) slideIndex = 0;
+        if (index < 0) slideIndex = slides.length - 1;
+        
+        slides.forEach(slide => slide.classList.remove('active'));
+        dots.forEach(dot => dot.classList.remove('active'));
+        
+        if (slides[slideIndex]) slides[slideIndex].classList.add('active');
+        if (dots[slideIndex]) dots[slideIndex].classList.add('active');
+    }
+
+    function currentSlide(index) {
+        slideIndex = index;
+        showSlides(slideIndex);
+    }
+
+    if (slides.length > 1) {
+        setInterval(() => {
+            slideIndex++;
+            showSlides(slideIndex);
+        }, 6000);
+    }
 </script>
+
+<style>
+    /* --- GENERAL BASE --- */
+    .dashboard-wrapper {
+        max-width: 1140px; 
+        margin: 0 auto; 
+        font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; 
+    }
+
+    /* --- ANNOUNCEMENT CAROUSEL SLIDER --- */
+    .announcement-box {
+        background: #e2e8f0; 
+        border: 3px solid #1e293b;
+        border-radius: 16px;
+        padding: 12px;
+        position: relative; 
+        height: 340px; 
+        display: flex;
+        flex-direction: column;
+    }
+
+    .announcement-tag {
+        position: absolute; 
+        top: 22px; 
+        left: 26px; 
+        font-weight: 800;
+        font-size: 12px; 
+        color: #1e293b; 
+        z-index: 10; 
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.85);
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
+
+    .carousel-track { 
+        width: 100%; 
+        height: 100%; 
+        position: relative; 
+        border: 3px solid #1e293b; 
+        border-radius: 12px;
+        overflow: hidden;
+        background: #ffffff;
+    }
+    
+    .carousel-slide { 
+        position: absolute; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 100%; 
+        opacity: 0; 
+        transition: opacity 0.6s ease-in-out; 
+    }
+    
+    .carousel-slide.active { opacity: 1; }
+
+    .carousel-slide img { 
+        width: 100%; 
+        height: 100%; 
+        object-fit: fill; 
+    }
+    
+    .no-banner-placeholder { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #64748b; }
+
+    .carousel-dots { text-align: center; margin-top: 14px; }
+    .dot { cursor: pointer; height: 14px; width: 14px; margin: 0 6px; background-color: #ffffff; border: 3px solid #1e293b; border-radius: 50%; display: inline-block; transition: 0.2s; }
+    .dot.active { background-color: #f59e0b; }
+
+    /* --- DASHBOARD SYSTEM CARD GRID --- */
+    .stats-dashboard-grid { 
+        display: grid; 
+        grid-template-columns: repeat(4, 1fr); 
+        gap: 20px; 
+        width: 100%;
+        margin-top: 25px;
+    }
+
+    .stat-premium-card {
+        background: #ffffff; 
+        border: 3px solid #1e293b; 
+        border-radius: 16px;
+        height: 110px; 
+        display: flex; 
+        align-items: center; 
+        padding: 0 24px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-number-side {
+        font-size: 40px; 
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -1px;
+        margin-right: 15px;
+        min-width: 55px; 
+    }
+
+    .stat-label-side {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        z-index: 2;
+    }
+
+    .stat-label-side .lbl-main {
+        font-size: 13px;
+        font-weight: 800;
+        color: #1e293b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        line-height: 1.2;
+    }
+
+    .stat-label-side .lbl-sub {
+        font-size: 15px;
+        font-weight: 600;
+        color: #475569;
+        line-height: 1.2;
+    }
+
+    .stat-icon-watermark {
+        position: absolute;
+        right: 24px;
+        font-size: 32px; 
+        opacity: 1; 
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .text-blue { color: #1e3a8a; }
+    .text-green { color: #15803d; }
+    .text-orange { color: #c2410c; }
+    .text-purple { color: #6b21a8; }
+
+    .text-blue-icon { color: #2563eb; }
+    .text-green-icon { color: #16a34a; }
+    .text-orange-icon { color: #ea580c; }
+    .text-purple-icon { color: #9333ea; }
+
+    /* --- SPLIT LAYOUT LOWER MATRICES --- */
+    .split-layout-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+    .panel-card-premium { background: #ffffff; border: 3px solid #1e293b; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
+    
+    .panel-title-premium { font-size: 15px; font-weight: 800; color: #1e293b; background: #f8fafc; padding: 14px 20px; margin: 0; border-bottom: 3px solid #1e293b; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+
+    .panel-card-content { padding: 20px; flex: 1; }
+    .empty-text-premium { color: #94a3b8; font-size: 14px; text-align: center; margin: 40px 0; font-weight: 500; }
+
+    /* Block Items Premium Registry List */
+    .block-list-premium { display: flex; flex-direction: column; gap: 12px; }
+    .block-item-premium { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background-color: #f8fafc; border-radius: 10px; border: 2px solid #e2e8f0; }
+    .block-badge-tag { background-color: #eff6ff; color: #2563eb; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 12px; border: 1px solid #bfdbfe; font-family: monospace; }
+    .block-info-text { font-size: 14px; color: #475569; font-weight: 600; }
+
+    /* --- ALERTS --- */
+    .alert-banner { 
+        padding: 14px 18px; 
+        border-radius: 8px; 
+        margin-bottom: 20px; 
+        font-size: 14px; 
+        font-weight: 600; 
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }
+    .alert-success { background: #dcfce7; color: #14532d; }
+    .alert-danger { background: #fee2e2; color: #991b1b; }
+
+    /* --- RESPONSIVE BREAKPOINTS --- */
+    @media (max-width: 1024px) {
+        .stats-dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+        .split-layout-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+        .stats-dashboard-grid { grid-template-columns: 1fr; }
+    }
+</style>
 @endsection
