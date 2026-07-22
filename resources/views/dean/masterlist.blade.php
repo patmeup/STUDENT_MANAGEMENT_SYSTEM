@@ -38,7 +38,7 @@
 
             <div class="search-bar-container">
                 <i class="fas fa-search search-icon"></i>
-                <input type="text" id="studentSearchInput" placeholder="Mag-hanap gamit ang Student ID, Pangalan, o Kurso..." class="custom-search-input">
+                <input type="text" id="studentSearchInput" placeholder="Search by Student ID, Name, or Course..." class="custom-search-input">
             </div>
 
             <div class="table-responsive">
@@ -80,7 +80,7 @@
 
             <div class="search-bar-container">
                 <i class="fas fa-search search-icon"></i>
-                <input type="text" id="blockSearchInput" placeholder="Mag-hanap gamit ang Block Section Name..." class="custom-search-input">
+                <input type="text" id="blockSearchInput" placeholder="Search by Student ID, Name, or Course..." class="custom-search-input">
             </div>
 
             <div class="table-responsive">

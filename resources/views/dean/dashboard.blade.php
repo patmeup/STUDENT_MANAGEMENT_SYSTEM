@@ -10,7 +10,7 @@
     @endif
     @if($errors->any())
         <div class="alert-banner alert-danger">
-            <i class="fa-solid fa-circle-exclamation"></i> Upload error! Paki-check ang size o format ng image.
+            <i class="fa-solid fa-circle-exclamation"></i> Upload error! Please check the size or format of the image.
         </div>
     @endif
 

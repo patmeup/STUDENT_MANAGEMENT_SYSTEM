@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Models\Students;
 use App\Support\TermHelper;
+use App\Support\GradeHelper;
 
 class ProfessorController extends Controller
 {
@@ -149,13 +150,25 @@ class ProfessorController extends Controller
             ->orderBy('students.last_name', 'asc')
             ->get();
             
-        // ➔ DAPAT GANITO: Kunin ang LAHAT ng tasks ng schedule na ito nang walang term filter
         $tasks = DB::table('student_tasks')
             ->where('class_schedule_id', $schedule_id)
             ->orderBy('due_date', 'asc')
             ->get();
 
-        return view('professor.class_details', compact('classDetails', 'students', 'tasks'));
+        $terms = ['prelim', 'midterm', 'semifinal', 'final'];
+        $autoGrades = [];
+
+        foreach ($terms as $term) {
+            foreach ($students as $student) {
+                $autoGrades[$term][$student->student_id] = GradeHelper::computeAutoGrades(
+                    $schedule_id,
+                    $student->student_id,
+                    $term
+                );
+            }
+        }
+
+        return view('professor.class_details', compact('classDetails', 'students', 'tasks', 'autoGrades'));
     }
 
     public function showAttendanceSheet($schedule_id, Request $request)
@@ -495,95 +508,128 @@ class ProfessorController extends Controller
             'updated_at' => now()
         ]);
 
-        return redirect()->back()->with('success', 'Grade and feedback updated successfully!');
+        return redirect()->back()->with('Success', 'Grade and feedback updated successfully!');
     }
 
-public function viewStudentBreakdown($schedule_id, $student_id, Request $request)
-{
-    if (session('user_role') !== 'professor') {
-        return redirect()->route('login')->with('error', 'Unauthorized access.');
+    public function viewStudentBreakdown($schedule_id, $student_id, Request $request)
+    {
+        if (session('user_role') !== 'professor') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $professorId = session('user_id');
+        $selectedTerm = $request->query('term');
+
+        $classDetails = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->where('class_schedules.id', $schedule_id)
+            ->where('subjects.professor_id', $professorId)
+            ->select(
+                'class_schedules.id as id', 
+                'class_schedules.id as schedule_id',
+                'class_schedules.section_name',
+                'class_schedules.class_days',
+                'class_schedules.start_time',
+                'class_schedules.end_time',
+                'class_schedules.room_assignment',
+                'subjects.subject_code',
+                'subjects.subject_title'
+            )
+            ->first();
+
+        if (!$classDetails) {
+            return redirect()->route('professor.manage-classes')->with('error', 'Class section not found or unauthorized.');
+        }
+
+        $student = DB::table('students')
+            ->where('student_id', $student_id)
+            ->first();
+
+        if (!$student) {
+            return redirect()->back()->with('error', 'Student not found.');
+        }
+
+        $query = DB::table('student_tasks')
+            ->where('class_schedule_id', $schedule_id)
+            ->leftJoin('task_submissions', function($join) use ($student_id) {
+                $join->on('student_tasks.id', '=', 'task_submissions.task_id')
+                    ->where('task_submissions.student_id', '=', $student_id);
+            })
+            ->select(
+                'student_tasks.*',
+                'task_submissions.grade',
+                'task_submissions.feedback',
+                'task_submissions.submitted_at',
+                'task_submissions.id as submission_id'
+            );
+
+        if ($selectedTerm) {
+            $query->where('student_tasks.term', $selectedTerm);
+        }
+
+        $tasksWithGrades = $query->orderBy('student_tasks.due_date', 'asc')
+            ->get()
+            ->groupBy('term');
+
+        $termPeriods = TermHelper::getActiveTermPeriods();
+
+        $allAttendances = DB::table('attendances')
+            ->where('class_schedule_id', $schedule_id)
+            ->where('student_id', $student_id)
+            ->orderBy('attendance_date', 'desc')
+            ->get();
+
+        $attendances = $allAttendances->map(function ($att) use ($termPeriods) {
+            $att->derived_term = TermHelper::deriveTerm($att->attendance_date, $termPeriods);
+            return $att;
+        });
+
+        if ($selectedTerm) {
+            $attendances = $attendances->filter(function ($att) use ($selectedTerm) {
+                return $att->derived_term === $selectedTerm;
+            })->values();
+        }
+
+        $term = $selectedTerm;
+
+        return view('professor.grades_breakdown', compact('classDetails', 'student', 'tasksWithGrades', 'attendances', 'term'));
     }
 
-    $professorId = session('user_id');
-    $selectedTerm = $request->query('term'); // prelim, midterm, semifinal, final
+    public function saveManualGrade(Request $request, $schedule_id)
+    {
+        $request->validate([
+            'student_id' => 'required|string',
+            'term' => 'required|string|in:prelim,midterm,semifinal,final',
+            'manual_grade' => 'nullable|numeric|min:0|max:100',
+            'is_manual' => 'required|boolean'
+        ]);
 
-    $classDetails = DB::table('class_schedules')
-        ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-        ->where('class_schedules.id', $schedule_id)
-        ->where('subjects.professor_id', $professorId)
-        ->select(
-            'class_schedules.id as id', 
-            'class_schedules.id as schedule_id',
-            'class_schedules.section_name',
-            'class_schedules.class_days',
-            'class_schedules.start_time',
-            'class_schedules.end_time',
-            'class_schedules.room_assignment',
-            'subjects.subject_code',
-            'subjects.subject_title'
-        )
-        ->first();
+        try {
+            // I-save o i-update sa database (halimbawa, sa table na student_grades o katulad nito)
+            DB::table('student_term_grades')->updateOrInsert(
+                [
+                    'schedule_id' => $schedule_id,
+                    'student_id' => $request->student_id,
+                    'term' => $request->term,
+                ],
+                [
+                    'manual_grade' => $request->is_manual ? $request->manual_grade : null,
+                    'is_manual' => $request->is_manual,
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
 
-    if (!$classDetails) {
-        return redirect()->route('professor.manage-classes')->with('error', 'Class section not found or unauthorized.');
-    }
-
-    $student = DB::table('students')
-        ->where('student_id', $student_id)
-        ->first();
-
-    if (!$student) {
-        return redirect()->back()->with('error', 'Student not found.');
-    }
-
-    $query = DB::table('student_tasks')
-        ->where('class_schedule_id', $schedule_id)
-        ->leftJoin('task_submissions', function($join) use ($student_id) {
-            $join->on('student_tasks.id', '=', 'task_submissions.task_id')
-                ->where('task_submissions.student_id', '=', $student_id);
-        })
-        ->select(
-            'student_tasks.*',
-            'task_submissions.grade',
-            'task_submissions.feedback',
-            'task_submissions.submitted_at',
-            'task_submissions.id as submission_id'
-        );
-
-    // Kung may piniling specific term, i-filter natin dito
-    if ($selectedTerm) {
-        $query->where('student_tasks.term', $selectedTerm);
-    }
-
-    $tasksWithGrades = $query->orderBy('student_tasks.due_date', 'asc')
-        ->get()
-        ->groupBy('term');
-
-    $attendances = DB::table('attendances')
-        ->where('class_schedule_id', $schedule_id)
-        ->where('student_id', $student_id)
-        ->orderBy('attendance_date', 'desc')
-        ->get();
-
-    $term = $selectedTerm;
-
-    return view('professor.grades_breakdown', compact('classDetails', 'student', 'tasksWithGrades', 'attendances', 'term'));
-}
-
-    public function viewBreakdown($student_id, $class_id, $term) {
-        $tasksWithGrades = [
-            $term => Task::where('class_id', $class_id)
-                        ->where('term', $term)
-                        ->get()
-        ];
-        
-        return view('professor.grades_breakdown', compact('student_id', 'classDetails', 'tasksWithGrades', 'term', 'attendances'));
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     public function profileView()
     {
         if (session('user_role') !== 'professor') {
-            return redirect('/')->with('error', 'Unauthorized access.');
+            return redirect('/')->with('Error', 'Unauthorized access.');
         }
 
         $professor_id = session('user_id');

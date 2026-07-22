@@ -10,7 +10,7 @@
     @endif
     @if($errors->any())
         <div class="alert-banner alert-danger">
-            <i class="fa-solid fa-circle-exclamation"></i> Upload error! Paki-check ang size o format ng image.
+            <i class="fa-solid fa-circle-exclamation"></i> Upload error! Please check the size or format of the image.
         </div>
     @endif
 
@@ -130,7 +130,7 @@
                                 <td><img src="{{ asset('storage/' . $item->image_path) }}" class="table-preview-img"></td>
                                 <td>{{ $item->title ?? 'Untitled Banner' }}</td>
                                 <td>
-                                    <form action="{{ route('registrar.announcements.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Sigurado ka bang nais mong burahin ang banner na ito?');">
+                                    <form action="{{ route('registrar.announcements.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this banner?');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn-delete-banner"><i class="fa-solid fa-trash-can"></i> Delete</button>
@@ -141,7 +141,7 @@
                     </tbody>
                 </table>
             @else
-                <p class="text-muted text-sm">Walang nakikitang banners sa system.</p>
+                <p class="text-muted text-sm">No banners found in the system.</p>
             @endif
         </div>
     </div>

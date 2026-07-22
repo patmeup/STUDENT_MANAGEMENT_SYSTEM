@@ -23,7 +23,7 @@
                 <div style="display: flex; gap: 12px; flex-wrap: wrap; width: 100%;">
                     <div style="position: relative; flex: 2; min-width: 250px;">
                         <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px;"></i>
-                        <input type="text" id="scheduleSearchInput" placeholder="Mag-hanap gamit ang Subject Code, Pamagat, Seksyon, Room, o Propesor..." 
+                        <input type="text" id="scheduleSearchInput" placeholder="Search by Subject Code, Title, Section, Room, or Professor..." 
                             style="width: 100%; padding: 10px 10px 10px 40px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; outline: none; box-sizing: border-box;">
                     </div>
 

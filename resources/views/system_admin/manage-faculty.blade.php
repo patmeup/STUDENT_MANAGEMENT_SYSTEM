@@ -90,7 +90,7 @@
                 <div class="header-controls-flex">
                     <div class="search-bar-container">
                         <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="adminFacultySearch" placeholder="Mag-hanap gamit ang Pangalan, ID, o Email..." class="custom-search-input">
+                        <input type="text" id="adminFacultySearch" placeholder="Search by Name, ID, or Email..." class="custom-search-input">
                     </div>
                     <span class="badge-count">{{ $faculties->count() }} Personnel Stationed</span>
                 </div>

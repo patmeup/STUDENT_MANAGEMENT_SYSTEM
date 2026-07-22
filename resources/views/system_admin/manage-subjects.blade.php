@@ -83,7 +83,7 @@
                 <div class="header-controls-flex">
                     <div class="search-bar-container">
                         <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="adminSubjectSearch" placeholder="Mag-hanap gamit ang Code, Pamagat, o Propesor..." class="custom-search-input">
+                        <input type="text" id="adminSubjectSearch" placeholder="Search by Code, Title, or Professor..." class="custom-search-input">
                     </div>
                     <span class="badge-count">{{ isset($subjects) ? $subjects->count() : 0 }} Total Subjects</span>
                 </div>

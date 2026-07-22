@@ -145,11 +145,11 @@
                                                 @method('PATCH')
                                                 
                                                 @if(ucfirst($emp->status ?? 'Active') === 'Active')
-                                                    <button type="submit" class="btn-action-restrict" onclick="return confirm('Sigurado ka bang gusto mong i-disable ang access clearance ng empleyadong ito?')" title="Lock Account">
+                                                    <button type="submit" class="btn-action-restrict" onclick="return confirm('Are you sure you want to restrict this employee system access?')" title="Lock Account">
                                                         <i class="fas fa-user-slash"></i> Restrict
                                                     </button>
                                                 @else
-                                                    <button type="submit" class="btn-action-restore" onclick="return confirm('Gusto mo bang ibalik ang operational access ng empleyadong ito?')" title="Unlock Account">
+                                                    <button type="submit" class="btn-action-restore" onclick="return confirm('Are you sure you want to restore this employee operational access?')" title="Unlock Account">
                                                         <i class="fas fa-user-check"></i> Restore
                                                     </button>
                                                 @endif
