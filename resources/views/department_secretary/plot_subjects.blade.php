@@ -18,7 +18,7 @@
 
     <div class="action-helper-card">
         <h4><i class="fas fa-magic"></i> Regular / Block Section Student Helper</h4>
-        <p>Piliin ang Year, Semester, at i-type ang Section upang awtomatikong i-plot ang buong Block Section schedule ng estudyante.</p>
+        <p>Select the Year, Semester, and type the Section to automatically plot the entire Block Section student schedule.</p>
         
         <div class="helper-controls">
             <select id="helperYear" class="select-input-helper">
@@ -111,7 +111,7 @@
                 const sectionLetter = document.getElementById('helperSection').value.trim().toUpperCase();
 
                 if (!sectionLetter) {
-                    alert('Paki-type muna kung anong Section (halimbawa: A, B, o C) ang nais mong i-apply.');
+                    alert('Please enter the Section (e.g., A, B, or C) you want to apply.');
                     return;
                 }
 
@@ -151,9 +151,9 @@
                 });
 
                 if (matchedCount > 0) {
-                    alert(`Success! Na-apply ang Section ${sectionLetter} sa ${matchedCount} na mga asignatura.`);
+                    alert(`Success! Section ${sectionLetter} has been applied to ${matchedCount} subjects.`);
                 } else {
-                    alert(`Paumanhin, walang nahanap na mga schedule/sections na nagtatapos sa "-${sectionLetter}" para sa ${targetYear} (${targetSem}).`);
+                    alert(`Sorry, No schedules/sections ending in "-${sectionLetter}" were found for ${targetYear} (${targetSem}).`);
                 }
             });
         }

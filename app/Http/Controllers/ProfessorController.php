@@ -494,13 +494,13 @@ class ProfessorController extends Controller
             'updated_at' => now()
         ]);
 
-        return redirect()->back()->with('success', 'Grade and feedback updated successfully!');
+        return redirect()->back()->with('Success', 'Grade and feedback updated successfully!');
     }
 
     public function profileView()
     {
         if (session('user_role') !== 'professor') {
-            return redirect('/')->with('error', 'Unauthorized access.');
+            return redirect('/')->with('Error', 'Unauthorized access.');
         }
 
         $professor_id = session('user_id');

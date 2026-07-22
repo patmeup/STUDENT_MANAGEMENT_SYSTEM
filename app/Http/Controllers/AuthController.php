@@ -37,7 +37,7 @@ class AuthController extends Controller
 
             if ($isPasswordCorrect) {
                 if ($user->status !== 'Active') {
-                    return back()->withErrors(['error' => 'This account has been deactivated. Please contact HR.']);
+                    return back()->withErrors(['error' => 'This account has been deactivated. Please contact SuperAdmin.']);
                 }
 
                 session([
@@ -151,34 +151,22 @@ public function updatePassword(Request $request)
             return redirect()->route('system_admin.user_details')
                 ->with('Success', 'Your password has been changed successfully.');
         }
-<<<<<<< Updated upstream
-=======
 
         if ($role === 'dean') {
             return redirect()->route('dean.user_details')
                 ->with('Success', 'Your password has been changed successfully.');
         }
->>>>>>> Stashed changes
-        
+
         if ($role === 'registrar') {
             return redirect()->route('registrar.user_details')
                 ->with('Success', 'Your password has been changed successfully.');
         }
 
-<<<<<<< Updated upstream
-        if ($role === 'dean') {
-            return redirect()->route('dean.user_details')
-                ->with('success', 'Your password has been changed successfully.');
-        }
-
         if ($role === 'professor') {
             return redirect()->route('professor.user_details')
-                ->with('success', 'Your password has been changed successfully.');
+                ->with('Success', 'Your password has been changed successfully.');
         }
 
-        return redirect('/')->with('success', 'Password updated successfully. Please log in again.');
-=======
         return redirect('/')->with('Success', 'Password updated successfully. Please log in again.');
->>>>>>> Stashed changes
     }
 }

@@ -92,30 +92,30 @@ class SuperAdminController extends Controller
             'password' => 'Welcome@AU2026',
         ]);
 
-        return redirect()->back()->with('success', "Personnel account successfully created! ID: {$generatedId} | Default Pass: Welcome@AU2026");
+        return redirect()->back()->with('Success', "Personnel account successfully created! ID: {$generatedId} | Default Pass: Welcome@AU2026");
     }
 
     public function toggleEmployeeStatus($id)
 {
     // 1. Siguraduhing super_admin lang ang may karapatang pumindot nito
     if (session('user_role') !== 'super_admin') {
-        return redirect()->back()->withErrors(['error' => 'Wala kang sapat na authorization para sa aksyong ito.']);
+        return redirect()->back()->withErrors(['error' => 'You do not have sufficient authorization for this action.']);
     }
 
     $employee = \App\Models\User::findOrFail($id);
 
     if ($employee->email === session('user_email') || $employee->role === 'super_admin') {
-        return redirect()->back()->with('error', 'Hindi mo maaaring i-disable ang isang Super Admin account para sa seguridad ng system.');
+        return redirect()->back()->with('error', 'You cannot disable a Super Admin account for system security reasons.');
     }
 
     // 3. I-toggle ang status (Gawing kabaligtaran ng kasalukuyan)
     // Ginawa nating case-insensitive (.toLowerCase type approach) gamit ang ucfirst para malinis sa DB
     if (ucfirst($employee->status) === 'Active') {
         $employee->status = 'Disabled';
-        $message = "Ang account ni {$employee->first_name} {$employee->last_name} ay matagumpay na NAKALOCK.";
+        $message = "The account of {$employee->first_name} {$employee->last_name} has been successfully locked.";
     } else {
         $employee->status = 'Active';
-        $message = "Ang account ni {$employee->first_name} {$employee->last_name} ay muling BINUHAY.";
+        $message = "The account of {$employee->first_name} {$employee->last_name} has been successfully umlocked.";
     }
 
     $employee->save();
@@ -149,7 +149,7 @@ class SuperAdminController extends Controller
             'course_title' => $request->course_title,
         ]);
 
-        return redirect()->back()->with('success', 'Course registry blueprint successfully modified.');
+        return redirect()->back()->with('Success', 'Course registry blueprint successfully modified.');
     }
 
     public function storeCourse(Request $request)
@@ -169,7 +169,7 @@ class SuperAdminController extends Controller
 
         Course::create($validated);
 
-        return redirect()->back()->with('success', 'New institutional course program successfully registered!');
+        return redirect()->back()->with('Success', 'New institutional course program successfully registered!');
     }
 
     public function profileView()
@@ -204,18 +204,18 @@ class SuperAdminController extends Controller
         $request->validate([
             'current_password' => ['required', function ($attribute, $value, $fail) use ($user) {
                 if (!Hash::check($value, $user->password) && $value !== $user->password) {
-                    $fail('Ang kasalukuyang password ay hindi tama.');
+                    $fail('The current password is incorrect.');
                 }
             }],
             'password' => ['required', 'string', 'min:' . $minCharacters, 'confirmed'],
         ], [
-            'password.min' => "Ang bagong password ay dapat may hindi bababa sa {$minCharacters} karakter.",
-            'password.confirmed' => 'Hindi nagtutugma ang Bagong Password at Kumpirmasyon.',
+            'password.min' => "The new password must be at least {$minCharacters} characters long.",
+            'password.confirmed' => 'The new password and confirmation do not match.',
         ]);
 
         $user->password = Hash::make($request->password);
         $user->save();
 
-        return redirect()->back()->with('success', 'Password successfully updated security requirements!');
+        return redirect()->back()->with('Success', 'Password successfully updated security requirements!');
     }
 }
