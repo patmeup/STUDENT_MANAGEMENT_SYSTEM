@@ -38,7 +38,7 @@
 
             <div class="search-bar-container">
                 <i class="fas fa-search search-icon"></i>
-                <input type="text" id="studentSearchInput" placeholder="Mag-hanap gamit ang Student ID, Pangalan, o Kurso..." class="custom-search-input">
+                <input type="text" id="studentSearchInput" placeholder="Search by Student ID, Name, or Course..." class="custom-search-input">
             </div>
 
             <div class="table-responsive">
@@ -85,7 +85,7 @@
 
             <div class="search-bar-container">
                 <i class="fas fa-search search-icon"></i>
-                <input type="text" id="blockSearchInput" placeholder="Mag-hanap gamit ang Block Section Name..." class="custom-search-input">
+                <input type="text" id="blockSearchInput" placeholder="Search by Block Section Name..." class="custom-search-input">
             </div>
 
             <div class="table-responsive">
@@ -154,7 +154,7 @@
                                             <option value="2nd Semester">2nd Sem</option>
                                         </select>
 
-                                        <button type="submit" class="btn-helper" style="background: #16a34a; padding: 5px 10px; font-size: 12px;" onclick="return confirm('Nais mo bang i-bulk enroll ang buong block na ito sa piniling Taon at Sem?')">
+                                        <button type="submit" class="btn-helper" style="background: #16a34a; padding: 5px 10px; font-size: 12px;" onclick="return confirm('Do you want to bulk enroll this entire block into the selected Year and Semester?')">
                                             Bulk Enroll Block
                                         </button>
                                     </form>

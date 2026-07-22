@@ -10,7 +10,7 @@
     @endif
     @if($errors->any())
         <div class="alert-banner alert-danger">
-            <i class="fa-solid fa-circle-exclamation"></i> May konting problema sa pag-proseso ng iyong request.
+            <i class="fa-solid fa-circle-exclamation"></i> There was a problem processing your request.
         </div>
     @endif
 

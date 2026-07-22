@@ -253,7 +253,7 @@ class DeptSecController extends Controller
             });
 
             if (empty($filteredSchedules)) {
-                return redirect()->back()->withInput()->with('error', 'Maaari lamang pumili ng schedule/section sa kahit isang subject bago mag-save.');
+                return redirect()->back()->withInput()->with('error', 'Please select a schedule/section for at least one subject before saving.');
             }
 
             DB::table('student_subjects')->where('student_number', $studentNumber)->delete();
@@ -276,12 +276,12 @@ class DeptSecController extends Controller
             DB::commit();
 
             return redirect()->route('department_secretary.students')
-                            ->with('success', 'Subjects and class schedules have been successfully plotted and saved for this student!');
+                            ->with('Success', 'Subjects and class schedules have been successfully plotted and saved for this student!');
 
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
-                            ->with('error', 'May naganap na error habang isinusumite ang data: ' . $e->getMessage());
+                            ->with('Error', 'An error occurred while submitting the data: ' . $e->getMessage());
         }
     }
     

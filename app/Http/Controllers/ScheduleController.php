@@ -61,7 +61,7 @@ class ScheduleController extends Controller
 
         ClassSchedule::create($request->all());
 
-        return redirect()->back()->with('success', 'Class deployment schedule successfully established!');
+        return redirect()->back()->with('Success', 'Class deployment schedule successfully established!');
     }
 
     public function update(Request $request, $id)
@@ -87,13 +87,13 @@ class ScheduleController extends Controller
             'updated_at'      => now(),
         ]);
 
-        return redirect()->back()->with('success', 'Class deployment schedule successfully updated!');
+        return redirect()->back()->with('Success', 'Class deployment schedule successfully updated!');
     }
 
     public function delete($id)
     {
         if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
+            return redirect('/')->with('Error', 'Unauthorized access.');
         }
 
         DB::table('student_subjects')->where('schedule_id', $id)->delete();
@@ -101,6 +101,6 @@ class ScheduleController extends Controller
         // Pagkatapos ay burahin na ang mismong parent schedule row
         DB::table('class_schedules')->where('id', $id)->delete();
 
-        return redirect()->back()->with('success', 'Class deployment record successfully deleted!');
+        return redirect()->back()->with('Success', 'Class deployment record successfully deleted!');
     }
 }

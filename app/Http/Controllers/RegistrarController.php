@@ -38,10 +38,10 @@ class RegistrarController extends Controller
                 'updated_at' => now(),
             ]);
 
-            return redirect()->back()->with('success', 'Announcement banner uploaded successfully!');
+            return redirect()->back()->with('Success', 'Announcement banner uploaded successfully!');
         }
 
-        return redirect()->back()->with('error', 'Failed to upload announcement.');
+        return redirect()->back()->with('Error', 'Failed to upload announcement.');
     }
 
     public function destroyAnnouncement($id)
@@ -56,16 +56,16 @@ class RegistrarController extends Controller
             Storage::disk('public')->delete($announcement->image_path);
             DB::table('announcements')->where('id', $id)->delete();
 
-            return redirect()->back()->with('success', 'Announcement banner removed successfully.');
+            return redirect()->back()->with('Success', 'Announcement banner removed successfully.');
         }
 
-        return redirect()->back()->with('error', 'Announcement not found.');
+        return redirect()->back()->with('Error', 'Announcement not found.');
     }
 
     public function manageEnrollment()
     {
         if (session('user_role') !== 'registrar') {
-            return redirect()->route('login')->with('error', 'Unauthorized access. Please login as Registrar.');
+            return redirect()->route('login')->with('Error', 'Unauthorized access. Please login as Registrar.');
         }
 
         return view('registrar.manage-enrollment');
@@ -191,7 +191,7 @@ class RegistrarController extends Controller
         
         $student->save();
 
-        return redirect()->back()->with('success', "Student credentials compiled successfully! Allocated Student ID: {$generatedStudentId}");
+        return redirect()->back()->with('Success', "Student credentials compiled successfully! Allocated Student ID: {$generatedStudentId}");
     }
 
     public function secureViewFile($student_id, $filename)
@@ -212,7 +212,7 @@ class RegistrarController extends Controller
     public function profileView()
     {
         if (session('user_role') !== 'registrar') {
-            return redirect()->route('login')->with('error', 'Unauthorized access. Please login as Registrar.');
+            return redirect()->route('login')->with('Error', 'Unauthorized access. Please login as Registrar.');
         }
 
         $userId = session('user_id');

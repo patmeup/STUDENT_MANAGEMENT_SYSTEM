@@ -57,6 +57,7 @@
             
             @php
                 $isOverdue = $task->due_date && \Carbon\Carbon::parse($task->due_date)->endOfDay()->isPast() && !$submission;
+                $isPastDeadline = $task->due_date && \Carbon\Carbon::parse($task->due_date)->endOfDay()->isPast();
             @endphp
             <span class="meta-pill {{ $isOverdue ? 'meta-pill-overdue' : '' }}">
                 <i class="fa-regular fa-calendar-check"></i>
@@ -105,39 +106,52 @@
                     <span class="submitted-label">Submitted {{ \Carbon\Carbon::parse($submission->submitted_at)->format('M d, Y - h:i A') }}</span>
                 </div>
             </div>
-            <p class="resubmit-note"><i class="fa-solid fa-circle-info"></i> Uploading a new file below will replace your current submission.</p>
+            @if(!$isPastDeadline)
+                <p class="resubmit-note"><i class="fa-solid fa-circle-info"></i> Uploading a new file below will replace your current submission.</p>
+            @endif
         @endif
 
-        <form action="{{ route('student.submit_task', ['id' => $task->id]) }}" method="POST" enctype="multipart/form-data" onsubmit="handleFormSubmit(this);">
-            @csrf
-
-            <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
-                <div class="dz-icon-circle"><i class="fa-solid fa-cloud-arrow-up"></i></div>
-                <p class="dz-title">Drag & drop file here</p>
-                <p class="dz-subtitle">or click to browse — PDF, DOC, PPT, ZIP, JPG, PNG (max 10MB)</p>
+        {{-- BACKEND/FRONTEND PROTECTION: LOCK IF PAST DEADLINE --}}
+        @if($isPastDeadline)
+            <div class="alert-banner alert-danger" style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 24px; gap: 8px;">
+                <i class="fa-solid fa-lock" style="font-size: 26px; color: #ef4444; margin-bottom: 4px;"></i>
+                <div style="font-size: 16px; font-weight: 700;">Submission Period Has Closed</div>
+                <p style="margin: 0; font-weight: 500; opacity: 0.9; font-size: 13.5px;">
+                    The deadline for this activity was on {{ \Carbon\Carbon::parse($task->due_date)->format('M d, Y') }}. Submissions or file revisions are no longer accepted.
+                </p>
             </div>
+        @else
+            <form action="{{ route('student.submit_task', ['id' => $task->id]) }}" method="POST" enctype="multipart/form-data" onsubmit="handleFormSubmit(this);">
+                @csrf
 
-            <div class="dz-file-preview" id="filePreview" style="display:none;">
-                <i class="fa-solid fa-file-circle-check"></i>
-                <div class="dz-file-info">
-                    <span class="dz-file-name" id="fileNameDisplay"></span>
-                    <span class="dz-file-size" id="fileSizeDisplay"></span>
+                <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+                    <div class="dz-icon-circle"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                    <p class="dz-title">Drag & drop file here</p>
+                    <p class="dz-subtitle">or click to browse — PDF, DOC, PPT, ZIP, JPG, PNG (max 10MB)</p>
                 </div>
-                <button type="button" class="dz-file-remove" id="removeFileBtn">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
 
-            <input type="file" name="attachment" id="fileInput" class="visually-hidden-input"
-                accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.jpg,.jpeg,.png" required>
+                <div class="dz-file-preview" id="filePreview" style="display:none;">
+                    <i class="fa-solid fa-file-circle-check"></i>
+                    <div class="dz-file-info">
+                        <span class="dz-file-name" id="fileNameDisplay"></span>
+                        <span class="dz-file-size" id="fileSizeDisplay"></span>
+                    </div>
+                    <button type="button" class="dz-file-remove" id="removeFileBtn">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
 
-            <div class="submit-btn-row">
-                <button type="submit" id="submitTaskBtn" class="btn-submit-task">
-                    <i class="fa-solid fa-paper-plane"></i> 
-                    <span id="submitBtnText">{{ $submission ? 'Resubmit Task' : 'Submit Task' }}</span>
-                </button>
-            </div>
-        </form>
+                <input type="file" name="attachment" id="fileInput" class="visually-hidden-input"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.jpg,.jpeg,.png" required>
+
+                <div class="submit-btn-row">
+                    <button type="submit" id="submitTaskBtn" class="btn-submit-task">
+                        <i class="fa-solid fa-paper-plane"></i> 
+                        <span id="submitBtnText">{{ $submission ? 'Resubmit Task' : 'Submit Task' }}</span>
+                    </button>
+                </div>
+            </form>
+        @endif
 
     </div>
 </div>
@@ -151,48 +165,60 @@
     const removeFileBtn = document.getElementById('removeFileBtn');
 
     function showFile(file) {
-        fileNameDisplay.textContent = file.name;
-        fileSizeDisplay.textContent = (file.size / 1024).toFixed(0) + ' KB';
-        dropzone.style.display = 'none';
-        filePreview.style.display = 'flex';
+        if (fileNameDisplay && fileSizeDisplay && dropzone && filePreview) {
+            fileNameDisplay.textContent = file.name;
+            fileSizeDisplay.textContent = (file.size / 1024).toFixed(0) + ' KB';
+            dropzone.style.display = 'none';
+            filePreview.style.display = 'flex';
+        }
     }
 
-    fileInput.addEventListener('change', () => {
-        if (fileInput.files[0]) showFile(fileInput.files[0]);
-    });
+    if (fileInput) {
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files[0]) showFile(fileInput.files[0]);
+        });
+    }
 
-    dropzone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropzone.classList.add('dropzone-active');
-    });
-    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dropzone-active'));
-    dropzone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropzone.classList.remove('dropzone-active');
-        if (e.dataTransfer.files[0]) {
-            fileInput.files = e.dataTransfer.files;
-            showFile(e.dataTransfer.files[0]);
-        }
-    });
+    if (dropzone) {
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dropzone-active');
+        });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dropzone-active'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dropzone-active');
+            if (e.dataTransfer.files[0] && fileInput) {
+                fileInput.files = e.dataTransfer.files;
+                showFile(e.dataTransfer.files[0]);
+            }
+        });
+    }
 
-    removeFileBtn.addEventListener('click', () => {
-        fileInput.value = '';
-        dropzone.style.display = 'block';
-        filePreview.style.display = 'none';
-    });
+    if (removeFileBtn) {
+        removeFileBtn.addEventListener('click', () => {
+            if (fileInput && dropzone && filePreview) {
+                fileInput.value = '';
+                dropzone.style.display = 'block';
+                filePreview.style.display = 'none';
+            }
+        });
+    }
 
     function handleFormSubmit(form) {
         const btn = document.getElementById('submitTaskBtn');
         const btnText = document.getElementById('submitBtnText');
         
-        btn.disabled = true;
-        btn.style.opacity = '0.7';
-        btn.style.cursor = 'not-allowed';
-        
-        if (btnText.innerText.trim() === 'Resubmit Task') {
-            btnText.innerText = 'Resubmitting, please wait...';
-        } else {
-            btnText.innerText = 'Submitting, please wait...';
+        if (btn && btnText) {
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            btn.style.cursor = 'not-allowed';
+            
+            if (btnText.innerText.trim() === 'Resubmit Task') {
+                btnText.innerText = 'Resubmitting, please wait...';
+            } else {
+                btnText.innerText = 'Submitting, please wait...';
+            }
         }
     }
 </script>
