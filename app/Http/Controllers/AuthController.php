@@ -144,19 +144,28 @@ public function updatePassword(Request $request)
 
         if ($role === 'super_admin') {
             return redirect()->route('super_admin.user_details')
-                ->with('success', 'Security records updated! All sidebar tabs are now unlocked.');
+                ->with('Success', 'Security records updated! All sidebar tabs are now unlocked.');
         } 
         
         if ($role === 'system_admin') {
             return redirect()->route('system_admin.user_details')
-                ->with('success', 'Your password has been changed successfully.');
+                ->with('Success', 'Your password has been changed successfully.');
         }
+<<<<<<< Updated upstream
+=======
+
+        if ($role === 'dean') {
+            return redirect()->route('dean.user_details')
+                ->with('Success', 'Your password has been changed successfully.');
+        }
+>>>>>>> Stashed changes
         
         if ($role === 'registrar') {
             return redirect()->route('registrar.user_details')
-                ->with('success', 'Your password has been changed successfully.');
+                ->with('Success', 'Your password has been changed successfully.');
         }
 
+<<<<<<< Updated upstream
         if ($role === 'dean') {
             return redirect()->route('dean.user_details')
                 ->with('success', 'Your password has been changed successfully.');
@@ -168,5 +177,8 @@ public function updatePassword(Request $request)
         }
 
         return redirect('/')->with('success', 'Password updated successfully. Please log in again.');
+=======
+        return redirect('/')->with('Success', 'Password updated successfully. Please log in again.');
+>>>>>>> Stashed changes
     }
 }
