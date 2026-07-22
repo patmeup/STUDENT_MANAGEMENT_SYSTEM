@@ -37,16 +37,15 @@
 
                 <div class="form-group" id="subjectSelectGroup">
                     <label>Target Course / Subject</label>
-                    <select name="subject_id" id="formSubjectId" class="select-input" required>
-                        <option value="">-- Select Cataloged Subject --</option>
-                        @if(isset($subjects) && $subjects->count() > 0)
+                        <select name="subject_id" id="formSubjectId" class="select-input" required>
+                            <option value="">-- Select Cataloged Subject --</option>
                             @foreach($subjects as $subj)
                                 <option value="{{ $subj->id }}">
-                                    [{{ strtoupper($subj->subject_code) }}] — {{ $subj->subject_title }}
+                                    [{{ strtoupper($subj->subject_code) }}] — {{ $subj->subject_title }} 
+                                    ({{ $subj->year_level }}, {{ $subj->semester }})
                                 </option>
                             @endforeach
-                        @endif
-                    </select>
+                        </select>
                     <small class="field-help">Choose the curriculum module to be given an active deployment slot.</small>
                 </div>
 
@@ -106,13 +105,33 @@
             <div class="card-header-flex" style="display: flex; flex-direction: column; gap: 12px; align-items: stretch;">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <h3 class="card-title-list">Active Deployment Matrix</h3>
-                    <span class="badge-count">{{ isset($schedules) ? $schedules->count() : 0 }} Active Classes</span>
+                    <span class="badge-count" id="visibleClassesCount">{{ isset($schedules) ? $schedules->count() : 0 }} Active Classes</span>
                 </div>
                 
-                <div class="table-search-box" style="position: relative; width: 100%;">
-                    <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px;"></i>
-                    <input type="text" id="scheduleSearchInput" placeholder="Search by Subject Code, Title, Section, or Classroom..." 
-                           style="width: 100%; padding: 10px 10px 10px 40px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; outline: none; box-sizing: border-box;">
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; width: 100%;">
+                    <div style="position: relative; flex: 2; min-width: 250px;">
+                        <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px;"></i>
+                        <input type="text" id="scheduleSearchInput" placeholder="Mag-hanap gamit ang Subject Code, Pamagat, Seksyon, o Silid-Aralan..." 
+                            style="width: 100%; padding: 10px 10px 10px 40px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; outline: none; box-sizing: border-box;">
+                    </div>
+
+                    <div style="flex: 1; min-width: 130px;">
+                        <select id="filterYearLevel" class="select-input" style="padding: 9px 12px; font-size: 13px;">
+                            <option value="">-- All Years --</option>
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                        </select>
+                    </div>
+
+                    <div style="flex: 1; min-width: 140px;">
+                        <select id="filterSemester" class="select-input" style="padding: 9px 12px; font-size: 13px;">
+                            <option value="">-- All Semesters --</option>
+                            <option value="1st Semester">1st Semester</option>
+                            <option value="2nd Semester">2nd Semester</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -130,16 +149,19 @@
                     <tbody>
                         @if(isset($schedules) && $schedules->count() > 0)
                             @foreach($schedules as $sched)
-                                <tr>
+                                <tr class="schedule-row-item"
+                                    data-year="{{ $sched->year_level ?? '' }}"
+                                    data-sem="{{ $sched->semester ?? '' }}">
+
                                     <td>
-                                        <span class="subject-code-tag">{{ strtoupper($sched->subject->subject_code ?? '') }}</span>
+                                        <span class="subject-code-tag">{{ strtoupper($sched->subject_code ?? '') }}</span>
                                         <div style="font-size: 12px; color: #64748b; margin-top: 4px; font-weight: 500;">
-                                            {{ $sched->subject->subject_title ?? '' }}
+                                            {{ $sched->subject_title ?? '' }}
                                         </div>
                                     </td>
-                                    
+
                                     <td><strong style="color: #0f172a;">{{ strtoupper($sched->section_name) }}</strong></td>
-                                    
+
                                     <td>
                                         <span class="sched-info-tag">
                                             <i class="fas fa-calendar-day"></i> {{ $sched->class_days }}
@@ -151,11 +173,12 @@
                                             <i class="fas fa-door-open" style="color: #94a3b8;"></i> Room: {{ strtoupper($sched->room_assignment) }}
                                         </div>
                                     </td>
-                                    
+
                                     <td>
-                                        @if(isset($sched->subject->professor))
+                                        @if($sched->prof_last_name ?? null)
                                             <span class="prof-assigned-tag">
-                                                <i class="fas fa-user-tie"></i> {{ $sched->subject->professor->last_name }}, {{ substr($sched->subject->professor->first_name, 0, 1) }}.
+                                                <i class="fas fa-user-tie"></i>
+                                                {{ $sched->prof_last_name }}, {{ substr($sched->prof_first_name, 0, 1) }}.
                                             </span>
                                         @else
                                             <span class="prof-unassigned-tag">Vacant Pool</span>
@@ -164,10 +187,10 @@
 
                                     <td style="text-align: center;">
                                         <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
-                                            <button type="button" class="btn-action-edit" title="Modify Schedule"
+                                            <button type="button" class="btn-action-edit"
                                                     data-id="{{ $sched->id }}"
-                                                    data-subject-id="{{ $sched->subject->id ?? '' }}"
-                                                    data-subject-text="[{{ strtoupper($sched->subject->subject_code ?? '') }}] — {{ $sched->subject->subject_title ?? '' }}"
+                                                    data-subject-id="{{ $sched->subject_id }}"
+                                                    data-subject-text="[{{ strtoupper($sched->subject_code ?? '') }}] — {{ $sched->subject_title ?? '' }}"
                                                     data-section="{{ $sched->section_name }}"
                                                     data-days="{{ $sched->class_days }}"
                                                     data-room="{{ $sched->room_assignment }}"
@@ -175,13 +198,12 @@
                                                     data-end="{{ $sched->end_time }}">
                                                 Edit
                                             </button>
-
-                                            <form action="{{ route('department_secretary.schedules.delete', $sched->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this deployment schedule? Its records will be permanently lost.');" style="display: inline-block; margin: 0; padding: 0;">
+                                            <form action="{{ route('department_secretary.schedules.delete', $sched->id) }}" method="POST"
+                                                onsubmit="return confirm('Sigurado ka ba?');"
+                                                style="display: inline-block; margin: 0; padding: 0;">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="btn-action-delete" title="Remove Deployment">
-                                                    Delete
-                                                </button>
+                                                <button type="submit" class="btn-action-delete">Delete</button>
                                             </form>
                                         </div>
                                     </td>
@@ -205,20 +227,57 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         
+        // --- 1. Multi-Criteria Search & Filter Dropdown Engine ---
         const searchInput = document.getElementById('scheduleSearchInput');
+        const filterYearLevel = document.getElementById('filterYearLevel');
+        const filterSemester = document.getElementById('filterSemester');
         const tableRows = document.querySelectorAll('#scheduleTable tbody tr');
+        const visibleClassesCount = document.getElementById('visibleClassesCount');
 
-        if (searchInput && tableRows.length > 0) {
-            searchInput.addEventListener('keyup', function () {
-                const searchTerm = this.value.toLowerCase().trim();
-                tableRows.forEach(row => {
-                    if (row.querySelector('.empty-table-state')) return;
-                    const rowText = row.innerText.toLowerCase();
-                    row.style.display = rowText.includes(searchTerm) ? '' : 'none';
-                });
+        function filterScheduleMatrixTable() {
+            const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            const selectedYear = filterYearLevel ? filterYearLevel.value : '';
+            const selectedSem = filterSemester ? filterSemester.value : '';
+            let visibleCount = 0;
+
+            tableRows.forEach(row => {
+                // Laktawan ang empty layout warning row kung sakali
+                if (row.querySelector('.empty-table-state')) return;
+
+                // Basahin ang content at data attributes ng row
+                const rowText = row.innerText.toLowerCase();
+                const rowYear = row.getAttribute('data-year') || '';
+                const rowSem = row.getAttribute('data-sem') || '';
+
+                // Kondisyon para sa pagsasala (Filters matching check)
+                const matchesSearch = rowText.includes(searchTerm);
+                const matchesYear = selectedYear === '' || rowYear === selectedYear;
+                const matchesSem = selectedSem === '' || rowSem === selectedSem;
+
+                if (matchesSearch && matchesYear && matchesSem) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
             });
+
+            // I-update ang badge counter nang real-time base sa nakikitang rows
+            if (visibleClassesCount) {
+                visibleClassesCount.textContent = `${visibleCount} Active Classes`;
+            }
         }
 
+        // Makinig sa bawat event change at input fields
+        if (searchInput) searchInput.addEventListener('input', filterScheduleMatrixTable);
+        if (filterYearLevel) filterYearLevel.addEventListener('change', filterScheduleMatrixTable);
+        if (filterSemester) filterSemester.addEventListener('change', filterScheduleMatrixTable);
+
+        // Patakbuhin ang filter engine agad pagka-load ng pahina
+        filterScheduleMatrixTable();
+
+
+        // --- 2. Deployment Matrix Form CRUD (Edit, Revert & Cancel) Logic ---
         const mainForm = document.getElementById('scheduleMainForm');
         const formPanelTitle = document.querySelector('.form-panel .card-bar span');
         const btnSubmitForm = document.querySelector('.btn-submit-subj');

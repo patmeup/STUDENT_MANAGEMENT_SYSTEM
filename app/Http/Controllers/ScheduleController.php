@@ -9,15 +9,41 @@ use App\Models\Subject;
 
 class ScheduleController extends Controller
 {
+
     public function index()
     {
         if (session('user_role') !== 'dept_sec') {
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
-        $schedules = ClassSchedule::with('subject.professor')->get();
-        
-        $subjects = Subject::orderBy('subject_code', 'asc')->get();
+        $schedules = DB::table('class_schedules')
+            ->leftJoin('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->leftJoin('curricula', 'subjects.id', '=', 'curricula.subject_id')
+            ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id')
+            ->select(
+                'class_schedules.*',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'curricula.year_level',
+                'curricula.semester',
+                'employees.first_name as prof_first_name',  
+                'employees.last_name  as prof_last_name'     
+            )
+            ->orderBy('class_schedules.section_name', 'asc')
+            ->get();
+
+        $subjects = DB::table('subjects')
+            ->join('curricula', 'subjects.id', '=', 'curricula.subject_id')
+            ->select(
+                'subjects.id',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'curricula.year_level',
+                'curricula.semester'
+            )
+            ->orderBy('curricula.year_level')
+            ->orderBy('curricula.semester')
+            ->get();
 
         return view('department_secretary.manage-schedules', compact('schedules', 'subjects'));
     }

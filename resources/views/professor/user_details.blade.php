@@ -5,7 +5,7 @@
 
     @if($isLocked)
         <div class="alert-banner alert-warning">
-            <strong style="display:block; margin-bottom: 4px;">⚠️ First-Time Login Action Required!</strong>
+            <strong style="display:block; margin-bottom: 4px;">First-Time Login Action Required!</strong>
         </div>
     @endif
 

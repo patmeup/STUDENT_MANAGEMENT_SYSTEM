@@ -6,25 +6,87 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Models\User;
+use App\Models\Subject;
+use App\Models\Student;
+use App\Models\BlockSection;
+use App\Models\ClassSchedule;
 
 class DeptSecController extends Controller
 {
-    
-    public function index()
-    {
+
+    public function dashboard() {
         if (session('user_role') !== 'dept_sec') {
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
         $dept = session('user_department');
-    
-        $totalStudents = DB::table('students')
-            ->join('courses', 'students.course', '=', 'courses.course_code')
-            ->where('courses.department', $dept)
-            ->count();
-        $totalSubjects = DB::table('curricula')->where('course', 'BSIT')->count();
 
-        return view('department_secretary.dashboard', compact('dept', 'totalStudents', 'totalSubjects'));
+        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+
+        $allowedCourses = ['BSIT']; 
+        if (str_contains(strtolower($dept), 'computer studies') || str_contains(strtolower($dept), 'ccs')) {
+            $allowedCourses = ['BSIT', 'BSCS'];
+        } elseif (str_contains(strtolower($dept), 'business') || str_contains(strtolower($dept), 'cba')) {
+            $allowedCourses = ['BSBA'];
+        } elseif (str_contains(strtolower($dept), 'hospitality') || str_contains(strtolower($dept), 'chm')) {
+            $allowedCourses = ['BSHM', 'BSTM'];
+        }
+
+        $trackedSubjectsCount = DB::table('curricula')
+            ->whereIn('course', $allowedCourses)
+            ->count();
+
+        $totalStudentsCount = DB::table('students')
+            ->whereIn('course', $allowedCourses)
+            ->count();
+
+        $activeBlocksCount = DB::table('class_schedules')
+            ->where(function($query) use ($allowedCourses) {
+                foreach ($allowedCourses as $course) {
+                    $query->orWhere('section_name', 'LIKE', $course . '%');
+                }
+            })
+            ->distinct('section_name')
+            ->count('section_name');
+
+        $deployedSlotsCount = DB::table('class_schedules')
+            ->where(function($query) use ($allowedCourses) {
+                foreach ($allowedCourses as $course) {
+                    $query->orWhere('section_name', 'LIKE', $course . '%');
+                }
+            })
+            ->count();
+
+        $blockSummaryList = DB::table('class_schedules')
+            ->where(function($query) use ($allowedCourses) {
+                foreach ($allowedCourses as $course) {
+                    $query->orWhere('class_schedules.section_name', 'LIKE', $course . '%');
+                }
+            })
+            ->select(
+                'class_schedules.section_name',
+                DB::raw('(
+                    select count(distinct student_subjects.student_number)
+                    from student_subjects
+                    inner join class_schedules as cs2 on student_subjects.schedule_id = cs2.id
+                    where cs2.section_name = class_schedules.section_name
+                    and student_subjects.status = "Enrolled"
+                ) as total_students')
+            )
+            ->groupBy('class_schedules.section_name')
+            ->orderBy('class_schedules.section_name', 'asc')
+            ->take(5)
+            ->get();
+
+        return view('department_secretary.dashboard', compact(
+            'dept',
+            'announcements',
+            'trackedSubjectsCount', 
+            'totalStudentsCount', 
+            'activeBlocksCount', 
+            'deployedSlotsCount',
+            'blockSummaryList'
+        ));
     }
 
     public function subjectCatalog(Request $request)
@@ -61,7 +123,6 @@ class DeptSecController extends Controller
 
     public function studentsList(Request $request)
     {
-
         if (session('user_role') !== 'dept_sec') {
             return redirect('/')->with('error', 'Unauthorized access.');
         }
@@ -76,7 +137,6 @@ class DeptSecController extends Controller
         } elseif (str_contains(strtolower($dept), 'hospitality') || str_contains(strtolower($dept), 'chm')) {
             $allowedCourses = ['BSHM', 'BSTM'];
         } else {
-            // Default fallback safe state
             $allowedCourses = ['BSIT']; 
         }
 
@@ -87,14 +147,23 @@ class DeptSecController extends Controller
             ->get();
 
         $sections = DB::table('class_schedules')
-            ->select('section_name', DB::raw('count(id) as total_subjects'))
-            ->where(function($query) use ($allowedCourses) {
-                foreach ($allowedCourses as $course) {
-                    $query->orWhere('section_name', 'LIKE', $course . '%');
-                }
-            })
-            ->groupBy('section_name')
-            ->orderBy('section_name', 'asc')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->join('curricula', 'subjects.id', '=', 'curricula.subject_id')
+            ->select(
+                'class_schedules.section_name',
+                'curricula.year_level',
+                'curricula.semester',
+                DB::raw('count(distinct class_schedules.subject_id) as total_subjects'),
+                DB::raw('(
+                    select count(distinct student_subjects.student_number)
+                    from student_subjects
+                    inner join class_schedules as cs2 on student_subjects.schedule_id = cs2.id
+                    where cs2.section_name = class_schedules.section_name
+                    and student_subjects.status = "Enrolled"
+                ) as enrolled_count')
+            )
+            ->groupBy('class_schedules.section_name', 'curricula.year_level', 'curricula.semester')
+            ->orderBy('class_schedules.section_name', 'asc')
             ->get();
 
         return view('department_secretary.masterlist', compact('students', 'sections', 'dept'));
@@ -168,7 +237,6 @@ class DeptSecController extends Controller
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
-        // Gagawa nating 'nullable' ang array validation para hindi magkaroon ng internal conflict sa empty keys
         $request->validate([
             'student_id' => 'required',
             'schedules'  => 'nullable|array',
@@ -180,20 +248,16 @@ class DeptSecController extends Controller
             $studentNumber = $request->input('student_id');
             $selectedSchedules = $request->input('schedules', []); 
 
-            // Salain ang mga totoong may valid na value (Aalisin ang null, empty string, o 0)
             $filteredSchedules = array_filter($selectedSchedules, function($value) {
                 return !empty($value);
             });
 
-            // Dito natin haharangin nang may malinis na error message kung walang pinili kahit isa
             if (empty($filteredSchedules)) {
-                return redirect()->back()->withInput()->with('error', 'Please select a schedule/section for at least one subject before saving.');
+                return redirect()->back()->withInput()->with('error', 'Maaari lamang pumili ng schedule/section sa kahit isang subject bago mag-save.');
             }
 
-            // I-clear ang lumang plotted classes para sa bagong enrollment matrix list
             DB::table('student_subjects')->where('student_number', $studentNumber)->delete();
 
-            // I-insert na ang mga valid schedules
             foreach ($filteredSchedules as $subjectId => $scheduleId) {
                 $scheduleExists = DB::table('class_schedules')->where('id', $scheduleId)->exists();
                 
@@ -217,7 +281,7 @@ class DeptSecController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
-                            ->with('error', 'An error occurred while submitting the data: ' . $e->getMessage());
+                            ->with('error', 'May naganap na error habang isinusumite ang data: ' . $e->getMessage());
         }
     }
     

@@ -7,8 +7,7 @@ use App\Models\User;
 use App\Models\Course;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-
-
+use Illuminate\Support\Facades\DB;
 
 class SuperAdminController extends Controller
 {
@@ -28,6 +27,28 @@ class SuperAdminController extends Controller
                          ->get();
 
         return view('super_admin.manage-employee', compact('employees'));
+    }
+
+    public function dashboard()
+    {
+        if (session('user_role') !== 'super_admin') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+
+        $totalStudents = DB::table('students')->count();
+        $totalEmployees = DB::table('employees')->count();
+        $totalCourses   = DB::table('courses')->count();
+        $totalSubjects  = DB::table('subjects')->count();
+
+        return view('super_admin.dashboard', compact(
+            'announcements', 
+            'totalStudents', 
+            'totalEmployees', 
+            'totalCourses', 
+            'totalSubjects'
+        ));
     }
 
     public function store(Request $request)
@@ -78,25 +99,23 @@ class SuperAdminController extends Controller
 {
     // 1. Siguraduhing super_admin lang ang may karapatang pumindot nito
     if (session('user_role') !== 'super_admin') {
-        return redirect()->back()->withErrors(['error' => 'You do not have the required permissions for this action.']);
+        return redirect()->back()->withErrors(['error' => 'Wala kang sapat na authorization para sa aksyong ito.']);
     }
 
     $employee = \App\Models\User::findOrFail($id);
 
-    // 2. SECURITY GUARD: Bawal i-disable ang sarili o ang ibang kapwa Super Admin
-    // I-match natin gamit ang email o primary id mula sa kasalukuyang session mo
     if ($employee->email === session('user_email') || $employee->role === 'super_admin') {
-        return redirect()->back()->with('error', 'For system security, you are not permitted to disable a Super Admin account.');
+        return redirect()->back()->with('error', 'Hindi mo maaaring i-disable ang isang Super Admin account para sa seguridad ng system.');
     }
 
     // 3. I-toggle ang status (Gawing kabaligtaran ng kasalukuyan)
     // Ginawa nating case-insensitive (.toLowerCase type approach) gamit ang ucfirst para malinis sa DB
     if (ucfirst($employee->status) === 'Active') {
         $employee->status = 'Disabled';
-        $message = "The account of {$employee->first_name} {$employee->last_name} has been successfully locked out of the system.";
+        $message = "Ang account ni {$employee->first_name} {$employee->last_name} ay matagumpay na NAKALOCK.";
     } else {
         $employee->status = 'Active';
-        $message = "The account of {$employee->first_name} {$employee->last_name} has been successfully restored.";
+        $message = "Ang account ni {$employee->first_name} {$employee->last_name} ay muling BINUHAY.";
     }
 
     $employee->save();
@@ -185,13 +204,13 @@ class SuperAdminController extends Controller
         $request->validate([
             'current_password' => ['required', function ($attribute, $value, $fail) use ($user) {
                 if (!Hash::check($value, $user->password) && $value !== $user->password) {
-                    $fail('The current password is incorrect.');
+                    $fail('Ang kasalukuyang password ay hindi tama.');
                 }
             }],
             'password' => ['required', 'string', 'min:' . $minCharacters, 'confirmed'],
         ], [
-            'password.min' => "The new password must be at least {$minCharacters} characters.",
-            'password.confirmed' => 'The new password and confirmation do not match.',
+            'password.min' => "Ang bagong password ay dapat may hindi bababa sa {$minCharacters} karakter.",
+            'password.confirmed' => 'Hindi nagtutugma ang Bagong Password at Kumpirmasyon.',
         ]);
 
         $user->password = Hash::make($request->password);

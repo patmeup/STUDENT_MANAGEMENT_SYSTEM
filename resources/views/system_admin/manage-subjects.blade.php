@@ -77,8 +77,16 @@
 
         <div class="sa-card table-panel">
             <div class="card-header-flex">
-                <h3 class="card-title-list">Global Subject Catalog</h3>
-                <span class="badge-count">{{ isset($subjects) ? $subjects->count() : 0 }} Total Subjects</span>
+                <div>
+                    <h3 class="card-title-list">Global Subject Catalog</h3>
+                </div>
+                <div class="header-controls-flex">
+                    <div class="search-bar-container">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="adminSubjectSearch" placeholder="Mag-hanap gamit ang Code, Pamagat, o Propesor..." class="custom-search-input">
+                    </div>
+                    <span class="badge-count">{{ isset($subjects) ? $subjects->count() : 0 }} Total Subjects</span>
+                </div>
             </div>
 
             <div class="table-responsive">
@@ -94,10 +102,10 @@
                             <th style="text-align: center;">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="adminSubjectTableBody">
                         @if(isset($subjects) && $subjects->count() > 0)
                             @foreach($subjects as $subject)
-                                <tr>
+                                <tr class="subject-data-row">
                                     <td><span class="subject-code-tag">{{ strtoupper($subject->subject_code) }}</span></td>
                                     <td class="subject-title-text">{{ $subject->subject_title }}</td>
                                     
@@ -123,7 +131,7 @@
                                 </tr>
                             @endforeach
                         @else
-                            <tr>
+                            <tr id="emptyTableStateRow">
                                 <td colspan="7" class="empty-table-state">
                                     There's no registered subject found in the system records.
                                 </td>
@@ -154,8 +162,17 @@
     /* Component Cards */
     .sa-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.03); overflow: hidden; }
     .card-bar { background: #f8fafc; padding: 16px 22px; font-weight: 700; font-size: 14.5px; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
-    .card-header-flex { background-color: #f8fafc; padding: 16px 22px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+    
+    /* Flex Container layouts for Card Headers */
+    .card-header-flex { background-color: #f8fafc; padding: 12px 22px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
     .card-title-list { font-size: 14.5px; font-weight: 700; color: #1e293b; margin: 0; }
+    .header-controls-flex { display: flex; align-items: center; gap: 16px; }
+
+    /* Clean Built-in Custom Search Inputs layout structures */
+    .search-bar-container { position: relative; display: flex; align-items: center; }
+    .search-icon { position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none; }
+    .custom-search-input { width: 280px; padding: 7px 12px 7px 32px; font-size: 12.5px; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; transition: all 0.15s ease; background: #ffffff; }
+    .custom-search-input:focus { border-color: #0033A0; box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.12); width: 320px; }
     
     /* Form Mechanics */
     .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
@@ -209,6 +226,29 @@ document.addEventListener('DOMContentLoaded', function () {
     const formElement = document.getElementById('subjectForm');
     const submitBtn = document.getElementById('btn-submit-action');
 
+    // --- Live Subject Catalog Filtering System Engine ---
+    const searchInput = document.getElementById('adminSubjectSearch');
+    const tableBody = document.getElementById('adminSubjectTableBody');
+    
+    if (searchInput && tableBody) {
+        const rows = tableBody.getElementsByClassName('subject-data-row');
+        
+        searchInput.addEventListener('input', function () {
+            const query = searchInput.value.toLowerCase().trim();
+            
+            for (let i = 0; i < rows.length; i++) {
+                // Instantly checks codes, descriptors, and instructor assignments elements
+                const contentText = rows[i].textContent.toLowerCase();
+                if (contentText.includes(query)) {
+                    rows[i].style.display = '';
+                } else {
+                    rows[i].style.display = 'none';
+                }
+            }
+        });
+    }
+
+    // --- Edit Mode Event Trigger Listeners ---
     editButtons.forEach(button => {
         button.addEventListener('click', function () {
             const id = this.getAttribute('data-id');

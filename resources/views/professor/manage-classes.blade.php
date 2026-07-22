@@ -1,7 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="prof-container">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<div class="prof-container py-4">
     
     <div class="prof-header">
         <div class="header-titles">
@@ -17,110 +19,107 @@
         </div>
     @endif
 
-    <div class="prof-workspace-full">
-        <div class="prof-card table-panel-full">
-            <div class="card-header-flex">
-                <h3 class="card-title-list">My Assigned Teaching Load</h3>
-                <span class="badge-count">{{ count($classes) }} Active Class Sections</span>
-            </div>
-
-            <div class="table-responsive">
-                <table class="minimal-table">
-                    <thead>
-                        <tr>
-                            <th>Subject Info</th>
-                            <th>Section</th>
-                            <th>Schedule & Day</th>
-                            <th>Room Location</th>
-                            <th style="text-align: center;">Academic Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($classes as $class)
-                            <tr>
-                                <td>
-                                    <strong class="subject-code-badge">{{ $class->subject_code }}</strong>
-                                    <span class="subject-title-text">{{ $class->subject_title }}</span>
-                                    <small class="units-text">({{ $class->lecture_units + $class->lab_units }} Units)</small>
-                                </td>
-                                
-                                <td><span class="section-tag">{{ strtoupper($class->section_name) }}</span></td>
-                                
-                                <td>
-                                    <div class="sched-wrapper">
-                                        <i class="far fa-calendar-alt" style="color: #64748b; margin-right: 4px;"></i>
-                                        <strong>{{ $class->class_days }}</strong> 
-                                        <span class="time-text">| {{ date('g:i A', strtotime($class->start_time)) }} - {{ date('g:i A', strtotime($class->end_time)) }}</span>
-                                    </div>
-                                </td>
-                                
-                                <td>
-                                    <span class="room-text">
-                                        <i class="fas fa-door-open" style="color: #94a3b8; margin-right: 4px;"></i>
-                                        {{ strtoupper($class->room_assignment) }}
-                                    </span>
-                                </td>
-                                
-                                <td style="text-align: center;">
-                                    <a href="#" class="btn-action-view font-600">
-                                        <i class="fas fa-users"></i> View Roster
-                                    </a>
-                                    <a href="#" class="btn-action-grade font-600">
-                                        <i class="fas fa-pen-alt"></i> Encode Grades
-                                    </a>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="empty-table-state">
-                                    No teaching subjects or active schedules have been officially assigned to your roster yet for this term.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <div class="card-header-flex mb-4">
+        <h3 class="card-title-list">My Assigned Teaching Load</h3>
+        <span class="badge-count">{{ count($classes) }} Active Class Sections</span>
     </div>
+
+    @if($classes->isEmpty())
+        <div class="empty-placeholder-card">
+            <i class="fa-solid fa-chalkboard-user fs-1 mb-2" style="color: #ccc;"></i>
+            <p class="fw-medium mb-1" style="color: #666;">No teaching subjects assigned yet</p>
+            <p class="small text-muted mb-0">Wait for Registrar or Dean to load your schedule active items.</p>
+        </div>
+    @else
+        <div class="prof-classes-grid">
+            @foreach($classes as $class)
+                @php
+                    $isEven = $loop->index % 2 == 0;
+                    $accentColor = $isEven ? '#1e2a5a' : '#facc15';
+                @endphp
+                
+                <a href="{{ route('professor.class_details', $class->schedule_id) }}" class="prof-class-card clickable-card">
+                    <div class="card-accent" style="background: {{ $accentColor }};"></div>
+                    
+                    <div class="card-body">
+                        <div class="card-top-meta mb-2">
+                            <span class="subject-code">{{ strtoupper($class->subject_code) }}</span>
+                            <span class="section-divider">•</span>
+                            <span class="section-display-text">{{ strtoupper($class->section_name) }}</span>
+                        </div>
+
+                        <h3 class="subject-title" title="{{ $class->subject_title }}">
+                            {{ $class->subject_title }}
+                        </h3>
+                        
+                        <div class="card-info-specs">
+                            <p class="units-display mb-2">
+                                <i class="fa-solid fa-book-bookmark"></i>
+                                <span>Academic Credits: <strong>{{ $class->lecture_units + $class->lab_units }} Units</strong></span>
+                            </p>
+
+                            <p class="roster-count mb-3">
+                                <i class="fa-solid fa-users"></i> 
+                                <span>Enrolled Students: <strong>{{ $class->students_count ?? 0 }}</strong></span>
+                            </p>
+                        </div>
+                        
+                        <div class="class-meta">
+                            <span class="meta-item">
+                                <i class="fa-regular fa-clock"></i> 
+                                <strong>{{ $class->class_days }}:</strong> {{ date('h:i A', strtotime($class->start_time)) }} - {{ date('h:i A', strtotime($class->end_time)) }}
+                            </span>
+                            <span class="meta-item">
+                                <i class="fa-solid fa-location-dot"></i> 
+                                <span>Room: {{ strtoupper($class->room_assignment) }}</span>
+                            </span>
+                        </div>
+                    </div>
+                </a>
+            @endforeach
+        </div>
+    @endif
 </div>
 
 <style>
-    .prof-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; max-width: 1400px; margin: 0 auto; }
-    .prof-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; }
-    .header-titles h2 { margin: 0; font-size: 24px; color: #0f172a; font-weight: 800; letter-spacing: -0.5px; }
-    .header-titles p { margin: 4px 0 0 0; font-size: 14px; color: #64748b; }
-    .prof-level { background-color: #0f172a; color: white; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .prof-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 1200px; margin: 0 auto; }
+    .prof-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #f1f3f9; padding-bottom: 20px; }
+    .header-titles h2 { font-size: 26px; color: #1e2a5a; font-weight: 800; margin-bottom: 5px; }
+    .header-titles p { color: #666; font-size: 14px; margin-bottom: 0; }
+    .prof-level { background: #1e2a5a; color: white; padding: 8px 16px; border-radius: 50px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    .prof-workspace-full { width: 100%; }
-    .prof-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); overflow: hidden; background: #ffffff; }
-    .card-header-flex { background-color: #f8fafc; padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-    .card-title-list { font-size: 15px; font-weight: 700; margin: 0; color: #1e293b; }
-    
-    .minimal-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-    .minimal-table th { background: #f8fafc; padding: 14px 24px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; text-align: left; letter-spacing: 0.5px; }
-    .minimal-table td { padding: 16px 24px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
-    .minimal-table tbody tr:hover { background-color: #f8fafc; }
-    
-    .subject-code-badge { background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 6px; font-family: monospace; font-size: 12.5px; margin-right: 8px; }
-    .subject-title-text { font-weight: 700; color: #0f172a; font-size: 14.5px; }
-    .units-text { color: #64748b; font-size: 12px; margin-left: 4px; }
-    .section-tag { font-weight: 700; color: #0f172a; background: #f1f5f9; padding: 4px 10px; border-radius: 4px; font-size: 12.5px; border: 1px solid #cbd5e1; }
-    
-    .sched-wrapper { font-size: 13.5px; color: #1e293b; }
-    .time-text { color: #64748b; font-weight: 400; }
-    .room-text { font-weight: 600; color: #475569; }
+    .card-header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+    .card-title-list { font-size: 16px; font-weight: 700; margin: 0; color: #1e293b; }
+    .badge-count { background: #1e2a5a; color: white; font-size: 12px; padding: 5px 14px; border-radius: 20px; font-weight: 700; }
 
-    /* Action Buttons Style */
-    .btn-action-view { text-decoration: none; display: inline-block; background-color: #ffffff; color: #2563eb; border: 1px solid #bfdbfe; padding: 6px 14px; border-radius: 6px; font-size: 12.5px; transition: all 0.2s; margin-right: 6px; }
-    .btn-action-view:hover { background-color: #2563eb; color: white; border-color: #2563eb; }
-    
-    .btn-action-grade { text-decoration: none; display: inline-block; background-color: #ffffff; color: #16a34a; border: 1px solid #bbf7d0; padding: 6px 14px; border-radius: 6px; font-size: 12.5px; transition: all 0.2s; }
-    .btn-action-grade:hover { background-color: #16a34a; color: white; border-color: #16a34a; }
-    
-    .badge-count { background: #0f172a; color: white; font-size: 11.5px; padding: 4px 12px; border-radius: 20px; font-weight: 700; }
-    .empty-table-state { text-align: center; color: #94a3b8; padding: 80px 0 !important; font-style: italic; }
-    .font-600 { font-weight: 600; }
+    /* Grid Framework */
+    .prof-classes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 25px; }
 
+    /* Clickable Card Core Elements */
+    .clickable-card { text-decoration: none !important; color: inherit !important; display: block; }
+    
+    .prof-class-card { background: white; border-radius: 15px; overflow: hidden; border: 1px solid #e0e0e0; transition: transform 0.25s ease, box-shadow 0.25s ease; display: flex; flex-direction: column; }
+    .prof-class-card:hover { transform: translateY(-5px); box-shadow: 0 12px 24px rgba(30, 42, 90, 0.12); border-color: #cbd5e1; }
+    
+    .card-accent { height: 6px; width: 100%; }
+    .card-body { padding: 22px; flex-grow: 1; display: flex; flex-direction: column; }
+
+    /* Combined Subject Code & Section Layout */
+    .card-top-meta { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: #0284c7; letter-spacing: 0.5px; }
+    .section-divider { color: #94a3b8; font-size: 10px; }
+    .section-display-text { text-transform: uppercase; color: #0284c7; }
+
+    .subject-title { font-size: 17px; color: #1e293b; font-weight: 700; margin-top: 4px; margin-bottom: 16px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 48px; }
+
+    .card-info-specs { border-bottom: 1px dashed #e2e8f0; padding-bottom: 12px; margin-bottom: 14px; }
+    .units-display, .roster-count { font-size: 13.5px; color: #475569; display: flex; align-items: center; gap: 8px; margin: 0; }
+    .units-display i, .roster-count i { width: 16px; color: #64748b; text-align: center; }
+
+    .class-meta { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+    .meta-item { font-size: 13px; color: #475569; display: flex; align-items: center; gap: 8px; }
+    .meta-item i { width: 14px; color: #1e2a5a; text-align: center; }
+
+    .empty-placeholder-card { border: 2px dashed #cbd5e1; border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; color: #94a3b8; text-align: center; background: #f8fafc; min-height: 250px; }
     .prof-alert-danger { background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; }
 </style>
 @endsection

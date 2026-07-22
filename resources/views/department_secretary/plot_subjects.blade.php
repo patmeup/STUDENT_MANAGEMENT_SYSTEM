@@ -18,7 +18,7 @@
 
     <div class="action-helper-card">
         <h4><i class="fas fa-magic"></i> Regular / Block Section Student Helper</h4>
-        <p>Select the Year, Semester, and type the Section to automatically plot the entire Block Section student schedule.</p>
+        <p>Piliin ang Year, Semester, at i-type ang Section upang awtomatikong i-plot ang buong Block Section schedule ng estudyante.</p>
         
         <div class="helper-controls">
             <select id="helperYear" class="select-input-helper">
@@ -35,7 +35,7 @@
 
             <input type="text" id="helperSection" placeholder="e.g., A" class="input-helper-text">
 
-            <button type="button" class="btn-helper" id="autoBlockBtn">⚡ Apply Block Section</button>
+            <button type="button" class="btn-helper" id="autoBlockBtn">Apply Block Section</button>
         </div>
     </div>
 
@@ -111,7 +111,7 @@
                 const sectionLetter = document.getElementById('helperSection').value.trim().toUpperCase();
 
                 if (!sectionLetter) {
-                    alert('Please enter the Section (e.g.,: A, B, or C) you want to apply.');
+                    alert('Paki-type muna kung anong Section (halimbawa: A, B, o C) ang nais mong i-apply.');
                     return;
                 }
 
@@ -133,10 +133,8 @@
                             for (let i = 0; i < select.options.length; i++) {
                                 const optionText = select.options[i].text.toUpperCase();
                                 
-                                // KUNIN ANG UNANG PARTE BAGO ANG '|' SYMBOL (e.g., "BSIT1-A ")
                                 const sectionPart = optionText.split('|')[0].trim();
                                 
-                                // TIYAKIN NA ANG SEKSYON AY NAGSAPE-TAPOS SA SAKTONG LETRA (e.g., nagtatapos sa "-B")
                                 if (sectionPart.endsWith('-' + sectionLetter) && select.options[i].value !== "") {
                                     select.selectedIndex = i;
                                     sectionFound = true;
@@ -146,16 +144,16 @@
                             }
                             
                             if (!sectionFound) {
-                                select.value = ""; // I-reset kung walang nahanap na B o C sa subject na ito
+                                select.value = "";
                             }
                         }
                     }
                 });
 
                 if (matchedCount > 0) {
-                    alert(`Success! Applied Section ${sectionLetter} has been applied to ${matchedCount} subjects.`);
+                    alert(`Success! Na-apply ang Section ${sectionLetter} sa ${matchedCount} na mga asignatura.`);
                 } else {
-                    alert(`Sorry, no schedules/sections ending in "-${sectionLetter}" were found for ${targetYear} (${targetSem}).`);
+                    alert(`Paumanhin, walang nahanap na mga schedule/sections na nagtatapos sa "-${sectionLetter}" para sa ${targetYear} (${targetSem}).`);
                 }
             });
         }

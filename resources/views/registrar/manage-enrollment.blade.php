@@ -53,10 +53,25 @@
                         <select name="course" required>
                             <option value="">-- Select Course / Program --</option>
                             <option value="BSIT">BS Information Technology</option>
-                            <option value="BSN">BS Nursing</option>
-                            <option value="BSA">BS Accountancy</option>
-                            <option value="BSED">Bachelor of Secondary Education</option>
-                            <option value="Crim">BS Criminology</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-grid-2" style="margin-top: 15px;">
+                    <div class="form-group">
+                        <label>Year Level</label>
+                        <select name="year_level" required>
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Semester</label>
+                        <select name="semester" required>
+                            <option value="1st Semester">1st Semester</option>
+                            <option value="2nd Semester">2nd Semester</option>
                         </select>
                     </div>
                 </div>
