@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Students;
 use App\Support\TermHelper;
 use App\Support\GradeHelper;
+use App\Models\StudentTermGrade;
 
 class ProfessorController extends Controller
 {
@@ -64,9 +65,9 @@ class ProfessorController extends Controller
 
         return view('professor.dashboard', compact(
             'announcements',
-            'totalClasses', 
-            'totalStudents', 
-            'pendingGrading', 
+            'totalClasses',
+            'totalStudents',
+            'pendingGrading',
             'classesList'
         ));
     }
@@ -77,7 +78,7 @@ class ProfessorController extends Controller
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
-        $professor_id = session('user_id'); 
+        $professor_id = session('user_id');
 
         $classes = \DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
@@ -88,17 +89,17 @@ class ProfessorController extends Controller
                 'class_schedules.start_time',
                 'class_schedules.end_time',
                 'class_schedules.room_assignment',
-                'subjects.subject_code', 
+                'subjects.subject_code',
                 'subjects.subject_title',
                 'subjects.lecture_units',
                 'subjects.lab_units',
 
-                \DB::raw('(SELECT COUNT(*) 
-                        FROM student_subjects 
-                        WHERE student_subjects.schedule_id = class_schedules.id 
+                \DB::raw('(SELECT COUNT(*)
+                        FROM student_subjects
+                        WHERE student_subjects.schedule_id = class_schedules.id
                         AND student_subjects.status = "Enrolled") as students_count')
             )
-            ->where('subjects.professor_id', $professor_id) 
+            ->where('subjects.professor_id', $professor_id)
             ->orderBy('class_schedules.section_name')
             ->get();
 
@@ -111,12 +112,12 @@ class ProfessorController extends Controller
             return redirect()->route('login')->with('error', 'Unauthorized access.');
         }
 
-        $professorId = session('user_id'); 
+        $professorId = session('user_id');
 
         $classDetails = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->where('class_schedules.id', $schedule_id)
-            ->where('subjects.professor_id', $professorId) 
+            ->where('subjects.professor_id', $professorId)
             ->select(
                 'class_schedules.id as schedule_id',
                 'class_schedules.section_name',
@@ -136,12 +137,12 @@ class ProfessorController extends Controller
         }
 
         $students = DB::table('student_subjects')
-            ->join('students', 'student_subjects.student_number', '=', 'students.student_id') 
+            ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
             ->where('student_subjects.schedule_id', $schedule_id)
             ->where('student_subjects.status', 'Enrolled')
             ->select(
-                'students.id as internal_db_id',       
-                'students.student_id',               
+                'students.id as internal_db_id',
+                'students.student_id',
                 'students.last_name',
                 'students.first_name',
                 'students.middle_name',
@@ -149,7 +150,7 @@ class ProfessorController extends Controller
             )
             ->orderBy('students.last_name', 'asc')
             ->get();
-            
+
         $tasks = DB::table('student_tasks')
             ->where('class_schedule_id', $schedule_id)
             ->orderBy('due_date', 'asc')
@@ -158,17 +159,51 @@ class ProfessorController extends Controller
         $terms = ['prelim', 'midterm', 'semifinal', 'final'];
         $autoGrades = [];
 
+        $savedGrades = StudentTermGrade::where('schedule_id', $schedule_id)
+            ->get()
+            ->keyBy(function ($grade) {
+                return $grade->term . '_' . $grade->student_number;
+            });
+
+        $draftGrades = StudentTermGrade::where('schedule_id', $schedule_id)
+            ->get()
+            ->groupBy('term');
+
         foreach ($terms as $term) {
+
             foreach ($students as $student) {
-                $autoGrades[$term][$student->student_id] = GradeHelper::computeAutoGrades(
-                    $schedule_id,
-                    $student->student_id,
-                    $term
-                );
+
+                $saved = $savedGrades->get($term . '_' . $student->student_id);
+
+                if ($saved) {
+
+                    $autoGrades[$term][$student->student_id] = [
+                        'attendance'      => $saved->attendance,
+                        'class_standing'  => $saved->class_standing,
+                        'major_exam'      => $saved->major_exam,
+                        'equivalent'      => $saved->equivalent,
+                        'is_manual'       => $saved->is_manual,
+                    ];
+
+                } else {
+
+                    $autoGrades[$term][$student->student_id] =
+                        GradeHelper::computeAutoGrades(
+                            $schedule_id,
+                            $student->student_id,
+                            $term
+                        );
+                }
             }
         }
 
-        return view('professor.class_details', compact('classDetails', 'students', 'tasks', 'autoGrades'));
+        return view('professor.class_details', compact(
+            'classDetails',
+            'students',
+            'tasks',
+            'autoGrades',
+            'draftGrades'
+        ));
     }
 
     public function showAttendanceSheet($schedule_id, Request $request)
@@ -198,8 +233,8 @@ class ProfessorController extends Controller
     public function saveAttendance(Request $request, $schedule_id)
     {
         $date = $request->input('attendance_date', date('Y-m-d'));
-        $attendanceData = $request->input('attendance', []); 
-        $remarksData = $request->input('remarks', []);       
+        $attendanceData = $request->input('attendance', []);
+        $remarksData = $request->input('remarks', []);
 
         $request->validate([
             'attendance_date' => 'required|date|before_or_equal:today',
@@ -309,7 +344,7 @@ class ProfessorController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+           return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -343,7 +378,7 @@ class ProfessorController extends Controller
                 if ($task->file_path) {
                     Storage::disk('local')->delete($task->file_path);
                 }
-                
+
                 $classInfo = DB::table('class_schedules')
                     ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
                     ->where('class_schedules.id', $task->class_schedule_id)
@@ -367,7 +402,7 @@ class ProfessorController extends Controller
                 $finalName = Str::slug(pathinfo($originalName, PATHINFO_FILENAME)) . '_' . time() . '.' . $extension;
 
                 $file->storeAs($folderPath, $finalName, 'local');
-                
+
                 $updateData['original_filename'] = $originalName;
                 $updateData['file_path'] = "{$folderPath}/{$finalName}";
             }
@@ -410,7 +445,7 @@ class ProfessorController extends Controller
         }
 
         $task = DB::table('student_tasks')->where('id', $task_id)->first();
-        
+
         if (!$task) {
             return redirect()->back()->with('error', 'Task not found.');
         }
@@ -490,7 +525,7 @@ class ProfessorController extends Controller
     public function submitGrade(Request $request, $submission_id)
     {
         $submission = DB::table('task_submissions')->where('id', $submission_id)->first();
-        
+
         if (!$submission) {
             return redirect()->back()->with('error', 'Submission record not found.');
         }
@@ -525,7 +560,7 @@ class ProfessorController extends Controller
             ->where('class_schedules.id', $schedule_id)
             ->where('subjects.professor_id', $professorId)
             ->select(
-                'class_schedules.id as id', 
+                'class_schedules.id as id',
                 'class_schedules.id as schedule_id',
                 'class_schedules.section_name',
                 'class_schedules.class_days',
@@ -595,34 +630,48 @@ class ProfessorController extends Controller
         return view('professor.grades_breakdown', compact('classDetails', 'student', 'tasksWithGrades', 'attendances', 'term'));
     }
 
-    public function saveManualGrade(Request $request, $schedule_id)
+    public function saveGrades(Request $request)
     {
+        //dd($request->all()); //Troubleshooting
         $request->validate([
-            'student_id' => 'required|string',
-            'term' => 'required|string|in:prelim,midterm,semifinal,final',
-            'manual_grade' => 'nullable|numeric|min:0|max:100',
-            'is_manual' => 'required|boolean'
+            'grades'                  => 'required|array',
+            'grades.*.schedule_id'    => 'required|integer',
+            'grades.*.student_number' => 'required|string',
+            'grades.*.term'           => 'required|in:prelim,midterm,semifinal,final',
+            'grades.*.class_standing' => 'nullable|numeric|min:0|max:100',
+            'grades.*.major_exam'     => 'nullable|numeric|min:0|max:100',
+            'grades.*.equivalent'     => 'nullable|numeric|min:1|max:5',
+            'grades.*.is_manual'      => 'required|boolean',
         ]);
-
         try {
-            // I-save o i-update sa database (halimbawa, sa table na student_grades o katulad nito)
-            DB::table('student_term_grades')->updateOrInsert(
-                [
-                    'schedule_id' => $schedule_id,
-                    'student_id' => $request->student_id,
-                    'term' => $request->term,
-                ],
-                [
-                    'manual_grade' => $request->is_manual ? $request->manual_grade : null,
-                    'is_manual' => $request->is_manual,
-                    'updated_at' => now(),
-                    'created_at' => now(),
-                ]
-            );
-
-            return response()->json(['success' => true]);
+            foreach ($request->grades as $grade) {
+                $auto = GradeHelper::computeAutoGrades(
+                    $grade['schedule_id'],
+                    $grade['student_number'],
+                    $grade['term']
+                );
+                StudentTermGrade::updateOrCreate(
+                    [
+                        'schedule_id'    => $grade['schedule_id'],
+                        'student_number' => $grade['student_number'],
+                        'term'           => $grade['term'],
+                    ],
+                    [
+                        'attendance'     => $auto['attendance'] ?? null,
+                        'class_standing' => $grade['class_standing'] ?? null,
+                        'major_exam'     => $grade['major_exam'] ?? null,
+                        'equivalent'     => $grade['equivalent'] ?? null,
+                        'is_manual'      => $grade['is_manual'] ?? false,
+                        'is_submitted'   => false,
+                    ]
+                );
+            }
+            return response()->json([
+                'success' => true,
+                'message' => 'Draft grades saved successfully.'
+            ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json(['success' => false,'message' => $e->getMessage()], 500);
         }
     }
 
@@ -640,4 +689,5 @@ class ProfessorController extends Controller
 
         return view('professor.user_details', compact('user', 'isLocked'));
     }
+
 }

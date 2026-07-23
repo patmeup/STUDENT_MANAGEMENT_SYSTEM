@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Helpers\GradeHelper;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AccountSettingsController;
 use App\Http\Controllers\SuperAdminController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\StudentTermGradeController;
 
 // ACCOUNT ROUTES
 Route::get('/', function () {
@@ -131,6 +133,8 @@ Route::get('/professor/class/{schedule_id}/student/{student_id}/breakdown', [Pro
 
 
 Route::get('/professor/user_details', [ProfessorController::class, 'profileView'])->name('professor.user_details');
+
+Route::post('/professor/save-grades',[ProfessorController::class, 'saveGrades'])->name('professor.save-grades');
 
 // STUDENT ROUTES
 Route::get('/student/dashboard', [StudentController::class, 'dashboard'])->name('student.dashboard');

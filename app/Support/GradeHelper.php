@@ -145,15 +145,33 @@ class GradeHelper
 
     public static function computeAutoGrades($schedule_id, $student_id, $term)
     {
-        $classStanding = self::computeClassStanding($schedule_id, $student_id, $term);
-        $majorExam = self::computeMajorExam($schedule_id, $student_id, $term);
-        $finalPercent = self::computeFinalPercent($classStanding, $majorExam);
-        $equivalent = self::computeEquivalent($finalPercent);
-
+        $attendance = self::computeAttendanceRate(
+            $schedule_id,
+            $student_id,
+            $term
+        );
+        $classStanding = self::computeClassStanding(
+            $schedule_id,
+            $student_id,
+            $term
+        );
+        $majorExam = self::computeMajorExam(
+            $schedule_id,
+            $student_id,
+            $term
+        );
+        $finalPercent = self::computeFinalPercent(
+            $classStanding,
+            $majorExam
+        );
+        $equivalent = self::computeEquivalent(
+            $finalPercent
+        );
         return [
-            'class_standing' => $classStanding,
-            'major_exam' => $majorExam,
-            'equivalent' => $equivalent,
+            'attendance'      => $attendance,
+            'class_standing'  => $classStanding,
+            'major_exam'      => $majorExam,
+            'equivalent'      => $equivalent,
         ];
     }
 }

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="main-container">
+<div class="grades-breakdown-container">
 
     <div class="back-container">
         <a href="{{ route('professor.class_details', ['schedule_id' => $classDetails->schedule_id, 'tab' => request('term', 'prelim'), 'subtab' => 'encoding']) }}" class="back-link">
@@ -28,7 +28,7 @@
     </div>
 
     <div class="content-card">
-        @php 
+        @php
             $activeTerm = $term ?? null;
             $termLabelMap = ['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'];
         @endphp
@@ -61,8 +61,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @php 
-                        $hasTasks = false; 
+                    @php
+                        $hasTasks = false;
                         $termsToShow = $activeTerm ? [$activeTerm] : ['prelim', 'midterm', 'semifinal', 'final'];
                     @endphp
 
@@ -127,9 +127,9 @@
                         <tr>
                             <td class="font-semibold text-gray-900">{{ \Carbon\Carbon::parse($att->attendance_date)->format('F d, Y') }}</td>
                             <td class="text-center">
-                                <span class="status-pill 
-                                    @if($att->status == 'Present') status-present 
-                                    @elseif($att->status == 'Absent') status-absent 
+                                <span class="status-pill
+                                    @if($att->status == 'Present') status-present
+                                    @elseif($att->status == 'Absent') status-absent
                                     @else status-late @endif">
                                     {{ $att->status }}
                                 </span>
@@ -148,17 +148,17 @@
 </div>
 
 <style>
-    .main-container {
+    .grades-breakdown-container {
         max-width: 80rem;
         margin: 0 auto;
         padding: 1.5rem 1rem;
     }
 
-    .back-container {
+    .grades-breakdown-container .back-container {
         margin-bottom: 1.5rem;
     }
 
-    .back-link {
+    .grades-breakdown-container .back-link {
         display: inline-flex;
         align-items: center;
         font-size: 0.875rem;
@@ -166,17 +166,17 @@
         color: #1d4ed8;
         text-decoration: none;
     }
-    .back-link:hover {
+    .grades-breakdown-container .back-link:hover {
         text-decoration: underline;
     }
 
-    .back-icon {
+    .grades-breakdown-container .back-icon {
         width: 1rem;
         height: 1rem;
         margin-right: 0.35rem;
     }
 
-    .content-card {
+    .grades-breakdown-container .content-card {
         background: #ffffff;
         border: 1px solid #e5e7eb;
         border-radius: 0.75rem;
@@ -185,25 +185,25 @@
         margin-bottom: 1.5rem;
     }
 
-    .student-header-info {
+    .grades-breakdown-container .student-header-info {
         padding-bottom: 1rem;
         border-bottom: 1px solid #f3f4f6;
         margin-bottom: 1rem;
     }
 
-    .student-name {
+    .grades-breakdown-container .student-name {
         font-size: 1.25rem;
         font-weight: 700;
         color: #111827;
     }
 
-    .student-id-label {
+    .grades-breakdown-container .student-id-label {
         font-size: 0.875rem;
         color: #6b7280;
         margin-top: 0.25rem;
     }
 
-    .student-id-val {
+    .grades-breakdown-container .student-id-val {
         background: #f3f4f6;
         padding: 0.1rem 0.4rem;
         border-radius: 0.25rem;
@@ -211,25 +211,25 @@
         font-weight: 500;
     }
 
-    .info-grid {
+    .grades-breakdown-container .info-grid {
         display: grid;
         grid-template-columns: 1fr;
         gap: 1rem;
     }
     @media (min-width: 768px) {
-        .info-grid {
+        .grades-breakdown-container .info-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
 
-    .info-box {
+    .grades-breakdown-container .info-box {
         background: #f9fafb;
         border: 1px solid #f3f4f6;
         padding: 0.875rem 1rem;
         border-radius: 0.5rem;
     }
 
-    .info-title {
+    .grades-breakdown-container .info-title {
         display: block;
         font-size: 0.75rem;
         font-weight: 600;
@@ -238,7 +238,7 @@
         letter-spacing: 0.05em;
     }
 
-    .info-desc {
+    .grades-breakdown-container .info-desc {
         display: block;
         font-size: 0.95rem;
         font-weight: 600;
@@ -246,16 +246,16 @@
         margin-top: 0.2rem;
     }
 
-    .section-heading {
+    .grades-breakdown-container .section-heading {
         margin-bottom: 1.25rem;
     }
 
-    .heading-flex {
+    .grades-breakdown-container .heading-flex {
         display: flex;
         align-items: center;
     }
 
-    .icon-box {
+    .grades-breakdown-container .icon-box {
         width: 2.5rem;
         height: 2.5rem;
         background: #eff6ff;
@@ -266,33 +266,33 @@
         margin-right: 0.75rem;
     }
 
-    .section-svg {
+    .grades-breakdown-container .section-svg {
         width: 1.25rem;
         height: 1.25rem;
         color: #2563eb;
     }
 
-    .section-heading h2 {
+    .grades-breakdown-container .section-heading h2 {
         font-size: 1.125rem;
         font-weight: 700;
         color: #111827;
         margin: 0;
     }
 
-    .table-container {
+    .grades-breakdown-container .table-container {
         overflow-x: auto;
         border: 1px solid #e5e7eb;
         border-radius: 0.5rem;
     }
 
-    .portal-table {
+    .grades-breakdown-container .portal-table {
         width: 100%;
         border-collapse: collapse;
         text-align: left;
         font-size: 0.875rem;
     }
 
-    .portal-table th {
+    .grades-breakdown-container .portal-table th {
         background: #f9fafb;
         color: #6b7280;
         font-weight: 600;
@@ -303,24 +303,24 @@
         border-bottom: 1px solid #e5e7eb;
     }
 
-    .portal-table td {
+    .grades-breakdown-container .portal-table td {
         padding: 0.875rem 1rem;
         border-bottom: 1px solid #e5e7eb;
         color: #374151;
         background: #ffffff;
     }
 
-    .portal-table tbody tr:last-child td {
+    .grades-breakdown-container .portal-table tbody tr:last-child td {
         border-bottom: none;
     }
 
-    .portal-table tbody tr:hover td {
+    .grades-breakdown-container .portal-table tbody tr:hover td {
         background: #f9fafb;
     }
 
-    .text-center { text-align: center; }
+    .grades-breakdown-container .text-center { text-align: center; }
 
-    .term-tag {
+    .grades-breakdown-container .term-tag {
         font-weight: 700;
         font-size: 0.75rem;
         padding: 0.25rem 0.6rem;
@@ -328,12 +328,12 @@
         text-transform: uppercase;
         display: inline-block;
     }
-    .term-prelim { background: #dbeafe; color: #1e40af; }
-    .term-midterm { background: #fef3c7; color: #92400e; }
-    .term-semifinal { background: #ede9fe; color: #5b21b6; }
-    .term-final { background: #dcfce7; color: #166534; }
+    .grades-breakdown-container .term-prelim { background: #dbeafe; color: #1e40af; }
+    .grades-breakdown-container .term-midterm { background: #fef3c7; color: #92400e; }
+    .grades-breakdown-container .term-semifinal { background: #ede9fe; color: #5b21b6; }
+    .grades-breakdown-container .term-final { background: #dcfce7; color: #166534; }
 
-    .type-pill {
+    .grades-breakdown-container .type-pill {
         background: #f3f4f6;
         color: #4b5563;
         padding: 0.2rem 0.5rem;
@@ -343,7 +343,7 @@
         text-transform: capitalize;
     }
 
-    .badge-ungraded {
+    .grades-breakdown-container .badge-ungraded {
         background: #f3f4f6;
         color: #6b7280;
         padding: 0.2rem 0.5rem;
@@ -352,7 +352,7 @@
         font-weight: 600;
     }
 
-    .badge-graded {
+    .grades-breakdown-container .badge-graded {
         background: #dcfce7;
         color: #166534;
         padding: 0.2rem 0.6rem;
@@ -361,7 +361,7 @@
         font-weight: 700;
     }
 
-    .status-pill {
+    .grades-breakdown-container .status-pill {
         padding: 0.2rem 0.75rem;
         border-radius: 9999px;
         font-size: 0.75rem;
@@ -369,11 +369,11 @@
         display: inline-block;
     }
 
-    .status-present { background: #dcfce7; color: #166534; }
-    .status-absent { background: #fee2e2; color: #991b1b; }
-    .status-late { background: #fef3c7; color: #92400e; }
+    .grades-breakdown-container .status-present { background: #dcfce7; color: #166534; }
+    .grades-breakdown-container .status-absent { background: #fee2e2; color: #991b1b; }
+    .grades-breakdown-container .status-late { background: #fef3c7; color: #92400e; }
 
-    .empty-row {
+    .grades-breakdown-container .empty-row {
         text-align: center;
         color: #6b7280;
         padding: 2rem !important;

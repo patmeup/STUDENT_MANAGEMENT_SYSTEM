@@ -4,7 +4,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<div class="prof-container py-4" x-data="{ 
+<div class="prof-container py-4" x-data="{
         currentTab: new URLSearchParams(window.location.search).get('tab') || 'prelim',
     switchTab(tabName) {
         this.currentTab = tabName;
@@ -12,7 +12,7 @@
         url.searchParams.set('tab', tabName);
         window.history.replaceState({}, '', url);
     },
-        showModal: false, 
+        showModal: false,
         modalTerm: '',
         editingTaskId: null,
         formTitle: '',
@@ -21,14 +21,14 @@
         formDueDate: '',
         publishing: false,
         fileSizeError: false,
-        
+
         selectedDate: new Date().toLocaleDateString('en-CA'),
-        currentDate: new Date().toLocaleDateString('en-CA'),  
+        currentDate: new Date().toLocaleDateString('en-CA'),
         attendanceState: {
             @foreach($students as $student)
                 '{{ $student->student_id }}': null,
             @endforeach
-        }, 
+        },
         remarksState: {},
         isInitialized: false,
         loadingAttendance: false,
@@ -92,23 +92,23 @@
 
         loadAttendanceData() {
             this.loadingAttendance = true;
-            this.isInitialized = false; 
+            this.isInitialized = false;
 
             fetch(`/professor/class/{{ $classDetails->schedule_id }}/attendance?date=${this.selectedDate}`)
             .then(res => res.json())
             .then(data => {
                 const attendanceKeys = Object.keys(data.existingAttendance || {});
-                this.hasSaved = attendanceKeys.length > 0; 
-                
+                this.hasSaved = attendanceKeys.length > 0;
+
                 this.attendanceState = {};
                 this.remarksState = {};
-                
+
             data.students.forEach(student => {
                 const record = data.existingAttendance[student.student_id] || {};
-                this.attendanceState[student.student_id] = record.status || null; 
+                this.attendanceState[student.student_id] = record.status || null;
                 this.remarksState[student.student_id] = record.remarks || '';
             });
-                
+
                 this.isInitialized = true;
             })
             .finally(() => {
@@ -120,10 +120,10 @@
             if (this.hasSaved) return;
 
             Object.keys(this.attendanceState).forEach(studentId => {
-                this.attendanceState[studentId] = null; 
+                this.attendanceState[studentId] = null;
                 this.remarksState[studentId] = '';
             });
-            
+
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
 
@@ -181,13 +181,13 @@
                     this.attendanceState[rec.student_id] = rec.status;
                     this.remarksState[rec.student_id] = rec.remarks || '';
                 });
-                this.hasSaved = true; 
+                this.hasSaved = true;
             }
         }
-    }"
+    }",
 
     x-init="initAttendance()">
-        
+
     <div class="page-header-row">
         <a href="{{ route('professor.manage-classes') }}" class="btn-back-link">
             <i class="fa-solid fa-arrow-left-long"></i> Back to My Classes List
@@ -195,8 +195,8 @@
         <span class="badge-portal">Class Control Panel</span>
     </div>
 
-    <div x-show="saveStatus.show" 
-         x-transition 
+    <div x-show="saveStatus.show"
+         x-transition
          class="alert mb-4 d-flex align-items-center justify-content-between py-3 px-4 rounded-3 border transition"
          :class="saveStatus.success ? 'bg-success-subtle text-success border-success-subtle' : 'bg-danger-subtle text-danger border-danger-subtle'"
          style="display: none; font-weight: 600;">
@@ -205,7 +205,7 @@
     </div>
 
     <div class="dashboard-grid-wrapper">
-        
+
         <!-- SIDEBAR -->
         <div class="unified-sidebar">
             <div class="sidebar-subject-card">
@@ -230,10 +230,10 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="sidebar-navigation-card">
                 <div class="panel-title-label">ACADEMIC WORKSPACE</div>
-                
+
                 <button class="nav-tab-btn" :class="currentTab === 'masterlist' ? 'active-tab' : ''" @click="currentTab = 'masterlist'">
                     <i class="fa-solid fa-users-rectangle"></i> Student Masterlist
                 </button>
@@ -241,7 +241,7 @@
                 <button class="nav-tab-btn" :class="currentTab === 'attendance' ? 'active-tab' : ''" @click="currentTab = 'attendance'">
                     <i class="fa-solid fa-calendar-check"></i> Class Attendance
                 </button>
-                
+
                 <div class="panel-title-label mt-4">TERM GRADE ENCODING</div>
                 @foreach(['prelim' => 'Prelim Term', 'midterm' => 'Midterm Term', 'semifinal' => 'Semi-Final Term', 'final' => 'Final Term'] as $key => $label)
                     <button class="nav-tab-btn" :class="currentTab === '{{ $key }}' ? 'active-tab' : ''" @click="currentTab = '{{ $key }}'">
@@ -318,11 +318,11 @@
                                     <span class="modern-date-label">LOG DATE:</span>
                                     <div class="input-date-inner">
                                         <i class="fa-regular fa-calendar-check text-muted"></i>
-                                        <input type="date" 
-                                            name="attendance_date" 
-                                            x-model="selectedDate" 
-                                            @change="loadAttendanceData()" 
-                                            class="modern-date-picker" 
+                                        <input type="date"
+                                            name="attendance_date"
+                                            x-model="selectedDate"
+                                            @change="loadAttendanceData()"
+                                            class="modern-date-picker"
                                             max="{{ now()->setTimezone('Asia/Manila')->format('Y-m-d') }}">
                                     </div>
                                 </div>
@@ -372,18 +372,18 @@
                                                 <td class="text-center text-muted fw-bold">#{{ $index + 1 }}</td>
                                                 <td class="fw-semibold text-secondary">{{ $student->student_id }}</td>
                                                 <td class="text-uppercase fw-bold text-dark-slate">{{ $student->last_name }}, {{ $student->first_name }}</td>
-                                                
+
                                                 <td class="text-center align-middle">
                                                     <input type="hidden" :name="'attendance[' + '{{ $student->student_id }}' + ']'" :value="attendanceState['{{ $student->student_id }}']">
 
                                                     <template x-if="hasSaved">
-                                                        <span class="badge" 
+                                                        <span class="badge"
                                                             :class="{
                                                                 'bg-success': attendanceState['{{ $student->student_id }}'] === 'Present',
                                                                 'bg-warning': attendanceState['{{ $student->student_id }}'] === 'Late',
                                                                 'bg-danger': attendanceState['{{ $student->student_id }}'] === 'Absent',
                                                                 'bg-secondary': !attendanceState['{{ $student->student_id }}']
-                                                            }" 
+                                                            }"
                                                             x-text="attendanceState['{{ $student->student_id }}'] || 'N/A'">
                                                         </span>
                                                     </template>
@@ -428,15 +428,15 @@
             </div>
 
             @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key => $termLabel)
-                @php 
-                    $termTasks = $tasks->where('term', $key); 
+                @php
+                    $termTasks = $tasks->where('term', $key);
                 @endphp
-                <div x-show="currentTab === '{{ $key }}'" x-transition style="display: none;" 
-                    x-data="{ 
-                            termSubTab: new URLSearchParams(window.location.search).get('subtab') || 'encoding' 
+                <div x-show="currentTab === '{{ $key }}'" x-transition style="display: none;"
+                    x-data="{
+                            termSubTab: new URLSearchParams(window.location.search).get('subtab') || 'encoding'
                         }">
                     <div class="workspace-card">
-                        
+
                         <div class="card-workspace-header mb-3">
                             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
                                 <div>
@@ -450,19 +450,9 @@
                                     </button>
                                 </template>
 
-                                <template x-if="termSubTab === 'encoding'">
-                                    <div class="d-flex gap-2">
-                                        <button type="button" class="btn-sm-outline text-dark-blue fw-bold bg-white">
-                                            <i class="fa-solid fa-floppy-disk"></i> Save Draft
-                                        </button>
-                                        <button type="button" class="btn-primary-portal py-1 px-3" style="font-size: 12px;">
-                                            <i class="fa-solid fa-paper-plane"></i> Submit to Registrar
-                                        </button>
-                                    </div>
-                                </template>
                             </div>
                         </div>
-                            
+
                         <div class="term-subtab-bar">
                             <button type="button" class="term-subtab-btn" :class="termSubTab === 'deliverables' ? 'term-subtab-active' : ''" @click="termSubTab = 'deliverables'">
                                 <i class="fa-solid fa-folder-open"></i> Deliverables
@@ -470,7 +460,7 @@
                             <button type="button" class="term-subtab-btn" :class="termSubTab === 'encoding' ? 'term-subtab-active' : ''" @click="termSubTab = 'encoding'">
                                 <i class="fa-solid fa-calculator"></i> Grade Encoding
                             </button>
-                        </div>   
+                        </div>
 
                         <div x-show="termSubTab === 'deliverables'">
                             <div class="activity-list-container">
@@ -522,37 +512,121 @@
                             </div>
                         </div>
 
-                        <div x-show="termSubTab === 'encoding'" style="display: none;" 
-                            x-data="{ 
-                                gradeMode: {},
+                        <div x-show="termSubTab === 'encoding'" style="display: none;"
+                            x-data="{
+                                gradeMode: {
+                                @foreach($students as $student)
+                                @php
+                                   $draft = optional(
+                                        $draftGrades->get($key)?->firstWhere('student_number', $student->student_id)
+                                    );
+                                @endphp
+                                '{{ $student->student_id }}': '{{ ($draft && $draft->is_manual) ? "manual" : "auto" }}',
+                                @endforeach
+
+                                },
                                 manualGrades: {
-                                    @foreach($students as $student)
-                                        '{{ $student->student_id }}': {
-                                            class_standing: '{{ $autoGrades[$key][$student->student_id]['class_standing'] ?? '' }}',
-                                            major_exam: '{{ $autoGrades[$key][$student->student_id]['major_exam'] ?? '' }}',
-                                            equivalent: '{{ $autoGrades[$key][$student->student_id]['equivalent'] ?? '' }}'
-                                        },
-                                    @endforeach
+                                @foreach($students as $student)
+                                @php
+                                    $draft = optional(
+                                        $draftGrades->get($key)?->firstWhere('student_number', $student->student_id)
+                                    );
+                                @endphp
+                                '{{ $student->student_id }}': {
+                                    class_standing: '{{ $draft->class_standing ?? $autoGrades[$key][$student->student_id]['class_standing'] ?? "" }}',
+                                    major_exam: '{{ $draft->major_exam ?? $autoGrades[$key][$student->student_id]['major_exam'] ?? "" }}',
+                                    equivalent: '{{ $draft->equivalent ?? $autoGrades[$key][$student->student_id]['equivalent'] ?? "" }}'
+                                },
+                                @endforeach
                                 },
                                 autoGradesData: @js($autoGrades[$key] ?? []),
-                                
+
                                 setMode(sid, mode) {
                                     this.gradeMode[sid] = mode;
                                     if (mode === 'auto') {
-                                        this.manualGrades[sid].class_standing = this.autoGradesData[sid]?.class_standing ?? '';
-                                        this.manualGrades[sid].major_exam = this.autoGradesData[sid]?.major_exam ?? '';
-                                        this.manualGrades[sid].equivalent = this.autoGradesData[sid]?.equivalent ?? '';
+                                        this.manualGrades[sid].class_standing =
+                                            this.autoGradesData[sid]?.class_standing ?? '';
+                                        this.manualGrades[sid].major_exam =
+                                            this.autoGradesData[sid]?.major_exam ?? '';
+                                        this.manualGrades[sid].equivalent =
+                                            this.autoGradesData[sid]?.equivalent ?? '';
                                     } else if (mode === 'manual') {
-                                        this.manualGrades[sid].class_standing = '';
-                                        this.manualGrades[sid].major_exam = '';
-                                        this.manualGrades[sid].equivalent = '';
+                                        if (!this.manualGrades[sid].class_standing)
+                                            this.manualGrades[sid].class_standing =
+                                                this.autoGradesData[sid]?.class_standing ?? '';
+                                        if (!this.manualGrades[sid].major_exam)
+                                            this.manualGrades[sid].major_exam =
+                                                this.autoGradesData[sid]?.major_exam ?? '';
+                                        if (!this.manualGrades[sid].equivalent)
+                                            this.manualGrades[sid].equivalent =
+                                                this.autoGradesData[sid]?.equivalent ?? '';
                                     }
                                 },
 
                                 saveManualGrade(sid) {
                                     console.log('Saving grade for', sid, 'Mode:', this.gradeMode[sid], 'Data:', this.manualGrades[sid]);
-                                }
-                            }">
+                                },
+
+                                saveGrades() {
+                                    let grades = [];
+
+                                    Object.keys(this.manualGrades).forEach(studentNumber => {
+                                        grades.push({
+                                            student_number: studentNumber,
+                                            schedule_id: {{ $classDetails->schedule_id }},
+                                            term: '{{ $key }}',
+                                            class_standing: this.manualGrades[studentNumber].class_standing,
+                                            major_exam: this.manualGrades[studentNumber].major_exam,
+                                            equivalent: this.manualGrades[studentNumber].equivalent,
+                                            is_manual: this.gradeMode[studentNumber] === 'manual'
+                                        });
+                                    });
+
+                                    fetch('{{ route('professor.save-grades') }}', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                        },
+                                        body: JSON.stringify({
+                                            grades: grades
+                                        })
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.success) {
+                                            console.log(data);
+                                            alert('Draft saved successfully.');
+                                        } else {
+                                            console.error(data);
+                                            alert(data.message);
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error(error);
+                                    });
+                                },
+
+                            }
+                                ">
+
+                                <template x-if="termSubTab === 'encoding'">
+
+                                    <div class="d-flex gap-2">
+
+                                        <button
+                                            type="button"
+                                            class="btn-sm-outline text-dark-blue fw-bold bg-white"
+                                            @click="saveGrades()">
+                                            <i class="fa-solid fa-floppy-disk"></i>
+                                            Save Draft
+                                        </button>
+                                        <button type="button" class="btn-primary-portal py-1 px-3" style="font-size: 12px;">
+                                            <i class="fa-solid fa-paper-plane"></i> Submit to Registrar
+                                        </button>
+
+                                    </div>
+                                </template>
 
                             @if($students->isEmpty())
                                 <div class="empty-state-box">
@@ -581,8 +655,8 @@
                                         </thead>
                                         <tbody>
                                         @foreach($students as $index => $student)
-                                            @php 
-                                                $sid = $student->student_id; 
+                                            @php
+                                                $sid = $student->student_id;
                                                 $auto = $autoGrades[$key][$sid] ?? ['class_standing' => null, 'major_exam' => null, 'equivalent' => null];
                                             @endphp
                                             <tr>
@@ -592,13 +666,27 @@
 
                                                 <td class="text-center">
                                                     <div class="encoding-cell-row">
-                                                        <input type="number" min="0" max="100" step="0.01" class="encoding-input"
-                                                            x-model="manualGrades['{{ $sid }}'].class_standing"
+
+                                                       <input type="number" min="0" max="100" step="0.01" class="encoding-input"
+                                                            x-model.number="manualGrades['{{ $sid }}'].class_standing"
                                                             placeholder="—"
                                                             :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual'"
                                                             :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' ? 'encoding-input-active' : 'encoding-input-muted'"
-                                                            @input="if ($event.target.value > 100) $event.target.value = 100; if ($event.target.value < 0) $event.target.value = 0;">
-                                                        <a href="{{ route('professor.grades.breakdown', ['schedule_id' => $classDetails->schedule_id, 'student_id' => $sid, 'term' => $key]) }}" class="breakdown-icon-link" title="View individual activity scores and attendance breakdown">
+                                                            @input="
+                                                                let value = parseFloat($event.target.value);
+
+                                                                if (isNaN(value)) {
+                                                                    manualGrades['{{ $sid }}'].class_standing = '';
+                                                                } else {
+                                                                    if (value > 100) value = 100;
+                                                                    if (value < 0) value = 0;
+
+                                                                    manualGrades['{{ $sid }}'].class_standing = value;
+                                                                    $event.target.value = value;
+                                                                }
+                                                            ">
+
+                                                            <a href="{{ route('professor.grades.breakdown', ['schedule_id' => $classDetails->schedule_id, 'student_id' => $sid, 'term' => $key]) }}" class="breakdown-icon-link" title="View individual activity scores and attendance breakdown">
                                                             <i class="fa-solid fa-eye"></i>
                                                         </a>
                                                     </div>
@@ -606,16 +694,26 @@
 
                                                 <td class="text-center">
                                                     <input type="number" min="0" max="100" step="0.01" class="encoding-input"
-                                                        x-model="manualGrades['{{ $sid }}'].major_exam"
+                                                        x-model.number="manualGrades['{{ $sid }}'].major_exam"
                                                         placeholder="—"
                                                         :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual'"
                                                         :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' ? 'encoding-input-active' : 'encoding-input-muted'"
-                                                        @input="if ($event.target.value > 100) $event.target.value = 100; if ($event.target.value < 0) $event.target.value = 0;">
-                                                </td>
+                                                        @input="
+                                                            let value = parseFloat($event.target.value);
+                                                            if (isNaN(value)) {
+                                                                manualGrades['{{ $sid }}'].major_exam = '';
+                                                            } else {
+                                                                if (value > 100) value = 100;
+                                                                if (value < 0) value = 0;
+                                                                manualGrades['{{ $sid }}'].major_exam = value;
+                                                                $event.target.value = value;
+                                                            }
+                                                        ">
+                                                    </td>
 
                                                 <td class="text-center">
                                                     <span class="equivalent-pill">
-                                                        <input type="text" class="equivalent-input" 
+                                                        <input type="text" class="equivalent-input"
                                                             x-model="manualGrades['{{ $sid }}'].equivalent"
                                                             placeholder="—"
                                                             maxlength="4"
@@ -680,8 +778,8 @@
                 formData.append('schedule_id', '{{ $classDetails->schedule_id }}');
                 if (selectedFile) formData.append('attachment', selectedFile);
 
-                let url = editingTaskId 
-                    ? `/professor/update-activity/${editingTaskId}` 
+                let url = editingTaskId
+                    ? `/professor/update-activity/${editingTaskId}`
                     : '{{ route('professor.save-activity') }}';
 
                 fetch(url, {
@@ -722,7 +820,7 @@
                                 <option value="module">Module / Learning Material</option>
                             </select>
                         </div>
-                        
+
                         <div class="field-group" x-show="formType !== 'module'">
                             <label class="field-label">Highest Score</label>
                             <input type="number" name="max_score" class="field-input" x-model="formMaxScore" min="1" :required="formType !== 'module'">
@@ -744,16 +842,16 @@
                             @drop.prevent="
                                 dragOver = false;
                                 const file = $event.dataTransfer.files[0];
-                                if (file) { 
-                                    if (file.size > 25 * 1024 * 1024) { 
-                                        fileSizeError = true; 
+                                if (file) {
+                                    if (file.size > 25 * 1024 * 1024) {
+                                        fileSizeError = true;
                                         selectedFile = null;
                                         $refs.fileInput.value = '';
                                     } else {
                                         fileSizeError = false;
-                                        selectedFile = file; 
-                                        fileName = file.name; 
-                                        fileSize = (file.size / 1024).toFixed(0) + ' KB'; 
+                                        selectedFile = file;
+                                        fileName = file.name;
+                                        fileSize = (file.size / 1024).toFixed(0) + ' KB';
                                     }
                                 }
                             "
@@ -783,16 +881,16 @@
                             accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.jpg,.jpeg,.png"
                             @change="
                                 const file = $event.target.files[0];
-                                if (file) { 
-                                    if (file.size > 25 * 1024 * 1024) { 
-                                        fileSizeError = true; 
+                                if (file) {
+                                    if (file.size > 25 * 1024 * 1024) {
+                                        fileSizeError = true;
                                         selectedFile = null;
                                         $event.target.value = '';
                                     } else {
                                         fileSizeError = false;
-                                        selectedFile = file; 
-                                        fileName = file.name; 
-                                        fileSize = (file.size / 1024).toFixed(0) + ' KB'; 
+                                        selectedFile = file;
+                                        fileName = file.name;
+                                        fileSize = (file.size / 1024).toFixed(0) + ' KB';
                                     }
                                 }
                             ">
@@ -981,9 +1079,6 @@
     }
     .equivalent-input:focus { outline: none; border-color: #15803d; }
 
-    .breakdown-link { font-size: 11px; color: #0284c7; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: 0.15s; }
-    .breakdown-link:hover { color: #0369a1; text-decoration: underline; }
-
     .mode-toggle-group {
         display: inline-flex;
         background: #f1f5f9;
@@ -1016,14 +1111,11 @@
         color: #b45309 !important;
     }
 
-    .breakdown-link { font-size: 11px; color: #0284c7; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: 0.15s; }
-    .breakdown-link:hover { color: #0369a1; text-decoration: underline; }
-
     .encoding-input-muted, .equivalent-input-muted {
         background: #f1f5f9 !important;
-        color: #64748b !important; 
-        opacity: 1 !important;     
-        filter: none !important; 
+        color: #64748b !important;
+        opacity: 1 !important;
+        filter: none !important;
         cursor: not-allowed;
     }
 </style>
