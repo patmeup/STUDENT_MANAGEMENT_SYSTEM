@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="sa-container">
-    
+
     <div class="sa-header">
         <div class="header-titles">
             <h2>Global Subject Encoder</h2>
@@ -29,11 +29,11 @@
             <div class="card-bar">
                 <span><i class="fas fa-book-medical"></i> Subject Specifications Form</span>
             </div>
-            
+
             {{-- Binigyan natin ng ID ang form at dynamically babaguhin ang action path kapag Edit mode na --}}
             <form id="subjectForm" action="{{ route('system_admin.subjects.store') }}" method="POST" autocomplete="off" class="pure-form">
                 @csrf
-                
+
                 <input
                 type="hidden"
                 name="_method"
@@ -41,7 +41,7 @@
 
                 {{-- Mahalagang Hidden Input: Dito itatago ang ID ng isasalbuhang subject kapag mag-aupdate --}}
                 <input type="hidden" name="subject_id" id="form_subject_id">
-                
+
                 <div class="form-group">
                     <label>Subject Code / Acronym</label>
                     <input type="text" name="subject_code" id="form_subject_code" placeholder="e.g., COPRO1, GEC-RPH, NET101" class="uppercase-input" required>
@@ -95,10 +95,10 @@
                     <div class="search-bar-container">
                         <i class="fas fa-search search-icon"></i>
                         <input
-                            type="text"
-                            id="adminSubjectSearch"
-                            placeholder="Search Code, Title, or Professor..."
-                            class="custom-search-input">
+                        type="text"
+                        id="adminSubjectSearch"
+                        placeholder="Search by Code, Title, or Professor..."
+                        class="custom-search-input">
                     </div>
 
                     <span class="badge-count">
@@ -127,7 +127,7 @@
                                 <tr class="subject-data-row">
                                     <td><span class="subject-code-tag">{{ strtoupper($subject->subject_code) }}</span></td>
                                     <td class="subject-title-text">{{ $subject->subject_title }}</td>
-                                    
+
                                     <td>
                                         @if($subject->professor)
                                             <span class="prof-assigned-tag">
@@ -216,7 +216,7 @@
 
     .sa-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px -2px rgba(0,0,0,0.03); overflow: hidden; }
     .card-bar { background: #f8fafc; padding: 16px 22px; font-weight: 700; font-size: 14.5px; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
-    
+
     /* Flex Container layouts for Card Headers */
     .card-header-flex { background-color: #f8fafc; padding: 12px 22px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
     .card-title-list { font-size: 14.5px; font-weight: 700; color: #1e293b; margin: 0; }
@@ -227,7 +227,7 @@
     .search-icon { position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none; }
     .custom-search-input { width: 280px; padding: 7px 12px 7px 32px; font-size: 12.5px; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; transition: all 0.15s ease; background: #ffffff; }
     .custom-search-input:focus { border-color: #0033A0; box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.12); width: 320px; }
-    
+
     /* Form Mechanics */
     .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
@@ -237,7 +237,7 @@
     .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .uppercase-input { text-transform: uppercase; }
     .field-help { font-size: 11px; color: #94a3b8; margin-top: 2px; }
-    
+
     /* Custom Dropdown Styling */
     .select-input { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 12px center; background-repeat: no-repeat; background-size: 20px; -webkit-appearance: none; -moz-appearance: none; appearance: none; padding-right: 40px; cursor: pointer; }
 
@@ -256,7 +256,7 @@
 
     .subject-code-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; color: #2563eb; background-color: #eff6ff; padding: 4px 8px; border-radius: 6px; font-size: 12px; display: inline-block; }
     .subject-title-text { font-weight: 600; color: #1e293b; }
-    
+
     /* Professor Assignment Badges */
     .prof-assigned-tag { font-size: 12.5px; font-weight: 600; color: #047857; background-color: #ecfdf5; border: 1px solid #a7f3d0; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; }
     .prof-unassigned-tag { font-size: 12px; font-weight: 500; color: #64748b; background-color: #f1f5f9; padding: 4px 10px; border-radius: 6px; display: inline-block; font-style: italic; }
@@ -305,13 +305,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Live Subject Catalog Filtering System Engine ---
     const searchInput = document.getElementById('adminSubjectSearch');
     const tableBody = document.getElementById('adminSubjectTableBody');
-    
+
     if (searchInput && tableBody) {
         const rows = tableBody.getElementsByClassName('subject-data-row');
-        
+
         searchInput.addEventListener('input', function () {
             const query = searchInput.value.toLowerCase().trim();
-            
+
             for (let i = 0; i < rows.length; i++) {
                 // Instantly checks codes, descriptors, and instructor assignments elements
                 const contentText = rows[i].textContent.toLowerCase();
@@ -369,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function () {
         function resetFormState() {
             const formElement = document.getElementById('subjectForm');
             const submitBtn = document.getElementById('btn-submit-action');
-            
+
             formElement.reset();
 
             document.getElementById('form_subject_id').value = '';
@@ -377,7 +377,7 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('form_method').value = '';
 
             formElement.action = "{{ route('system_admin.subjects.store') }}";
-            
+
             submitBtn.innerText = "Compile & Save";
             submitBtn.style.backgroundColor = "#0033A0";
         }

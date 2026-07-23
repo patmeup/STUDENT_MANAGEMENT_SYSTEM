@@ -3,15 +3,13 @@
 @section('content')
 <div class="main-container">
 
-    <!-- Back Button -->
     <div class="back-container">
-        <a href="{{ route('professor.class_details', $classDetails->id) }}" class="back-link">
+        <a href="{{ route('professor.class_details', ['schedule_id' => $classDetails->schedule_id, 'tab' => request('term', 'prelim'), 'subtab' => 'encoding']) }}" class="back-link">
             <svg class="back-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-            Back to Class Dashboard
+            Back to Grade Encoding
         </a>
     </div>
 
-    <!-- Student & Class Header Card -->
     <div class="content-card">
         <div class="student-header-info">
             <h1 class="student-name">{{ $student->last_name }}, {{ $student->first_name }} {{ $student->middle_name }}</h1>
@@ -29,7 +27,6 @@
         </div>
     </div>
 
-    <!-- Task Grades Breakdown Section (Filtered by Specific Term) -->
     <div class="content-card">
         @php 
             $activeTerm = $term ?? null;

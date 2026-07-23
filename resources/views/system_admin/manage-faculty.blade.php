@@ -22,7 +22,7 @@
         </div>
     @endif
 
-    <div class="admin-workspace">     
+    <div class="admin-workspace">
         <div class="admin-card form-panel">
             <div class="card-bar">
                 <span><i class="fas fa-user-plus"></i> Onboard New Faculty Member</span>
@@ -87,14 +87,19 @@
                     <h3 class="card-title-list">Active Institutional Faculty Roster</h3>
                     <span class="badge-count"> {{ $faculties->count() }} Faculty Members </span>
                 </div>
-
-                <div class="table-search-box">
-                    <i class="fas fa-search search-icon"></i>
-                    <input
+                <div class="header-controls-flex">
+                    <div class="search-bar-container">
+                        <i class="fas fa-search search-icon"></i>
+                        <input
                         type="text"
-                        id="facultySearchInput"
-                        placeholder="Search faculty name, ID, or designation..."
-                    >
+                        id="adminFacultySearch"
+                        placeholder="Search by Name, ID, or Email..."
+                        class="custom-search-input">
+
+                    </div>
+                    <span class="badge-count">
+                        {{ $faculties->count() }} Personnel Stationed
+                    </span>
                 </div>
             </div>
 
@@ -249,7 +254,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     // Live Search
-    const searchInput = document.getElementById('facultySearchInput');
+    const searchInput = document.getElementById('adminFacultySearch');
     const tableRows   = document.querySelectorAll('#facultyTable tbody tr');
     const noResults   = document.getElementById('facultyNoResults');
 

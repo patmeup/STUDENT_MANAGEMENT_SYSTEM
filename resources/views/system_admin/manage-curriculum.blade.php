@@ -184,8 +184,8 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="empty-table-state">
-                                    Walang subject links na kasalukuyang nakalagay sa mga kurso.
+                                <td colspan="4" class="empty-table-state">
+                                     There are currently no subject links assigned to the courses.
                                 </td>
                             </tr>
                         @endforelse

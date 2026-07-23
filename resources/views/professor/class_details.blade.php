@@ -5,7 +5,13 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <div class="prof-container py-4" x-data="{ 
-        currentTab: new URLSearchParams(window.location.search).get('tab') || 'masterlist', 
+        currentTab: new URLSearchParams(window.location.search).get('tab') || 'prelim',
+    switchTab(tabName) {
+        this.currentTab = tabName;
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', tabName);
+        window.history.replaceState({}, '', url);
+    },
         showModal: false, 
         modalTerm: '',
         editingTaskId: null,
@@ -245,15 +251,13 @@
             </div>
         </div>
 
-        <!-- MAIN WORKSPACE -->
         <div class="unified-workspace">
-            
-            <!-- Student Masterlist Tab -->
+
             <div x-show="currentTab === 'masterlist'" x-transition>
                 <div class="workspace-card">
                     <div class="card-workspace-header d-flex justify-content-between align-items-center mb-3">
                         <div>
-                            <h4 class="m-0 fw-bold text-dark-blue">📋 Student Masterlist Roster</h4>
+                            <h4 class="m-0 fw-bold text-dark-blue">Student Masterlist Roster</h4>
                             <p class="small text-muted m-0">Official list of enrolled class members</p>
                         </div>
                         <span class="students-count-badge">{{ count($students) }} Students Enrolled</span>
@@ -288,7 +292,6 @@
                 </div>
             </div>
 
-            <!-- Class Attendance Tab -->
             <div x-show="currentTab === 'attendance'" x-transition style="display: none;">
                 <div class="workspace-card">
                     <form @submit.prevent="saveAttendanceForm($event)">
@@ -424,31 +427,21 @@
                 </div>
             </div>
 
-            <!-- Term Tabs (Prelim, Midterm, Semi-Final, Final) with Deliverables & Grade Encoding Matrix -->
             @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key => $termLabel)
                 @php 
                     $termTasks = $tasks->where('term', $key); 
                 @endphp
                 <div x-show="currentTab === '{{ $key }}'" x-transition style="display: none;" 
-                     x-data="{ termSubTab: 'deliverables' }">
+                    x-data="{ 
+                            termSubTab: new URLSearchParams(window.location.search).get('subtab') || 'encoding' 
+                        }">
                     <div class="workspace-card">
                         
-                        <!-- Panel Header with Sub-Tabs Toggle -->
-                        <div class="card-workspace-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-                            <div>
-                                <h4 class="m-0 fw-bold text-dark-blue">{{ $termLabel }} Term Panel</h4>
-                                <p class="small text-muted m-0">Manage activities, deliverables, and official grade entries for this term.</p>
-                            </div>
-                            
-                            <!-- Sub-Tab Switcher & Actions -->
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <div class="btn-group bg-light p-1 rounded-3 border" role="group">
-                                    <button type="button" class="btn btn-sm px-3 fw-bold" :class="termSubTab === 'deliverables' ? 'sub-tab-active' : 'text-muted'" @click="termSubTab = 'deliverables'">
-                                        <i class="fa-solid fa-folder-open me-1"></i> Deliverables
-                                    </button>
-                                    <button type="button" class="btn btn-sm px-3 fw-bold" :class="termSubTab === 'encoding' ? 'sub-tab-active' : 'text-muted'" @click="termSubTab = 'encoding'">
-                                        <i class="fa-solid fa-calculator me-1"></i> Grade Encoding
-                                    </button>
+                        <div class="card-workspace-header mb-3">
+                            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                                <div>
+                                    <h4 class="m-0 fw-bold text-dark-blue">{{ $termLabel }} Term Panel</h4>
+                                    <p class="small text-muted m-0">Manage activities, deliverables, and official grade entries for this term.</p>
                                 </div>
 
                                 <template x-if="termSubTab === 'deliverables'">
@@ -460,17 +453,25 @@
                                 <template x-if="termSubTab === 'encoding'">
                                     <div class="d-flex gap-2">
                                         <button type="button" class="btn-sm-outline text-dark-blue fw-bold bg-white">
-                                            <i class="fa-solid fa-floppy-disk me-1"></i> Save Draft
+                                            <i class="fa-solid fa-floppy-disk"></i> Save Draft
                                         </button>
                                         <button type="button" class="btn-primary-portal py-1 px-3" style="font-size: 12px;">
-                                            <i class="fa-solid fa-paper-plane me-1"></i> Submit to Registrar
+                                            <i class="fa-solid fa-paper-plane"></i> Submit to Registrar
                                         </button>
                                     </div>
                                 </template>
                             </div>
                         </div>
+                            
+                        <div class="term-subtab-bar">
+                            <button type="button" class="term-subtab-btn" :class="termSubTab === 'deliverables' ? 'term-subtab-active' : ''" @click="termSubTab = 'deliverables'">
+                                <i class="fa-solid fa-folder-open"></i> Deliverables
+                            </button>
+                            <button type="button" class="term-subtab-btn" :class="termSubTab === 'encoding' ? 'term-subtab-active' : ''" @click="termSubTab = 'encoding'">
+                                <i class="fa-solid fa-calculator"></i> Grade Encoding
+                            </button>
+                        </div>   
 
-                        <!-- Sub-Tab 1: Deliverables / Activities View -->
                         <div x-show="termSubTab === 'deliverables'">
                             <div class="activity-list-container">
                                 @if($termTasks->isEmpty())
@@ -521,77 +522,146 @@
                             </div>
                         </div>
 
-                        <!-- Sub-Tab 2: Grade Encoding Matrix View with Breakdown Link -->
-                        <div x-show="termSubTab === 'encoding'" style="display: none;" x-data="{ manualOverrides: {} }">
+                        <div x-show="termSubTab === 'encoding'" style="display: none;" 
+                            x-data="{ 
+                                gradeMode: {},
+                                manualGrades: {
+                                    @foreach($students as $student)
+                                        '{{ $student->student_id }}': {
+                                            class_standing: '{{ $autoGrades[$key][$student->student_id]['class_standing'] ?? '' }}',
+                                            major_exam: '{{ $autoGrades[$key][$student->student_id]['major_exam'] ?? '' }}',
+                                            equivalent: '{{ $autoGrades[$key][$student->student_id]['equivalent'] ?? '' }}'
+                                        },
+                                    @endforeach
+                                },
+                                autoGradesData: @js($autoGrades[$key] ?? []),
+                                
+                                setMode(sid, mode) {
+                                    this.gradeMode[sid] = mode;
+                                    if (mode === 'auto') {
+                                        this.manualGrades[sid].class_standing = this.autoGradesData[sid]?.class_standing ?? '';
+                                        this.manualGrades[sid].major_exam = this.autoGradesData[sid]?.major_exam ?? '';
+                                        this.manualGrades[sid].equivalent = this.autoGradesData[sid]?.equivalent ?? '';
+                                    } else if (mode === 'manual') {
+                                        this.manualGrades[sid].class_standing = '';
+                                        this.manualGrades[sid].major_exam = '';
+                                        this.manualGrades[sid].equivalent = '';
+                                    }
+                                },
+
+                                saveManualGrade(sid) {
+                                    console.log('Saving grade for', sid, 'Mode:', this.gradeMode[sid], 'Data:', this.manualGrades[sid]);
+                                }
+                            }">
+
                             @if($students->isEmpty())
-                                <div class="p-5 text-center text-muted">No students available for grade encoding.</div>
+                                <div class="empty-state-box">
+                                    <div class="empty-state-icon"><i class="fa-solid fa-calculator"></i></div>
+                                    <h5 class="empty-state-title">No Students Available</h5>
+                                    <p class="empty-state-text">Grade encoding needs enrolled students to display.</p>
+                                </div>
                             @else
+                                <div class="encoding-legend-bar">
+                                    <span class="legend-item"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto — computed from task scores & attendance</span>
+                                    <span class="legend-item"><i class="fa-solid fa-pen"></i> Manual — professor enters custom score</span>
+                                </div>
+
                                 <div class="table-responsive">
-                                    <table class="table custom-portal-table align-middle">
+                                    <table class="table custom-portal-table align-middle encoding-table">
                                         <thead>
                                             <tr>
                                                 <th style="width: 5%;">#</th>
                                                 <th style="width: 15%;">Student ID</th>
-                                                <th style="width: 25%;">Full Name</th>
-                                                <th style="width: 20%;" class="text-center">Class Standing (60%)</th>
-                                                <th style="width: 15%;" class="text-center">Major Exam (40%)</th>
-                                                <th style="width: 10%;" class="text-center">Equivalent</th>
-                                                <th style="width: 10%;" class="text-center">Mode</th>
+                                                <th style="width: 22%;">Full Name</th>
+                                                <th style="width: 18%;" class="text-center">Class Standing (60%)</th>
+                                                <th style="width: 13%;" class="text-center">Major Exam (40%)</th>
+                                                <th style="width: 9%;" class="text-center">GWA</th>
+                                                <th style="width: 18%;" class="text-center">Mode</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @foreach($students as $index => $student)
-                                                <tr>
-                                                    <td><strong>{{ $index + 1 }}</strong></td>
-                                                    <td class="fw-semibold text-secondary">{{ $student->student_id }}</td>
-                                                    <td class="text-uppercase fw-bold text-dark-slate">{{ $student->last_name }}, {{ $student->first_name }}</td>
-                                                    
-                                                    <!-- Class Standing with Breakdown Link -->
-                                                    <td class="text-center">
-                                                        <div class="d-flex flex-column align-items-center gap-1">
-                                                            <input type="number" step="0.01" class="form-control form-control-sm text-center mx-auto fw-bold text-dark-blue" style="max-width: 110px;" placeholder="Auto (0-100)" :readonly="!manualOverrides['{{ $student->student_id }}']">
-                                                            <a href="{{ route('professor.grades.breakdown', ['schedule_id' => $classDetails->schedule_id, 'student_id' => $student->student_id, 'term' => $key]) }}" class="breakdown-link" title="View individual activity scores and attendance breakdown">
-                                                                <i class="fa-solid fa-eye me-1"></i> View Breakdown
-                                                            </a>
-                                                        </div>
-                                                    </td>
+                                        @foreach($students as $index => $student)
+                                            @php 
+                                                $sid = $student->student_id; 
+                                                $auto = $autoGrades[$key][$sid] ?? ['class_standing' => null, 'major_exam' => null, 'equivalent' => null];
+                                            @endphp
+                                            <tr>
+                                                <td class="text-muted fw-bold">{{ $index + 1 }}</td>
+                                                <td class="fw-semibold text-secondary">{{ $sid }}</td>
+                                                <td class="text-uppercase fw-bold text-dark-slate">{{ $student->last_name }}, {{ $student->first_name }}</td>
 
-                                                    <!-- Major Exam -->
-                                                    <td class="text-center">
-                                                        <input type="number" step="0.01" class="form-control form-control-sm text-center mx-auto" style="max-width: 100px;" placeholder="0-100">
-                                                    </td>
+                                                <td class="text-center">
+                                                    <div class="encoding-cell-row">
+                                                        <input type="number" min="0" max="100" step="0.01" class="encoding-input"
+                                                            x-model="manualGrades['{{ $sid }}'].class_standing"
+                                                            placeholder="—"
+                                                            :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual'"
+                                                            :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' ? 'encoding-input-active' : 'encoding-input-muted'"
+                                                            @input="if ($event.target.value > 100) $event.target.value = 100; if ($event.target.value < 0) $event.target.value = 0;">
+                                                        <a href="{{ route('professor.grades.breakdown', ['schedule_id' => $classDetails->schedule_id, 'student_id' => $sid, 'term' => $key]) }}" class="breakdown-icon-link" title="View individual activity scores and attendance breakdown">
+                                                            <i class="fa-solid fa-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </td>
 
-                                                    <!-- Equivalent Grade -->
-                                                    <td class="text-center">
-                                                        <input type="text" class="form-control form-control-sm text-center mx-auto fw-bold text-success" style="max-width: 75px;" placeholder="1.00">
-                                                    </td>
+                                                <td class="text-center">
+                                                    <input type="number" min="0" max="100" step="0.01" class="encoding-input"
+                                                        x-model="manualGrades['{{ $sid }}'].major_exam"
+                                                        placeholder="—"
+                                                        :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual'"
+                                                        :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' ? 'encoding-input-active' : 'encoding-input-muted'"
+                                                        @input="if ($event.target.value > 100) $event.target.value = 100; if ($event.target.value < 0) $event.target.value = 0;">
+                                                </td>
 
-                                                    <!-- Toggle Manual Override Button -->
-                                                    <td class="text-center">
-                                                        <button type="button" 
-                                                            class="btn btn-xs override-toggle-btn" 
-                                                            :class="manualOverrides['{{ $student->student_id }}'] ? 'btn-warning text-dark fw-bold' : 'btn-light text-muted border'"
-                                                            @click="manualOverrides['{{ $student->student_id }}'] = !manualOverrides['{{ $student->student_id }}']"
-                                                            :title="manualOverrides['{{ $student->student_id }}'] ? 'Manual Override Active' : 'Click to Enable Manual Override'">
-                                                            <i class="fa-solid" :class="manualOverrides['{{ $student->student_id }}'] ? 'fa-lock-open' : 'fa-lock'"></i>
+                                                <td class="text-center">
+                                                    <span class="equivalent-pill">
+                                                        <input type="text" class="equivalent-input" 
+                                                            x-model="manualGrades['{{ $sid }}'].equivalent"
+                                                            placeholder="—"
+                                                            maxlength="4"
+                                                            :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual'"
+                                                            :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' ? 'encoding-input-active' : 'encoding-input-muted'"
+                                                            @input="
+                                                                let v = $event.target.value.replace(/[^0-9.]/g, '');
+                                                                const parts = v.split('.');
+                                                                if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+                                                                if (parts[0] && parts[0].length > 1) parts[0] = parts[0].slice(0, 1);
+                                                                if (parts[1]) parts[1] = parts[1].slice(0, 2);
+                                                                v = parts[1] !== undefined ? parts[0] + '.' + parts[1] : (parts[0] || '');
+                                                                manualGrades['{{ $sid }}'].equivalent = v;
+                                                            ">
+                                                    </span>
+                                                </td>
+
+                                                <td class="text-center">
+                                                    <div class="mode-toggle-group">
+                                                        <button type="button"
+                                                            class="mode-toggle-btn"
+                                                            :class="(gradeMode['{{ $sid }}'] || 'auto') === 'auto' ? 'mode-toggle-active-auto' : ''"
+                                                            @click="setMode('{{ $sid }}', 'auto')">
+                                                            <i class="fa-solid fa-wand-magic-sparkles"></i> Auto
                                                         </button>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
+                                                        <button type="button"
+                                                            class="mode-toggle-btn"
+                                                            :class="gradeMode['{{ $sid }}'] === 'manual' ? 'mode-toggle-active-manual' : ''"
+                                                            @click="setMode('{{ $sid }}', 'manual')">
+                                                            <i class="fa-solid fa-pen"></i> Manual
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endforeach
                                         </tbody>
                                     </table>
                                 </div>
                             @endif
                         </div>
-
                     </div>
                 </div>
             @endforeach
-
         </div>
     </div>
 
-    <!-- Modal Form for Tasks -->
     <div class="custom-modal-backdrop" x-show="showModal" style="display: none;" x-transition
         x-data="{ dragOver: false, selectedFile: null, fileName: '', fileSize: '' }">
         <div class="custom-modal-card" @click.away="showModal = false">
@@ -771,7 +841,36 @@
     .custom-portal-table th { background: #f8fafc; font-size: 11.5px; font-weight: 700; text-transform: uppercase; color: #64748b; padding: 14px 12px; border-bottom: 2px solid #e2e8f0; letter-spacing: 0.3px; }
     .custom-portal-table td { padding: 12px; font-size: 13.5px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
     .badge-enrolled-status { background: #dcfce7; color: #15803d; font-size: 12px; padding: 4px 12px; font-weight: 700; border-radius: 20px; }
-    .sub-tab-active { background: #1e2a5a !important; color: white !important; }
+
+    .term-subtab-bar {
+        display: flex;
+        gap: 4px;
+        border-bottom: 2px solid #f1f5f9;
+        margin-bottom: 22px;
+    }
+    .term-subtab-btn {
+        background: transparent;
+        border: none;
+        padding: 10px 18px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #94a3b8;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: 0.2s;
+    }
+    .term-subtab-btn:hover {
+        color: #475569;
+    }
+    .term-subtab-active {
+        color: #1e2a5a !important;
+        border-bottom-color: #1e2a5a;
+    }
+
     .btn-add-activity { background: #1e2a5a; border: none; color: white; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
     .btn-add-activity:hover { background: #141d40; }
     .empty-state-box { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 56px 24px; border: 2px dashed #e2e8f0; border-radius: 10px; background: #fafbfc; }
@@ -823,5 +922,109 @@
     .dz-file-preview { display: flex; align-items: center; gap: 12px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 10px; padding: 12px 14px; }
     .empty-attendance-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; text-align: center; padding: 2rem; color: #64748b; }
     .empty-attendance-icon { font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem; }
+
+    .encoding-legend-bar {
+        display: flex; gap: 24px; margin-bottom: 14px;
+        padding: 10px 16px; background: #f8fafc; border: 1px solid #e2e8f0;
+        border-radius: 8px; font-size: 12px; color: #64748b;
+    }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-item i { font-size: 11px; color: #94a3b8; }
+
+    .encoding-table th { text-align: center; }
+    .encoding-table th:nth-child(2),
+    .encoding-table th:nth-child(3) { text-align: left; }
+
+    .encoding-cell-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .breakdown-icon-link {
+        width: 30px; height: 30px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        color: #0284c7;
+        font-size: 12px;
+        text-decoration: none;
+        transition: 0.15s;
+        flex-shrink: 0;
+    }
+    .breakdown-icon-link:hover {
+        background: #eff6ff;
+        border-color: #93c5fd;
+        color: #0369a1;
+    }
+
+    .encoding-input {
+        width: 100px; text-align: center; font-weight: 700; color: #94a3b8;
+        padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 8px;
+        font-size: 13.5px; background: #f1f5f9; transition: 0.15s;
+    }
+    .encoding-input:read-only { cursor: not-allowed; }
+    .encoding-input-active {
+        background: #fff; border-color: #1e2a5a; color: #1e2a5a; cursor: text;
+    }
+    .encoding-input:focus { outline: none; border-color: #1e2a5a; box-shadow: 0 0 0 3px rgba(30,42,90,0.08); }
+
+    .equivalent-pill { display: inline-block; }
+    .equivalent-input {
+        width: 70px; text-align: center; font-weight: 800; color: #94a3b8;
+        padding: 7px 8px; border: 1px solid #e2e8f0; border-radius: 20px;
+        font-size: 13px; background: #f1f5f9;
+    }
+    .equivalent-input:focus { outline: none; border-color: #15803d; }
+
+    .breakdown-link { font-size: 11px; color: #0284c7; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: 0.15s; }
+    .breakdown-link:hover { color: #0369a1; text-decoration: underline; }
+
+    .mode-toggle-group {
+        display: inline-flex;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 3px;
+        gap: 2px;
+    }
+    .mode-toggle-btn {
+        border: none;
+        background: transparent;
+        padding: 6px 12px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #94a3b8;
+        border-radius: 6px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: 0.15s;
+    }
+    .mode-toggle-btn:hover { color: #475569; }
+    .mode-toggle-active-auto {
+        background: #eef1fb !important;
+        color: #1e2a5a !important;
+    }
+    .mode-toggle-active-manual {
+        background: #fef3c7 !important;
+        color: #b45309 !important;
+    }
+
+    .breakdown-link { font-size: 11px; color: #0284c7; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: 0.15s; }
+    .breakdown-link:hover { color: #0369a1; text-decoration: underline; }
+
+    .encoding-input-muted, .equivalent-input-muted {
+        background: #f1f5f9 !important;
+        color: #64748b !important; 
+        opacity: 1 !important;     
+        filter: none !important; 
+        cursor: not-allowed;
+    }
 </style>
 @endsection

@@ -581,7 +581,7 @@ class StudentController extends Controller
     public function downloadTaskFile($id)
     {
         if (session('user_role') !== 'student') {
-            abort(403, 'Unauthorized access.');
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
         }
 
         $studentNumber = session('student_id');
@@ -619,6 +619,16 @@ class StudentController extends Controller
     {
         $task_id = $id;
         $student_id = session('student_id');
+
+        $task = DB::table('student_tasks')->where('id', $task_id)->first();
+
+        if (!$task) {
+            return redirect()->back()->with('error', 'Task details not found.');
+        }
+
+        if ($task->due_date && \Carbon\Carbon::parse($task->due_date)->endOfDay()->isPast()) {
+            return redirect()->back()->with('error', 'Submission closed. The deadline for this task has already passed.');
+        }
 
         $request->validate([
             'attachment' => 'required|file|max:25600',
