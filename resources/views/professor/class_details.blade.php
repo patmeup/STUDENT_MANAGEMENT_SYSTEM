@@ -512,75 +512,100 @@
                             </div>
                         </div>
 
+                        @php
+                            $gradeModes = [];
+                            $manualGrades = [];
+
+                            foreach ($students as $student) {
+                                $draft = optional(
+                                    $draftGrades->get($key)?->firstWhere('student_number', $student->student_id)
+                                );
+
+                                $gradeModes[$student->student_id] = ($draft && $draft->is_manual) ? 'manual' : 'auto';
+
+                                $autoGradeStudent = $autoGrades[$key][$student->student_id] ?? [];
+                                
+                                $manualGrades[$student->student_id] = [
+                                    'class_standing' => $draft->class_standing ?? $autoGradeStudent['class_standing'] ?? '',
+                                    'major_exam'     => $draft->major_exam ?? $autoGradeStudent['major_exam'] ?? '',
+                                    'equivalent'     => $draft->equivalent ?? $autoGradeStudent['equivalent'] ?? '',
+                                ];
+                            }
+                        @endphp
+
                         <div x-show="termSubTab === 'encoding'" style="display: none;"
                             x-data="{
-                                gradeMode: {
-                                @foreach($students as $student)
-                                @php
-                                   $draft = optional(
-                                        $draftGrades->get($key)?->firstWhere('student_number', $student->student_id)
-                                    );
-                                @endphp
-                                '{{ $student->student_id }}': '{{ ($draft && $draft->is_manual) ? "manual" : "auto" }}',
-                                @endforeach
-
-                                },
-                                manualGrades: {
-                                @foreach($students as $student)
-                                @php
-                                    $draft = optional(
-                                        $draftGrades->get($key)?->firstWhere('student_number', $student->student_id)
-                                    );
-                                @endphp
-                                '{{ $student->student_id }}': {
-                                    class_standing: '{{ $draft->class_standing ?? $autoGrades[$key][$student->student_id]['class_standing'] ?? "" }}',
-                                    major_exam: '{{ $draft->major_exam ?? $autoGrades[$key][$student->student_id]['major_exam'] ?? "" }}',
-                                    equivalent: '{{ $draft->equivalent ?? $autoGrades[$key][$student->student_id]['equivalent'] ?? "" }}'
-                                },
-                                @endforeach
-                                },
+                                gradeMode: @js($gradeModes),
+                                manualGrades: @js($manualGrades),
+                                cachedManualGrades: JSON.parse(JSON.stringify(@js($manualGrades))),
                                 autoGradesData: @js($autoGrades[$key] ?? []),
 
-                                setMode(sid, mode) {
+                                async setMode(sid, mode) {
                                     this.gradeMode[sid] = mode;
+
                                     if (mode === 'auto') {
-                                        this.manualGrades[sid].class_standing =
-                                            this.autoGradesData[sid]?.class_standing ?? '';
-                                        this.manualGrades[sid].major_exam =
-                                            this.autoGradesData[sid]?.major_exam ?? '';
-                                        this.manualGrades[sid].equivalent =
-                                            this.autoGradesData[sid]?.equivalent ?? '';
-                                    } else if (mode === 'manual') {
-                                        if (!this.manualGrades[sid].class_standing)
-                                            this.manualGrades[sid].class_standing =
-                                                this.autoGradesData[sid]?.class_standing ?? '';
-                                        if (!this.manualGrades[sid].major_exam)
-                                            this.manualGrades[sid].major_exam =
-                                                this.autoGradesData[sid]?.major_exam ?? '';
-                                        if (!this.manualGrades[sid].equivalent)
-                                            this.manualGrades[sid].equivalent =
-                                                this.autoGradesData[sid]?.equivalent ?? '';
+                                        // Kapag nilipat sa auto, kunin ang auto grades pero huwag munang i-overwrite 
+                                        // ang cached manual grades para kung bumalik sa manual, nandun pa rin.
+                                        let response = await fetch('{{ route('professor.recalculate-grade') }}', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                            },
+                                            body: JSON.stringify({
+                                                schedule_id: {{ $classDetails->schedule_id }},
+                                                student_number: sid,
+                                                term: '{{ $key }}'
+                                            })
+                                        });
+
+                                        let data = await response.json();
+                                        if (data.success) {
+                                            this.manualGrades[sid] = {
+                                                class_standing: data.computed.class_standing ?? '',
+                                                major_exam: data.computed.major_exam ?? '',
+                                                equivalent: data.computed.equivalent ?? ''
+                                            };
+                                            this.autoGradesData[sid] = data.computed;
+                                        }
+                                    } else {
+                                        let cached = this.cachedManualGrades[sid] || { class_standing: '', major_exam: '', equivalent: '' };
+                                        this.cachedManualGrades[sid] = this.manualGrades[sid];
+
+                                        fetch('{{ route('professor.save-grades') }}', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                            },
+                                            body: JSON.stringify({
+                                                grades: [{
+                                                    student_number: sid,
+                                                    schedule_id: {{ $classDetails->schedule_id }},
+                                                    term: '{{ $key }}',
+                                                    class_standing: cached.class_standing,
+                                                    major_exam: cached.major_exam,
+                                                    equivalent: cached.equivalent,
+                                                    is_manual: true
+                                                }]
+                                            })
+                                        });
                                     }
                                 },
 
-                                saveManualGrade(sid) {
-                                    console.log('Saving grade for', sid, 'Mode:', this.gradeMode[sid], 'Data:', this.manualGrades[sid]);
-                                },
-
-                                saveGrades() {
+                                saveDraftGrades() {
                                     let grades = [];
-
-                                    Object.keys(this.manualGrades).forEach(studentNumber => {
+                                    for (let sid in this.manualGrades) {
                                         grades.push({
-                                            student_number: studentNumber,
+                                            student_number: sid,
                                             schedule_id: {{ $classDetails->schedule_id }},
                                             term: '{{ $key }}',
-                                            class_standing: this.manualGrades[studentNumber].class_standing,
-                                            major_exam: this.manualGrades[studentNumber].major_exam,
-                                            equivalent: this.manualGrades[studentNumber].equivalent,
-                                            is_manual: this.gradeMode[studentNumber] === 'manual'
+                                            class_standing: this.manualGrades[sid].class_standing,
+                                            major_exam: this.manualGrades[sid].major_exam,
+                                            equivalent: this.manualGrades[sid].equivalent,
+                                            is_manual: this.gradeMode[sid] === 'manual'
                                         });
-                                    });
+                                    }
 
                                     fetch('{{ route('professor.save-grades') }}', {
                                         method: 'POST',
@@ -588,45 +613,45 @@
                                             'Content-Type': 'application/json',
                                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                                         },
-                                        body: JSON.stringify({
-                                            grades: grades
-                                        })
+                                        body: JSON.stringify({ grades: grades })
                                     })
-                                    .then(response => response.json())
+                                    .then(res => res.json())
                                     .then(data => {
-                                        if (data.success) {
-                                            console.log(data);
-                                            alert('Draft saved successfully.');
+                                        if(data.success) {
+                                            alert('Grades saved successfully!');
+                                            
+                                            for (let sid in this.gradeMode) {
+                                                if (this.gradeMode[sid] === 'auto') {
+                                                    let autoData = this.autoGradesData[sid] || {};
+                                                    this.manualGrades[sid] = {
+                                                        class_standing: autoData.class_standing ?? '',
+                                                        major_exam: autoData.major_exam ?? '',
+                                                        equivalent: autoData.equivalent ?? ''
+                                                    };
+                                                    this.cachedManualGrades[sid] = JSON.parse(JSON.stringify(this.manualGrades[sid]));
+                                                }
+                                            }
                                         } else {
-                                            console.error(data);
-                                            alert(data.message);
+                                            alert('Error saving grades.');
                                         }
-                                    })
-                                    .catch(error => {
-                                        console.error(error);
                                     });
-                                },
+                                }
+                            }">
 
-                            }
-                                ">
-
-                                <template x-if="termSubTab === 'encoding'">
-
-                                    <div class="d-flex gap-2">
-
-                                        <button
-                                            type="button"
-                                            class="btn-sm-outline text-dark-blue fw-bold bg-white"
-                                            @click="saveGrades()">
-                                            <i class="fa-solid fa-floppy-disk"></i>
-                                            Save Draft
-                                        </button>
-                                        <button type="button" class="btn-primary-portal py-1 px-3" style="font-size: 12px;">
-                                            <i class="fa-solid fa-paper-plane"></i> Submit to Registrar
-                                        </button>
-
-                                    </div>
-                                </template>
+                            <div class="d-flex justify-content-end mb-3">
+                                <div class="d-flex gap-2">
+                                    <button
+                                        type="button"
+                                        class="btn-sm-outline text-dark-blue fw-bold bg-white"
+                                        @click="saveDraftGrades()">
+                                        <i class="fa-solid fa-floppy-disk"></i>
+                                        Save Draft
+                                    </button>
+                                    <button type="button" class="btn-primary-portal py-1 px-3" style="font-size: 12px;">
+                                        <i class="fa-solid fa-paper-plane"></i> Submit to Registrar
+                                    </button>
+                                </div>
+                            </div>
 
                             @if($students->isEmpty())
                                 <div class="empty-state-box">

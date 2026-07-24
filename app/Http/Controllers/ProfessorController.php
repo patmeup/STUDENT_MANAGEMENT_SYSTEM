@@ -170,29 +170,24 @@ class ProfessorController extends Controller
             ->groupBy('term');
 
         foreach ($terms as $term) {
-
             foreach ($students as $student) {
-
                 $saved = $savedGrades->get($term . '_' . $student->student_id);
 
-                if ($saved) {
-
+                if ($saved && $saved->is_manual == 1) {
                     $autoGrades[$term][$student->student_id] = [
-                        'attendance'      => $saved->attendance,
-                        'class_standing'  => $saved->class_standing,
-                        'major_exam'      => $saved->major_exam,
-                        'equivalent'      => $saved->equivalent,
-                        'is_manual'       => $saved->is_manual,
+                        'class_standing' => $saved->class_standing,
+                        'major_exam'     => $saved->major_exam,
+                        'equivalent'     => $saved->equivalent,
+                        'is_manual'      => true,
                     ];
-
                 } else {
-
-                    $autoGrades[$term][$student->student_id] =
-                        GradeHelper::computeAutoGrades(
-                            $schedule_id,
-                            $student->student_id,
-                            $term
-                        );
+                    $computed = GradeHelper::computeAutoGrades(
+                        $schedule_id,
+                        $student->student_id,
+                        $term
+                    );
+                    $computed['is_manual'] = false;
+                    $autoGrades[$term][$student->student_id] = $computed;
                 }
             }
         }
@@ -630,9 +625,8 @@ class ProfessorController extends Controller
         return view('professor.grades_breakdown', compact('classDetails', 'student', 'tasksWithGrades', 'attendances', 'term'));
     }
 
-    public function saveGrades(Request $request)
+    public function saveDraftGrades(Request $request)
     {
-        //dd($request->all()); //Troubleshooting
         $request->validate([
             'grades'                  => 'required|array',
             'grades.*.schedule_id'    => 'required|integer',
@@ -643,36 +637,67 @@ class ProfessorController extends Controller
             'grades.*.equivalent'     => 'nullable|numeric|min:1|max:5',
             'grades.*.is_manual'      => 'required|boolean',
         ]);
+
         try {
             foreach ($request->grades as $grade) {
-                $auto = GradeHelper::computeAutoGrades(
-                    $grade['schedule_id'],
-                    $grade['student_number'],
-                    $grade['term']
-                );
+                $isManual = (bool) $grade['is_manual'];
+
+                $updateData = [
+                    'is_manual'    => $isManual ? 1 : 0,
+                    'is_submitted' => false,
+                ];
+
+                if ($isManual) {
+                    $updateData['class_standing'] = $grade['class_standing'] ?? null;
+                    $updateData['major_exam']     = $grade['major_exam'] ?? null;
+                    $updateData['equivalent']     = $grade['equivalent'] ?? null;
+                }
+
                 StudentTermGrade::updateOrCreate(
                     [
                         'schedule_id'    => $grade['schedule_id'],
                         'student_number' => $grade['student_number'],
                         'term'           => $grade['term'],
                     ],
-                    [
-                        'attendance'     => $auto['attendance'] ?? null,
-                        'class_standing' => $grade['class_standing'] ?? null,
-                        'major_exam'     => $grade['major_exam'] ?? null,
-                        'equivalent'     => $grade['equivalent'] ?? null,
-                        'is_manual'      => $grade['is_manual'] ?? false,
-                        'is_submitted'   => false,
-                    ]
+                    $updateData
                 );
             }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Draft grades saved successfully.'
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false,'message' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    public function recalculateAutoGrade(Request $request)
+    {
+        $schedule_id = $request->schedule_id;
+        $student_number = $request->student_number;
+        $term = $request->term;
+
+        $computed = GradeHelper::computeAutoGrades($schedule_id, $student_number, $term);
+
+        StudentTermGrade::updateOrCreate(
+            [
+                'schedule_id'    => $schedule_id,
+                'student_number' => $student_number,
+                'term'           => $term,
+            ],
+            [
+                'is_manual'      => 0,
+                'class_standing' => $computed['class_standing'],
+                'major_exam'     => $computed['major_exam'],
+                'equivalent'     => $computed['equivalent'],
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'computed' => $computed
+        ]);
     }
 
     public function profileView()

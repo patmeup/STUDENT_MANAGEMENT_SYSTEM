@@ -10,7 +10,6 @@ class StudentTermGrade extends Model
             'schedule_id',
             'student_number',
             'term',
-            'attendance',
             'class_standing',
             'major_exam',
             'equivalent',

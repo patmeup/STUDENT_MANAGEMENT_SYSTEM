@@ -68,9 +68,6 @@ Route::delete('/system_admin/manage-faculty/{id}', [FacultyController::class, 'd
 Route::patch('/system_admin/manage-subjects/{id}', [SubjectController::class, 'update'])->name('system_admin.subjects.update');
 Route::delete('/system_admin/manage-subjects/{id}', [SubjectController::class, 'destroy'])->name('system_admin.subjects.destroy');
 Route::delete('/system_admin/manage-curriculum/{id}', [CurriculumController::class, 'destroy'])->name('system_admin.curriculum.destroy');
-
-
-
 Route::get('/system-admin/academic_periods', [SystemAdminController::class, 'academicPeriods'])->name('system_admin.academic_periods');
 Route::post('/system-admin/academic_periods', [SystemAdminController::class, 'storeAcademicPeriod'])->name('system_admin.store_academic_period');
 Route::post('/system-admin/academic_periods/{id}/activate', [SystemAdminController::class, 'activateAcademicPeriod'])->name('system_admin.activate_academic_period');
@@ -130,11 +127,9 @@ Route::get('/professor/task-grading/{submission_id}', [ProfessorController::clas
 Route::get('/professor/submission/download/{id}', [ProfessorController::class, 'downloadStudentSubmission'])->name('professor.submission.download');
 Route::post('/professor/task-grading/{submission_id}/submit', [ProfessorController::class, 'submitGrade'])->name('professor.submit-grade');
 Route::get('/professor/class/{schedule_id}/student/{student_id}/breakdown', [ProfessorController::class, 'viewStudentBreakdown'])->name('professor.grades.breakdown');
-
-
+Route::post('/professor/save-grades',[ProfessorController::class, 'saveDraftGrades'])->name('professor.save-grades');
+Route::post('/professor/recalculate-grade', [ProfessorController::class, 'recalculateAutoGrade'])->name('professor.recalculate-grade');
 Route::get('/professor/user_details', [ProfessorController::class, 'profileView'])->name('professor.user_details');
-
-Route::post('/professor/save-grades',[ProfessorController::class, 'saveGrades'])->name('professor.save-grades');
 
 // STUDENT ROUTES
 Route::get('/student/dashboard', [StudentController::class, 'dashboard'])->name('student.dashboard');
