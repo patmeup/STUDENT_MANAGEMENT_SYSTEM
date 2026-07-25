@@ -5,13 +5,21 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <div class="prof-container py-4" x-data="{
-        currentTab: new URLSearchParams(window.location.search).get('tab') || 'prelim',
-    switchTab(tabName) {
-        this.currentTab = tabName;
-        const url = new URL(window.location.href);
-        url.searchParams.set('tab', tabName);
-        window.history.replaceState({}, '', url);
-    },
+        currentTab: new URLSearchParams(window.location.search).get('tab') || 'masterlist',
+        hasUnsavedChanges: false,
+
+        switchTab(tabName) {
+            if (this.hasUnsavedChanges) {
+                if (!confirm('You have unsaved grade changes. Are you sure you want to leave without saving?')) {
+                    return;
+                }
+            }
+            this.currentTab = tabName;
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', tabName);
+            window.history.replaceState({}, '', url);
+        },
+
         showModal: false,
         modalTerm: '',
         editingTaskId: null,
@@ -234,17 +242,17 @@
             <div class="sidebar-navigation-card">
                 <div class="panel-title-label">ACADEMIC WORKSPACE</div>
 
-                <button class="nav-tab-btn" :class="currentTab === 'masterlist' ? 'active-tab' : ''" @click="currentTab = 'masterlist'">
+                <button class="nav-tab-btn" :class="currentTab === 'masterlist' ? 'active-tab' : ''" @click="switchTab('masterlist')">
                     <i class="fa-solid fa-users-rectangle"></i> Student Masterlist
                 </button>
 
-                <button class="nav-tab-btn" :class="currentTab === 'attendance' ? 'active-tab' : ''" @click="currentTab = 'attendance'">
+                <button class="nav-tab-btn" :class="currentTab === 'attendance' ? 'active-tab' : ''" @click="switchTab('attendance')">
                     <i class="fa-solid fa-calendar-check"></i> Class Attendance
                 </button>
 
                 <div class="panel-title-label mt-4">TERM GRADE ENCODING</div>
                 @foreach(['prelim' => 'Prelim Term', 'midterm' => 'Midterm Term', 'semifinal' => 'Semi-Final Term', 'final' => 'Final Term'] as $key => $label)
-                    <button class="nav-tab-btn" :class="currentTab === '{{ $key }}' ? 'active-tab' : ''" @click="currentTab = '{{ $key }}'">
+                    <button class="nav-tab-btn" :class="currentTab === '{{ $key }}' ? 'active-tab' : ''" @click="switchTab('{{ $key }}')">
                         <i class="fa-regular fa-pen-to-square"></i> {{ $label }}
                     </button>
                 @endforeach
@@ -539,14 +547,27 @@
                                 manualGrades: @js($manualGrades),
                                 cachedManualGrades: JSON.parse(JSON.stringify(@js($manualGrades))),
                                 autoGradesData: @js($autoGrades[$key] ?? []),
+                                hasUnsavedChanges: false,
+
+                                init() {
+                                    window.addEventListener('beforeunload', (event) => {
+                                        if (this.hasUnsavedChanges) {
+                                            event.preventDefault();
+                                            event.returnValue = '';
+                                        }
+                                    });
+                                },
 
                                 async setMode(sid, mode) {
+                                    if (this.gradeMode[sid] === 'manual' && mode === 'auto') {
+                                        this.cachedManualGrades[sid] = JSON.parse(JSON.stringify(this.manualGrades[sid]));
+                                    }
+
                                     this.gradeMode[sid] = mode;
+                                    this.hasUnsavedChanges = true;
 
                                     if (mode === 'auto') {
-                                        // Kapag nilipat sa auto, kunin ang auto grades pero huwag munang i-overwrite 
-                                        // ang cached manual grades para kung bumalik sa manual, nandun pa rin.
-                                        let response = await fetch('{{ route('professor.recalculate-grade') }}', {
+                                        let response = type = await fetch('{{ route('professor.recalculate-grade') }}', {
                                             method: 'POST',
                                             headers: {
                                                 'Content-Type': 'application/json',
@@ -561,36 +582,22 @@
 
                                         let data = await response.json();
                                         if (data.success) {
+                                            this.autoGradesData[sid] = data.computed;
                                             this.manualGrades[sid] = {
                                                 class_standing: data.computed.class_standing ?? '',
                                                 major_exam: data.computed.major_exam ?? '',
                                                 equivalent: data.computed.equivalent ?? ''
                                             };
-                                            this.autoGradesData[sid] = data.computed;
                                         }
                                     } else {
-                                        let cached = this.cachedManualGrades[sid] || { class_standing: '', major_exam: '', equivalent: '' };
-                                        this.cachedManualGrades[sid] = this.manualGrades[sid];
-
-                                        fetch('{{ route('professor.save-grades') }}', {
-                                            method: 'POST',
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                                            },
-                                            body: JSON.stringify({
-                                                grades: [{
-                                                    student_number: sid,
-                                                    schedule_id: {{ $classDetails->schedule_id }},
-                                                    term: '{{ $key }}',
-                                                    class_standing: cached.class_standing,
-                                                    major_exam: cached.major_exam,
-                                                    equivalent: cached.equivalent,
-                                                    is_manual: true
-                                                }]
-                                            })
-                                        });
+                                        if (this.cachedManualGrades[sid]) {
+                                            this.manualGrades[sid] = JSON.parse(JSON.stringify(this.cachedManualGrades[sid]));
+                                        }
                                     }
+                                },
+
+                                markChanged() {
+                                    this.hasUnsavedChanges = true;
                                 },
 
                                 saveDraftGrades() {
@@ -618,25 +625,16 @@
                                     .then(res => res.json())
                                     .then(data => {
                                         if(data.success) {
+                                            this.hasUnsavedChanges = false;
                                             alert('Grades saved successfully!');
-                                            
-                                            for (let sid in this.gradeMode) {
-                                                if (this.gradeMode[sid] === 'auto') {
-                                                    let autoData = this.autoGradesData[sid] || {};
-                                                    this.manualGrades[sid] = {
-                                                        class_standing: autoData.class_standing ?? '',
-                                                        major_exam: autoData.major_exam ?? '',
-                                                        equivalent: autoData.equivalent ?? ''
-                                                    };
-                                                    this.cachedManualGrades[sid] = JSON.parse(JSON.stringify(this.manualGrades[sid]));
-                                                }
-                                            }
+                                            this.cachedManualGrades = JSON.parse(JSON.stringify(this.manualGrades));
                                         } else {
                                             alert('Error saving grades.');
                                         }
                                     });
                                 }
-                            }">
+                            }"
+                            x-init="init()">
 
                             <div class="d-flex justify-content-end mb-3">
                                 <div class="d-flex gap-2">
@@ -689,34 +687,34 @@
                                                 <td class="fw-semibold text-secondary">{{ $sid }}</td>
                                                 <td class="text-uppercase fw-bold text-dark-slate">{{ $student->last_name }}, {{ $student->first_name }}</td>
 
+                                                <!-- Class Standing Input -->
                                                 <td class="text-center">
                                                     <div class="encoding-cell-row">
-
-                                                       <input type="number" min="0" max="100" step="0.01" class="encoding-input"
+                                                    <input type="number" min="0" max="100" step="0.01" class="encoding-input"
                                                             x-model.number="manualGrades['{{ $sid }}'].class_standing"
                                                             placeholder="—"
                                                             :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual'"
                                                             :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' ? 'encoding-input-active' : 'encoding-input-muted'"
                                                             @input="
+                                                                markChanged();
                                                                 let value = parseFloat($event.target.value);
-
                                                                 if (isNaN(value)) {
                                                                     manualGrades['{{ $sid }}'].class_standing = '';
                                                                 } else {
                                                                     if (value > 100) value = 100;
                                                                     if (value < 0) value = 0;
-
                                                                     manualGrades['{{ $sid }}'].class_standing = value;
                                                                     $event.target.value = value;
                                                                 }
                                                             ">
 
-                                                            <a href="{{ route('professor.grades.breakdown', ['schedule_id' => $classDetails->schedule_id, 'student_id' => $sid, 'term' => $key]) }}" class="breakdown-icon-link" title="View individual activity scores and attendance breakdown">
+                                                        <a href="{{ route('professor.grades.breakdown', ['schedule_id' => $classDetails->schedule_id, 'student_id' => $sid, 'term' => $key]) }}" class="breakdown-icon-link" title="View individual activity scores and attendance breakdown">
                                                             <i class="fa-solid fa-eye"></i>
                                                         </a>
                                                     </div>
                                                 </td>
 
+                                                <!-- Major Exam Input -->
                                                 <td class="text-center">
                                                     <input type="number" min="0" max="100" step="0.01" class="encoding-input"
                                                         x-model.number="manualGrades['{{ $sid }}'].major_exam"
@@ -724,6 +722,7 @@
                                                         :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual'"
                                                         :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' ? 'encoding-input-active' : 'encoding-input-muted'"
                                                         @input="
+                                                            markChanged();
                                                             let value = parseFloat($event.target.value);
                                                             if (isNaN(value)) {
                                                                 manualGrades['{{ $sid }}'].major_exam = '';
@@ -734,8 +733,9 @@
                                                                 $event.target.value = value;
                                                             }
                                                         ">
-                                                    </td>
+                                                </td>
 
+                                                <!-- Equivalent Input -->
                                                 <td class="text-center">
                                                     <span class="equivalent-pill">
                                                         <input type="text" class="equivalent-input"
@@ -745,6 +745,7 @@
                                                             :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual'"
                                                             :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' ? 'encoding-input-active' : 'encoding-input-muted'"
                                                             @input="
+                                                                markChanged();
                                                                 let v = $event.target.value.replace(/[^0-9.]/g, '');
                                                                 const parts = v.split('.');
                                                                 if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
@@ -756,6 +757,7 @@
                                                     </span>
                                                 </td>
 
+                                                <!-- Mode Toggle -->
                                                 <td class="text-center">
                                                     <div class="mode-toggle-group">
                                                         <button type="button"

@@ -104,7 +104,6 @@
     .card-accent { height: 6px; width: 100%; }
     .card-body { padding: 22px; flex-grow: 1; display: flex; flex-direction: column; }
 
-    /* Combined Subject Code & Section Layout */
     .card-top-meta { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: #0284c7; letter-spacing: 0.5px; }
     .section-divider { color: #94a3b8; font-size: 10px; }
     .section-display-text { text-transform: uppercase; color: #0284c7; }
