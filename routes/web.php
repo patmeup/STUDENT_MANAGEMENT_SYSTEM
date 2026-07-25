@@ -141,3 +141,4 @@ Route::get('/student/task/{id}', [StudentController::class, 'viewTaskDetails'])-
 Route::get('/student/task/download/{id}', [StudentController::class, 'downloadTaskFile'])->name('student.task.download');
 Route::post('/student/task/{id}/submit', [StudentController::class, 'submitTask'])->name('student.submit_task');
 Route::get('/student/user_details', [StudentController::class, 'profileView'])->name('student.user_details');
+Route::put('/account/update-credentials', [App\Http\Controllers\StudentController::class, 'updateCredentials'])->name('account.update_credentials');

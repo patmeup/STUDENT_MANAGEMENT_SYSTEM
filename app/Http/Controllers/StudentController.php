@@ -121,6 +121,32 @@ class StudentController extends Controller
         ));
     }
 
+    public function updateCredentials(Request $request) 
+    {
+        if (session('user_role') !== 'student') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $studentNumber = session('student_id');
+        $student = Student::where('student_id', $studentNumber)->firstOrFail();
+
+        $request->validate([
+            'email' => 'required|email|unique:students,email,' . $student->id,
+            'contact_no' => 'required|string|max:20',
+            'civil_status' => 'required|in:Single,Married,Divorced,Widowed',
+            'city_address' => 'required|string|max:500',
+        ]);
+
+        $student->update([
+            'email' => $request->email,
+            'contact_no' => $request->contact_no,
+            'civil_status' => $request->civil_status,
+            'city_address' => $request->city_address,
+        ]);
+
+        return redirect()->back()->with('success', 'Personal credentials updated successfully.');
+    }
+
     public function index(Request $request)
     {
         if (session('user_role') !== 'registrar') {

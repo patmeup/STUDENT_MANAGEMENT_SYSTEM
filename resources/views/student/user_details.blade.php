@@ -1,6 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
+<!-- Siguraduhing may Font Awesome para sa Pen at Close logos -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 <div class="profile-container">
 
     @if($isLocked)
@@ -25,8 +28,12 @@
     @endif
 
     <div class="profile-card">
-        <div class="card-header">
+        <div class="card-header d-flex-between">
             <h2 class="card-title">Personal Credentials</h2>
+            <!-- PEN LOGO BUTTON FOR EDITING -->
+            <button type="button" class="btn-edit-credentials" onclick="openEditModal()" title="Edit Contact Information">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </button>
         </div>
 
         <div class="card-body grid-layout">
@@ -50,11 +57,13 @@
                 <p class="info-value">{{ $user->semester }}</p>
             </div>
 
-            <div class="border-top-section col-span-2">
-                <label class="info-label">Full Name</label>
-                <p class="info-value" style="font-size: 1.25rem; font-weight: 700;">
-                    {{ $user->last_name }}, {{ $user->first_name }} {{ $user->middle_name ?? '' }}
-                </p>
+            <div class="border-top-section col-span-2" style="border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 0;">
+                <div>
+                    <label class="info-label">Full Name</label>
+                    <p class="info-value" style="font-size: 1.25rem; font-weight: 700;">
+                        {{ $user->last_name }}, {{ $user->first_name }} {{ $user->middle_name ?? '' }}
+                    </p>
+                </div>
             </div>
         </div>
     </div>
@@ -103,6 +112,85 @@
 
 </div>
 
+<!-- EDIT CREDENTIALS MODAL OVERLAY -->
+<div class="modal-overlay" id="editCredentialsModal">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fa-solid fa-user-gear"></i> Edit Personal Info</h3>
+            <button type="button" class="modal-close-btn" onclick="closeEditModal()">&times;</button>
+        </div>
+        
+        <form action="{{ route('account.update_credentials') }}" method="POST">
+            @csrf
+            @method('PUT')
+            
+            <div class="modal-body">
+                <p class="modal-subtitle-hint">Academic records below are locked and cannot be edited by students.</p>
+                
+                <!-- DISABLED / ACADEMIC FIELDS -->
+                <div class="modal-grid-2">
+                    <div class="form-group-modal">
+                        <label class="modal-label">Student Number</label>
+                        <input type="text" class="form-control-modal disabled-input" value="{{ $user->student_id }}" disabled readonly>
+                    </div>
+                    <div class="form-group-modal">
+                        <label class="modal-label">Course / Program</label>
+                        <input type="text" class="form-control-modal disabled-input" value="{{ $user->course }}" disabled readonly>
+                    </div>
+                    <div class="form-group-modal">
+                        <label class="modal-label">Year Level</label>
+                        <input type="text" class="form-control-modal disabled-input" value="{{ $user->year_level }}" disabled readonly>
+                    </div>
+                    <div class="form-group-modal">
+                        <label class="modal-label">Semester</label>
+                        <input type="text" class="form-control-modal disabled-input" value="{{ $user->semester }}" disabled readonly>
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;">
+                <p class="modal-subtitle-hint editable-hint">Editable contact details:</p>
+
+                <!-- EDITABLE FIELDS WITH EXISTING DETAILS -->
+                <div class="form-group-modal">
+                    <label class="modal-label">Email Address <span class="required-star">*</span></label>
+                    <!-- Gagamit ng $user->email (ito ang standard sa Laravel users table) -->
+                    <input type="email" name="email" required class="form-control-modal" value="{{ old('email', $user->email) }}">
+                </div>
+
+                <div class="modal-grid-2">
+                    <div class="form-group-modal">
+                        <label class="modal-label">Mobile Number <span class="required-star">*</span></label>
+                        <!-- Pinalitan ng $user->contact_no base sa database mo -->
+                        <input type="text" name="contact_no" required class="form-control-modal" value="{{ old('contact_no', $user->contact_no) }}">
+                    </div>
+
+                    <div class="form-group-modal">
+                        <label class="modal-label">Civil Status <span class="required-star">*</span></label>
+                        @php 
+                            $currentStatus = old('civil_status', $user->civil_status ?? 'Single');
+                        @endphp
+                        <select name="civil_status" required class="form-control-modal">
+                            <option value="Single" {{ $currentStatus == 'Single' ? 'selected' : '' }}>Single</option>
+                            <option value="Married" {{ $currentStatus == 'Married' ? 'selected' : '' }}>Married</option>
+                            <option value="Divorced" {{ $currentStatus == 'Divorced' ? 'selected' : '' }}>Divorced</option>
+                            <option value="Widowed" {{ $currentStatus == 'Widowed' ? 'selected' : '' }}>Widowed</option>
+                        </select>
+                    </div>
+                </div>
+
+<div class="form-group-modal">
+    <label class="modal-label">Home Address <span class="required-star">*</span></label>
+    <!-- Pinalitan ng $user->city_address base sa database mo -->
+    <textarea name="city_address" required class="form-control-modal" rows="2" style="resize: vertical;">{{ old('city_address', $user->city_address) }}</textarea>
+</div>
+            <div class="modal-footer">
+                <button type="button" class="btn-modal-cancel" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn-modal-save">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <style>
     .profile-container {
         max-width: 700px;
@@ -125,11 +213,33 @@
         padding: 16px 24px;
         border-bottom: 1px solid #e2e8f0;
     }
+    .d-flex-between {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
     .card-title {
         font-size: 1.125rem;
         font-weight: 700;
         color: #334155;
         margin: 0;
+    }
+    .btn-edit-credentials {
+        background: none;
+        border: none;
+        color: #64748b;
+        font-size: 1.25rem;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 6px;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .btn-edit-credentials:hover {
+        color: #2563eb;
+        background-color: #f1f5f9;
     }
     .card-body {
         padding: 24px;
@@ -271,6 +381,102 @@
     .alert-warning { background-color: #fffbeb; border-left: 4px solid #f59e0b; color: #78350f; }
     .alert-success { background-color: #f0fdf4; border-left: 4px solid #22c55e; color: #166534; font-weight: 600; }
     .alert-danger { background-color: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; }
+
+    /* MODAL WINDOW CSS STYLES */
+    .modal-overlay {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 16px;
+        box-sizing: border-box;
+    }
+    .modal-overlay.active {
+        display: flex;
+    }
+    .modal-container {
+        background: #ffffff;
+        border-radius: 14px;
+        width: 100%;
+        max-width: 550px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        overflow: hidden;
+        animation: modalScaleUp 0.25s ease-out;
+    }
+    @keyframes modalScaleUp {
+        from { transform: scale(0.95); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+    .modal-header {
+        background-color: #f8fafc;
+        padding: 16px 20px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .modal-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .modal-title i { color: #2563eb; }
+    .modal-close-btn {
+        background: none; border: none; color: #94a3b8;
+        font-size: 24px; cursor: pointer; padding: 0; line-height: 1;
+    }
+    .modal-close-btn:hover { color: #475569; }
+    .modal-body { padding: 20px; }
+    .modal-subtitle-hint {
+        font-size: 11px; font-weight: 600; color: #94a3b8;
+        text-transform: uppercase; margin: 0 0 10px 0; letter-spacing: 0.3px;
+    }
+    .editable-hint { color: #2563eb; margin-top: 4px; }
+    .modal-grid-2 {
+        display: grid; grid-template-columns: 1fr; gap: 12px;
+    }
+    @media(min-width: 480px) {
+        .modal-grid-2 { grid-template-columns: 1fr 1fr; }
+    }
+    .form-group-modal { margin-bottom: 12px; }
+    .modal-label {
+        display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;
+    }
+    .required-star { color: #ef4444; }
+    .form-control-modal {
+        width: 100%; padding: 8px 12px; font-size: 0.875rem;
+        border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;
+        outline: none; background-color: #fff; font-family: inherit;
+    }
+    .form-control-modal:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+    .disabled-input {
+        background-color: #f1f5f9; color: #64748b; cursor: not-allowed; border-color: #e2e8f0; font-weight: 500;
+    }
+    .modal-footer {
+        padding: 12px 20px; background-color: #f8fafc;
+        border-top: 1px solid #e2e8f0; text-align: right;
+        display: flex; justify-content: flex-end; gap: 10px;
+    }
+    .btn-modal-cancel {
+        background: #fff; border: 1px solid #cbd5e1; padding: 8px 16px;
+        font-size: 0.875rem; font-weight: 600; color: #475569; border-radius: 6px;
+        cursor: pointer; transition: 0.15s;
+    }
+    .btn-modal-cancel:hover { background: #f8fafc; color: #1e293b; }
+    .btn-modal-save {
+        background: #2563eb; border: none; padding: 8px 18px;
+        font-size: 0.875rem; font-weight: 600; color: #fff; border-radius: 6px;
+        cursor: pointer; transition: 0.15s;
+    }
+    .btn-modal-save:hover { background: #1d4ed8; }
 </style>
 
 <script>
@@ -283,6 +489,25 @@
         } else {
             passwordInput.type = "password";
             toggleTextElement.textContent = "Show";
+        }
+    }
+
+    // MODAL WINDOW INTERACTIVE LOGIC
+    function openEditModal() {
+        document.getElementById('editCredentialsModal').classList.add('active');
+        document.body.style.overflow = 'hidden'; // Pigilan ang background scrolling
+    }
+
+    function closeEditModal() {
+        document.getElementById('editCredentialsModal').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    // Isara ang modal kapag kinlik ng user ang madilim na labas ng modal box
+    window.onclick = function(event) {
+        const modal = document.getElementById('editCredentialsModal');
+        if (event.target == modal) {
+            closeEditModal();
         }
     }
 </script>
