@@ -17,6 +17,7 @@ use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\StudentTermGradeController;
+use App\Http\Controllers\GoogleClassroomController;
 
 // ACCOUNT ROUTES
 Route::get('/', function () {
@@ -88,6 +89,8 @@ Route::get('/registrar/manage-students', [StudentController::class, 'index'])->n
 Route::get('/registrar/manage-students-alias', [StudentController::class, 'index'])->name('registrar.manage-students-alias');
 Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
 Route::get('/registrar/students/{student_id}/profile', [StudentController::class, 'viewStudentProfile'])->name('registrar.students.profile');
+Route::get('/registrar/faculty-grade-status', [RegistrarController::class, 'facultyGradeStatus'])->name('registrar.faculty-grade-status');
+Route::get('/registrar/manage-grades', [RegistrarController::class, 'manageGrades'])->name('registrar.manage-grades');
 Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
 
 // DEAN ROUTES
@@ -118,6 +121,9 @@ Route::get('/professor/manage-classes', [ProfessorController::class, 'manageClas
 Route::get('/professor/class_details/{schedule_id}', [ProfessorController::class, 'viewClassDashboard'])->name('professor.class_details');
 Route::get('/professor/class/{schedule_id}/attendance', [ProfessorController::class, 'showAttendanceSheet'])->name('professor.attendance.data');
 Route::post('/professor/class/{schedule_id}/attendance/save', [ProfessorController::class, 'saveAttendance'])->name('professor.save-attendance');
+Route::get('/professor/google-classroom/connect', [GoogleClassroomController::class, 'redirect'])->name('professor.google-classroom.connect');
+Route::get('/professor/google-classroom/callback', [GoogleClassroomController::class, 'callback'])->name('professor.google-classroom.callback');
+Route::post('/professor/google-classroom/sync', [GoogleClassroomController::class, 'syncNow'])->name('professor.google-classroom.sync');
 Route::post('/professor/save-activity', [ProfessorController::class, 'saveActivity'])->name('professor.save-activity');
 Route::post('/professor/update-activity/{id}', [ProfessorController::class, 'updateActivity'])->name('professor.update-activity');
 Route::post('/professor/delete-activity/{id}', [ProfessorController::class, 'deleteActivity'])->name('professor.delete-activity');

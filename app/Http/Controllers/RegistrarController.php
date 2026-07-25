@@ -209,6 +209,153 @@ class RegistrarController extends Controller
         return Storage::disk('local')->response($fullStoragePath);
     }
 
+    public function viewStudentProfile($student_id)
+    {
+        if (session('user_role') !== 'registrar') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $student = Student::where('student_id', $student_id)->firstOrFail();
+
+        return view('registrar.student_profile', compact('student'));
+    }
+
+    public function facultyGradeStatus(Request $request)
+    {
+        if (session('user_role') !== 'registrar') {
+            return redirect()->route('login')->with('Error', 'Unauthorized access. Please login as Registrar.');
+        }
+
+        $search = $request->input('search');
+
+        $activeAcademicPeriod = DB::table('academic_periods')->where('is_active', 1)->first();
+
+        $termPeriods = $activeAcademicPeriod
+            ? DB::table('term_periods')->where('academic_period_id', $activeAcademicPeriod->id)->orderBy('start_date', 'asc')->get()
+            : collect();
+
+        $currentDate = now()->toDateString();
+        $defaultTerm = 'prelim';
+        foreach ($termPeriods as $tp) {
+            if ($currentDate >= $tp->start_date && $currentDate <= $tp->end_date) {
+                $defaultTerm = $tp->term;
+                break;
+            }
+        }
+        $termFilter = $request->input('term', $defaultTerm);
+
+        $classesQuery = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->leftJoin('employees', function ($join) {
+                $join->on('subjects.professor_id', '=', 'employees.id')
+                    ->where('employees.role', '=', 'professor');
+            })
+            ->select(
+                'class_schedules.id as schedule_id',
+                'class_schedules.section_name',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'employees.first_name as prof_first_name',
+                'employees.last_name as prof_last_name'
+            );
+
+        if ($search) {
+            $classesQuery->where(function ($q) use ($search) {
+                $q->where('employees.first_name', 'like', "%{$search}%")
+                ->orWhere('employees.last_name', 'like', "%{$search}%")
+                ->orWhere('subjects.subject_code', 'like', "%{$search}%")
+                ->orWhere('subjects.subject_title', 'like', "%{$search}%")
+                ->orWhere('class_schedules.section_name', 'like', "%{$search}%");
+            });
+        }
+
+        $classes = $classesQuery
+            ->orderBy('employees.last_name')
+            ->orderBy('class_schedules.section_name')
+            ->get();
+
+        $report = $classes->map(function ($class) use ($termFilter) {
+            $enrolledCount = DB::table('student_subjects')
+                ->where('schedule_id', $class->schedule_id)
+                ->where('status', 'Enrolled')
+                ->count();
+
+            $submittedCount = DB::table('student_term_grades')
+                ->where('schedule_id', $class->schedule_id)
+                ->where('term', $termFilter)
+                ->where('is_submitted', 1)
+                ->count();
+
+            if ($enrolledCount === 0) {
+                $status = 'empty';
+            } elseif ($submittedCount === 0) {
+                $status = 'not_started';
+            } elseif ($submittedCount < $enrolledCount) {
+                $status = 'partial';
+            } else {
+                $status = 'complete';
+            }
+
+            $class->enrolled_count = $enrolledCount;
+            $class->submitted_count = $submittedCount;
+            $class->status = $status;
+
+            return $class;
+        });
+
+        return view('registrar.faculty-grade-status', compact('report', 'termPeriods', 'termFilter', 'activeAcademicPeriod', 'search'));
+    }
+
+    public function manageGrades(Request $request)
+    {
+        if (session('user_role') !== 'registrar') {
+            return redirect()->route('login')->with('Error', 'Unauthorized access. Please login as Registrar.');
+        }
+
+        $search = $request->input('search');
+
+        $activeAcademicPeriod = DB::table('academic_periods')
+            ->where('is_active', 1)
+            ->first();
+
+        $academicPeriodId = $activeAcademicPeriod ? $activeAcademicPeriod->id : 1;
+
+        $termPeriods = DB::table('term_periods')
+            ->where('academic_period_id', $activeAcademicPeriod->id)
+            ->orderBy('start_date', 'asc')
+            ->get();
+
+        $currentDate = now()->toDateString(); 
+        $defaultTerm = 'prelim';
+
+        foreach ($termPeriods as $tp) {
+            if ($currentDate >= $tp->start_date && $currentDate <= $tp->end_date) {
+                $defaultTerm = $tp->term;
+                break;
+            }
+        }
+
+        $termFilter = $request->input('term', $defaultTerm);
+
+        $students = Student::when($search, function ($query, $search) {
+                return $query->where('last_name', 'like', "%{$search}%")
+                            ->orWhere('first_name', 'like', "%{$search}%")
+                            ->orWhere('student_id', 'like', "%{$search}%");
+            })
+            ->orderBy('last_name', 'asc')
+            ->paginate(15);
+
+        foreach ($students as $student) {
+            $student->term_grade = DB::table('student_term_grades')
+                ->where('student_number', $student->student_id)
+                ->where('term', $termFilter)
+                ->where('is_submitted', 1)
+                ->first();
+        }
+
+        return view('registrar.manage-grades', compact('students', 'termPeriods', 'termFilter', 'search', 'activeAcademicPeriod'));
+    }
+
     public function profileView()
     {
         if (session('user_role') !== 'registrar') {
@@ -225,18 +372,5 @@ class RegistrarController extends Controller
         $isLocked = !Str::startsWith($user->password, '$2y$');
 
         return view('registrar.user_details', compact('user', 'isLocked'));
-    }
-
-    public function viewStudentProfile($student_id)
-    {
-        if (session('user_role') !== 'registrar') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
-        // Find the student by their student_id (e.g., 2026-00087)
-        $student = Student::where('student_id', $student_id)->firstOrFail();
-
-        // Return the profile blade view and pass the student data
-        return view('registrar.student_profile', compact('student'));
     }
 }

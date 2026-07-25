@@ -148,12 +148,26 @@
                     @if($isAccountLocked)
                         <a href="javascript:void(0);" 
                         style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i>
+                            <span>Manage Enrollment</span>
+                        </a> 
+                    @else 
+                        <a href="{{ route('registrar.manage-enrollment') }}" class="{{ Request::is('registrar/manage-enrollment') ? 'active' : '' }}">
+                            <i data-lucide="user-cog"></i> <span>Manage Enrollment</span>
+                        </a>
+                    @endif
+                </li>
+
+                <li>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
                             <i data-lucide="lock" style="color: #ef4444;"></i> 
                             <span>Manage Student</span>
                         </a>
                     @else
                         <a href="{{ route('registrar.manage-students') }}" class="{{ Request::is('registrar/manage-students') ? 'active' : '' }}">
-                            <i data-lucide="user-check"></i> <span>Manage Student</span>
+                            <i data-lucide="users"></i> <span>Manage Student</span>
                         </a>
                     @endif
                 </li>
@@ -163,11 +177,25 @@
                         <a href="javascript:void(0);" 
                         style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
                             <i data-lucide="lock" style="color: #ef4444;"></i>
-                            <span>Manage Enrollment</span>
-                        </a> 
-                    @else 
-                        <a href="{{ route('registrar.manage-enrollment') }}" class="{{ Request::is('registrar/manage-enrollment') ? 'active' : '' }}">
-                            <i data-lucide="user-check"></i> <span>Manage Enrollment</span>
+                            <span>Faculty Grade Status</span>
+                        </a>
+                    @else
+                        <a href="{{ route('registrar.faculty-grade-status') }}" class="{{ Route::is('registrar.faculty-grade-status') ? 'active' : '' }}">
+                            <i data-lucide="list-checks"></i> <span>Faculty Grade Status</span>
+                        </a>
+                    @endif
+                </li>
+
+                <li>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i>
+                            <span>Manage Grades</span>
+                        </a>
+                    @else
+                        <a href="{{ route('registrar.manage-grades') }}" class="{{ Request::is('registrar/manage-grades') ? 'active' : '' }}">
+                            <i data-lucide="file-spreadsheet"></i> <span>Manage Grades</span>
                         </a>
                     @endif
                 </li>

@@ -441,22 +441,39 @@
                 @endphp
                 <div x-show="currentTab === '{{ $key }}'" x-transition style="display: none;"
                     x-data="{
-                            termSubTab: new URLSearchParams(window.location.search).get('subtab') || 'encoding'
+                            termSubTab: new URLSearchParams(window.location.search).get('subtab') || 'deliverables'
                         }">
                     <div class="workspace-card">
 
                         <div class="card-workspace-header mb-3">
+
+                            @php
+                                $hasGoogleClassroom = DB::table('google_classroom_connections')
+                                    ->where('professor_id', session('user_id'))
+                                    ->exists();
+                            @endphp
+
                             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
                                 <div>
                                     <h4 class="m-0 fw-bold text-dark-blue">{{ $termLabel }} Term Panel</h4>
                                     <p class="small text-muted m-0">Manage activities, deliverables, and official grade entries for this term.</p>
                                 </div>
 
-                                <template x-if="termSubTab === 'deliverables'">
-                                    <button type="button" class="btn-add-activity" @click="openCreateModal('{{ $key }}')">
-                                        <i class="fa-solid fa-plus"></i> Add Task
-                                    </button>
-                                </template>
+                                <!-- Kanang bahagi: Pinagsama ang Add Task button at Google Classroom Connect button -->
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <template x-if="termSubTab === 'deliverables'">
+                                        <button type="button" class="btn-add-activity" @click="openCreateModal('{{ $key }}')">
+                                            <i class="fa-solid fa-plus"></i> Add Task
+                                        </button>
+                                    </template>
+
+                                    <!-- Google Classroom Connect Button: Lalabas lang kapag HINDI PA NAKAKONNEK -->
+                                    @unless($hasGoogleClassroom)
+                                        <a href="{{ route('professor.google-classroom.connect') }}" class="btn-google-classroom-connect">
+                                            <i class="fa-brands fa-google-classroom"></i> Connect Google Classroom
+                                        </a>
+                                    @endunless
+                                </div>
 
                             </div>
                         </div>
@@ -994,6 +1011,28 @@
     .term-subtab-active {
         color: #1e2a5a !important;
         border-bottom-color: #1e2a5a;
+    }
+
+    .btn-google-classroom-connect {
+        background-color: #ffffff;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 7px 14px;
+        border-radius: 6px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .btn-google-classroom-connect:hover {
+        background-color: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
     }
 
     .btn-add-activity { background: #1e2a5a; border: none; color: white; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
