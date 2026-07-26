@@ -68,6 +68,7 @@ Route::patch('/system_admin/manage-faculty/{id}', [FacultyController::class, 'up
 Route::delete('/system_admin/manage-faculty/{id}', [FacultyController::class, 'destroy'])->name('system_admin.manage-faculty.destroy');
 Route::patch('/system_admin/manage-subjects/{id}', [SubjectController::class, 'update'])->name('system_admin.subjects.update');
 Route::delete('/system_admin/manage-subjects/{id}', [SubjectController::class, 'destroy'])->name('system_admin.subjects.destroy');
+Route::put('/curriculum/{id}',[CurriculumController::class,'update'])->name('system_admin.curriculum.update');
 Route::delete('/system_admin/manage-curriculum/{id}', [CurriculumController::class, 'destroy'])->name('system_admin.curriculum.destroy');
 Route::get('/system-admin/academic_periods', [SystemAdminController::class, 'academicPeriods'])->name('system_admin.academic_periods');
 Route::post('/system-admin/academic_periods', [SystemAdminController::class, 'storeAcademicPeriod'])->name('system_admin.store_academic_period');
@@ -76,8 +77,6 @@ Route::post('/system-admin/term-periods', [SystemAdminController::class, 'storeT
 Route::delete('/system-admin/academic_periods/{id}', [SystemAdminController::class, 'deleteAcademicPeriod'])->name('system_admin.delete_academic_period');
 
 Route::get('/system_admin/user_details', [SystemAdminController::class, 'profileView'])->name('system_admin.user_details');
-
-Route::put('/curriculum/{id}',[CurriculumController::class,'update'])->name('system_admin.curriculum.update');
 
 // REGISTRAR ROUTES
 Route::get('/registrar/dashboard', [RegistrarController::class, 'dashboard'])->name('registrar.dashboard');
@@ -121,9 +120,14 @@ Route::get('/professor/manage-classes', [ProfessorController::class, 'manageClas
 Route::get('/professor/class_details/{schedule_id}', [ProfessorController::class, 'viewClassDashboard'])->name('professor.class_details');
 Route::get('/professor/class/{schedule_id}/attendance', [ProfessorController::class, 'showAttendanceSheet'])->name('professor.attendance.data');
 Route::post('/professor/class/{schedule_id}/attendance/save', [ProfessorController::class, 'saveAttendance'])->name('professor.save-attendance');
+
 Route::get('/professor/google-classroom/connect', [GoogleClassroomController::class, 'redirect'])->name('professor.google-classroom.connect');
 Route::get('/professor/google-classroom/callback', [GoogleClassroomController::class, 'callback'])->name('professor.google-classroom.callback');
 Route::post('/professor/google-classroom/sync', [GoogleClassroomController::class, 'syncNow'])->name('professor.google-classroom.sync');
+Route::post('/professor/google-classroom/sync', [ProfessorController::class, 'syncGoogleClassroom'])->name('professor.google-classroom.sync');
+Route::post('/professor/class/{schedule_id}/google-classroom/link', [ProfessorController::class, 'linkGoogleClassroomCourse'])->name('professor.google-classroom.link');
+Route::post('/professor/class/{schedule_id}/google-classroom/unlink', [ProfessorController::class, 'unlinkGoogleClassroomCourse'])->name('professor.google-classroom.unlink');
+
 Route::post('/professor/save-activity', [ProfessorController::class, 'saveActivity'])->name('professor.save-activity');
 Route::post('/professor/update-activity/{id}', [ProfessorController::class, 'updateActivity'])->name('professor.update-activity');
 Route::post('/professor/delete-activity/{id}', [ProfessorController::class, 'deleteActivity'])->name('professor.delete-activity');
@@ -145,6 +149,7 @@ Route::get('/student/class/{id}/predict', [StudentController::class, 'predictGra
 Route::get('/student/class-details/{schedule_id}', [StudentController::class, 'viewClassDashboard'])->name('student.class_details');
 Route::get('/student/task/{id}', [StudentController::class, 'viewTaskDetails'])->name('student.view-task');
 Route::get('/student/task/download/{id}', [StudentController::class, 'downloadTaskFile'])->name('student.task.download');
+Route::get('/student/google-classroom/material/{material_id}/download', [StudentController::class, 'downloadGoogleClassroomMaterial'])->name('student.google-classroom.material-download');
 Route::post('/student/task/{id}/submit', [StudentController::class, 'submitTask'])->name('student.submit_task');
 Route::get('/student/user_details', [StudentController::class, 'profileView'])->name('student.user_details');
 Route::put('/account/update-credentials', [App\Http\Controllers\StudentController::class, 'updateCredentials'])->name('account.update_credentials');

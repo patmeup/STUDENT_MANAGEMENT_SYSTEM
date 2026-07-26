@@ -8,9 +8,10 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Models\Students;
+use App\Models\StudentTermGrade;
 use App\Support\TermHelper;
 use App\Support\GradeHelper;
-use App\Models\StudentTermGrade;
+use App\Support\GoogleClassroomService;
 
 class ProfessorController extends Controller
 {
@@ -103,7 +104,11 @@ class ProfessorController extends Controller
             ->orderBy('class_schedules.section_name')
             ->get();
 
-        return view('professor.manage-classes', compact('classes'));
+        $gConnection = DB::table('google_classroom_connections')
+            ->where('professor_id', $professor_id)
+            ->first();
+
+        return view('professor.manage-classes', compact('classes', 'gConnection'));
     }
 
     public function viewClassDashboard($schedule_id)
@@ -169,6 +174,7 @@ class ProfessorController extends Controller
             ->get()
             ->groupBy('term');
 
+        // 1. Dito na lang mag-loop para sa grades (malinis at hiwalay)
         foreach ($terms as $term) {
             foreach ($students as $student) {
                 $saved = $savedGrades->get($term . '_' . $student->student_id);
@@ -192,12 +198,74 @@ class ProfessorController extends Controller
             }
         }
 
+        // 2. Google Classroom Connection & Sync Logic (Nasa labas na ng term loops)
+        $gConnection = DB::table('google_classroom_connections')
+            ->where('professor_id', $professorId)
+            ->first();
+
+        $gLinkedCourse = null;
+        $gAvailableCourses = collect();
+        $gAnnouncements = collect();
+        $gCourseWork = collect();
+        $gMaterials = collect();
+
+        if ($gConnection) {
+            // Auto-sync courses kung konektado naman pero blangko pa ang database
+            $hasCourses = DB::table('google_classroom_courses')
+                ->where('connection_id', $gConnection->id)
+                ->exists();
+
+            if (!$hasCourses) {
+                try {
+                    $service = new \App\Support\GoogleClassroomService($gConnection);
+                    $service->syncCourses();
+                } catch (\Exception $e) {
+                    // Mag-catch kung sakaling may error sa API connection
+                }
+            }
+
+            $gLinkedCourse = DB::table('google_classroom_courses')
+                ->where('linked_class_schedule_id', $schedule_id)
+                ->first();
+
+            $gAvailableCourses = DB::table('google_classroom_courses')
+                ->where('connection_id', $gConnection->id)
+                ->where(function ($q) use ($schedule_id) {
+                    $q->whereNull('linked_class_schedule_id')
+                    ->orWhere('linked_class_schedule_id', $schedule_id);
+                })
+                ->get();
+
+            if ($gLinkedCourse) {
+                $gAnnouncements = DB::table('google_classroom_announcements')
+                    ->where('course_id', $gLinkedCourse->id)
+                    ->orderBy('posted_at', 'desc')
+                    ->get();
+
+                $gCourseWork = DB::table('google_classroom_coursework')
+                    ->where('course_id', $gLinkedCourse->id)
+                    ->orderBy('due_date', 'desc')
+                    ->get();
+
+                $gMaterials = DB::table('google_classroom_materials')
+                    ->where('course_id', $gLinkedCourse->id)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+            }
+        }
+
         return view('professor.class_details', compact(
             'classDetails',
             'students',
             'tasks',
             'autoGrades',
-            'draftGrades'
+            'draftGrades',
+            'gConnection',
+            'gLinkedCourse',
+            'gAvailableCourses',
+            'gAnnouncements',
+            'gCourseWork',
+            'gMaterials'
         ));
     }
 
@@ -269,6 +337,89 @@ class ProfessorController extends Controller
         } catch (\Exception $e) {
             DB::rollback();
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function linkGoogleClassroomCourse(Request $request, $schedule_id)
+    {
+        if (session('user_role') !== 'professor') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $request->validate([
+            'google_course_id' => 'required|integer',
+        ]);
+
+        $professorId = session('user_id');
+
+        $connection = DB::table('google_classroom_connections')
+            ->where('professor_id', $professorId)
+            ->first();
+
+        if (!$connection) {
+            return redirect()->back()->with('error', 'No connected Google Classroom account found.');
+        }
+
+        $course = DB::table('google_classroom_courses')
+            ->where('id', $request->google_course_id)
+            ->where('connection_id', $connection->id)
+            ->first();
+
+        if (!$course) {
+            return redirect()->back()->with('error', 'Invalid Google Classroom course selected.');
+        }
+
+        DB::table('google_classroom_courses')
+            ->where('linked_class_schedule_id', $schedule_id)
+            ->update(['linked_class_schedule_id' => null]);
+
+        DB::table('google_classroom_courses')
+            ->where('id', $course->id)
+            ->update(['linked_class_schedule_id' => $schedule_id]);
+
+        return redirect()->back()->with('success', 'Google Classroom course linked successfully!');
+    }
+
+    public function unlinkGoogleClassroomCourse($schedule_id)
+    {
+        if (session('user_role') !== 'professor') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        DB::table('google_classroom_courses')
+            ->where('linked_class_schedule_id', $schedule_id)
+            ->update(['linked_class_schedule_id' => null]);
+
+        return redirect()->back()->with('success', 'Google Classroom course unlinked.');
+    }
+
+    public function syncGoogleClassroom(Request $request)
+    {
+        if (session('user_role') !== 'professor') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $professorId = session('user_id');
+
+        $connection = DB::table('google_classroom_connections')
+            ->where('professor_id', $professorId)
+            ->first();
+
+        if (!$connection) {
+            return redirect()->back()->with('error', 'No connected Google Classroom account found.');
+        }
+
+        try {
+            $service = new \App\Support\GoogleClassroomService($connection);
+            $service->syncCourses();
+
+            DB::table('google_classroom_connections')
+                ->where('id', $connection->id)
+                ->update(['last_synced_at' => now()]);
+
+            return redirect()->back()->with('success', 'Google Classroom synced successfully!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Sync failed: ' . $e->getMessage());
         }
     }
 

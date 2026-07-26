@@ -229,6 +229,26 @@ class StudentController extends Controller
                 ->get();
         }
 
+        // Google Classroom coursework/materials for the course linked to this schedule (if any)
+        $gLinkedCourse = DB::table('google_classroom_courses')
+            ->where('linked_class_schedule_id', $schedule_id)
+            ->first();
+
+        $gCourseWork = collect();
+        $gMaterials = collect();
+
+        if ($gLinkedCourse) {
+            $gCourseWork = DB::table('google_classroom_coursework')
+                ->where('course_id', $gLinkedCourse->id)
+                ->orderBy('due_date', 'desc')
+                ->get();
+
+            $gMaterials = DB::table('google_classroom_materials')
+                ->where('course_id', $gLinkedCourse->id)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+
         $gradedSubmissions = DB::table('task_submissions')
             ->join('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
             ->where('student_tasks.class_schedule_id', $schedule_id)
@@ -292,7 +312,10 @@ class StudentController extends Controller
             'currentAttendance',
             'majorExam',
             'currentCalculatedGrade',
-            'attendanceRecords'
+            'attendanceRecords',
+            'gLinkedCourse',
+            'gCourseWork',
+            'gMaterials'
         ));
     }
 
@@ -639,6 +662,55 @@ class StudentController extends Controller
         $downloadName = $task->original_filename ?? basename($fullPath);
 
         return response()->download($fullPath, $downloadName);
+    }
+
+    public function downloadGoogleClassroomMaterial($material_id)
+    {
+        if (session('user_role') !== 'student') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $studentNumber = session('student_id');
+
+        $material = DB::table('google_classroom_materials')->where('id', $material_id)->first();
+
+        if (!$material || !$material->drive_file_id) {
+            abort(404, 'Material or attached file not found.');
+        }
+
+        $course = DB::table('google_classroom_courses')->where('id', $material->course_id)->first();
+
+        if (!$course || !$course->linked_class_schedule_id) {
+            abort(404, 'This material is not linked to any class.');
+        }
+
+        $isEnrolled = DB::table('student_subjects')
+            ->where('schedule_id', $course->linked_class_schedule_id)
+            ->where('student_number', $studentNumber)
+            ->where('status', 'Enrolled')
+            ->exists();
+
+        if (!$isEnrolled) {
+            abort(403, 'You are not enrolled in this class.');
+        }
+
+        $connection = DB::table('google_classroom_connections')->where('id', $course->connection_id)->first();
+
+        if (!$connection) {
+            abort(404, 'Google Classroom connection for this course no longer exists.');
+        }
+
+        try {
+            $service = new \App\Support\GoogleClassroomService($connection);
+            $file = $service->downloadDriveFile($material->drive_file_id);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Unable to download file from Google Classroom: ' . $e->getMessage());
+        }
+
+        return response($file['content'], 200, [
+            'Content-Type' => $file['mimeType'],
+            'Content-Disposition' => 'attachment; filename="' . addslashes($file['name']) . '"',
+        ]);
     }
 
     public function submitTask(Request $request, $id)

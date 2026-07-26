@@ -188,6 +188,8 @@
                     $termAll = $activities->where('term', $key);
                     $termModules = $termAll->where('activity_type', 'module');
                     $termTasks = $termAll->whereNotIn('activity_type', ['module']);
+
+                    $hasGClass = isset($gLinkedCourse) && $gLinkedCourse;
                 @endphp
                 <div x-show="currentTab === '{{ $key }}'" x-transition style="display: none;">
 
@@ -197,7 +199,7 @@
                             <p class="small text-muted m-0">Modules, reviewers, and handouts for this term</p>
                         </div>
 
-                        @if($termModules->isEmpty())
+                        @if($termModules->isEmpty() && (!$hasGClass || $gMaterials->isEmpty()))
                             <div class="empty-state-box">
                                 <div class="empty-state-icon"><i class="fa-solid fa-folder-open"></i></div>
                                 <h5 class="empty-state-title">No {{ $termLabel }} Materials Found</h5>
@@ -219,6 +221,27 @@
                                         @endif
                                     </div>
                                 @endforeach
+
+                                @if($hasGClass)
+                                    @foreach($gMaterials as $mat)
+                                        <div class="material-row">
+                                            <div class="material-icon"><i class="fa-brands fa-google-drive"></i></div>
+                                            <div class="material-info">
+                                                <span class="material-title">{{ $mat->title }}</span>
+                                                <span class="material-filename">{{ $mat->drive_file_name ?? 'Posted via Google Classroom' }}</span>
+                                            </div>
+                                            @if($mat->drive_file_id)
+                                                <a href="{{ route('student.google-classroom.material-download', $mat->id) }}" class="btn-sm-outline btn-download">
+                                                    <i class="fa-solid fa-download"></i> Download
+                                                </a>
+                                            @elseif($mat->alternate_link)
+                                                <a href="{{ $mat->alternate_link }}" class="btn-sm-outline btn-download" target="_blank">
+                                                    <i class="fa-brands fa-google-classroom"></i> Open in Classroom
+                                                </a>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                @endif
                             </div>
                         @endif
                     </div>
@@ -229,7 +252,7 @@
                             <p class="small text-muted m-0">Quizzes, assignments, and exams assigned for this term</p>
                         </div>
 
-                        @if($termTasks->isEmpty())
+                        @if($termTasks->isEmpty() && (!$hasGClass || $gCourseWork->isEmpty()))
                             <div class="empty-state-box">
                                 <div class="empty-state-icon"><i class="fa-solid fa-pen-to-square"></i></div>
                                 <h5 class="empty-state-title">No {{ $termLabel }} Tasks Found</h5>
@@ -269,6 +292,25 @@
                                                 </td>
                                             </tr>
                                         @endforeach
+
+                                        @if($hasGClass)
+                                            @foreach($gCourseWork as $cw)
+                                                <tr>
+                                                    <td style="width: 25%;"><strong class="text-dark-blue">{{ $cw->title }}</strong></td>
+                                                    <td style="width: 15%;"><span class="badge bg-secondary text-uppercase">{{ $cw->work_type ?? 'coursework' }}</span></td>
+                                                    <td style="width: 15%;">—</td>
+                                                    <td style="width: 15%;"><span class="text-muted">Graded in Classroom</span></td>
+                                                    <td style="width: 15%;">{{ $cw->due_date ? \Carbon\Carbon::parse($cw->due_date)->format('M d, Y') : 'No Deadline' }}</td>
+                                                    <td style="width: 15%;" class="text-center">
+                                                        @if($cw->alternate_link)
+                                                            <a href="{{ $cw->alternate_link }}" target="_blank" class="btn-sm-outline btn-view-task">
+                                                                <i class="fa-brands fa-google-classroom"></i> Open in Classroom
+                                                            </a>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        @endif
                                     </tbody>
                                 </table>
                             </div>
