@@ -88,6 +88,8 @@ Route::get('/registrar/manage-students', [StudentController::class, 'index'])->n
 Route::get('/registrar/manage-students-alias', [StudentController::class, 'index'])->name('registrar.manage-students-alias');
 Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
 Route::get('/registrar/students/{student_id}/profile', [StudentController::class, 'viewStudentProfile'])->name('registrar.students.profile');
+Route::put('/registrar/students/{id}/documents', [RegistrarController::class, 'updateStudentDocuments'])->name('registrar.update-documents');
+Route::get('/registrar/students/{student_id}/file/{filename}', [RegistrarController::class, 'secureViewFile'])->name('registrar.secure-view');
 Route::get('/registrar/faculty-grade-status', [RegistrarController::class, 'facultyGradeStatus'])->name('registrar.faculty-grade-status');
 Route::get('/registrar/manage-grades', [RegistrarController::class, 'manageGrades'])->name('registrar.manage-grades');
 Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');

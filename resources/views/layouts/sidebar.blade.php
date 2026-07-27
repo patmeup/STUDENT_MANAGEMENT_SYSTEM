@@ -166,7 +166,7 @@
                             <span>Manage Student</span>
                         </a>
                     @else
-                        <a href="{{ route('registrar.manage-students') }}" class="{{ Request::is('registrar/manage-students') ? 'active' : '' }}">
+                        <a href="{{ route('registrar.manage-students') }}" class="{{ Request::is('registrar/manage-students*') || Request::is('registrar/students/*') ? 'active' : '' }}">
                             <i data-lucide="users"></i> <span>Manage Student</span>
                         </a>
                     @endif

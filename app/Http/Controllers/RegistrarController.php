@@ -71,9 +71,9 @@ class RegistrarController extends Controller
         return view('registrar.manage-enrollment');
     }
 
-    public function storeEnrollment(Request $request)
+    public function storeEnrollment(Request $request)   
     {
-        $request->validate([
+        $rules = [
             'registration_date' => 'required|date',
             'student_type' => 'required|string',
             'course' => 'required|string',
@@ -92,7 +92,29 @@ class RegistrarController extends Controller
             'doc_dismissal' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'doc_good_moral_trans' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'doc_permit' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-        ]);
+        ];
+
+        $studentType = $request->input('student_type');
+
+        if ($studentType === 'New') {
+            $rules['doc_psa'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+            $rules['doc_2x2'] = 'required|file|mimes:jpg,jpeg,png|max:5120';
+            $rules['doc_f138'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+            $rules['doc_good_moral_new'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+            $rules['doc_diploma'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+        } elseif ($studentType === 'Transferee') {
+            $rules['doc_psa'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+            $rules['doc_2x2'] = 'required|file|mimes:jpg,jpeg,png|max:5120';
+            $rules['doc_tor'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+            $rules['doc_dismissal'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+            $rules['doc_good_moral_trans'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+        } elseif ($studentType === 'Cross-Enrollee') {
+            $rules['doc_psa'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+            $rules['doc_2x2'] = 'required|file|mimes:jpg,jpeg,png|max:5120';
+            $rules['doc_permit'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+        }
+
+        $request->validate($rules);
 
         $currentYear = date('Y');
         
@@ -113,15 +135,15 @@ class RegistrarController extends Controller
         $filePaths = [];
         
         $fileFields = [
-            'doc_psa'               => 'psa_birth_certificate',
-            'doc_2x2'               => '2x2_id_picture',
-            'doc_f138'              => 'form_138_report_card',
-            'doc_good_moral_new'    => 'good_moral_freshman',
-            'doc_diploma'           => 'high_school_diploma',
-            'doc_tor'               => 'transcript_of_records',
-            'doc_dismissal'         => 'honorable_dismissal',
-            'doc_good_moral_trans'  => 'good_moral_transferee',
-            'doc_permit'            => 'cross_enroll_permit'
+            'doc_psa'              => 'psa_birth_certificate',
+            'doc_2x2'              => '2x2_id_picture',
+            'doc_f138'             => 'form_138_report_card',
+            'doc_good_moral_new'   => 'good_moral_freshman',
+            'doc_diploma'          => 'high_school_diploma',
+            'doc_tor'              => 'transcript_of_records',
+            'doc_dismissal'        => 'honorable_dismissal',
+            'doc_good_moral_trans' => 'good_moral_transferee',
+            'doc_permit'           => 'cross_enroll_permit'
         ];
 
         $folderPath = "student_records/{$generatedStudentId}";
@@ -218,6 +240,63 @@ class RegistrarController extends Controller
         $student = Student::where('student_id', $student_id)->firstOrFail();
 
         return view('registrar.student_profile', compact('student'));
+    }
+
+    public function updateStudentDocuments(Request $request, $id)
+    {
+        $student = Student::findOrFail($id);
+
+        $request->validate([
+            'doc_psa'              => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_2x2'              => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
+            'doc_f138'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_good_moral_new'   => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_diploma'          => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_tor'              => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_dismissal'        => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_good_moral_trans' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_permit'           => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        $folderPath = "student_records/{$student->student_id}";
+        if (!Storage::disk('local')->exists($folderPath)) {
+            Storage::disk('local')->makeDirectory($folderPath);
+        }
+
+        $fileFields = [
+            'doc_psa'              => ['column' => 'path_psa', 'name' => 'psa_birth_certificate'],
+            'doc_2x2'              => ['column' => 'path_2x2', 'name' => '2x2_id_picture'],
+            'doc_f138'             => ['column' => 'path_f138', 'name' => 'form_138_report_card'],
+            'doc_good_moral_new'   => ['column' => 'path_good_moral_new', 'name' => 'good_moral_freshman'],
+            'doc_diploma'          => ['column' => 'path_diploma', 'name' => 'high_school_diploma'],
+            'doc_tor'              => ['column' => 'path_tor', 'name' => 'transcript_of_records'],
+            'doc_dismissal'        => ['column' => 'path_dismissal', 'name' => 'honorable_dismissal'],
+            'doc_good_moral_trans' => ['column' => 'path_good_moral_trans', 'name' => 'good_moral_transferee'],
+            'doc_permit'           => ['column' => 'path_permit', 'name' => 'cross_enroll_permit']
+        ];
+
+        foreach ($fileFields as $inputName => $info) {
+            if ($request->hasFile($inputName)) {
+                $file = $request->file($inputName);
+                
+                if ($file->isValid()) {
+                    $extension = $file->getClientOriginalExtension();
+                    $finalName = "{$info['name']}.{$extension}";
+
+                    if ($student->{$info['column']} && Storage::disk('local')->exists("{$folderPath}/{$student->{$info['column']}}")) {
+                         Storage::disk('local')->delete("{$folderPath}/{$student->{$info['column']}}");
+                    }
+
+                    $file->storeAs($folderPath, $finalName, 'local');
+                    
+                    $student->{$info['column']} = $finalName;
+                }
+            }
+        }
+
+        $student->save();
+
+        return redirect()->back()->with('Success', "Student documents updated successfully for ID: {$student->student_id}");
     }
 
     public function facultyGradeStatus(Request $request)
