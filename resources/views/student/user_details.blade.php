@@ -168,6 +168,7 @@
                         class="form-control-modal" 
                         inputmode="numeric"
                         pattern="[0-9]*"
+                        maxlength="11"
                         oninput="this.value = this.value.replace(/[^0-9]/g, '')"
                         value="{{ old('contact_no', $user->contact_no) }}"
 >
