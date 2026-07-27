@@ -82,6 +82,7 @@ class RegistrarController extends Controller
             'last_name' => 'required|string',
             'first_name' => 'required|string',
             'contact_no' => 'required|string',
+            'email' => 'required|email', // <-- 1. Validates the incoming email field
 
             'doc_psa' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'doc_2x2' => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
@@ -185,6 +186,7 @@ class RegistrarController extends Controller
         $student->zip_code = $request->zip_code;
         $student->place_of_birth = $request->place_of_birth;
         $student->contact_no = $request->contact_no;
+        $student->email = $request->email; // <-- 2. Saves the email to the student data model
         
         $student->fathers_name = $request->fathers_name;
         $student->fathers_occupation = $request->fathers_occupation;

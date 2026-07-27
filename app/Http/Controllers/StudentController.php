@@ -128,10 +128,13 @@ class StudentController extends Controller
         }
 
         $studentNumber = session('student_id');
+        
+        // Tiyaking hinahanap gamit ang student_id core field
         $student = Student::where('student_id', $studentNumber)->firstOrFail();
 
         $request->validate([
-            'email' => 'required|email|unique:students,email,' . $student->id,
+            // Inayos ang core unique exception handling para sa parehong composite setups
+            'email' => 'required|email|unique:students,email,' . $student->id . ',id',
             'contact_no' => 'required|string|max:20',
             'civil_status' => 'required|in:Single,Married,Divorced,Widowed',
             'city_address' => 'required|string|max:500',
@@ -526,6 +529,9 @@ class StudentController extends Controller
         $student->college_school_address = $request->college_school_address;
         $student->college_school_year = $request->college_school_year;
 
+        $student->year_level = ($request->student_type === 'Transferee') ? '1st Year' : '1st Year'; 
+        $student->semester = '1st Semester';
+
         $student->path_psa = $filePaths['doc_psa'] ?? null;
         $student->path_2x2 = $filePaths['doc_2x2'] ?? null;
         $student->path_f138 = $filePaths['doc_f138'] ?? null;
@@ -789,13 +795,16 @@ class StudentController extends Controller
             return redirect()->route('login')->with('error', 'Unauthorized access. Please login as a Student.');
         }
 
-        $userId = session('user_id');
-        $user = \App\Models\Student::find($userId);
+        $studentNumber = session('student_id');
+        
+        // Ginawa nating $user ulit para tugma sa Blade file mo
+        $user = Student::where('student_id', $studentNumber)->first();
 
         if (!$user) {
             return redirect()->route('login')->with('error', 'User not found.');
         }
 
+        // Naka-fix pa rin ang pagkakasunod-sunod ng Hash::check arguments!
         $isLocked = Hash::check('Welcome@AU2026', $user->password);
 
         return view('student.user_details', compact('user', 'isLocked'));

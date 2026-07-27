@@ -161,7 +161,17 @@
                     <div class="form-group-modal">
                         <label class="modal-label">Mobile Number <span class="required-star">*</span></label>
                         <!-- Pinalitan ng $user->contact_no base sa database mo -->
-                        <input type="text" name="contact_no" required class="form-control-modal" value="{{ old('contact_no', $user->contact_no) }}">
+                        <input 
+                        type="tel" 
+                        name="contact_no" 
+                        required 
+                        class="form-control-modal" 
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        maxlength="11"
+                        oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                        value="{{ old('contact_no', $user->contact_no) }}"
+>
                     </div>
 
                     <div class="form-group-modal">

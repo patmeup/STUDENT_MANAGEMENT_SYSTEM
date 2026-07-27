@@ -129,7 +129,14 @@
                     </div>
                     <div class="form-group">
                         <label>Zip Code</label>
-                        <input type="text" name="zip_code" placeholder="1000">
+                        <input type="text" 
+                            name="zip_code" 
+                            placeholder="xxxx" 
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            maxlength="4"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '');" 
+                            required>
                     </div>
                 </div>
                 
@@ -140,7 +147,18 @@
                     </div>
                     <div class="form-group">
                         <label>Mobile Number / Telephone</label>
-                        <input type="text" name="contact_no" placeholder="09xxxxxxxxx" required>
+                        <input type="text" 
+                            name="contact_no" 
+                            placeholder="09xxxxxxxxx" 
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            maxlength="11"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '');" 
+                            required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" name="email" placeholder="student@example.com" required>
                     </div>
                 </div>
 
@@ -173,7 +191,13 @@
                     <div class="school-inputs">
                         <input type="text" name="primary_school_name" placeholder="School Name" required>
                         <input type="text" name="primary_school_address" placeholder="School Address" required>
-                        <input type="text" name="primary_school_year" placeholder="Year Graduated" style="text-align: center;" required>
+                        <input type="text" 
+                            name="primary_school_year" 
+                            placeholder="Year Graduated (YYYY-YYYY)" 
+                            inputmode="text"
+                            maxlength="9"
+                            oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
+                            required>
                     </div>
                 </div>
 
@@ -182,7 +206,13 @@
                     <div class="school-inputs">
                         <input type="text" name="secondary_school_name" placeholder="School Name" required>
                         <input type="text" name="secondary_school_address" placeholder="School Address" required>
-                        <input type="text" name="secondary_school_year" placeholder="Year Graduated" style="text-align: center;" required>
+                        <input type="text" 
+                            name="secondary_school_year" 
+                            placeholder="Year Graduated (YYYY-YYYY)" 
+                            inputmode="text"
+                            maxlength="9"
+                            oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
+                            required>
                     </div>
                 </div>
 
@@ -191,7 +221,13 @@
                     <div class="school-inputs">
                         <input type="text" name="college_school_name" placeholder="Previous Institution (If applicable)">
                         <input type="text" name="college_school_address" placeholder="Campus Location Address">
-                        <input type="text" name="college_school_year" placeholder="Year Attended" style="text-align: center;">
+                        <input type="text" 
+                            name="college_school_year" 
+                            placeholder="Year Attended" 
+                            inputmode="text"
+                            maxlength="9"
+                            oninput="this.value = this.value.replace(/[^0-9-]/g, '');"
+                            required>
                     </div>
                 </div>
             </div>
@@ -347,31 +383,48 @@
 
     // REALTIME ENGINE: Sinasala ang mga document slots depende sa Entry Type
     function filterCredentials() {
-        var dropdown = document.getElementById("student_type");
-        var selectedType = dropdown.value;
-        var selectedText = dropdown.options[dropdown.selectedIndex].text;
+    var dropdown = document.getElementById("student_type");
+    var selectedType = dropdown.value;
+    var selectedText = dropdown.options[dropdown.selectedIndex].text;
+    
+    document.getElementById("selected-type-label").innerText = selectedText;
+
+    // 1. Handle Document Upload Cards
+    var cards = document.getElementById("credentials-wrapper").getElementsByClassName("file-upload-card");
+    for (var i = 0; i < cards.length; i++) {
+        var allowedTypes = cards[i].getAttribute("data-types").split(",");
+        var fileInput = cards[i].querySelector('input[type="file"]');
         
-        document.getElementById("selected-type-label").innerText = selectedText;
-
-        var cards = document.getElementById("credentials-wrapper").getElementsByClassName("file-upload-card");
-
-        for (var i = 0; i < cards.length; i++) {
-            var allowedTypes = cards[i].getAttribute("data-types").split(",");
-            var fileInput = cards[i].querySelector('input[type="file"]');
-            
-            if (allowedTypes.includes(selectedType)) {
-                cards[i].style.display = "block"; 
-                // HUWAG rito i-clear para hindi magka-conflict habang nagpapalit ang user
-            } else {
-                cards[i].style.display = "none";  
-                // I-clear lang ang value kapag ITINAGO ang card para malinis ang payload
-                if (fileInput) {
-                    fileInput.value = "";
-                    updateDropZoneStatus(fileInput);
-                }
+        if (allowedTypes.includes(selectedType)) {
+            cards[i].style.display = "block"; 
+        } else {
+            cards[i].style.display = "none";  
+            if (fileInput) {
+                fileInput.value = "";
+                updateDropZoneStatus(fileInput);
             }
         }
     }
+
+    // 2. Handle College Input Section for Transferees dynamically
+    var transfereeRow = document.querySelector('.transferee-row');
+    var collegeInputs = transfereeRow.querySelectorAll('input');
+    
+    if (selectedType === 'Transferee') {
+        transfereeRow.style.display = "block";
+        collegeInputs.forEach(input => {
+            if (input.name === 'college_school_year') {
+                input.setAttribute('required', 'required');
+            }
+        });
+    } else {
+        transfereeRow.style.display = "none";
+        collegeInputs.forEach(input => {
+            input.removeAttribute('required');
+            input.value = ""; // Clear values if toggled away
+        });
+    }
+}
 
     // Drag and Drop Engine Setup para sa modern feel
     document.addEventListener("DOMContentLoaded", function() {
