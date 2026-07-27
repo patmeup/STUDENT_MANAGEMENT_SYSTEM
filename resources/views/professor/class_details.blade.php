@@ -446,20 +446,12 @@
                     <div class="workspace-card">
 
                         <div class="card-workspace-header mb-3">
-
-                            @php
-                                $hasGoogleClassroom = DB::table('google_classroom_connections')
-                                    ->where('professor_id', session('user_id'))
-                                    ->exists();
-                            @endphp
-
                             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
                                 <div>
                                     <h4 class="m-0 fw-bold text-dark-blue">{{ $termLabel }} Term Panel</h4>
                                     <p class="small text-muted m-0">Manage activities, deliverables, and official grade entries for this term.</p>
                                 </div>
 
-                                <!-- Kanang bahagi: Pinagsama ang Add Task button at Google Classroom Connect button -->
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
                                     <template x-if="termSubTab === 'deliverables'">
                                         <button type="button" class="btn-add-activity" @click="openCreateModal('{{ $key }}')">
@@ -467,14 +459,7 @@
                                         </button>
                                     </template>
 
-                                    <!-- Google Classroom Connect Button: Lalabas lang kapag HINDI PA NAKAKONNEK -->
-                                    @unless($hasGoogleClassroom)
-                                        <a href="{{ route('professor.google-classroom.connect') }}" class="btn-google-classroom-connect">
-                                            <i class="fa-brands fa-google-classroom"></i> Connect Google Classroom
-                                        </a>
-                                    @endunless
                                 </div>
-
                             </div>
                         </div>
 
@@ -488,8 +473,104 @@
                         </div>
 
                         <div x-show="termSubTab === 'deliverables'">
+
+                            @php
+                                $mergedDeliverables = collect();
+
+                                foreach ($termTasks as $task) {
+                                    $mergedDeliverables->push((object)[
+                                        'source'     => 'system',
+                                        'id'         => $task->id,
+                                        'title'      => $task->activity_name,
+                                        'type'       => $task->activity_type,
+                                        'max_score'  => $task->max_score,
+                                        'due_date'   => $task->due_date,
+                                        'link'       => null,
+                                        'sort_date'  => $task->due_date ?? '1970-01-01',
+                                    ]);
+                                }
+
+                                if ($gConnection && $gLinkedCourse) {
+                                    foreach ($gCourseWork as $cw) {
+                                        $mergedDeliverables->push((object)[
+                                            'source'     => 'gclass_coursework',
+                                            'id'         => $cw->id,
+                                            'title'      => $cw->title,
+                                            'type'       => 'coursework',
+                                            'max_score'  => null,
+                                            'due_date'   => $cw->due_date,
+                                            'link'       => $cw->alternate_link,
+                                            'sort_date'  => $cw->due_date ?? '1970-01-01',
+                                        ]);
+                                    }
+
+                                    foreach ($gMaterials as $mat) {
+                                        $mergedDeliverables->push((object)[
+                                            'source'     => 'gclass_material',
+                                            'id'         => $mat->id,
+                                            'title'      => $mat->title,
+                                            'type'       => 'material',
+                                            'max_score'  => null,
+                                            'due_date'   => null,
+                                            'posted_at'  => $mat->created_at ?? null,
+                                            'link'       => $mat->alternate_link ?? null,
+                                            'sort_date'  => $mat->created_at ?? '1970-01-01',
+                                        ]);
+                                    }
+
+                                    foreach ($gAnnouncements as $a) {
+                                        $mergedDeliverables->push((object)[
+                                            'source'     => 'gclass_announcement',
+                                            'id'         => $a->id,
+                                            'title'      => \Illuminate\Support\Str::limit($a->text, 70),
+                                            'type'       => 'announcement',
+                                            'max_score'  => null,
+                                            'due_date'   => null,
+                                            'posted_at'  => $a->posted_at,
+                                            'link'       => null,
+                                            'sort_date'  => $a->posted_at ?? '1970-01-01',
+                                        ]);
+                                    }
+                                }
+
+                                $mergedDeliverables = $mergedDeliverables->sortByDesc('sort_date')->values();
+                            @endphp
+
+                            @if($gConnection && !$gLinkedCourse)
+                                <div class="gclass-link-box mb-3">
+                                    <p class="gclass-link-text">Select which Google Classroom course corresponds to this class section to include its posts here.</p>
+                                    @if($gAvailableCourses->isEmpty())
+                                        <p class="text-muted small">No synced courses found. Try syncing your Google Classroom account first.</p>
+                                    @else
+                                        <form action="{{ route('professor.google-classroom.link', $classDetails->schedule_id) }}" method="POST" class="d-flex gap-2">
+                                            @csrf
+                                            <select name="google_course_id" class="field-input" style="max-width: 280px;" required>
+                                                <option value="">Select a course...</option>
+                                                @foreach($gAvailableCourses as $course)
+                                                    <option value="{{ $course->id }}">{{ $course->course_name }} {{ $course->course_section ? '(' . $course->course_section . ')' : '' }}</option>
+                                                @endforeach
+                                            </select>
+                                            <button type="submit" class="btn-add-activity">
+                                                <i class="fa-solid fa-link"></i> Link Course
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+                            @endif
+
+                            @if($gConnection && $gLinkedCourse)
+                                <div class="d-flex justify-content-end mb-2">
+                                    <form action="{{ route('professor.google-classroom.sync') }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="btn-sm-outline">
+                                            <i class="fa-solid fa-arrows-rotate"></i> Sync Now
+                                        </button>
+                                    </form>
+                                </div>
+                            @endif
+
                             <div class="activity-list-container">
-                                @if($termTasks->isEmpty())
+                                @if($mergedDeliverables->isEmpty())
                                     <div class="empty-state-box">
                                         <div class="empty-state-icon"><i class="fa-solid fa-folder-plus"></i></div>
                                         <h5 class="empty-state-title">No {{ $termLabel }} Deliverables Configured Yet</h5>
@@ -500,7 +581,7 @@
                                         <table class="table custom-portal-table align-middle">
                                             <thead>
                                                 <tr>
-                                                    <th>Activity Title</th>
+                                                    <th>Title</th>
                                                     <th>Type</th>
                                                     <th>Max Score</th>
                                                     <th>Due Date</th>
@@ -508,25 +589,56 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                @foreach($termTasks as $task)
+                                                @foreach($mergedDeliverables as $item)
                                                     <tr>
-                                                        <td><strong class="text-dark-blue">{{ $task->activity_name }}</strong></td>
-                                                        <td><span class="badge bg-secondary text-uppercase">{{ $task->activity_type }}</span></td>
-                                                        <td>{{ $task->max_score }} pts</td>
-                                                        <td>{{ $task->due_date ?? 'No Deadline' }}</td>
+                                                        <td>
+                                                            <strong class="text-dark-blue">{{ $item->title }}</strong>
+                                                            @if($item->source !== 'system')
+                                                                <span class="gclass-source-tag"><i class="fa-brands fa-google-classroom"></i> Google Classroom</span>
+                                                            @endif
+                                                        </td>
+                                                        <td>
+                                                            @if($item->source === 'system')
+                                                                <span class="badge bg-secondary text-uppercase">{{ $item->type }}</span>
+                                                            @elseif($item->source === 'gclass_coursework')
+                                                                <span class="gclass-type-badge gclass-type-coursework">Coursework</span>
+                                                            @elseif($item->source === 'gclass_material')
+                                                                <span class="gclass-type-badge" style="background: #e0e7ff; color: #3730a3;">Material</span>
+                                                            @else
+                                                                <span class="gclass-type-badge gclass-type-announcement">Announcement</span>
+                                                            @endif
+                                                        </td>
+                                                        <td>{{ $item->max_score ? $item->max_score . ' pts' : '—' }}</td>
+                                                        <td>
+                                                            @if($item->due_date)
+                                                                {{ $item->due_date }}
+                                                            @elseif(isset($item->posted_at) && $item->posted_at)
+                                                                Posted {{ \Carbon\Carbon::parse($item->posted_at)->format('M d, Y') }}
+                                                            @else
+                                                                No Deadline
+                                                            @endif
+                                                        </td>
                                                         <td class="text-center">
-                                                            <div class="action-btn-group">
-                                                                <a href="{{ route('professor.task-submissions', $task->id) }}" class="btn-sm-outline btn-grade">
-                                                                    <i class="fa fa-star"></i> Grade
+                                                            @if($item->source === 'system')
+                                                                <div class="action-btn-group">
+                                                                    <a href="{{ route('professor.task-submissions', $item->id) }}" class="btn-sm-outline btn-grade">
+                                                                        <i class="fa fa-star"></i> Grade
+                                                                    </a>
+                                                                    <button type="button" class="btn-sm-outline btn-edit"
+                                                                        @click="openEditModal({ id: {{ $item->id }}, term: '{{ $key }}', activity_name: @js($item->title), activity_type: '{{ $item->type }}', max_score: {{ $item->max_score }}, due_date: '{{ $item->due_date }}' })">
+                                                                        <i class="fa-solid fa-pen"></i>
+                                                                    </button>
+                                                                    <button type="button" class="btn-sm-outline btn-delete" @click="deleteTask({{ $item->id }}, '{{ $key }}')">
+                                                                        <i class="fa-solid fa-trash"></i>
+                                                                    </button>
+                                                                </div>
+                                                            @elseif($item->link)
+                                                                <a href="{{ $item->link }}" target="_blank" class="btn-sm-outline">
+                                                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open
                                                                 </a>
-                                                                <button type="button" class="btn-sm-outline btn-edit"
-                                                                    @click="openEditModal({ id: {{ $task->id }}, term: '{{ $key }}', activity_name: @js($task->activity_name), activity_type: '{{ $task->activity_type }}', max_score: {{ $task->max_score }}, due_date: '{{ $task->due_date }}' })">
-                                                                    <i class="fa-solid fa-pen"></i>
-                                                                </button>
-                                                                <button type="button" class="btn-sm-outline btn-delete" @click="deleteTask({{ $task->id }}, '{{ $key }}')">
-                                                                    <i class="fa-solid fa-trash"></i>
-                                                                </button>
-                                                            </div>
+                                                            @else
+                                                                <span class="text-muted small">—</span>
+                                                            @endif
                                                         </td>
                                                     </tr>
                                                 @endforeach
@@ -704,7 +816,6 @@
                                                 <td class="fw-semibold text-secondary">{{ $sid }}</td>
                                                 <td class="text-uppercase fw-bold text-dark-slate">{{ $student->last_name }}, {{ $student->first_name }}</td>
 
-                                                <!-- Class Standing Input -->
                                                 <td class="text-center">
                                                     <div class="encoding-cell-row">
                                                     <input type="number" min="0" max="100" step="0.01" class="encoding-input"
@@ -1033,6 +1144,66 @@
         background-color: #f0fdf4;
         border-color: #86efac;
         color: #166534;
+    }
+
+    .google-connected-badge {
+        background-color: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        padding: 6px 12px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 12.5px;
+    }
+
+    .google-connected-badge i {
+        font-size: 18px;
+    }
+
+    .google-connection-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .connected-label {
+        font-weight: 700;
+        color: #166534;
+        line-height: 1.2;
+    }
+
+    .connected-email {
+        font-size: 11.5px;
+        color: #475569;
+    }
+
+    .gclass-section { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; background: #fafbfc; }
+    .gclass-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .gclass-section-title { font-size: 13.5px; font-weight: 700; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 8px; }
+
+    .gclass-link-box { text-align: left; }
+    .gclass-link-text { font-size: 13px; color: #64748b; margin-bottom: 10px; }
+
+    .gclass-feed-list { display: flex; flex-direction: column; gap: 10px; }
+    .gclass-feed-item { display: flex; gap: 12px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+    .gclass-feed-icon { width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .gclass-icon-coursework { background: #eff6ff; color: #2563eb; }
+    .gclass-icon-announcement { background: #fef3c7; color: #b45309; }
+    .gclass-feed-content { flex: 1; min-width: 0; }
+    .gclass-feed-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+    .gclass-feed-title { font-weight: 700; color: #1e293b; font-size: 13.5px; }
+    .gclass-type-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; }
+    .gclass-type-coursework { background: #dbeafe; color: #1e40af; }
+    .gclass-type-announcement { background: #fef3c7; color: #92400e; }
+    .gclass-feed-text { font-size: 12.5px; color: #475569; margin: 0 0 6px; white-space: pre-line; }
+    .gclass-feed-meta { display: flex; align-items: center; gap: 14px; font-size: 11.5px; color: #94a3b8; }
+    .gclass-open-link { color: #0284c7; text-decoration: none; font-weight: 600; }
+    .gclass-open-link:hover { text-decoration: underline; }
+
+    .gclass-source-tag {
+        display: inline-flex; align-items: center; gap: 4px;
+        font-size: 10px; color: #64748b; margin-left: 8px;
+        background: #f1f5f9; padding: 2px 8px; border-radius: 10px;
     }
 
     .btn-add-activity { background: #1e2a5a; border: none; color: white; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; }

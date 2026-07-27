@@ -4,7 +4,10 @@ namespace App\Support;
 
 use Google\Client as GoogleClient;
 use Google\Service\Classroom;
+use Google\Service\Drive;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class GoogleClassroomService
 {
@@ -74,6 +77,7 @@ class GoogleClassroomService
 
             $this->syncAnnouncements($service, $course->getId(), $localCourse->id);
             $this->syncCourseWork($service, $course->getId(), $localCourse->id);
+            $this->syncCourseWorkMaterials($service, $course->getId(), $localCourse->id);
         }
     }
 
@@ -81,37 +85,56 @@ class GoogleClassroomService
     {
         $announcements = $service->courses_announcements->listCoursesAnnouncements($googleCourseId);
 
+        $seenIds = [];
+
         foreach ($announcements->getAnnouncements() ?? [] as $a) {
+            $seenIds[] = $a->getId();
+
+            $postedAt = $a->getCreationTime() 
+                ? Carbon::parse($a->getCreationTime())->format('Y-m-d H:i:s') 
+                : null;
+
             DB::table('google_classroom_announcements')->updateOrInsert(
                 ['google_announcement_id' => $a->getId()],
                 [
                     'course_id' => $localCourseId,
                     'text' => $a->getText(),
-                    'posted_at' => $a->getCreationTime(),
+                    'posted_at' => $postedAt,
                     'updated_at' => now(),
                     'created_at' => now(),
                 ]
             );
         }
+
+        DB::table('google_classroom_announcements')
+            ->where('course_id', $localCourseId)
+            ->whereNotIn('google_announcement_id', $seenIds)
+            ->delete();
     }
 
     protected function syncCourseWork($service, $googleCourseId, $localCourseId)
     {
         $courseWork = $service->courses_courseWork->listCoursesCourseWork($googleCourseId);
 
+        $seenIds = [];
+
         foreach ($courseWork->getCourseWork() ?? [] as $cw) {
+            $seenIds[] = $cw->getId();
+
             $dueDate = null;
             if ($cw->getDueDate()) {
                 $d = $cw->getDueDate();
                 $dueDate = sprintf('%04d-%02d-%02d', $d->getYear(), $d->getMonth(), $d->getDay());
             }
 
+            // Sine-save dito ang Assignment, Quiz assignment, at Questions
             DB::table('google_classroom_coursework')->updateOrInsert(
                 ['google_coursework_id' => $cw->getId()],
                 [
                     'course_id' => $localCourseId,
                     'title' => $cw->getTitle(),
                     'description' => $cw->getDescription(),
+                    'work_type' => $cw->getWorkType(),
                     'due_date' => $dueDate,
                     'alternate_link' => $cw->getAlternateLink(),
                     'updated_at' => now(),
@@ -119,5 +142,92 @@ class GoogleClassroomService
                 ]
             );
         }
+
+        DB::table('google_classroom_coursework')
+            ->where('course_id', $localCourseId)
+            ->whereNotIn('google_coursework_id', $seenIds)
+            ->delete();
+    }
+
+    protected function syncCourseWorkMaterials($service, $googleCourseId, $localCourseId)
+    {
+        $materials = $service->courses_courseWorkMaterials->listCoursesCourseWorkMaterials($googleCourseId);
+
+        $seenIds = [];
+
+        foreach ($materials->getCourseWorkMaterial() ?? [] as $mat) {
+            $seenIds[] = $mat->getId();
+
+            // Hanapin ang unang Google Drive file na naka-attach (kung meron)
+            $driveFileId = null;
+            $driveFileName = null;
+
+            foreach ($mat->getMaterials() ?? [] as $item) {
+                $sharedDriveFile = $item->getDriveFile();
+                if ($sharedDriveFile && $sharedDriveFile->getDriveFile()) {
+                    $driveFileId = $sharedDriveFile->getDriveFile()->getId();
+                    $driveFileName = $sharedDriveFile->getDriveFile()->getTitle();
+                    break;
+                }
+            }
+
+            DB::table('google_classroom_materials')->updateOrInsert(
+                ['google_material_id' => $mat->getId()],
+                [
+                    'course_id' => $localCourseId,
+                    'title' => $mat->getTitle(),
+                    'description' => $mat->getDescription(),
+                    'alternate_link' => $mat->getAlternateLink(),
+                    'drive_file_id' => $driveFileId,
+                    'drive_file_name' => $driveFileName,
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
+
+        DB::table('google_classroom_materials')
+            ->where('course_id', $localCourseId)
+            ->whereNotIn('google_material_id', $seenIds)
+            ->delete();
+    }
+
+    public function downloadDriveFile(string $driveFileId): array
+    {
+        $drive = new Drive($this->client);
+
+        $meta = $drive->files->get($driveFileId, ['fields' => 'name,mimeType']);
+        $mimeType = $meta->getMimeType();
+        $name = $meta->getName();
+
+        $googleNativeExportMap = [
+            'application/vnd.google-apps.document'     => ['application/pdf', '.pdf'],
+            'application/vnd.google-apps.presentation'  => ['application/pdf', '.pdf'],
+            'application/vnd.google-apps.spreadsheet'   => ['application/pdf', '.pdf'],
+        ];
+
+        if (isset($googleNativeExportMap[$mimeType])) {
+            [$exportMime, $ext] = $googleNativeExportMap[$mimeType];
+
+            $response = $drive->files->export($driveFileId, $exportMime, ['alt' => 'media']);
+
+            if (!Str::endsWith(strtolower($name), $ext)) {
+                $name .= $ext;
+            }
+
+            return [
+                'content'  => $response->getBody()->getContents(),
+                'name'     => $name,
+                'mimeType' => $exportMime,
+            ];
+        }
+
+        $response = $drive->files->get($driveFileId, ['alt' => 'media']);
+
+        return [
+            'content'  => $response->getBody()->getContents(),
+            'name'     => $name,
+            'mimeType' => $mimeType,
+        ];
     }
 }

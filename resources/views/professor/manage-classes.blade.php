@@ -19,9 +19,36 @@
         </div>
     @endif
 
+    @if(session('success'))
+        <div class="prof-alert-success">
+            <i class="fas fa-check-circle"></i> {{ session('success') }}
+        </div>
+    @endif
+
     <div class="card-header-flex mb-4">
         <h3 class="card-title-list">My Assigned Teaching Load</h3>
-        <span class="badge-count">{{ count($classes) }} Active Class Sections</span>
+        <div class="d-flex align-items-center gap-3">
+            @if($gConnection)
+                <div class="google-connected-badge">
+                    <i class="fa-brands fa-google-classroom text-success"></i>
+                    <div class="google-connection-info">
+                        <span class="connected-label">Google Classroom Connected</span>
+                        <span class="connected-email">{{ $gConnection->google_email }}</span>
+                    </div>
+                </div>
+                <form action="{{ route('professor.google-classroom.sync') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn-sm-outline">
+                        <i class="fa-solid fa-arrows-rotate"></i> Sync Now
+                    </button>
+                </form>
+            @else
+                <a href="{{ route('professor.google-classroom.connect') }}" class="btn-google-classroom-connect">
+                    <i class="fa-brands fa-google-classroom"></i> Connect Google Classroom
+                </a>
+            @endif
+            <span class="badge-count">{{ count($classes) }} Active Class Sections</span>
+        </div>
     </div>
 
     @if($classes->isEmpty())
@@ -120,5 +147,43 @@
 
     .empty-placeholder-card { border: 2px dashed #cbd5e1; border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; color: #94a3b8; text-align: center; background: #f8fafc; min-height: 250px; }
     .prof-alert-danger { background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; }
+    .prof-alert-success { background: #f0fdf4; color: #166534; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #16a34a; font-size: 14px; }
+
+    .card-header-flex { flex-wrap: wrap; gap: 12px; }
+
+    .btn-google-classroom-connect {
+        background-color: #ffffff;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 7px 14px;
+        border-radius: 6px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+    .btn-google-classroom-connect:hover { background-color: #f0fdf4; border-color: #86efac; color: #166534; }
+
+    .google-connected-badge {
+        background-color: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        padding: 6px 12px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 12.5px;
+    }
+    .google-connected-badge i { font-size: 18px; }
+    .google-connection-info { display: flex; flex-direction: column; }
+    .connected-label { font-weight: 700; color: #166534; line-height: 1.2; }
+    .connected-email { font-size: 11.5px; color: #475569; }
+
+    .btn-sm-outline { background: white; border: 1px solid #cbd5e1; color: #475569; font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: 0.15s; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
+    .btn-sm-outline:hover { border-color: #1e2a5a; color: #1e2a5a; background: #eef1fb; }
 </style>
 @endsection
