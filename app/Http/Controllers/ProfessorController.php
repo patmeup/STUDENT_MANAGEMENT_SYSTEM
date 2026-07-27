@@ -81,7 +81,7 @@ class ProfessorController extends Controller
 
         $professor_id = session('user_id');
 
-        $classes = \DB::table('class_schedules')
+        $classes = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->select(
                 'class_schedules.id as schedule_id',
@@ -95,7 +95,7 @@ class ProfessorController extends Controller
                 'subjects.lecture_units',
                 'subjects.lab_units',
 
-                \DB::raw('(SELECT COUNT(*)
+                DB::raw('(SELECT COUNT(*)
                         FROM student_subjects
                         WHERE student_subjects.schedule_id = class_schedules.id
                         AND student_subjects.status = "Enrolled") as students_count')
