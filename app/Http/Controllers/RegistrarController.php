@@ -71,9 +71,9 @@ class RegistrarController extends Controller
         return view('registrar.manage-enrollment');
     }
 
-    public function storeEnrollment(Request $request)
+    public function storeEnrollment(Request $request)   
     {
-        $request->validate([
+        $rules = [
             'registration_date' => 'required|date',
             'student_type' => 'required|string',
             'course' => 'required|string',
@@ -82,6 +82,7 @@ class RegistrarController extends Controller
             'last_name' => 'required|string',
             'first_name' => 'required|string',
             'contact_no' => 'required|string',
+            'email' => 'required|email', // <-- 1. Validates the incoming email field
 
             'doc_psa' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'doc_2x2' => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
@@ -92,7 +93,29 @@ class RegistrarController extends Controller
             'doc_dismissal' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'doc_good_moral_trans' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'doc_permit' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-        ]);
+        ];
+
+        $studentType = $request->input('student_type');
+
+        if ($studentType === 'New') {
+            $rules['doc_psa'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+            $rules['doc_2x2'] = 'required|file|mimes:jpg,jpeg,png|max:5120';
+            $rules['doc_f138'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+            $rules['doc_good_moral_new'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+            $rules['doc_diploma'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+        } elseif ($studentType === 'Transferee') {
+            $rules['doc_psa'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+            $rules['doc_2x2'] = 'required|file|mimes:jpg,jpeg,png|max:5120';
+            $rules['doc_tor'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+            $rules['doc_dismissal'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+            $rules['doc_good_moral_trans'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+        } elseif ($studentType === 'Cross-Enrollee') {
+            $rules['doc_psa'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+            $rules['doc_2x2'] = 'required|file|mimes:jpg,jpeg,png|max:5120';
+            $rules['doc_permit'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+        }
+
+        $request->validate($rules);
 
         $currentYear = date('Y');
         
@@ -113,15 +136,15 @@ class RegistrarController extends Controller
         $filePaths = [];
         
         $fileFields = [
-            'doc_psa'               => 'psa_birth_certificate',
-            'doc_2x2'               => '2x2_id_picture',
-            'doc_f138'              => 'form_138_report_card',
-            'doc_good_moral_new'    => 'good_moral_freshman',
-            'doc_diploma'           => 'high_school_diploma',
-            'doc_tor'               => 'transcript_of_records',
-            'doc_dismissal'         => 'honorable_dismissal',
-            'doc_good_moral_trans'  => 'good_moral_transferee',
-            'doc_permit'            => 'cross_enroll_permit'
+            'doc_psa'              => 'psa_birth_certificate',
+            'doc_2x2'              => '2x2_id_picture',
+            'doc_f138'             => 'form_138_report_card',
+            'doc_good_moral_new'   => 'good_moral_freshman',
+            'doc_diploma'          => 'high_school_diploma',
+            'doc_tor'              => 'transcript_of_records',
+            'doc_dismissal'        => 'honorable_dismissal',
+            'doc_good_moral_trans' => 'good_moral_transferee',
+            'doc_permit'           => 'cross_enroll_permit'
         ];
 
         $folderPath = "student_records/{$generatedStudentId}";
@@ -163,6 +186,7 @@ class RegistrarController extends Controller
         $student->zip_code = $request->zip_code;
         $student->place_of_birth = $request->place_of_birth;
         $student->contact_no = $request->contact_no;
+        $student->email = $request->email; // <-- 2. Saves the email to the student data model
         
         $student->fathers_name = $request->fathers_name;
         $student->fathers_occupation = $request->fathers_occupation;
@@ -209,6 +233,210 @@ class RegistrarController extends Controller
         return Storage::disk('local')->response($fullStoragePath);
     }
 
+    public function viewStudentProfile($student_id)
+    {
+        if (session('user_role') !== 'registrar') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $student = Student::where('student_id', $student_id)->firstOrFail();
+
+        return view('registrar.student_profile', compact('student'));
+    }
+
+    public function updateStudentDocuments(Request $request, $id)
+    {
+        $student = Student::findOrFail($id);
+
+        $request->validate([
+            'doc_psa'              => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_2x2'              => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
+            'doc_f138'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_good_moral_new'   => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_diploma'          => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_tor'              => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_dismissal'        => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_good_moral_trans' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_permit'           => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        $folderPath = "student_records/{$student->student_id}";
+        if (!Storage::disk('local')->exists($folderPath)) {
+            Storage::disk('local')->makeDirectory($folderPath);
+        }
+
+        $fileFields = [
+            'doc_psa'              => ['column' => 'path_psa', 'name' => 'psa_birth_certificate'],
+            'doc_2x2'              => ['column' => 'path_2x2', 'name' => '2x2_id_picture'],
+            'doc_f138'             => ['column' => 'path_f138', 'name' => 'form_138_report_card'],
+            'doc_good_moral_new'   => ['column' => 'path_good_moral_new', 'name' => 'good_moral_freshman'],
+            'doc_diploma'          => ['column' => 'path_diploma', 'name' => 'high_school_diploma'],
+            'doc_tor'              => ['column' => 'path_tor', 'name' => 'transcript_of_records'],
+            'doc_dismissal'        => ['column' => 'path_dismissal', 'name' => 'honorable_dismissal'],
+            'doc_good_moral_trans' => ['column' => 'path_good_moral_trans', 'name' => 'good_moral_transferee'],
+            'doc_permit'           => ['column' => 'path_permit', 'name' => 'cross_enroll_permit']
+        ];
+
+        foreach ($fileFields as $inputName => $info) {
+            if ($request->hasFile($inputName)) {
+                $file = $request->file($inputName);
+                
+                if ($file->isValid()) {
+                    $extension = $file->getClientOriginalExtension();
+                    $finalName = "{$info['name']}.{$extension}";
+
+                    if ($student->{$info['column']} && Storage::disk('local')->exists("{$folderPath}/{$student->{$info['column']}}")) {
+                         Storage::disk('local')->delete("{$folderPath}/{$student->{$info['column']}}");
+                    }
+
+                    $file->storeAs($folderPath, $finalName, 'local');
+                    
+                    $student->{$info['column']} = $finalName;
+                }
+            }
+        }
+
+        $student->save();
+
+        return redirect()->back()->with('Success', "Student documents updated successfully for ID: {$student->student_id}");
+    }
+
+    public function facultyGradeStatus(Request $request)
+    {
+        if (session('user_role') !== 'registrar') {
+            return redirect()->route('login')->with('Error', 'Unauthorized access. Please login as Registrar.');
+        }
+
+        $search = $request->input('search');
+
+        $activeAcademicPeriod = DB::table('academic_periods')->where('is_active', 1)->first();
+
+        $termPeriods = $activeAcademicPeriod
+            ? DB::table('term_periods')->where('academic_period_id', $activeAcademicPeriod->id)->orderBy('start_date', 'asc')->get()
+            : collect();
+
+        $currentDate = now()->toDateString();
+        $defaultTerm = 'prelim';
+        foreach ($termPeriods as $tp) {
+            if ($currentDate >= $tp->start_date && $currentDate <= $tp->end_date) {
+                $defaultTerm = $tp->term;
+                break;
+            }
+        }
+        $termFilter = $request->input('term', $defaultTerm);
+
+        $classesQuery = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->leftJoin('employees', function ($join) {
+                $join->on('subjects.professor_id', '=', 'employees.id')
+                    ->where('employees.role', '=', 'professor');
+            })
+            ->select(
+                'class_schedules.id as schedule_id',
+                'class_schedules.section_name',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'employees.first_name as prof_first_name',
+                'employees.last_name as prof_last_name'
+            );
+
+        if ($search) {
+            $classesQuery->where(function ($q) use ($search) {
+                $q->where('employees.first_name', 'like', "%{$search}%")
+                ->orWhere('employees.last_name', 'like', "%{$search}%")
+                ->orWhere('subjects.subject_code', 'like', "%{$search}%")
+                ->orWhere('subjects.subject_title', 'like', "%{$search}%")
+                ->orWhere('class_schedules.section_name', 'like', "%{$search}%");
+            });
+        }
+
+        $classes = $classesQuery
+            ->orderBy('employees.last_name')
+            ->orderBy('class_schedules.section_name')
+            ->get();
+
+        $report = $classes->map(function ($class) use ($termFilter) {
+            $enrolledCount = DB::table('student_subjects')
+                ->where('schedule_id', $class->schedule_id)
+                ->where('status', 'Enrolled')
+                ->count();
+
+            $submittedCount = DB::table('student_term_grades')
+                ->where('schedule_id', $class->schedule_id)
+                ->where('term', $termFilter)
+                ->where('is_submitted', 1)
+                ->count();
+
+            if ($enrolledCount === 0) {
+                $status = 'empty';
+            } elseif ($submittedCount === 0) {
+                $status = 'not_started';
+            } elseif ($submittedCount < $enrolledCount) {
+                $status = 'partial';
+            } else {
+                $status = 'complete';
+            }
+
+            $class->enrolled_count = $enrolledCount;
+            $class->submitted_count = $submittedCount;
+            $class->status = $status;
+
+            return $class;
+        });
+
+        return view('registrar.faculty-grade-status', compact('report', 'termPeriods', 'termFilter', 'activeAcademicPeriod', 'search'));
+    }
+
+    public function manageGrades(Request $request)
+    {
+        if (session('user_role') !== 'registrar') {
+            return redirect()->route('login')->with('Error', 'Unauthorized access. Please login as Registrar.');
+        }
+
+        $search = $request->input('search');
+
+        $activeAcademicPeriod = DB::table('academic_periods')
+            ->where('is_active', 1)
+            ->first();
+
+        $academicPeriodId = $activeAcademicPeriod ? $activeAcademicPeriod->id : 1;
+
+        $termPeriods = DB::table('term_periods')
+            ->where('academic_period_id', $activeAcademicPeriod->id)
+            ->orderBy('start_date', 'asc')
+            ->get();
+
+        $currentDate = now()->toDateString(); 
+        $defaultTerm = 'prelim';
+
+        foreach ($termPeriods as $tp) {
+            if ($currentDate >= $tp->start_date && $currentDate <= $tp->end_date) {
+                $defaultTerm = $tp->term;
+                break;
+            }
+        }
+
+        $termFilter = $request->input('term', $defaultTerm);
+
+        $students = Student::when($search, function ($query, $search) {
+                return $query->where('last_name', 'like', "%{$search}%")
+                            ->orWhere('first_name', 'like', "%{$search}%")
+                            ->orWhere('student_id', 'like', "%{$search}%");
+            })
+            ->orderBy('last_name', 'asc')
+            ->paginate(15);
+
+        foreach ($students as $student) {
+            $student->term_grade = DB::table('student_term_grades')
+                ->where('student_number', $student->student_id)
+                ->where('term', $termFilter)
+                ->where('is_submitted', 1)
+                ->first();
+        }
+
+        return view('registrar.manage-grades', compact('students', 'termPeriods', 'termFilter', 'search', 'activeAcademicPeriod'));
+    }
+
     public function profileView()
     {
         if (session('user_role') !== 'registrar') {
@@ -225,18 +453,5 @@ class RegistrarController extends Controller
         $isLocked = !Str::startsWith($user->password, '$2y$');
 
         return view('registrar.user_details', compact('user', 'isLocked'));
-    }
-
-    public function viewStudentProfile($student_id)
-    {
-        if (session('user_role') !== 'registrar') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
-        // Find the student by their student_id (e.g., 2026-00087)
-        $student = Student::where('student_id', $student_id)->firstOrFail();
-
-        // Return the profile blade view and pass the student data
-        return view('registrar.student_profile', compact('student'));
     }
 }

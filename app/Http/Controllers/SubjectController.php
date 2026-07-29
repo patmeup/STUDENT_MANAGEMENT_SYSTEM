@@ -49,22 +49,19 @@ class SubjectController extends Controller
         return redirect()->back()->with('success', 'Global Subject catalog entry established successfully!');
     }
 
-    // 1. Kinukuha ang data ng subject para i-feed sa AJAX (Edit Mode)
     public function editSubject($id)
     {
         $subject = Subject::find($id);
-        
+
         if (!$subject) {
             return response()->json(['error' => 'Subject not found inside core records.'], 404);
         }
-        
+
         return response()->json($subject);
     }
 
-    // 2. Nagse-save ng pagbabago mula sa specifications form (Update Mode)
     public function updateSubject(Request $request)
     {
-        // Inayos ang validation rules para mag-match sa input fields ng blade mo
         $request->validate([
             'subject_id'    => 'required|exists:subjects,id',
             'subject_code'  => 'required|string|max:50',
@@ -80,21 +77,60 @@ class SubjectController extends Controller
             return redirect()->back()->with('error', 'Target subject entry could not be found.');
         }
 
-        // Ini-update gamit ang tamang column names base sa iyong store logic
         $subject->update([
             'subject_code'  => strtoupper($request->subject_code),
             'subject_title' => $request->subject_title,
             'lecture_units' => $request->lecture_units,
             'lab_units'     => $request->lab_units,
             'total_units'   => (int)$request->lecture_units + (int)$request->lab_units,
-            'professor_id'  => $request->professor_id ? $request->professor_id : null,
+            'professor_id'  => $request->professor_id ?: null,
         ]);
 
         return redirect()->back()->with('success', 'Global Subject entry updated successfully!');
     }
 
-    public function schedules()
+            public function update(Request $request, $id)
+            {
+                if (session('user_role') !== 'system_admin') {
+                    return redirect('/')->with('error', 'Unauthorized access.');
+                }
+
+                $subject = Subject::findOrFail($id);
+
+                $request->validate([
+                    'subject_code'  => 'required|string|max:50|unique:subjects,subject_code,' . $subject->id,
+                    'subject_title' => 'required|string|max:255',
+                    'lecture_units' => 'required|integer|min:0|max:9',
+                    'lab_units'     => 'required|integer|min:0|max:9',
+                    'professor_id'  => 'nullable|exists:employees,id',
+                ]);
+
+                $subject->update([
+                    'subject_code'  => strtoupper($request->subject_code),
+                    'subject_title' => $request->subject_title,
+                    'lecture_units' => $request->lecture_units,
+                    'lab_units'     => $request->lab_units,
+                    'total_units'   => (int)$request->lecture_units + (int)$request->lab_units,
+                    'professor_id'  => $request->professor_id ?: null,
+                ]);
+
+                return redirect()->back()->with(
+                    'success',
+                    "Subject [{$subject->subject_code}] updated successfully!"
+                );
+            }
+
+    public function destroy($id)
     {
-        return $this->hasMany(Schedule::class, 'subject_id', 'id'); 
+        if (session('user_role') !== 'system_admin') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $subject = Subject::findOrFail($id);
+        $code = $subject->subject_code;
+
+        $subject->delete();
+
+        return redirect()->back()->with('success', "Subject [{$code}] has been removed from the catalog.");
     }
 }

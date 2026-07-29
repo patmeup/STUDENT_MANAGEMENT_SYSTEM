@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Student;
+use App\Models\DocumentRequest;
+use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -121,6 +123,35 @@ class StudentController extends Controller
         ));
     }
 
+    public function updateCredentials(Request $request) 
+    {
+        if (session('user_role') !== 'student') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $studentNumber = session('student_id');
+        
+        // Tiyaking hinahanap gamit ang student_id core field
+        $student = Student::where('student_id', $studentNumber)->firstOrFail();
+
+        $request->validate([
+            // Inayos ang core unique exception handling para sa parehong composite setups
+            'email' => 'required|email|unique:students,email,' . $student->id . ',id',
+            'contact_no' => 'required|string|max:20',
+            'civil_status' => 'required|in:Single,Married,Divorced,Widowed',
+            'city_address' => 'required|string|max:500',
+        ]);
+
+        $student->update([
+            'email' => $request->email,
+            'contact_no' => $request->contact_no,
+            'civil_status' => $request->civil_status,
+            'city_address' => $request->city_address,
+        ]);
+
+        return redirect()->back()->with('success', 'Personal credentials updated successfully.');
+    }
+
     public function index(Request $request)
     {
         if (session('user_role') !== 'registrar') {
@@ -203,6 +234,26 @@ class StudentController extends Controller
                 ->get();
         }
 
+        // Google Classroom coursework/materials for the course linked to this schedule (if any)
+        $gLinkedCourse = DB::table('google_classroom_courses')
+            ->where('linked_class_schedule_id', $schedule_id)
+            ->first();
+
+        $gCourseWork = collect();
+        $gMaterials = collect();
+
+        if ($gLinkedCourse) {
+            $gCourseWork = DB::table('google_classroom_coursework')
+                ->where('course_id', $gLinkedCourse->id)
+                ->orderBy('due_date', 'desc')
+                ->get();
+
+            $gMaterials = DB::table('google_classroom_materials')
+                ->where('course_id', $gLinkedCourse->id)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+
         $gradedSubmissions = DB::table('task_submissions')
             ->join('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
             ->where('student_tasks.class_schedule_id', $schedule_id)
@@ -266,7 +317,10 @@ class StudentController extends Controller
             'currentAttendance',
             'majorExam',
             'currentCalculatedGrade',
-            'attendanceRecords'
+            'attendanceRecords',
+            'gLinkedCourse',
+            'gCourseWork',
+            'gMaterials'
         ));
     }
 
@@ -477,6 +531,9 @@ class StudentController extends Controller
         $student->college_school_address = $request->college_school_address;
         $student->college_school_year = $request->college_school_year;
 
+        $student->year_level = ($request->student_type === 'Transferee') ? '1st Year' : '1st Year'; 
+        $student->semester = '1st Semester';
+
         $student->path_psa = $filePaths['doc_psa'] ?? null;
         $student->path_2x2 = $filePaths['doc_2x2'] ?? null;
         $student->path_f138 = $filePaths['doc_f138'] ?? null;
@@ -615,6 +672,55 @@ class StudentController extends Controller
         return response()->download($fullPath, $downloadName);
     }
 
+    public function downloadGoogleClassroomMaterial($material_id)
+    {
+        if (session('user_role') !== 'student') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $studentNumber = session('student_id');
+
+        $material = DB::table('google_classroom_materials')->where('id', $material_id)->first();
+
+        if (!$material || !$material->drive_file_id) {
+            abort(404, 'Material or attached file not found.');
+        }
+
+        $course = DB::table('google_classroom_courses')->where('id', $material->course_id)->first();
+
+        if (!$course || !$course->linked_class_schedule_id) {
+            abort(404, 'This material is not linked to any class.');
+        }
+
+        $isEnrolled = DB::table('student_subjects')
+            ->where('schedule_id', $course->linked_class_schedule_id)
+            ->where('student_number', $studentNumber)
+            ->where('status', 'Enrolled')
+            ->exists();
+
+        if (!$isEnrolled) {
+            abort(403, 'You are not enrolled in this class.');
+        }
+
+        $connection = DB::table('google_classroom_connections')->where('id', $course->connection_id)->first();
+
+        if (!$connection) {
+            abort(404, 'Google Classroom connection for this course no longer exists.');
+        }
+
+        try {
+            $service = new \App\Support\GoogleClassroomService($connection);
+            $file = $service->downloadDriveFile($material->drive_file_id);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Unable to download file from Google Classroom: ' . $e->getMessage());
+        }
+
+        return response($file['content'], 200, [
+            'Content-Type' => $file['mimeType'],
+            'Content-Disposition' => 'attachment; filename="' . addslashes($file['name']) . '"',
+        ]);
+    }
+
     public function submitTask(Request $request, $id)
     {
         $task_id = $id;
@@ -685,19 +791,56 @@ class StudentController extends Controller
         return redirect()->back()->with('error', 'No file selected.');
     }
 
+    public function submitDocumentRequest(Request $request)
+    {
+        $request->validate([
+            'documents' => 'required|array|min:1',
+            'documents.*' => 'string',
+            'purpose' => 'required|string|max:500',
+        ]);
+
+        $studentId = session('student_id');
+
+        if (!session('user_id') || session('user_role') !== 'student') {
+            return redirect()->route('login')->withErrors(['error' => 'You need to login as a student']);
+        }
+
+        $student = \App\Models\Student::where('student_id', $studentId)->first();
+
+        if (!$student) {
+            return redirect()->route('login')->withErrors(['error' => 'User profile reference not found.']);
+        }
+
+        foreach ($request->documents as $docName) {
+            \App\Models\DocumentRequest::create([
+                'student_id' => $student->student_id,
+                'document_name' => $docName,
+                'purpose' => $request->purpose,
+                'status' => 'Pending',
+            ]);
+        }
+
+        if (!empty($student->email)) {
+            \Illuminate\Support\Facades\Mail::to($student->email)->send(new \App\Mail\DocumentRequestSubmitted($student, $request->documents));
+        }
+
+        return redirect()->back()->with('success', 'Your requested documents have been successfully sent to the Registrar!');
+    }
+
     public function profileView()
     {
         if (session('user_role') !== 'student') {
             return redirect()->route('login')->with('error', 'Unauthorized access. Please login as a Student.');
         }
 
-        $userId = session('user_id');
-        $user = \App\Models\Student::find($userId);
+        $studentNumber = session('student_id');
+        
+        $user = Student::where('student_id', $studentNumber)->first();
 
         if (!$user) {
             return redirect()->route('login')->with('error', 'User not found.');
         }
-
+        
         $isLocked = Hash::check('Welcome@AU2026', $user->password);
 
         return view('student.user_details', compact('user', 'isLocked'));

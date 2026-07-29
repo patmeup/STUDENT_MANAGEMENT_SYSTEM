@@ -9,7 +9,6 @@ use App\Models\Course;
 
 class CurriculumController extends Controller
 {
-
     public function index()
     {
         if (session('user_role') !== 'system_admin') {
@@ -19,7 +18,6 @@ class CurriculumController extends Controller
         $courses = Course::all();
         $subjects = Subject::all();
 
-        // Kunin ang active table blueprint structure list
         $mappings = Curriculum::with('subject')
             ->orderBy('course')
             ->orderBy('year_level')
@@ -34,6 +32,7 @@ class CurriculumController extends Controller
         $course    = $request->query('course');
         $yearLevel = $request->query('year_level');
         $semester  = $request->query('semester');
+        $curriculum= $request->query('curriculum_id');
 
         if (!$course || !$yearLevel || !$semester) {
             return response()->json([]);
@@ -42,6 +41,9 @@ class CurriculumController extends Controller
         $alreadyMappedIds = Curriculum::where('course', $course)
             ->where('year_level', $yearLevel)
             ->where('semester', $semester)
+            ->when($curriculum, function ($query, $curriculum) {
+                return $query->where('id', '!=', $curriculum);
+            })
             ->pluck('subject_id')
             ->toArray();
 
@@ -67,16 +69,60 @@ class CurriculumController extends Controller
             ->exists();
 
         if ($exists) {
-            return redirect()->back()->withErrors(['error' => 'This specific subject block link configuration already exists.']);
+            return redirect()->back()->withErrors([
+                'error' => 'This specific subject block link configuration already exists.'
+            ]);
         }
 
         Curriculum::create($validated);
 
-        return redirect()->back()->with('success', 'Subject successfully mapped to the curriculum structure!');
+        return redirect()->back()->with(
+            'success',
+            'Subject successfully mapped to the curriculum structure!'
+        );
     }
 
-    public function subject()
+    public function destroy($id)
     {
-        return $this->belongsTo(Subject::class, 'subject_id', 'id');
+        if (session('user_role') !== 'system_admin') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $mapping = Curriculum::findOrFail($id);
+        $mapping->delete();
+
+        return redirect()->back()->with('success', 'Curriculum link has been removed successfully.');
+    }
+
+    public function update(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'subject_id' => 'required|exists:subjects,id',
+            'course'     => 'required|string',
+            'year_level' => 'required|string',
+            'semester'   => 'required|string',
+        ]);
+
+        $duplicate = Curriculum::where('course', $request->course)
+            ->where('year_level', $request->year_level)
+            ->where('semester', $request->semester)
+            ->where('subject_id', $request->subject_id)
+            ->where('id', '!=', $id)
+            ->exists();
+
+        if ($duplicate) {
+            return redirect()->back()->withErrors([
+                'error' => 'This curriculum mapping already exists.'
+            ]);
+        }
+
+        $curriculum = Curriculum::findOrFail($id);
+
+        $curriculum->update($validated);
+
+        return redirect()->back()->with(
+            'success',
+            'Curriculum updated successfully.'
+        );
     }
 }

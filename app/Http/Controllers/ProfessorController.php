@@ -8,8 +8,10 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Models\Students;
+use App\Models\StudentTermGrade;
 use App\Support\TermHelper;
 use App\Support\GradeHelper;
+use App\Support\GoogleClassroomService;
 
 class ProfessorController extends Controller
 {
@@ -64,9 +66,9 @@ class ProfessorController extends Controller
 
         return view('professor.dashboard', compact(
             'announcements',
-            'totalClasses', 
-            'totalStudents', 
-            'pendingGrading', 
+            'totalClasses',
+            'totalStudents',
+            'pendingGrading',
             'classesList'
         ));
     }
@@ -77,7 +79,7 @@ class ProfessorController extends Controller
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
-        $professor_id = session('user_id'); 
+        $professor_id = session('user_id');
 
         $classes = \DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
@@ -88,21 +90,25 @@ class ProfessorController extends Controller
                 'class_schedules.start_time',
                 'class_schedules.end_time',
                 'class_schedules.room_assignment',
-                'subjects.subject_code', 
+                'subjects.subject_code',
                 'subjects.subject_title',
                 'subjects.lecture_units',
                 'subjects.lab_units',
 
-                \DB::raw('(SELECT COUNT(*) 
-                        FROM student_subjects 
-                        WHERE student_subjects.schedule_id = class_schedules.id 
+                \DB::raw('(SELECT COUNT(*)
+                        FROM student_subjects
+                        WHERE student_subjects.schedule_id = class_schedules.id
                         AND student_subjects.status = "Enrolled") as students_count')
             )
-            ->where('subjects.professor_id', $professor_id) 
+            ->where('subjects.professor_id', $professor_id)
             ->orderBy('class_schedules.section_name')
             ->get();
 
-        return view('professor.manage-classes', compact('classes'));
+        $gConnection = DB::table('google_classroom_connections')
+            ->where('professor_id', $professor_id)
+            ->first();
+
+        return view('professor.manage-classes', compact('classes', 'gConnection'));
     }
 
     public function viewClassDashboard($schedule_id)
@@ -111,12 +117,12 @@ class ProfessorController extends Controller
             return redirect()->route('login')->with('error', 'Unauthorized access.');
         }
 
-        $professorId = session('user_id'); 
+        $professorId = session('user_id');
 
         $classDetails = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->where('class_schedules.id', $schedule_id)
-            ->where('subjects.professor_id', $professorId) 
+            ->where('subjects.professor_id', $professorId)
             ->select(
                 'class_schedules.id as schedule_id',
                 'class_schedules.section_name',
@@ -136,12 +142,12 @@ class ProfessorController extends Controller
         }
 
         $students = DB::table('student_subjects')
-            ->join('students', 'student_subjects.student_number', '=', 'students.student_id') 
+            ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
             ->where('student_subjects.schedule_id', $schedule_id)
             ->where('student_subjects.status', 'Enrolled')
             ->select(
-                'students.id as internal_db_id',       
-                'students.student_id',               
+                'students.id as internal_db_id',
+                'students.student_id',
                 'students.last_name',
                 'students.first_name',
                 'students.middle_name',
@@ -149,7 +155,7 @@ class ProfessorController extends Controller
             )
             ->orderBy('students.last_name', 'asc')
             ->get();
-            
+
         $tasks = DB::table('student_tasks')
             ->where('class_schedule_id', $schedule_id)
             ->orderBy('due_date', 'asc')
@@ -158,17 +164,109 @@ class ProfessorController extends Controller
         $terms = ['prelim', 'midterm', 'semifinal', 'final'];
         $autoGrades = [];
 
+        $savedGrades = StudentTermGrade::where('schedule_id', $schedule_id)
+            ->get()
+            ->keyBy(function ($grade) {
+                return $grade->term . '_' . $grade->student_number;
+            });
+
+        $draftGrades = StudentTermGrade::where('schedule_id', $schedule_id)
+            ->get()
+            ->groupBy('term');
+
+        // 1. Dito na lang mag-loop para sa grades (malinis at hiwalay)
         foreach ($terms as $term) {
             foreach ($students as $student) {
-                $autoGrades[$term][$student->student_id] = GradeHelper::computeAutoGrades(
-                    $schedule_id,
-                    $student->student_id,
-                    $term
-                );
+                $saved = $savedGrades->get($term . '_' . $student->student_id);
+
+                if ($saved && $saved->is_manual == 1) {
+                    $autoGrades[$term][$student->student_id] = [
+                        'class_standing' => $saved->class_standing,
+                        'major_exam'     => $saved->major_exam,
+                        'equivalent'     => $saved->equivalent,
+                        'is_manual'      => true,
+                    ];
+                } else {
+                    $computed = GradeHelper::computeAutoGrades(
+                        $schedule_id,
+                        $student->student_id,
+                        $term
+                    );
+                    $computed['is_manual'] = false;
+                    $autoGrades[$term][$student->student_id] = $computed;
+                }
             }
         }
 
-        return view('professor.class_details', compact('classDetails', 'students', 'tasks', 'autoGrades'));
+        // 2. Google Classroom Connection & Sync Logic (Nasa labas na ng term loops)
+        $gConnection = DB::table('google_classroom_connections')
+            ->where('professor_id', $professorId)
+            ->first();
+
+        $gLinkedCourse = null;
+        $gAvailableCourses = collect();
+        $gAnnouncements = collect();
+        $gCourseWork = collect();
+        $gMaterials = collect();
+
+        if ($gConnection) {
+            // Auto-sync courses kung konektado naman pero blangko pa ang database
+            $hasCourses = DB::table('google_classroom_courses')
+                ->where('connection_id', $gConnection->id)
+                ->exists();
+
+            if (!$hasCourses) {
+                try {
+                    $service = new \App\Support\GoogleClassroomService($gConnection);
+                    $service->syncCourses();
+                } catch (\Exception $e) {
+                    // Mag-catch kung sakaling may error sa API connection
+                }
+            }
+
+            $gLinkedCourse = DB::table('google_classroom_courses')
+                ->where('linked_class_schedule_id', $schedule_id)
+                ->first();
+
+            $gAvailableCourses = DB::table('google_classroom_courses')
+                ->where('connection_id', $gConnection->id)
+                ->where(function ($q) use ($schedule_id) {
+                    $q->whereNull('linked_class_schedule_id')
+                    ->orWhere('linked_class_schedule_id', $schedule_id);
+                })
+                ->get();
+
+            if ($gLinkedCourse) {
+                $gAnnouncements = DB::table('google_classroom_announcements')
+                    ->where('course_id', $gLinkedCourse->id)
+                    ->orderBy('posted_at', 'desc')
+                    ->get();
+
+                $gCourseWork = DB::table('google_classroom_coursework')
+                    ->where('course_id', $gLinkedCourse->id)
+                    ->orderBy('due_date', 'desc')
+                    ->get();
+
+                $gMaterials = DB::table('google_classroom_materials')
+                    ->where('course_id', $gLinkedCourse->id)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+            }
+        }
+
+        return view('professor.class_details', compact(
+            'classDetails',
+            'students',
+            'tasks',
+            'autoGrades',
+            'draftGrades',
+            'gConnection',
+            'gLinkedCourse',
+            'gAvailableCourses',
+            'gAnnouncements',
+            'gCourseWork',
+            'gMaterials'
+        ));
     }
 
     public function showAttendanceSheet($schedule_id, Request $request)
@@ -198,8 +296,8 @@ class ProfessorController extends Controller
     public function saveAttendance(Request $request, $schedule_id)
     {
         $date = $request->input('attendance_date', date('Y-m-d'));
-        $attendanceData = $request->input('attendance', []); 
-        $remarksData = $request->input('remarks', []);       
+        $attendanceData = $request->input('attendance', []);
+        $remarksData = $request->input('remarks', []);
 
         $request->validate([
             'attendance_date' => 'required|date|before_or_equal:today',
@@ -239,6 +337,89 @@ class ProfessorController extends Controller
         } catch (\Exception $e) {
             DB::rollback();
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function linkGoogleClassroomCourse(Request $request, $schedule_id)
+    {
+        if (session('user_role') !== 'professor') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $request->validate([
+            'google_course_id' => 'required|integer',
+        ]);
+
+        $professorId = session('user_id');
+
+        $connection = DB::table('google_classroom_connections')
+            ->where('professor_id', $professorId)
+            ->first();
+
+        if (!$connection) {
+            return redirect()->back()->with('error', 'No connected Google Classroom account found.');
+        }
+
+        $course = DB::table('google_classroom_courses')
+            ->where('id', $request->google_course_id)
+            ->where('connection_id', $connection->id)
+            ->first();
+
+        if (!$course) {
+            return redirect()->back()->with('error', 'Invalid Google Classroom course selected.');
+        }
+
+        DB::table('google_classroom_courses')
+            ->where('linked_class_schedule_id', $schedule_id)
+            ->update(['linked_class_schedule_id' => null]);
+
+        DB::table('google_classroom_courses')
+            ->where('id', $course->id)
+            ->update(['linked_class_schedule_id' => $schedule_id]);
+
+        return redirect()->back()->with('success', 'Google Classroom course linked successfully!');
+    }
+
+    public function unlinkGoogleClassroomCourse($schedule_id)
+    {
+        if (session('user_role') !== 'professor') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        DB::table('google_classroom_courses')
+            ->where('linked_class_schedule_id', $schedule_id)
+            ->update(['linked_class_schedule_id' => null]);
+
+        return redirect()->back()->with('success', 'Google Classroom course unlinked.');
+    }
+
+    public function syncGoogleClassroom(Request $request)
+    {
+        if (session('user_role') !== 'professor') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $professorId = session('user_id');
+
+        $connection = DB::table('google_classroom_connections')
+            ->where('professor_id', $professorId)
+            ->first();
+
+        if (!$connection) {
+            return redirect()->back()->with('error', 'No connected Google Classroom account found.');
+        }
+
+        try {
+            $service = new \App\Support\GoogleClassroomService($connection);
+            $service->syncCourses();
+
+            DB::table('google_classroom_connections')
+                ->where('id', $connection->id)
+                ->update(['last_synced_at' => now()]);
+
+            return redirect()->back()->with('success', 'Google Classroom synced successfully!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Sync failed: ' . $e->getMessage());
         }
     }
 
@@ -309,7 +490,7 @@ class ProfessorController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+           return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -343,7 +524,7 @@ class ProfessorController extends Controller
                 if ($task->file_path) {
                     Storage::disk('local')->delete($task->file_path);
                 }
-                
+
                 $classInfo = DB::table('class_schedules')
                     ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
                     ->where('class_schedules.id', $task->class_schedule_id)
@@ -367,7 +548,7 @@ class ProfessorController extends Controller
                 $finalName = Str::slug(pathinfo($originalName, PATHINFO_FILENAME)) . '_' . time() . '.' . $extension;
 
                 $file->storeAs($folderPath, $finalName, 'local');
-                
+
                 $updateData['original_filename'] = $originalName;
                 $updateData['file_path'] = "{$folderPath}/{$finalName}";
             }
@@ -410,7 +591,7 @@ class ProfessorController extends Controller
         }
 
         $task = DB::table('student_tasks')->where('id', $task_id)->first();
-        
+
         if (!$task) {
             return redirect()->back()->with('error', 'Task not found.');
         }
@@ -490,7 +671,7 @@ class ProfessorController extends Controller
     public function submitGrade(Request $request, $submission_id)
     {
         $submission = DB::table('task_submissions')->where('id', $submission_id)->first();
-        
+
         if (!$submission) {
             return redirect()->back()->with('error', 'Submission record not found.');
         }
@@ -525,7 +706,7 @@ class ProfessorController extends Controller
             ->where('class_schedules.id', $schedule_id)
             ->where('subjects.professor_id', $professorId)
             ->select(
-                'class_schedules.id as id', 
+                'class_schedules.id as id',
                 'class_schedules.id as schedule_id',
                 'class_schedules.section_name',
                 'class_schedules.class_days',
@@ -595,35 +776,79 @@ class ProfessorController extends Controller
         return view('professor.grades_breakdown', compact('classDetails', 'student', 'tasksWithGrades', 'attendances', 'term'));
     }
 
-    public function saveManualGrade(Request $request, $schedule_id)
+    public function saveDraftGrades(Request $request)
     {
         $request->validate([
-            'student_id' => 'required|string',
-            'term' => 'required|string|in:prelim,midterm,semifinal,final',
-            'manual_grade' => 'nullable|numeric|min:0|max:100',
-            'is_manual' => 'required|boolean'
+            'grades'                  => 'required|array',
+            'grades.*.schedule_id'    => 'required|integer',
+            'grades.*.student_number' => 'required|string',
+            'grades.*.term'           => 'required|in:prelim,midterm,semifinal,final',
+            'grades.*.class_standing' => 'nullable|numeric|min:0|max:100',
+            'grades.*.major_exam'     => 'nullable|numeric|min:0|max:100',
+            'grades.*.equivalent'     => 'nullable|numeric|min:1|max:5',
+            'grades.*.is_manual'      => 'required|boolean',
         ]);
 
         try {
-            // I-save o i-update sa database (halimbawa, sa table na student_grades o katulad nito)
-            DB::table('student_term_grades')->updateOrInsert(
-                [
-                    'schedule_id' => $schedule_id,
-                    'student_id' => $request->student_id,
-                    'term' => $request->term,
-                ],
-                [
-                    'manual_grade' => $request->is_manual ? $request->manual_grade : null,
-                    'is_manual' => $request->is_manual,
-                    'updated_at' => now(),
-                    'created_at' => now(),
-                ]
-            );
+            foreach ($request->grades as $grade) {
+                $isManual = (bool) $grade['is_manual'];
 
-            return response()->json(['success' => true]);
+                $updateData = [
+                    'is_manual'    => $isManual ? 1 : 0,
+                    'is_submitted' => false,
+                ];
+
+                if ($isManual) {
+                    $updateData['class_standing'] = $grade['class_standing'] ?? null;
+                    $updateData['major_exam']     = $grade['major_exam'] ?? null;
+                    $updateData['equivalent']     = $grade['equivalent'] ?? null;
+                }
+
+                StudentTermGrade::updateOrCreate(
+                    [
+                        'schedule_id'    => $grade['schedule_id'],
+                        'student_number' => $grade['student_number'],
+                        'term'           => $grade['term'],
+                    ],
+                    $updateData
+                );
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Draft grades saved successfully.'
+            ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    public function recalculateAutoGrade(Request $request)
+    {
+        $schedule_id = $request->schedule_id;
+        $student_number = $request->student_number;
+        $term = $request->term;
+
+        $computed = GradeHelper::computeAutoGrades($schedule_id, $student_number, $term);
+
+        StudentTermGrade::updateOrCreate(
+            [
+                'schedule_id'    => $schedule_id,
+                'student_number' => $student_number,
+                'term'           => $term,
+            ],
+            [
+                'is_manual'      => 0,
+                'class_standing' => $computed['class_standing'],
+                'major_exam'     => $computed['major_exam'],
+                'equivalent'     => $computed['equivalent'],
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'computed' => $computed
+        ]);
     }
 
     public function profileView()
@@ -640,4 +865,5 @@ class ProfessorController extends Controller
 
         return view('professor.user_details', compact('user', 'isLocked'));
     }
+
 }

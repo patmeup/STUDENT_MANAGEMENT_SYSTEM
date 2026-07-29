@@ -13,7 +13,7 @@
             margin: 0;
             font-family: 'Segoe UI', sans-serif;
             background: 
-                linear-gradient(rgba(0, 51, 160, 0.85), rgba(0, 86, 210, 0.85)),
+                linear-gradient(rgba(221, 229, 247, 0.85), rgba(0, 86, 210, 0.85)),
                 url("{{ asset('images/auabc_bg.jpg') }}");
             background-size: cover;
             background-position: center;
