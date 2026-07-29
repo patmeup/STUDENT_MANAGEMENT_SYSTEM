@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Student;
+use App\Models\DocumentRequest;
+use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -789,6 +791,42 @@ class StudentController extends Controller
         return redirect()->back()->with('error', 'No file selected.');
     }
 
+    public function submitDocumentRequest(Request $request)
+    {
+        $request->validate([
+            'documents' => 'required|array|min:1',
+            'documents.*' => 'string',
+            'purpose' => 'required|string|max:500',
+        ]);
+
+        $studentId = session('student_id');
+
+        if (!session('user_id') || session('user_role') !== 'student') {
+            return redirect()->route('login')->withErrors(['error' => 'You need to login as a student']);
+        }
+
+        $student = \App\Models\Student::where('student_id', $studentId)->first();
+
+        if (!$student) {
+            return redirect()->route('login')->withErrors(['error' => 'User profile reference not found.']);
+        }
+
+        foreach ($request->documents as $docName) {
+            \App\Models\DocumentRequest::create([
+                'student_id' => $student->student_id,
+                'document_name' => $docName,
+                'purpose' => $request->purpose,
+                'status' => 'Pending',
+            ]);
+        }
+
+        if (!empty($student->email)) {
+            \Illuminate\Support\Facades\Mail::to($student->email)->send(new \App\Mail\DocumentRequestSubmitted($student, $request->documents));
+        }
+
+        return redirect()->back()->with('success', 'Your requested documents have been successfully sent to the Registrar!');
+    }
+
     public function profileView()
     {
         if (session('user_role') !== 'student') {
@@ -797,14 +835,12 @@ class StudentController extends Controller
 
         $studentNumber = session('student_id');
         
-        // Ginawa nating $user ulit para tugma sa Blade file mo
         $user = Student::where('student_id', $studentNumber)->first();
 
         if (!$user) {
             return redirect()->route('login')->with('error', 'User not found.');
         }
-
-        // Naka-fix pa rin ang pagkakasunod-sunod ng Hash::check arguments!
+        
         $isLocked = Hash::check('Welcome@AU2026', $user->password);
 
         return view('student.user_details', compact('user', 'isLocked'));

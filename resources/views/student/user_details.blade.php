@@ -27,6 +27,7 @@
         </div>
     @endif
 
+    <!-- PERSONAL CREDENTIALS CARD -->
     <div class="profile-card">
         <div class="card-header d-flex-between">
             <h2 class="card-title">Personal Credentials</h2>
@@ -68,6 +69,112 @@
         </div>
     </div>
 
+    <div class="profile-card">
+        <div class="card-header">
+            <h3 class="card-title">Document Requests & Availability</h3>
+        </div>
+
+        <form action="{{ route('student.submit_request') }}" method="POST">
+            @csrf
+            <div class="card-body">
+                <p style="font-size: 0.875rem; color: #64748b; margin-top: 0; margin-bottom: 16px;">
+                    You can choose and request your documents if you've submitted it to the Registrar Office.
+                </p>
+
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #e2e8f0; color: #475569;">
+                                <th style="padding: 10px; width: 40px; text-align: center;">Choose</th>
+                                <th style="padding: 10px;">Document Name</th>
+                                <th style="padding: 10px;">Status / Availability</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @php
+                                $studentType = $user->student_type;
+
+                                $allowedCodes = [];
+                                if ($studentType === 'New') {
+                                    $allowedCodes = ['doc_psa', 'doc_2x2', 'doc_f138', 'doc_good_moral_new', 'doc_diploma'];
+                                } elseif ($studentType === 'Transferee') {
+                                    $allowedCodes = ['doc_psa', 'doc_2x2', 'doc_tor', 'doc_dismissal', 'doc_good_moral_trans'];
+                                } elseif ($studentType === 'Cross-Enrollee') {
+                                    $allowedCodes = ['doc_psa', 'doc_2x2', 'doc_permit'];
+                                }
+
+                                $allDocuments = [
+                                    ['name' => 'PSA Birth Certificate', 'path' => $user->path_psa, 'code' => 'doc_psa'],
+                                    ['name' => '2x2 Picture', 'path' => $user->path_2x2, 'code' => 'doc_2x2'],
+                                    ['name' => 'Form 138 (F138)', 'path' => $user->path_f138, 'code' => 'doc_f138'],
+                                    ['name' => 'Good Moral Character', 'path' => $user->path_good_moral_new, 'code' => 'doc_good_moral_new'],
+                                    ['name' => 'Diploma', 'path' => $user->path_diploma, 'code' => 'doc_diploma'],
+                                    ['name' => 'Transcript of Records (TOR)', 'path' => $user->path_tor, 'code' => 'doc_tor'],
+                                    ['name' => 'Transfer Credential / Honorable Dismissal', 'path' => $user->path_dismissal, 'code' => 'doc_dismissal'],
+                                    ['name' => 'Good Moral Character (Transferee)', 'path' => $user->path_good_moral_trans, 'code' => 'doc_good_moral_trans'],
+                                    ['name' => 'Permit', 'path' => $user->path_permit, 'code' => 'doc_permit'],
+                                ];
+
+                                $filteredDocuments = array_filter($allDocuments, function($doc) use ($allowedCodes) {
+                                    return in_array($doc['code'], $allowedCodes);
+                                });
+                            @endphp
+
+                            @forelse($filteredDocuments as $doc)
+                                @php
+                                    $hasFileRecord = !empty($doc['path']);
+                                @endphp
+
+                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="padding: 12px 10px; text-align: center;">
+                                        @if($hasFileRecord)
+                                            <input type="checkbox" name="documents[]" value="{{ $doc['name'] }}" style="width: 16px; height: 16px; cursor: pointer;">
+                                        @else
+                                            <input type="checkbox" disabled title="Wala pa sa iyong record" style="width: 16px; height: 16px; cursor: not-allowed;">
+                                        @endif
+                                    </td>
+                                    <td style="padding: 12px 10px; font-weight: 600; color: #1e293b;">
+                                        {{ $doc['name'] }}
+                                    </td>
+                                    <td style="padding: 12px 10px;">
+                                        @if($hasFileRecord)
+                                            <span style="background-color: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
+                                                Available on Records
+                                            </span>
+                                        @else
+                                            <span style="background-color: #f1f5f9; color: #64748b; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
+                                                There is no document or you haven't submitted to the Registrar Office.
+                                            </span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" style="padding: 16px; text-align: center; color: #64748b;">
+                                        There are no record of documents that you've submitted.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- PURPOSE FIELD & SUBMIT BUTTON -->
+                <div style="margin-top: 20px;">
+                    <label class="form-label" style="width: 100%; margin-bottom: 6px;">Purpose on requesting the documents<span style="color: #ef4444;">*</span></label>
+                    <textarea name="purpose" required class="form-control" rows="3" style="width: 100%; resize: vertical;"></textarea>
+                </div>
+
+                <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+                    <button type="submit" class="btn-submit" style="width: auto; padding: 10px 24px;">
+                        Submit all requested Documents
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- UPDATE SECURITY PASSWORD CARD -->
     <div class="profile-card">
         <div class="card-header">
             <h3 class="card-title">Update Security Password</h3>
@@ -153,25 +260,23 @@
                 <!-- EDITABLE FIELDS WITH EXISTING DETAILS -->
                 <div class="form-group-modal">
                     <label class="modal-label">Email Address <span class="required-star">*</span></label>
-                    <!-- Gagamit ng $user->email (ito ang standard sa Laravel users table) -->
                     <input type="email" name="email" required class="form-control-modal" value="{{ old('email', $user->email) }}">
                 </div>
 
                 <div class="modal-grid-2">
                     <div class="form-group-modal">
                         <label class="modal-label">Mobile Number <span class="required-star">*</span></label>
-                        <!-- Pinalitan ng $user->contact_no base sa database mo -->
                         <input 
-                        type="tel" 
-                        name="contact_no" 
-                        required 
-                        class="form-control-modal" 
-                        inputmode="numeric"
-                        pattern="[0-9]*"
-                        maxlength="11"
-                        oninput="this.value = this.value.replace(/[^0-9]/g, '')"
-                        value="{{ old('contact_no', $user->contact_no) }}"
->
+                            type="tel" 
+                            name="contact_no" 
+                            required 
+                            class="form-control-modal" 
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            maxlength="11"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                            value="{{ old('contact_no', $user->contact_no) }}"
+                        >
                     </div>
 
                     <div class="form-group-modal">
@@ -188,14 +293,47 @@
                     </div>
                 </div>
 
-<div class="form-group-modal">
-    <label class="modal-label">Home Address <span class="required-star">*</span></label>
-    <!-- Pinalitan ng $user->city_address base sa database mo -->
-    <textarea name="city_address" required class="form-control-modal" rows="2" style="resize: vertical;">{{ old('city_address', $user->city_address) }}</textarea>
-</div>
+                <div class="form-group-modal">
+                    <label class="modal-label">Home Address <span class="required-star">*</span></label>
+                    <textarea name="city_address" required class="form-control-modal" rows="2" style="resize: vertical;">{{ old('city_address', $user->city_address) }}</textarea>
+                </div>
+            </div>
+
             <div class="modal-footer">
                 <button type="button" class="btn-modal-cancel" onclick="closeEditModal()">Cancel</button>
                 <button type="submit" class="btn-modal-save">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- REQUEST DOCUMENT MODAL -->
+<div class="modal-overlay" id="documentRequestModal">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fa-solid fa-file-arrow-down"></i> Mag-request ng Dokumento</h3>
+            <button type="button" class="modal-close-btn" onclick="closeRequestModal()">&times;</button>
+        </div>
+        
+        <form action="{{ route('student.submit_request') }}" method="POST">
+            @csrf
+            <div class="modal-body">
+                <input type="hidden" name="document_code" id="modalDocCode">
+                
+                <div class="form-group-modal">
+                    <label class="modal-label">Nire-request na Dokumento</label>
+                    <input type="text" id="modalDocName" class="form-control-modal disabled-input" readonly>
+                </div>
+
+                <div class="form-group-modal" style="margin-top: 12px;">
+                    <label class="modal-label">Layunin / Purpose <span class="required-star">*</span></label>
+                    <textarea name="purpose" required class="form-control-modal" rows="3" placeholder="Ilagay kung para saan gagamitin ang dokumento (Hal. Employment, Board Exam, Scholarship)"></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-modal-cancel" onclick="closeRequestModal()">Kanselahin</button>
+                <button type="submit" class="btn-modal-save">Ipadala ang Request</button>
             </div>
         </form>
     </div>
@@ -502,10 +640,10 @@
         }
     }
 
-    // MODAL WINDOW INTERACTIVE LOGIC
+    // EDIT CREDENTIALS MODAL LOGIC
     function openEditModal() {
         document.getElementById('editCredentialsModal').classList.add('active');
-        document.body.style.overflow = 'hidden'; // Pigilan ang background scrolling
+        document.body.style.overflow = 'hidden';
     }
 
     function closeEditModal() {
@@ -513,11 +651,28 @@
         document.body.style.overflow = '';
     }
 
-    // Isara ang modal kapag kinlik ng user ang madilim na labas ng modal box
+    // DOCUMENT REQUEST MODAL LOGIC
+    function openRequestModal(docName, docCode) {
+        document.getElementById('modalDocName').value = docName;
+        document.getElementById('modalDocCode').value = docCode;
+        document.getElementById('documentRequestModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeRequestModal() {
+        document.getElementById('documentRequestModal').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    // Isara ang modals kapag kinlik sa labas ng box
     window.onclick = function(event) {
-        const modal = document.getElementById('editCredentialsModal');
-        if (event.target == modal) {
+        const editModal = document.getElementById('editCredentialsModal');
+        const requestModal = document.getElementById('documentRequestModal');
+        if (event.target == editModal) {
             closeEditModal();
+        }
+        if (event.target == requestModal) {
+            closeRequestModal();
         }
     }
 </script>
