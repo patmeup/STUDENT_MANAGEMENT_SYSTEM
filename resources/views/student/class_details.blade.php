@@ -48,32 +48,57 @@
                 </div>
             </div>
 
-            <div class="sidebar-navigation-card border-au-blue">
+            <div class="sidebar-navigation-card">
+                <div class="panel-title-label">CLASSWORK & RECORDS</div>
+
+                <button class="nav-tab-btn" :class="currentTab === 'attendance' ? 'active-tab' : ''" @click="currentTab = 'attendance'">
+                    <i class="fa-solid fa-calendar-check"></i> Attendance Logs
+                </button>
+
+                <div class="panel-title-label mt-3">TERM GRADE ENCODING</div>
+                @foreach(['prelim' => 'Prelim Term', 'midterm' => 'Midterm Term', 'semifinal' => 'Semi-Final Term', 'final' => 'Final Term'] as $key => $label)
+                    <button class="nav-tab-btn" :class="currentTab === '{{ $key }}' ? 'active-tab' : ''" @click="currentTab = '{{ $key }}'">
+                        <i class="fa-regular fa-pen-to-square"></i> {{ $label }}
+                    </button>
+                @endforeach
+            </div>
+
+            <div class="sidebar-navigation-card border-au-blue" 
+                 x-show="currentTab !== 'attendance'" 
+                 x-transition
+                 x-data="{
+                grades: {
+                    prelim: @js($termGrades['prelim']),
+                    midterm: @js($termGrades['midterm']),
+                    semifinal: @js($termGrades['semifinal']),
+                    final: @js($termGrades['final'])
+                }
+            }">
                 <div class="panel-title-label d-flex justify-content-between align-items-center mb-1">
-                    <span><i class="fa-solid fa-chart-pie me-1 text-dark-blue"></i> CURRENT STANDING & GRADE</span>
+                    <span><i class="fa-solid fa-chart-pie me-1 text-dark-blue"></i> <span x-text="currentTab.toUpperCase()"></span> STANDING & GRADE</span>
                 </div>
-                <p class="text-muted font-xs mb-3">Predictive Grade based on current performance.</p>
+                <p class="text-muted font-xs mb-3">Predictive Grade based on current term performance.</p>
 
                 <div class="performance-breakdown-modern mb-3">
                     <div class="breakdown-row">
                         <span class="text-muted"><i class="fa-solid fa-file-pen text-secondary me-1"></i> Quiz:</span>
-                        <strong class="text-dark-blue">{{ $quizAverage > 0 ? number_format($quizAverage, 1) . '%' : 'No grades yet' }}</strong>
+                        <strong class="text-dark-blue" x-text="grades[currentTab].quizAverage > 0 ? grades[currentTab].quizAverage.toFixed(1) + '%' : 'No grades yet'"></strong>
                     </div>
                     <div class="breakdown-row">
                         <span class="text-muted"><i class="fa-solid fa-list-check text-secondary me-1"></i> Activities:</span>
-                        <strong class="text-dark-blue">{{ $activityAverage > 0 ? number_format($activityAverage, 1) . '%' : 'No grades yet' }}</strong>
+                        <strong class="text-dark-blue" x-text="grades[currentTab].activityAverage > 0 ? grades[currentTab].activityAverage.toFixed(1) + '%' : 'No grades yet'"></strong>
                     </div>
                     <div class="breakdown-row">
                         <span class="text-muted"><i class="fa-solid fa-book text-secondary me-1"></i> Assignment:</span>
-                        <strong class="text-dark-blue">{{ $assignmentAverage > 0 ? number_format($assignmentAverage, 1) . '%' : 'No grades yet' }}</strong>
+                        <strong class="text-dark-blue" x-text="grades[currentTab].assignmentAverage > 0 ? grades[currentTab].assignmentAverage.toFixed(1) + '%' : 'No grades yet'"></strong>
                     </div>
                     <div class="breakdown-row">
                         <span class="text-muted"><i class="fa-solid fa-calendar-check text-secondary me-1"></i> Attendance:</span>
-                        <strong class="text-dark-blue">{{ $currentAttendance > 0 ? number_format($currentAttendance, 1) . '%' : 'No logs yet' }}</strong>
+                        <strong class="text-dark-blue" x-text="grades[currentTab].currentAttendance > 0 ? grades[currentTab].currentAttendance.toFixed(1) + '%' : 'No logs yet'"></strong>
                     </div>
                     <div class="breakdown-row border-0 pb-0">
                         <span class="text-muted"><i class="fa-solid fa-graduation-cap text-secondary me-1"></i> Major Exam:</span>
-                        <strong class="text-dark-blue">{{ $majorExam > 0 ? number_format($majorExam, 1) . '%' : 'Not yet taken' }}</strong>
+                        <strong class="text-dark-blue" x-text="grades[currentTab].majorExam > 0 ? grades[currentTab].majorExam.toFixed(1) + '%' : 'Not yet taken'"></strong>
                     </div>
                 </div>
 
@@ -82,71 +107,40 @@
                 <div class="au-prediction-display-box text-center p-3 rounded-10 bg-light-gray">
                     <span class="font-xxs text-uppercase fw-bold text-muted tracking-wider d-block mb-1">Current Computed Grade</span>
                     
-                    <div class="predicted-grade-number my-1">
-                        @php
-                            $percentage = $currentCalculatedGrade;
-                            $pointGrade = "5.00";
-                            $desc = "No grades computed yet";
-                            $badgeClass = "badge-failed";
-                            $statusText = "NO RECORDS YET";
-
-                            if ($percentage >= 97) {
-                                $pointGrade = "1.00"; $desc = "Excellent"; $badgeClass = "badge-excellent"; $statusText = "PASSED (GOOD STANDING)";
-                            } elseif ($percentage >= 94) {
-                                $pointGrade = "1.25"; $desc = "Superior"; $badgeClass = "badge-excellent"; $statusText = "PASSED (GOOD STANDING)";
-                            } elseif ($percentage >= 91) {
-                                $pointGrade = "1.50"; $desc = "Very Good"; $badgeClass = "badge-passed"; $statusText = "PASSED (GOOD STANDING)";
-                            } elseif ($percentage >= 88) {
-                                $pointGrade = "1.75"; $desc = "Above Average"; $badgeClass = "badge-passed"; $statusText = "PASSED (GOOD STANDING)";
-                            } elseif ($percentage >= 85) {
-                                $pointGrade = "2.00"; $desc = "Good"; $badgeClass = "badge-passed"; $statusText = "PASSED (GOOD STANDING)";
-                            } elseif ($percentage >= 82) {
-                                $pointGrade = "2.25"; $desc = "Satisfactory"; $badgeClass = "badge-passed"; $statusText = "PASSED (GOOD STANDING)";
-                            } elseif ($percentage >= 79) {
-                                $pointGrade = "2.50"; $desc = "Fairly Satisfactory"; $badgeClass = "badge-passed"; $statusText = "PASSED (GOOD STANDING)";
-                            } elseif ($percentage >= 76) {
-                                $pointGrade = "2.75"; $desc = "Fair / Passing"; $badgeClass = "badge-passed"; $statusText = "PASSED (GOOD STANDING)";
-                            } elseif ($percentage >= 75) {
-                                $pointGrade = "3.00"; $desc = "Passing"; $badgeClass = "badge-passed"; $statusText = "PASSED (GOOD STANDING)";
-                            } elseif ($percentage > 0) {
-                                $pointGrade = "5.00"; $desc = "Failure"; $badgeClass = "badge-failed"; $statusText = "AT RISK (FAILED)";
-                            } else {
-                                $pointGrade = "--";
-                            }
-                        @endphp
-
-                        {{ $pointGrade }}
-                    </div>
+                    <div class="predicted-grade-number my-1" x-text="
+                        (() => {
+                            let p = grades[currentTab].currentCalculatedGrade;
+                            if (p >= 97) return '1.00';
+                            if (p >= 94) return '1.25';
+                            if (p >= 91) return '1.50';
+                            if (p >= 88) return '1.75';
+                            if (p >= 85) return '2.00';
+                            if (p >= 82) return '2.25';
+                            if (p >= 79) return '2.50';
+                            if (p >= 76) return '2.75';
+                            if (p >= 75) return '3.00';
+                            if (p > 0) return '5.00';
+                            return '--';
+                        })()
+                    "></div>
                     
                     <div class="mb-2">
-                        <span class="badge {{ $badgeClass }} px-2 py-1">{{ $statusText }}</span>
+                        <span class="badge px-2 py-1" :class="{
+                            'badge-excellent': grades[currentTab].currentCalculatedGrade >= 94,
+                            'badge-passed': grades[currentTab].currentCalculatedGrade >= 75 && grades[currentTab].currentCalculatedGrade < 94,
+                            'badge-failed': grades[currentTab].currentCalculatedGrade > 0 && grades[currentTab].currentCalculatedGrade < 75,
+                            'd-none': grades[currentTab].currentCalculatedGrade <= 0
+                        }" x-text="grades[currentTab].currentCalculatedGrade >= 75 ? 'PASSED (GOOD STANDING)' : (grades[currentTab].currentCalculatedGrade > 0 ? 'AT RISK (FAILED)' : '')"></span>
                     </div>
                     
-                    <p class="font-xs text-muted m-0">
-                        @if($percentage > 0)
-                            Equivalent to <strong>{{ number_format($percentage, 1) }}%</strong> ({{ $desc }})
-                        @else
-                            This will be updated once you have grades recorded for this class. Please check back later.
-                        @endif
-                    </p>
+                    <p class="font-xs text-muted m-0" x-text="
+                        grades[currentTab].currentCalculatedGrade > 0 
+                            ? 'Equivalent to ' + grades[currentTab].currentCalculatedGrade.toFixed(1) + '%' 
+                            : 'This will be updated once you have grades recorded for this term.'
+                    "></p>
                 </div>
             </div>
 
-            <div class="sidebar-navigation-card">
-
-                <div class="panel-title-label">CLASSWORK & RECORDS</div>
-
-                    <button class="nav-tab-btn" :class="currentTab === 'attendance' ? 'active-tab' : ''" @click="currentTab = 'attendance'">
-                        <i class="fa-solid fa-calendar-check"></i> Attendance Logs
-                    </button>
-
-                <div class="panel-title-label">TERM GRADE ENCODING</div>
-                @foreach(['prelim' => 'Prelim Term', 'midterm' => 'Midterm Term', 'semifinal' => 'Semi-Final Term', 'final' => 'Final Term'] as $key => $label)
-                    <button class="nav-tab-btn" :class="currentTab === '{{ $key }}' ? 'active-tab' : ''" @click="currentTab = '{{ $key }}'">
-                        <i class="fa-regular fa-pen-to-square"></i> {{ $label }}
-                    </button>
-                @endforeach
-            </div>
         </div>
 
         <div class="unified-workspace">
@@ -189,8 +183,13 @@
                     $termModules = $termAll->where('activity_type', 'module');
                     $termTasks = $termAll->whereNotIn('activity_type', ['module']);
 
+                    $termMaterials = collect($materials)->where('term', $key);
+                    
+                    $gMaterials = $termGoogleData[$key]['materials'] ?? collect();
+                    $gCourseWork = $termGoogleData[$key]['coursework'] ?? collect();
                     $hasGClass = isset($gLinkedCourse) && $gLinkedCourse;
                 @endphp
+
                 <div x-show="currentTab === '{{ $key }}'" x-transition style="display: none;">
 
                     <div class="workspace-card" style="margin-bottom: 32px;">
@@ -227,7 +226,10 @@
                                         <div class="material-row">
                                             <div class="material-icon"><i class="fa-brands fa-google-drive"></i></div>
                                             <div class="material-info">
-                                                <span class="material-title">{{ $mat->title }}</span>
+                                                <span class="material-title">
+                                                    {{ $mat->title }} 
+                                                    <span class="gclass-badge">Google Classroom</span>
+                                                </span>
                                                 <span class="material-filename">{{ $mat->drive_file_name ?? 'Posted via Google Classroom' }}</span>
                                             </div>
                                             @if($mat->drive_file_id)
@@ -296,17 +298,18 @@
                                         @if($hasGClass)
                                             @foreach($gCourseWork as $cw)
                                                 <tr>
-                                                    <td style="width: 25%;"><strong class="text-dark-blue">{{ $cw->title }}</strong></td>
+                                                    <td style="width: 25%;">
+                                                        <strong class="text-dark-blue">{{ $cw->title }}</strong>
+                                                        <span class="gclass-badge ms-1">Google Classroom</span>
+                                                    </td>
                                                     <td style="width: 15%;"><span class="badge bg-secondary text-uppercase">{{ $cw->work_type ?? 'coursework' }}</span></td>
-                                                    <td style="width: 15%;">—</td>
-                                                    <td style="width: 15%;"><span class="text-muted">Graded in Classroom</span></td>
+                                                    <td style="width: 15%;">{{ $cw->max_points ?? '—' }} pts</td>
+                                                    <td style="width: 15%;"><span class="text-muted">--</span></td>
                                                     <td style="width: 15%;">{{ $cw->due_date ? \Carbon\Carbon::parse($cw->due_date)->format('M d, Y') : 'No Deadline' }}</td>
                                                     <td style="width: 15%;" class="text-center">
-                                                        @if($cw->alternate_link)
-                                                            <a href="{{ $cw->alternate_link }}" target="_blank" class="btn-sm-outline btn-view-task">
-                                                                <i class="fa-brands fa-google-classroom"></i> Open in Classroom
-                                                            </a>
-                                                        @endif
+                                                        <a href="{{ route('student.view-google-task', $cw->id) }}" class="btn-sm-outline btn-view-task">
+                                                            <i class="fa-solid fa-eye"></i> View Task
+                                                        </a>
                                                     </td>
                                                 </tr>
                                             @endforeach
@@ -316,7 +319,6 @@
                             </div>
                         @endif
                     </div>
-
                 </div>
             @endforeach
 
@@ -422,7 +424,7 @@
 
     .custom-portal-table { border: 1px solid #f1f5f9; width: 100%; table-layout: fixed; }
     .custom-portal-table th { background: #f8fafc; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #64748b; padding: 14px 12px; border-bottom: 2px solid #e2e8f0; }
-    .custom-portal-table td { padding: 14px 12px; font-size: 14px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .custom-portal-table td { padding: 14px 12px; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
 
     .empty-state-box { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 24px; border: 2px dashed #e2e8f0; border-radius: 10px; background: #fafbfc; }
     .empty-state-icon { width: 48px; height: 48px; border-radius: 50%; background: #eef1fb; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
@@ -448,5 +450,19 @@
     .material-info { display: flex; flex-direction: column; flex-grow: 1; min-width: 0; }
     .material-title { font-size: 14px; font-weight: 700; color: #1e293b; }
     .material-filename { font-size: 12px; color: #94a3b8; }
+
+    .gclass-badge {
+        display: inline-block;
+        background-color: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 1px 8px;
+        border-radius: 12px;
+        margin-left: 6px;
+        vertical-align: middle;
+        letter-spacing: 0.2px;
+    }
 </style>
 @endsection

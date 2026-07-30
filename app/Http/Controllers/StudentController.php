@@ -202,13 +202,19 @@ class StudentController extends Controller
             return redirect()->route('student.my_classes')->with('error', 'Unauthorized access to this class.');
         }
 
+        $termPeriods = DB::table('term_periods')
+            ->get()
+            ->keyBy(function($item) {
+                return strtolower(trim($item->term));
+            });
+
         $attendanceRecords = DB::table('attendances')
             ->where('class_schedule_id', $schedule_id)
             ->where('student_id', $studentNumber)
             ->orderBy('attendance_date', 'desc')
             ->get();
 
-        $activeTab = $request->query('tab', 'materials');
+        $activeTab = $request->query('tab', 'prelim');
 
         $classDetails = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
@@ -219,7 +225,7 @@ class StudentController extends Controller
         $activities = DB::table('student_tasks') 
             ->leftJoin('task_submissions', function($join) use ($studentNumber) {
                 $join->on('student_tasks.id', '=', 'task_submissions.task_id')
-                     ->where('task_submissions.student_id', '=', $studentNumber);
+                    ->where('task_submissions.student_id', '=', $studentNumber);
             })
             ->where('student_tasks.class_schedule_id', $schedule_id)
             ->select('student_tasks.*', 'task_submissions.grade as student_grade')
@@ -234,93 +240,178 @@ class StudentController extends Controller
                 ->get();
         }
 
-        // Google Classroom coursework/materials for the course linked to this schedule (if any)
         $gLinkedCourse = DB::table('google_classroom_courses')
             ->where('linked_class_schedule_id', $schedule_id)
             ->first();
 
-        $gCourseWork = collect();
-        $gMaterials = collect();
+        $gCourseWorkAll = collect();
+        $gMaterialsAll = collect();
 
         if ($gLinkedCourse) {
-            $gCourseWork = DB::table('google_classroom_coursework')
+            $gCourseWorkAll = DB::table('google_classroom_coursework')
                 ->where('course_id', $gLinkedCourse->id)
                 ->orderBy('due_date', 'desc')
                 ->get();
 
-            $gMaterials = DB::table('google_classroom_materials')
+            $gMaterialsAll = DB::table('google_classroom_materials')
                 ->where('course_id', $gLinkedCourse->id)
                 ->orderBy('created_at', 'desc')
                 ->get();
         }
 
-        $gradedSubmissions = DB::table('task_submissions')
-            ->join('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
-            ->where('student_tasks.class_schedule_id', $schedule_id)
-            ->where('task_submissions.student_id', $studentNumber)
-            ->whereNotNull('task_submissions.grade')
-            ->select('task_submissions.grade', 'student_tasks.activity_type')
-            ->get();
+        $resolveTermForItem = function($itemDate) use ($termPeriods) {
+            if (!$itemDate) return 'prelim';
 
-        $grouped = $gradedSubmissions->groupBy(function($item) {
-            return strtolower(trim($item->activity_type));
-        });
+            $targetDate = date('Y-m-d', strtotime($itemDate));
+            $sortedTerms = $termPeriods->sortBy('start_date');
 
-        $averages = [];
-        foreach ($grouped as $type => $items) {
-            $averages[$type] = $items->avg('grade');
+            foreach ($sortedTerms as $termKey => $period) {
+                if ($targetDate >= $period->start_date && $targetDate <= $period->end_date) {
+                    return $termKey;
+                }
+            }
+
+            $nearestTerm = null;
+            $minDiff = PHP_INT_MAX;
+
+            foreach ($sortedTerms as $termKey => $period) {
+                if ($targetDate < $period->start_date) {
+                    $diff = strtotime($period->start_date) - strtotime($targetDate);
+                    if ($diff < $minDiff) {
+                        $minDiff = $diff;
+                        $nearestTerm = $termKey;
+                    }
+                }
+            }
+
+            if ($nearestTerm) {
+                return $nearestTerm;
+            }
+
+            return $sortedTerms->keys()->last() ?? 'final';
+        };
+
+        $termGoogleData = [
+            'prelim' => ['materials' => collect(), 'coursework' => collect()],
+            'midterm' => ['materials' => collect(), 'coursework' => collect()],
+            'semifinal' => ['materials' => collect(), 'coursework' => collect()],
+            'final' => ['materials' => collect(), 'coursework' => collect()],
+        ];
+
+        foreach ($gMaterialsAll as $mat) {
+            $itemDate = $mat->posted_at ?? $mat->created_at;
+            $assignedTerm = $resolveTermForItem($itemDate);
+            $termGoogleData[$assignedTerm]['materials']->push($mat);
         }
 
-        $majorExam = $averages['major exam'] ?? $averages['exam'] ?? 0;
-        
-        $quizAverage = $averages['quiz'] ?? 0;
-        $activityAverage = $averages['activity'] ?? 0;
-        $assignmentAverage = $averages['assignment'] ?? $averages['written'] ?? 0;
-
-        $taskComponents = array_filter([$quizAverage, $activityAverage, $assignmentAverage]);
-        $currentTaskAverage = count($taskComponents) > 0 ? (array_sum($taskComponents) / count($taskComponents)) : 0;
-
-        $totalAttendanceCount = $attendanceRecords->count();
-        if ($totalAttendanceCount > 0) {
-            $presentCount = $attendanceRecords->where('status', 'Present')->count();
-            $currentAttendance = ($presentCount / $totalAttendanceCount) * 100;
-        } else {
-            $currentAttendance = $averages['attendance'] ?? 0; 
+        foreach ($gCourseWorkAll as $cw) {
+            $itemDate = $cw->due_date ?? $cw->posted_at ?? $cw->created_at;
+            $assignedTerm = $resolveTermForItem($itemDate);
+            $termGoogleData[$assignedTerm]['coursework']->push($cw);
         }
 
-        $hasTasks = count($taskComponents) > 0;
-        $hasAttendance = ($totalAttendanceCount > 0 || isset($averages['attendance']));
+        $calculateTermGrades = function($termName) use ($schedule_id, $studentNumber, $activities, $attendanceRecords, $termPeriods) {
+            
+            $periodConfig = $termPeriods->get($termName);
 
-        if ($hasTasks && $hasAttendance) {
-            $classStandingAverage = ($currentTaskAverage * 0.75) + ($currentAttendance * 0.25);
-        } elseif ($hasTasks) {
-            $classStandingAverage = $currentTaskAverage;
-        } elseif ($hasAttendance) {
-            $classStandingAverage = $currentAttendance;
-        } else {
-            $classStandingAverage = 0;
-        }
+            $termTasks = $activities->where('term', $termName);
+            $gradedSubmissions = $termTasks->whereNotNull('student_grade');
 
-        $classStandingContribution = $classStandingAverage * 0.60; 
-        $examContribution = $majorExam * 0.40;                  
+            $grouped = $gradedSubmissions->groupBy(function($item) {
+                return strtolower(trim($item->activity_type));
+            });
 
-        $currentCalculatedGrade = round($classStandingContribution + $examContribution, 2);
+            $averages = [];
+            foreach ($grouped as $type => $items) {
+                $averages[$type] = $items->avg('student_grade');
+            }
+
+            $majorExam = $averages['major exam'] ?? $averages['exam'] ?? 0;
+            $quizAverage = $averages['quiz'] ?? 0;
+            $activityAverage = $averages['activity'] ?? 0;
+            $assignmentAverage = $averages['assignment'] ?? $averages['written'] ?? 0;
+
+            $taskComponents = array_filter([$quizAverage, $activityAverage, $assignmentAverage]);
+            $currentTaskAverage = count($taskComponents) > 0 ? (array_sum($taskComponents) / count($taskComponents)) : 0;
+
+            $currentAttendance = 0;
+            $hasAttendanceLogs = false;
+
+            if ($periodConfig) {
+                $startDate = $periodConfig->start_date;
+                $endDate = $periodConfig->end_date;
+
+                $termAttendance = $attendanceRecords->filter(function($record) use ($startDate, $endDate) {
+                    $attendanceDate = date('Y-m-d', strtotime($record->attendance_date));
+                    return $attendanceDate >= $startDate && $attendanceDate <= $endDate;
+                });
+
+                $totalAttendanceCount = $termAttendance->count();
+                
+                if ($totalAttendanceCount > 0) {
+                    $presentCount = $termAttendance->where('status', 'Present')->count();
+                    $currentAttendance = ($presentCount / $totalAttendanceCount) * 100;
+                    $hasAttendanceLogs = true;
+                }
+            }
+
+            if (!$hasAttendanceLogs && isset($averages['attendance'])) {
+                $currentAttendance = $averages['attendance'];
+                $hasAttendanceLogs = true;
+            }
+
+            $hasTasks = count($taskComponents) > 0;
+
+            if (!$hasTasks && !$hasAttendanceLogs && $majorExam == 0) {
+                return [
+                    'quizAverage' => 0,
+                    'activityAverage' => 0,
+                    'assignmentAverage' => 0,
+                    'currentAttendance' => 0,
+                    'majorExam' => 0,
+                    'currentCalculatedGrade' => 0
+                ];
+            }
+
+            if ($hasTasks && $hasAttendanceLogs) {
+                $classStandingAverage = ($currentTaskAverage * 0.75) + ($currentAttendance * 0.25);
+            } elseif ($hasTasks) {
+                $classStandingAverage = $currentTaskAverage;
+            } elseif ($hasAttendanceLogs) {
+                $classStandingAverage = $currentAttendance;
+            } else {
+                $classStandingAverage = 0;
+            }
+
+            $classStandingContribution = $classStandingAverage * 0.60; 
+            $examContribution = $majorExam * 0.40;                     
+
+            return [
+                'quizAverage' => $quizAverage,
+                'activityAverage' => $activityAverage,
+                'assignmentAverage' => $assignmentAverage,
+                'currentAttendance' => $currentAttendance,
+                'majorExam' => $majorExam,
+                'currentCalculatedGrade' => round($classStandingContribution + $examContribution, 2)
+            ];
+        };
+
+        $termGrades = [
+            'prelim' => $calculateTermGrades('prelim'),
+            'midterm' => $calculateTermGrades('midterm'),
+            'semifinal' => $calculateTermGrades('semifinal'),
+            'final' => $calculateTermGrades('final'),
+        ];
 
         return view('student.class_details', compact(
             'classDetails', 
             'activities', 
             'materials', 
             'activeTab',
-            'quizAverage',
-            'activityAverage',
-            'assignmentAverage',
-            'currentAttendance',
-            'majorExam',
-            'currentCalculatedGrade',
+            'termGrades',
             'attendanceRecords',
             'gLinkedCourse',
-            'gCourseWork',
-            'gMaterials'
+            'termGoogleData'
         ));
     }
 
@@ -635,6 +726,60 @@ class StudentController extends Controller
         return view('student.task_details', compact('task', 'submission'));
     }
 
+    public function viewGoogleTask($id)
+    {
+        if (session('user_role') !== 'student') {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        $task = DB::table('google_classroom_coursework')
+            ->where('id', $id)
+            ->first();
+
+        if (!$task) {
+            return redirect()->back()->with('error', 'Task not found.');
+        }
+
+        $course = DB::table('google_classroom_courses')
+            ->where('id', $task->course_id)
+            ->first();
+
+        $scheduleId = $course ? $course->linked_class_schedule_id : null;
+
+        $classDetails = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->where('class_schedules.id', $scheduleId)
+            ->select('class_schedules.*', 'subjects.subject_code', 'subjects.subject_title')
+            ->first();
+
+        $studentNumber = session('student_id');
+
+        $submission = DB::table('task_submissions')
+            ->where('task_id', 'gclass_' . $id) 
+            ->where('student_id', $studentNumber)
+            ->first();
+
+        $taskData = (object)[
+            'id' => 'gclass_' . $id, 
+            'real_gclass_id' => $id,  
+            'class_schedule_id' => $scheduleId,
+            'subject_code' => $classDetails->subject_code ?? 'GCLASS',
+            'section_name' => $classDetails->section_name ?? '',
+            'term' => $task->term ?? 'prelim',
+            'activity_name' => $task->title,
+            'activity_type' => $task->work_type ?? 'assignment',
+            'max_score' => $task->max_points ?? 100,
+            'due_date' => $task->due_date,
+            'file_path' => null,
+            'original_filename' => null,
+        ];
+
+        return view('student.task_details', [
+            'task' => $taskData,
+            'submission' => $submission
+        ]);
+    }
+
     public function downloadTaskFile($id)
     {
         if (session('user_role') !== 'student') {
@@ -811,14 +956,12 @@ class StudentController extends Controller
             return redirect()->route('login')->withErrors(['error' => 'User profile reference not found.']);
         }
 
-        foreach ($request->documents as $docName) {
-            \App\Models\DocumentRequest::create([
-                'student_id' => $student->student_id,
-                'document_name' => $docName,
-                'purpose' => $request->purpose,
-                'status' => 'Pending',
-            ]);
-        }
+        \App\Models\DocumentRequest::create([
+            'student_id' => $student->student_id,
+            'document_name' => json_encode($request->documents),
+            'purpose' => $request->purpose,
+            'status' => 'Pending',
+        ]);
 
         if (!empty($student->email)) {
             \Illuminate\Support\Facades\Mail::to($student->email)->send(new \App\Mail\DocumentRequestSubmitted($student, $request->documents));
