@@ -154,4 +154,6 @@ Route::get('/student/task/download/{id}', [StudentController::class, 'downloadTa
 Route::get('/student/google-classroom/material/{material_id}/download', [StudentController::class, 'downloadGoogleClassroomMaterial'])->name('student.google-classroom.material-download');
 Route::post('/student/task/{id}/submit', [StudentController::class, 'submitTask'])->name('student.submit_task');
 Route::get('/student/user_details', [StudentController::class, 'profileView'])->name('student.user_details');
-Route::put('/account/update-credentials', [App\Http\Controllers\StudentController::class, 'updateCredentials'])->name('account.update_credentials');
+Route::put('/account/update-credentials', [StudentController::class, 'updateCredentials'])->name('account.update_credentials');
+Route::post('/student/request-document', [StudentController::class, 'submitDocumentRequest'])->name('student.submit_request');
+Route::put('/account/update-credentials', [StudentController::class, 'updateCredentials'])->name('account.update_credentials');
