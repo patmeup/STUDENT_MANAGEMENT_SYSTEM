@@ -18,9 +18,9 @@ class AnnouncementController extends Controller
 
         if ($request->hasFile('announcement_image')) {
             $file = $request->file('announcement_image');
-            
+
             $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            
+
             $file->storeAs('announcements', $fileName, 'public');
 
             DB::table('announcements')->insert([
