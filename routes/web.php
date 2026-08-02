@@ -91,6 +91,8 @@ Route::put('/registrar/students/{id}/documents', [RegistrarController::class, 'u
 Route::get('/registrar/students/{student_id}/file/{filename}', [RegistrarController::class, 'secureViewFile'])->name('registrar.secure-view');
 Route::get('/registrar/faculty-grade-status', [RegistrarController::class, 'facultyGradeStatus'])->name('registrar.faculty-grade-status');
 Route::get('/registrar/manage-grades', [RegistrarController::class, 'manageGrades'])->name('registrar.manage-grades');
+Route::get('/registrar/document-requests', [RegistrarController::class, 'manageDocumentRequests'])->name('registrar.document.requests');
+Route::post('/registrar/send-document/{requestId}', [RegistrarController::class, 'sendDocument'])->name('registrar.send.document');
 Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
 
 // DEAN ROUTES

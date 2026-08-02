@@ -19,6 +19,19 @@
         </div>
     @endif
 
+    @if($errors->any())
+        <div style="background-color: #f8d7da; color: #842029; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #842029;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom: 8px;">
+                <i class="fas fa-triangle-exclamation"></i> There were some issues with your submission:
+            </div>
+            <ul style="margin: 0; padding-left: 20px; font-weight: 500; font-size: 13.5px;">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="sis-tabs-nav">
         <button class="tab-btn active" onclick="switchSisTab(event, 'tab-admission')">1. Admission Info</button>
         <button class="tab-btn" onclick="switchSisTab(event, 'tab-personal')">2. Personal Profile</button>
@@ -461,6 +474,52 @@
                     updateDropZoneStatus(input);
                 }
             });
+        });
+
+        // FIX: Kapag may hidden na required field sa ibang tab na hindi napunan,
+        // hindi maipapakita ng browser ang validation tooltip (dahil display:none ang tab),
+        // kaya tahimik lang ito bino-block ang submit. Awtomatiko na lang tayong lilipat
+        // sa tamang tab kung saan nagmula ang unang invalid field, bago i-report ang error.
+        var enrollmentForm = document.querySelector('.pure-form');
+        enrollmentForm.addEventListener('submit', function (e) {
+            var tabContents = document.querySelectorAll('.sis-tab-content');
+            var tabBtns = document.querySelectorAll('.tab-btn');
+            var invalidTab = null;
+            var invalidTabIndex = -1;
+            var firstInvalidField = null;
+
+            for (var i = 0; i < tabContents.length; i++) {
+                var invalidField = tabContents[i].querySelector(':invalid');
+                if (invalidField) {
+                    invalidTab = tabContents[i];
+                    invalidTabIndex = i;
+                    firstInvalidField = invalidField;
+                    break;
+                }
+            }
+
+            if (invalidTab) {
+                e.preventDefault();
+
+                for (var j = 0; j < tabContents.length; j++) {
+                    tabContents[j].classList.remove('active');
+                }
+                for (var k = 0; k < tabBtns.length; k++) {
+                    tabBtns[k].classList.remove('active');
+                }
+
+                invalidTab.classList.add('active');
+                if (tabBtns[invalidTabIndex]) {
+                    tabBtns[invalidTabIndex].classList.add('active');
+                }
+
+                // Hintayin munang lumabas ang tab bago i-report ang validation error,
+                // dahil kailangang visible muna ang field bago maipakita ng browser ang tooltip.
+                setTimeout(function () {
+                    firstInvalidField.reportValidity();
+                    firstInvalidField.focus();
+                }, 50);
+            }
         });
     });
 </script>

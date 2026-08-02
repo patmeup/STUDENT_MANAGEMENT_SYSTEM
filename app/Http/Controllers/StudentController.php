@@ -531,6 +531,7 @@ class StudentController extends Controller
             'last_name' => 'required|string',
             'first_name' => 'required|string',
             'contact_no' => 'required|string',
+            'email' => 'required|email|unique:students,email',
 
             'doc_psa' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'doc_2x2' => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
@@ -606,6 +607,7 @@ class StudentController extends Controller
         $student->city_address = $request->city_address;
         $student->zip_code = $request->zip_code;
         $student->contact_no = $request->contact_no;
+        $student->email = $request->email;
         
         $student->fathers_name = $request->fathers_name;
         $student->fathers_occupation = $request->fathers_occupation;
@@ -635,11 +637,18 @@ class StudentController extends Controller
         $student->path_good_moral_trans = $filePaths['doc_good_moral_trans'] ?? null;
         $student->path_permit = $filePaths['doc_permit'] ?? null;
         $student->credentials = array_values($filePaths);
-        $student->password = Hash::make('Welcome@AU2026');
+        $defaultPassword = 'Welcome@AU2026';
+        $student->password = Hash::make($defaultPassword);
 
         $student->save();
 
-        return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}");
+        try {
+            \Illuminate\Support\Facades\Mail::to($student->email)->send(new \App\Mail\NewStudentCredentials($student, $defaultPassword));
+        } catch (\Exception $e) {
+            return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. Hindi na-send ang welcome email (" . $e->getMessage() . ") — pakibigay na lang manually ang Student ID at default password sa estudyante.");
+        }
+
+        return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. A welcome email with the default password has been sent to the student's email address.");
     }
 
     public function myClasses()
