@@ -99,7 +99,7 @@ class AuthController extends Controller
         return view('update_password', compact('user', 'isLocked'));
     }
 
-public function updatePassword(Request $request)
+    public function updatePassword(Request $request)
     {
         $request->validate([
             'current_password' => 'required|string',
@@ -109,7 +109,6 @@ public function updatePassword(Request $request)
         $role = session('user_role');
         $user = null;
 
-        // 1. I-tsek kung Student o Employee/User ang nag-a-update ng password
         if ($role === 'student') {
             $user = \App\Models\Student::find(session('user_id'));
         } else {
@@ -120,10 +119,8 @@ public function updatePassword(Request $request)
             return redirect('/')->withErrors(['error' => 'User profile reference not found.']);
         }
 
-        // 2. I-verify kung tama ang kasalukuyang password
         $isCurrentCorrect = false;
         
-        // Custom check lang para sa hindi pa hashed na lumang super_admin passwords
         if ($role === 'super_admin' && !\Illuminate\Support\Str::startsWith($user->password, '$2y$')) {
             $isCurrentCorrect = ($request->current_password === $user->password);
         } else {

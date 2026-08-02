@@ -96,16 +96,15 @@
 
                                 $allowedCodes = [];
                                 if ($studentType === 'New') {
-                                    $allowedCodes = ['doc_psa', 'doc_2x2', 'doc_f138', 'doc_good_moral_new', 'doc_diploma'];
+                                    $allowedCodes = ['doc_psa', 'doc_f138', 'doc_good_moral_new', 'doc_diploma'];
                                 } elseif ($studentType === 'Transferee') {
-                                    $allowedCodes = ['doc_psa', 'doc_2x2', 'doc_tor', 'doc_dismissal', 'doc_good_moral_trans'];
+                                    $allowedCodes = ['doc_psa', 'doc_tor', 'doc_dismissal', 'doc_good_moral_trans'];
                                 } elseif ($studentType === 'Cross-Enrollee') {
-                                    $allowedCodes = ['doc_psa', 'doc_2x2', 'doc_permit'];
+                                    $allowedCodes = ['doc_psa', 'doc_permit'];
                                 }
 
                                 $allDocuments = [
                                     ['name' => 'PSA Birth Certificate', 'path' => $user->path_psa, 'code' => 'doc_psa'],
-                                    ['name' => '2x2 Picture', 'path' => $user->path_2x2, 'code' => 'doc_2x2'],
                                     ['name' => 'Form 138 (F138)', 'path' => $user->path_f138, 'code' => 'doc_f138'],
                                     ['name' => 'Good Moral Character', 'path' => $user->path_good_moral_new, 'code' => 'doc_good_moral_new'],
                                     ['name' => 'Diploma', 'path' => $user->path_diploma, 'code' => 'doc_diploma'],

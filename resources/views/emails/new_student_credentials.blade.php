@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6fb; margin: 0; padding: 0; }
+    .email-wrapper { max-width: 480px; margin: 30px auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; }
+    .email-header { background: #1e2a5a; color: #ffffff; padding: 24px 28px; }
+    .email-header h1 { margin: 0; font-size: 18px; }
+    .email-body { padding: 28px; color: #334155; font-size: 14px; line-height: 1.6; }
+    .credential-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px; margin: 20px 0; }
+    .credential-row { display: flex; justify-content: space-between; padding: 6px 0; }
+    .credential-label { color: #64748b; }
+    .credential-value { font-weight: 700; color: #1e2a5a; }
+    .notice-box { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 10px 14px; border-radius: 6px; font-size: 13px; color: #92400e; margin-top: 16px; }
+    .email-footer { padding: 18px 28px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+</style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <div class="email-header">
+            <h1>Arellano University - College</h1>
+        </div>
+        <div class="email-body">
+            <p>Hi {{ $student->first_name }},</p>
+            <p>Matagumpay kang naka-register sa Student Management System ng Arellano University. Gamitin mo ang mga sumusunod na detalye para mag-log in sa iyong account:</p>
+
+            <div class="credential-box">
+                <div class="credential-row">
+                    <span class="credential-label">Student ID: </span>
+                    <span class="credential-value">{{ $student->student_id }}</span>
+                </div>
+                <div class="credential-row">
+                    <span class="credential-label">Default Password: </span>
+                    <span class="credential-value">{{ $defaultPassword }}</span>
+                </div>
+            </div>
+
+            <div class="notice-box">
+                Para sa seguridad ng iyong account, mangyaring palitan ang iyong password kaagad pagkatapos mong mag-log in sa unang pagkakataon.
+            </div>
+        </div>
+        <div class="email-footer">
+            Ito ay awtomatikong email mula sa Arellano University Student Management System. Huwag i-reply sa email na ito.
+        </div>
+    </div>
+</body>
+</html>

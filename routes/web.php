@@ -75,7 +75,6 @@ Route::post('/system-admin/academic_periods', [SystemAdminController::class, 'st
 Route::post('/system-admin/academic_periods/{id}/activate', [SystemAdminController::class, 'activateAcademicPeriod'])->name('system_admin.activate_academic_period');
 Route::post('/system-admin/term-periods', [SystemAdminController::class, 'storeTermPeriod'])->name('system_admin.store_term_period');
 Route::delete('/system-admin/academic_periods/{id}', [SystemAdminController::class, 'deleteAcademicPeriod'])->name('system_admin.delete_academic_period');
-
 Route::get('/system_admin/user_details', [SystemAdminController::class, 'profileView'])->name('system_admin.user_details');
 
 // REGISTRAR ROUTES
@@ -92,6 +91,8 @@ Route::put('/registrar/students/{id}/documents', [RegistrarController::class, 'u
 Route::get('/registrar/students/{student_id}/file/{filename}', [RegistrarController::class, 'secureViewFile'])->name('registrar.secure-view');
 Route::get('/registrar/faculty-grade-status', [RegistrarController::class, 'facultyGradeStatus'])->name('registrar.faculty-grade-status');
 Route::get('/registrar/manage-grades', [RegistrarController::class, 'manageGrades'])->name('registrar.manage-grades');
+Route::get('/registrar/document-requests', [RegistrarController::class, 'manageDocumentRequests'])->name('registrar.document.requests');
+Route::post('/registrar/send-document/{requestId}', [RegistrarController::class, 'sendDocument'])->name('registrar.send.document');
 Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
 
 // DEAN ROUTES
@@ -150,6 +151,7 @@ Route::get('/student/class/{id}', [StudentController::class, 'viewClassDashboard
 Route::get('/student/class/{id}/predict', [StudentController::class, 'predictGrade'])->name('student.class.predict');
 Route::get('/student/class-details/{schedule_id}', [StudentController::class, 'viewClassDashboard'])->name('student.class_details');
 Route::get('/student/task/{id}', [StudentController::class, 'viewTaskDetails'])->name('student.view-task');
+Route::get('/student/google-task/{id}', [StudentController::class, 'viewGoogleTask'])->name('student.view-google-task');
 Route::get('/student/task/download/{id}', [StudentController::class, 'downloadTaskFile'])->name('student.task.download');
 Route::get('/student/google-classroom/material/{material_id}/download', [StudentController::class, 'downloadGoogleClassroomMaterial'])->name('student.google-classroom.material-download');
 Route::post('/student/task/{id}/submit', [StudentController::class, 'submitTask'])->name('student.submit_task');
