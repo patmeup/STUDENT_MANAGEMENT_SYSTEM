@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <div class="prof-container py-4"
-    x-data="{ currentTab: new URLSearchParams(window.location.search).get('tab') || 'prelim' }">
+    x-data="{ currentTab: '{{ $activeTab }}' }">
 
     <div class="page-header-row">
         <a href="{{ route('student.my_classes') }}" class="btn-back-link">

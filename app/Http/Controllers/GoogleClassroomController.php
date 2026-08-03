@@ -76,18 +76,35 @@ class GoogleClassroomController extends Controller
         if (!$connection) {
             return redirect()->back()->with('error', 'No connected Google Classroom account found.');
         }
+    }
 
-        try {
-            $service = new GoogleClassroomService($connection);
-            $service->syncCourses();
-
-            DB::table('google_classroom_connections')
-                ->where('id', $connection->id)
-                ->update(['last_synced_at' => now()]);
-
-            return redirect()->back()->with('success', 'Google Classroom data synced successfully!');
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Sync failed: ' . $e->getMessage());
+    public function disconnect()
+    {
+        if (session('user_role') !== 'professor') {
+            abort(403, 'Unauthorized access.');
         }
+
+        $connection = DB::table('google_classroom_connections')
+            ->where('professor_id', session('user_id'))
+            ->first();
+
+        if (!$connection) {
+            return redirect()->back()->with('error', 'No connected Google Classroom account found.');
+        }
+
+        $courseIds = DB::table('google_classroom_courses')
+            ->where('connection_id', $connection->id)
+            ->pluck('id');
+
+        if ($courseIds->isNotEmpty()) {
+            DB::table('google_classroom_announcements')->whereIn('course_id', $courseIds)->delete();
+            DB::table('google_classroom_coursework')->whereIn('course_id', $courseIds)->delete();
+            DB::table('google_classroom_materials')->whereIn('course_id', $courseIds)->delete();
+            DB::table('google_classroom_courses')->whereIn('id', $courseIds)->delete();
+        }
+
+        DB::table('google_classroom_connections')->where('id', $connection->id)->delete();
+
+        return redirect()->back()->with('success', 'Google Classroom account disconnected successfully.');
     }
 }
