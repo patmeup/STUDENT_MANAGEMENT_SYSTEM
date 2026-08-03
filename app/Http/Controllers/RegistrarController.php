@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Student;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class RegistrarController extends Controller
@@ -186,7 +187,7 @@ class RegistrarController extends Controller
         $student->zip_code = $request->zip_code;
         $student->place_of_birth = $request->place_of_birth;
         $student->contact_no = $request->contact_no;
-        $student->email = $request->email; // <-- 2. Saves the email to the student data model
+        $student->email = $request->email;
         
         $student->fathers_name = $request->fathers_name;
         $student->fathers_occupation = $request->fathers_occupation;
@@ -437,6 +438,153 @@ class RegistrarController extends Controller
         return view('registrar.manage-grades', compact('students', 'termPeriods', 'termFilter', 'search', 'activeAcademicPeriod'));
     }
 
+    public function manageDocumentRequests()
+    {
+        if (session('user_role') !== 'registrar') {
+            return redirect()->route('login')->with('Error', 'Unauthorized access.');
+        }
+
+        $requests = DB::table('document_requests')
+            ->join('students', 'document_requests.student_id', '=', 'students.student_id')
+            ->select(
+                'document_requests.id as request_id',
+                'document_requests.document_name',
+                'document_requests.purpose',
+                'document_requests.status',
+                'document_requests.created_at',
+                'students.id as student_pk',
+                'students.student_id',
+                'students.first_name',
+                'students.last_name',
+                'students.email',
+                'students.path_psa',
+                'students.path_2x2',
+                'students.path_f138',
+                'students.path_good_moral_new',
+                'students.path_diploma',
+                'students.path_tor',
+                'students.path_dismissal',
+                'students.path_good_moral_trans',
+                'students.path_permit'
+            )
+            ->orderBy('document_requests.created_at', 'desc')
+            ->get();
+
+        // Iisang mapping lang ng requested-doc-name -> DB column + upload input name,
+        // ginagamit ng blade para malaman kung ano ang tamang field na ipapakita/papalitan.
+        $docMapping = [
+            'PSA Birth Certificate'    => ['column' => 'path_psa',              'input' => 'doc_psa'],
+            '2x2 ID Picture'           => ['column' => 'path_2x2',              'input' => 'doc_2x2'],
+            'Form 138 (F138)'          => ['column' => 'path_f138',             'input' => 'doc_f138'],
+            'Form 138'                 => ['column' => 'path_f138',             'input' => 'doc_f138'],
+            'Good Moral Character'     => ['column' => 'path_good_moral_new',   'input' => 'doc_good_moral_new'],
+            'Good Moral'               => ['column' => 'path_good_moral_new',   'input' => 'doc_good_moral_new'],
+            'High School Diploma'      => ['column' => 'path_diploma',          'input' => 'doc_diploma'],
+            'Diploma'                  => ['column' => 'path_diploma',          'input' => 'doc_diploma'],
+            'Transcript of Records'    => ['column' => 'path_tor',              'input' => 'doc_tor'],
+            'TOR'                      => ['column' => 'path_tor',              'input' => 'doc_tor'],
+            'Honorable Dismissal'      => ['column' => 'path_dismissal',        'input' => 'doc_dismissal'],
+            'Cross-Enrollment Permit'  => ['column' => 'path_permit',           'input' => 'doc_permit'],
+        ];
+
+        return view('registrar.document_requests', compact('requests', 'docMapping'));
+    }
+
+    public function sendDocument(Request $request, $requestId)
+    {
+        if (session('user_role') !== 'registrar') {
+            abort(403, 'Unauthorized Access.');
+        }
+
+        $docRequest = DB::table('document_requests')->where('id', $requestId)->first();
+
+        if (!$docRequest) {
+            return redirect()->back()->with('Error', 'There is no document request found with the provided ID.');
+        }
+
+        $student = DB::table('students')->where('student_id', $docRequest->student_id)->first();
+
+        if (!$student || empty($student->email)) {
+            return redirect()->back()->with('Error', 'Student or email not found.');
+        }
+
+        $requestedDocs = json_decode($docRequest->document_name, true);
+        
+        if (!is_array($requestedDocs) || empty($requestedDocs)) {
+            return redirect()->back()->with('Error', 'There are no documents listed in this request.');
+        }
+
+        $docMapping = [
+            'PSA Birth Certificate' => 'path_psa',
+            '2x2 ID Picture' => 'path_2x2',
+            'Form 138 (F138)' => 'path_f138',
+            'Form 138' => 'path_f138',
+            'Good Moral Character' => 'path_good_moral_new', // O path_good_moral_trans depende sa form niyo
+            'Good Moral' => 'path_good_moral_new',
+            'High School Diploma' => 'path_diploma',
+            'Diploma' => 'path_diploma',
+            'Transcript of Records' => 'path_tor',
+            'TOR' => 'path_tor',
+            'Honorable Dismissal' => 'path_dismissal',
+            'Cross-Enrollment Permit' => 'path_permit'
+        ];
+
+        $filesToAttach = [];
+        $foundDocs = [];
+
+        foreach ($requestedDocs as $docName) {
+            if (array_key_exists($docName, $docMapping)) {
+                $columnName = $docMapping[$docName];
+                $fileName = $student->{$columnName}; 
+
+                if ($fileName) {
+                    $fullStoragePath = "student_records/{$student->student_id}/{$fileName}";
+                    
+                    if (Storage::disk('local')->exists($fullStoragePath)) {
+                        $filesToAttach[] = [
+                            'path' => Storage::disk('local')->path($fullStoragePath),
+                            'name' => $docName . '.' . pathinfo($fileName, PATHINFO_EXTENSION)
+                        ];
+                        $foundDocs[] = $docName;
+                    }
+                }
+            }
+        }
+
+        if (empty($filesToAttach)) {
+            return redirect()->back()->with('Error', 'There are no files found on the server for this request.');
+        }
+
+        $displayDocNames = implode(', ', $foundDocs);
+
+        try {
+            Mail::send('emails.send_document', [
+                'studentName' => $student->first_name,
+                'documentName' => $displayDocNames
+            ], function ($message) use ($student, $displayDocNames, $filesToAttach) {
+                $message->to($student->email)
+                        ->subject("Your Requested Documents: " . $displayDocNames);
+                
+                foreach ($filesToAttach as $file) {
+                    $message->attach($file['path'], [
+                        'as' => $file['name']
+                    ]);
+                }
+            });
+
+            DB::table('document_requests')
+                ->where('id', $requestId)
+                ->update([
+                    'status' => 'Completed',
+                    'updated_at' => now()
+                ]);
+
+            return redirect()->back()->with('Success', "The documents have been successfully sent to {$student->first_name}!");
+        } catch (\Exception $e) {
+            return redirect()->back()->with('Error', "Failed to send email: " . $e->getMessage());
+        }
+    }
+    
     public function profileView()
     {
         if (session('user_role') !== 'registrar') {

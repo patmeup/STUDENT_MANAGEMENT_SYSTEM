@@ -201,6 +201,20 @@
                 </li>
 
                 <li>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i>
+                            <span>Document Requests</span>
+                        </a>
+                    @else
+                        <a href="{{ route('registrar.document.requests') }}" class="{{ Request::is('registrar/document-requests') ? 'active' : '' }}">
+                            <i data-lucide="file-text"></i> <span>Document Requests</span>
+                        </a>
+                    @endif
+                </li>
+
+                <li>
                     <a href="{{ route('registrar.user_details') }}" class="{{ Request::is('registrar/user_details') ? 'active' : '' }}">
                         <i data-lucide="user"></i> <span>Profile</span>
                     </a>

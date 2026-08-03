@@ -174,7 +174,6 @@ class ProfessorController extends Controller
             ->get()
             ->groupBy('term');
 
-        // 1. Dito na lang mag-loop para sa grades (malinis at hiwalay)
         foreach ($terms as $term) {
             foreach ($students as $student) {
                 $saved = $savedGrades->get($term . '_' . $student->student_id);
@@ -198,7 +197,6 @@ class ProfessorController extends Controller
             }
         }
 
-        // 2. Google Classroom Connection & Sync Logic (Nasa labas na ng term loops)
         $gConnection = DB::table('google_classroom_connections')
             ->where('professor_id', $professorId)
             ->first();
@@ -210,7 +208,7 @@ class ProfessorController extends Controller
         $gMaterials = collect();
 
         if ($gConnection) {
-            // Auto-sync courses kung konektado naman pero blangko pa ang database
+
             $hasCourses = DB::table('google_classroom_courses')
                 ->where('connection_id', $gConnection->id)
                 ->exists();
@@ -220,7 +218,7 @@ class ProfessorController extends Controller
                     $service = new \App\Support\GoogleClassroomService($gConnection);
                     $service->syncCourses();
                 } catch (\Exception $e) {
-                    // Mag-catch kung sakaling may error sa API connection
+
                 }
             }
 
@@ -242,10 +240,31 @@ class ProfessorController extends Controller
                     ->orderBy('posted_at', 'desc')
                     ->get();
 
+                $academicPeriodId = DB::table('term_periods')->max('academic_period_id') ?? 1;
+
+                $termPeriods = DB::table('term_periods')
+                    ->where('academic_period_id', $academicPeriodId) 
+                    ->get();
+
+                $termTasks = $tasks->groupBy('term');
+
                 $gCourseWork = DB::table('google_classroom_coursework')
                     ->where('course_id', $gLinkedCourse->id)
-                    ->orderBy('due_date', 'desc')
-                    ->get();
+                    ->orderBy('posted_at', 'desc')
+                    ->get()
+                    ->map(function($cw) use ($termPeriods) {
+                        $postDate = $cw->posted_at ? date('Y-m-d', strtotime($cw->posted_at)) : null;
+                        
+                        $matchedTerm = null;
+                        if ($postDate) {
+                            $matchedTerm = $termPeriods->first(function($period) use ($postDate) {
+                                return $postDate >= $period->start_date && $postDate <= $period->end_date;
+                            });
+                        }
+
+                        $cw->term = $matchedTerm ? $matchedTerm->term : 'prelim'; 
+                        return $cw;
+                    });
 
                 $gMaterials = DB::table('google_classroom_materials')
                     ->where('course_id', $gLinkedCourse->id)
@@ -258,6 +277,8 @@ class ProfessorController extends Controller
             'classDetails',
             'students',
             'tasks',
+            'termTasks',
+            'termPeriods',
             'autoGrades',
             'draftGrades',
             'gConnection',
@@ -863,7 +884,11 @@ class ProfessorController extends Controller
 
         $isLocked = !Str::startsWith($user->password, '$2y$');
 
-        return view('professor.user_details', compact('user', 'isLocked'));
+        $gConnection = DB::table('google_classroom_connections')
+            ->where('professor_id', $professor_id)
+            ->first();
+
+        return view('professor.user_details', compact('user', 'isLocked', 'gConnection'));
     }
 
 }

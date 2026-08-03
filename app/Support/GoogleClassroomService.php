@@ -31,7 +31,6 @@ class GoogleClassroomService
                 : 0,
         ]);
 
-        // I-refresh kung expired na
         if ($this->client->isAccessTokenExpired()) {
             $newToken = $this->client->fetchAccessTokenWithRefreshToken($connection->refresh_token);
 
@@ -60,14 +59,14 @@ class GoogleClassroomService
         $courses = $service->courses->listCourses(['teacherId' => 'me', 'courseStates' => ['ACTIVE']]);
 
         foreach ($courses->getCourses() ?? [] as $course) {
-            $courseId = DB::table('google_classroom_courses')->updateOrInsert(
+            DB::table('google_classroom_courses')->updateOrInsert(
                 ['google_course_id' => $course->getId()],
                 [
                     'connection_id' => $this->connection->id,
                     'course_name' => $course->getName(),
                     'course_section' => $course->getSection(),
                     'updated_at' => now(),
-                    'created_at' => now(),
+                    'created_at' => DB::raw("COALESCE(created_at, '" . now() . "')"),
                 ]
             );
 
@@ -84,7 +83,6 @@ class GoogleClassroomService
     protected function syncAnnouncements($service, $googleCourseId, $localCourseId)
     {
         $announcements = $service->courses_announcements->listCoursesAnnouncements($googleCourseId);
-
         $seenIds = [];
 
         foreach ($announcements->getAnnouncements() ?? [] as $a) {
@@ -101,7 +99,7 @@ class GoogleClassroomService
                     'text' => $a->getText(),
                     'posted_at' => $postedAt,
                     'updated_at' => now(),
-                    'created_at' => now(),
+                    'created_at' => DB::raw("COALESCE(created_at, '" . now() . "')"),
                 ]
             );
         }
@@ -115,7 +113,6 @@ class GoogleClassroomService
     protected function syncCourseWork($service, $googleCourseId, $localCourseId)
     {
         $courseWork = $service->courses_courseWork->listCoursesCourseWork($googleCourseId);
-
         $seenIds = [];
 
         foreach ($courseWork->getCourseWork() ?? [] as $cw) {
@@ -127,7 +124,10 @@ class GoogleClassroomService
                 $dueDate = sprintf('%04d-%02d-%02d', $d->getYear(), $d->getMonth(), $d->getDay());
             }
 
-            // Sine-save dito ang Assignment, Quiz assignment, at Questions
+            $postedAt = $cw->getCreationTime() 
+                ? Carbon::parse($cw->getCreationTime())->format('Y-m-d H:i:s') 
+                : null;
+
             DB::table('google_classroom_coursework')->updateOrInsert(
                 ['google_coursework_id' => $cw->getId()],
                 [
@@ -135,10 +135,12 @@ class GoogleClassroomService
                     'title' => $cw->getTitle(),
                     'description' => $cw->getDescription(),
                     'work_type' => $cw->getWorkType(),
+                    'max_points' => $cw->getMaxPoints(),
                     'due_date' => $dueDate,
+                    'posted_at' => $postedAt,
                     'alternate_link' => $cw->getAlternateLink(),
                     'updated_at' => now(),
-                    'created_at' => now(),
+                    'created_at' => DB::raw("COALESCE(created_at, '" . now() . "')"),
                 ]
             );
         }
@@ -152,13 +154,11 @@ class GoogleClassroomService
     protected function syncCourseWorkMaterials($service, $googleCourseId, $localCourseId)
     {
         $materials = $service->courses_courseWorkMaterials->listCoursesCourseWorkMaterials($googleCourseId);
-
         $seenIds = [];
 
         foreach ($materials->getCourseWorkMaterial() ?? [] as $mat) {
             $seenIds[] = $mat->getId();
 
-            // Hanapin ang unang Google Drive file na naka-attach (kung meron)
             $driveFileId = null;
             $driveFileName = null;
 
@@ -171,17 +171,22 @@ class GoogleClassroomService
                 }
             }
 
+            $postedAt = $mat->getCreationTime() 
+                ? Carbon::parse($mat->getCreationTime())->format('Y-m-d H:i:s') 
+                : null;
+
             DB::table('google_classroom_materials')->updateOrInsert(
                 ['google_material_id' => $mat->getId()],
                 [
                     'course_id' => $localCourseId,
                     'title' => $mat->getTitle(),
                     'description' => $mat->getDescription(),
+                    'posted_at' => $postedAt,
                     'alternate_link' => $mat->getAlternateLink(),
                     'drive_file_id' => $driveFileId,
                     'drive_file_name' => $driveFileName,
                     'updated_at' => now(),
-                    'created_at' => now(),
+                    'created_at' => DB::raw("COALESCE(created_at, '" . now() . "')"),
                 ]
             );
         }
@@ -208,7 +213,6 @@ class GoogleClassroomService
 
         if (isset($googleNativeExportMap[$mimeType])) {
             [$exportMime, $ext] = $googleNativeExportMap[$mimeType];
-
             $response = $drive->files->export($driveFileId, $exportMime, ['alt' => 'media']);
 
             if (!Str::endsWith(strtolower($name), $ext)) {

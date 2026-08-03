@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <div class="profile-container">
 
     @if($isLocked)
@@ -97,6 +98,43 @@
             </div>
 
         </form>
+    </div>
+
+    <div class="profile-card">
+        <div class="card-header">
+            <h3 class="card-title">Google Classroom Integration</h3>
+        </div>
+
+        <div class="card-body">
+            @if($gConnection)
+                <div class="gclass-status-row">
+                    <div class="gclass-status-info">
+                        <i class="fa-brands fa-google-classroom"></i>
+                        <div>
+                            <span class="gclass-connected-label">Connected</span>
+                            <span class="gclass-connected-email">{{ $gConnection->google_email }}</span>
+                        </div>
+                    </div>
+                    <form action="{{ route('professor.google-classroom.disconnect') }}" method="POST"
+                          onsubmit="return confirm('Are you sure you want to disconnect this Google Classroom account? All synced courses, announcements, coursework, and materials will be removed.');">
+                        @csrf
+                        <button type="submit" class="btn-gclass-disconnect">
+                            <i class="fa-solid fa-link-slash"></i> Disconnect
+                        </button>
+                    </form>
+                </div>
+            @else
+                <div class="gclass-status-row">
+                    <div class="gclass-status-info">
+                        <i class="fa-brands fa-google-classroom" style="color: #94a3b8;"></i>
+                        <span class="gclass-disconnected-label">No connected Google Classroom account.</span>
+                    </div>
+                    <a href="{{ route('professor.google-classroom.connect') }}" class="btn-gclass-connect">
+                        <i class="fa-brands fa-google"></i> Connect
+                    </a>
+                </div>
+            @endif
+        </div>
     </div>
 
 </div>
@@ -289,6 +327,26 @@
     .alert-warning { background-color: #fffbeb; border-left: 4px solid #f59e0b; color: #78350f; }
     .alert-success { background-color: #f0fdf4; border-left: 4px solid #22c55e; color: #166534; font-weight: 600; }
     .alert-danger { background-color: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; }
+
+    .gclass-status-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .gclass-status-info { display: flex; align-items: center; gap: 14px; }
+    .gclass-status-info i { font-size: 26px; color: #1e2a5a; }
+    .gclass-connected-label { display: block; font-weight: 700; color: #15803d; font-size: 0.9rem; }
+    .gclass-connected-email { display: block; font-size: 0.8rem; color: #64748b; }
+    .gclass-disconnected-label { font-size: 0.875rem; color: #64748b; font-weight: 500; }
+
+    .btn-gclass-disconnect {
+        background: white; border: 1px solid #fecaca; color: #b91c1c; font-weight: 600; font-size: 0.8rem;
+        padding: 9px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+        transition: 0.2s;
+    }
+    .btn-gclass-disconnect:hover { background: #fef2f2; border-color: #f87171; }
+
+    .btn-gclass-connect {
+        background: #1e2a5a; color: white; font-weight: 600; font-size: 0.8rem; text-decoration: none;
+        padding: 9px 16px; border-radius: 8px; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s;
+    }
+    .btn-gclass-connect:hover { background: #141d40; color: white; }
 </style>
 
 <script>
