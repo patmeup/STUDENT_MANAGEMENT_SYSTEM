@@ -95,9 +95,10 @@ class ProfessorController extends Controller
                 'subjects.lecture_units',
                 'subjects.lab_units',
 
-                \DB::raw('(SELECT COUNT(*)
-                        FROM student_subjects
-                        WHERE student_subjects.schedule_id = class_schedules.id
+                \DB::raw('(SELECT COUNT(*) 
+                        FROM student_subjects 
+                        JOIN students ON student_subjects.student_number = students.student_id
+                        WHERE student_subjects.schedule_id = class_schedules.id 
                         AND student_subjects.status = "Enrolled") as students_count')
             )
             ->where('subjects.professor_id', $professor_id)
@@ -226,6 +227,13 @@ class ProfessorController extends Controller
                 ->where('linked_class_schedule_id', $schedule_id)
                 ->first();
 
+            $termTasks = DB::table('student_tasks')
+                ->where('class_schedule_id', $schedule_id)
+                ->orderBy('due_date', 'asc')
+                ->get()
+                ->groupBy('term');
+            $termPeriods = collect();
+
             $gAvailableCourses = DB::table('google_classroom_courses')
                 ->where('connection_id', $gConnection->id)
                 ->where(function ($q) use ($schedule_id) {
@@ -246,7 +254,6 @@ class ProfessorController extends Controller
                     ->where('academic_period_id', $academicPeriodId) 
                     ->get();
 
-                $termTasks = $tasks->groupBy('term');
 
                 $gCourseWork = DB::table('google_classroom_coursework')
                     ->where('course_id', $gLinkedCourse->id)
