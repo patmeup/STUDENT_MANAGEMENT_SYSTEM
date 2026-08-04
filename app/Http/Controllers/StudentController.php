@@ -646,49 +646,44 @@ class StudentController extends Controller
         try {
             \Illuminate\Support\Facades\Mail::to($student->email)->send(new \App\Mail\NewStudentCredentials($student, $defaultPassword));
         } catch (\Exception $e) {
-            return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. Hindi na-send ang welcome email (" . $e->getMessage() . ") — pakibigay na lang manually ang Student ID at default password sa estudyante.");
+            return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. The welcome email was not sent. (" . $e->getMessage() . ") — Please provide the Student ID and default password to the student manually.");
         }
 
-        return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. Naipadala na rin ang login credentials sa email ng estudyante.");
+        return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. Login credentials have also been sent to the student’s email.");
     }
 
     public function myClasses()
     {
-        if (session('user_role') !== 'student') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
-        $studentNumber = session('student_id');
-
-        $enrolledCountQuery = DB::table('student_subjects')
-            ->select(DB::raw('count(*)'))
-            ->whereColumn('student_subjects.schedule_id', 'class_schedules.id')
-            ->where('student_subjects.status', 'Enrolled');
+        $studentId = session('student_id'); // o session('user_id')
 
         $classes = DB::table('student_subjects')
-            ->join('subjects', 'student_subjects.subject_id', '=', 'subjects.id')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
-            ->leftJoin('employees', function($join) {
-                $join->on('subjects.professor_id', '=', 'employees.id')
-                    ->where('employees.role', '=', 'professor');
-            })
-            ->where('student_subjects.student_number', $studentNumber)
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id')
+            ->where('student_subjects.student_number', $studentId)
             ->where('student_subjects.status', 'Enrolled')
             ->select(
                 'class_schedules.id as schedule_id',
-                'subjects.subject_code',
-                'subjects.subject_title',
-                'subjects.total_units',
-                'student_subjects.status',
                 'class_schedules.section_name',
                 'class_schedules.class_days',
                 'class_schedules.start_time',
                 'class_schedules.end_time',
                 'class_schedules.room_assignment',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'subjects.lecture_units',
+                'subjects.lab_units',
+                'student_subjects.status',
+
                 'employees.first_name as prof_first_name',
-                'employees.last_name as prof_last_name'
+                'employees.last_name as prof_last_name',
+
+                DB::raw('(SELECT COUNT(*) 
+                        FROM student_subjects as ss
+                        JOIN students as s ON ss.student_number = s.student_id
+                        WHERE ss.schedule_id = class_schedules.id 
+                        AND ss.status = "Enrolled") as enrolled_students_count')
             )
-            ->selectSub($enrolledCountQuery, 'enrolled_students_count')
             ->get();
 
         return view('student.my_classes', compact('classes'));

@@ -97,6 +97,7 @@ class ProfessorController extends Controller
 
                 DB::raw('(SELECT COUNT(*)
                         FROM student_subjects
+                        JOIN students ON student_subjects.student_number = students.student_id
                         WHERE student_subjects.schedule_id = class_schedules.id
                         AND student_subjects.status = "Enrolled") as students_count')
             )
@@ -226,6 +227,13 @@ class ProfessorController extends Controller
                 ->where('linked_class_schedule_id', $schedule_id)
                 ->first();
 
+            $termTasks = DB::table('student_tasks')
+                ->where('class_schedule_id', $schedule_id)
+                ->orderBy('due_date', 'asc')
+                ->get()
+                ->groupBy('term');
+            $termPeriods = collect();
+
             $gAvailableCourses = DB::table('google_classroom_courses')
                 ->where('connection_id', $gConnection->id)
                 ->where(function ($q) use ($schedule_id) {
@@ -243,10 +251,9 @@ class ProfessorController extends Controller
                 $academicPeriodId = DB::table('term_periods')->max('academic_period_id') ?? 1;
 
                 $termPeriods = DB::table('term_periods')
-                    ->where('academic_period_id', $academicPeriodId) 
+                    ->where('academic_period_id', $academicPeriodId)
                     ->get();
 
-                $termTasks = $tasks->groupBy('term');
 
                 $gCourseWork = DB::table('google_classroom_coursework')
                     ->where('course_id', $gLinkedCourse->id)
@@ -254,7 +261,7 @@ class ProfessorController extends Controller
                     ->get()
                     ->map(function($cw) use ($termPeriods) {
                         $postDate = $cw->posted_at ? date('Y-m-d', strtotime($cw->posted_at)) : null;
-                        
+
                         $matchedTerm = null;
                         if ($postDate) {
                             $matchedTerm = $termPeriods->first(function($period) use ($postDate) {
@@ -262,7 +269,7 @@ class ProfessorController extends Controller
                             });
                         }
 
-                        $cw->term = $matchedTerm ? $matchedTerm->term : 'prelim'; 
+                        $cw->term = $matchedTerm ? $matchedTerm->term : 'prelim';
                         return $cw;
                     });
 

@@ -9,7 +9,7 @@
     <div class="docreq-header">
         <div>
             <h2 class="docreq-title">Student Document Requests</h2>
-            <p class="docreq-subtitle">Pamahalaan at i-apruba ang mga kahilingan ng dokumento mula sa mga estudyante.</p>
+            <p class="docreq-subtitle">Manage and approve document requests from students.</p>
         </div>
         <div class="docreq-search">
             <i class="fa-solid fa-search"></i>
@@ -30,7 +30,7 @@
 
     <div class="docreq-card">
         <div class="docreq-card-header">
-            <i class="fa-solid fa-folder-open"></i> Listahan ng mga Nag-request ng Dokumento
+            <i class="fa-solid fa-folder-open"></i> List of Students Who Requested Documents
             <span class="docreq-count-badge">{{ count($requests) }}</span>
         </div>
 
