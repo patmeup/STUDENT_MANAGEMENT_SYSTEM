@@ -143,6 +143,7 @@ Route::get('/professor/class/{schedule_id}/student/{student_id}/breakdown', [Pro
 Route::post('/professor/save-grades',[ProfessorController::class, 'saveDraftGrades'])->name('professor.save-grades');
 Route::post('/professor/recalculate-grade', [ProfessorController::class, 'recalculateAutoGrade'])->name('professor.recalculate-grade');
 Route::get('/professor/user_details', [ProfessorController::class, 'profileView'])->name('professor.user_details');
+Route::post('/professor/google-classroom/disconnect', [GoogleClassroomController::class, 'disconnect'])->name('professor.google-classroom.disconnect');
 
 // STUDENT ROUTES
 Route::get('/student/dashboard', [StudentController::class, 'dashboard'])->name('student.dashboard');

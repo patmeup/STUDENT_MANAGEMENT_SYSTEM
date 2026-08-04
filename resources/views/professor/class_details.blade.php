@@ -437,7 +437,7 @@
 
             @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key => $termLabel)
                 @php
-                    $termTasks = $tasks->where('term', $key);
+                    $termCourseWork = $gCourseWork->where('term', $key);
                 @endphp
                 <div x-show="currentTab === '{{ $key }}'" x-transition style="display: none;"
                     x-data="{
@@ -477,7 +477,9 @@
                             @php
                                 $mergedDeliverables = collect();
 
-                                foreach ($termTasks as $task) {
+                                // Dito na natin ginagamit ang $termTasks nang ligtas
+                                $currentTermTasks = $termTasks[$key] ?? collect();
+                                foreach ($currentTermTasks as $task) {
                                     $mergedDeliverables->push((object)[
                                         'source'     => 'system',
                                         'id'         => $task->id,
@@ -497,12 +499,19 @@
                                             'id'         => $cw->id,
                                             'title'      => $cw->title,
                                             'type'       => 'coursework',
-                                            'max_score'  => null,
+                                            'max_score'  => $cw->max_points ?? null,
                                             'due_date'   => $cw->due_date,
                                             'link'       => $cw->alternate_link,
                                             'sort_date'  => $cw->due_date ?? '1970-01-01',
                                         ]);
                                     }
+
+                                    $termMaterials = $gMaterials->filter(function($mat) use ($key, $termPeriods) {
+                                        $postDate = $mat->posted_at ? date('Y-m-d', strtotime($mat->posted_at)) : null;
+                                        if (!$postDate) return false;
+                                        $matched = $termPeriods->first(fn($p) => $postDate >= $p->start_date && $postDate <= $p->end_date);
+                                        return $matched && $matched->term === $key;
+                                    });
 
                                     foreach ($gMaterials as $mat) {
                                         $mergedDeliverables->push((object)[
@@ -696,7 +705,7 @@
                                     this.hasUnsavedChanges = true;
 
                                     if (mode === 'auto') {
-                                        let response = type = await fetch('{{ route('professor.recalculate-grade') }}', {
+                                        let response = await fetch('{{ route('professor.recalculate-grade') }}', {
                                             method: 'POST',
                                             headers: {
                                                 'Content-Type': 'application/json',

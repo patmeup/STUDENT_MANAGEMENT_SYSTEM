@@ -214,8 +214,6 @@ class StudentController extends Controller
             ->orderBy('attendance_date', 'desc')
             ->get();
 
-        $activeTab = $request->query('tab', 'prelim');
-
         $classDetails = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->where('class_schedules.id', $schedule_id)
@@ -290,6 +288,9 @@ class StudentController extends Controller
 
             return $sortedTerms->keys()->last() ?? 'final';
         };
+
+        $defaultActiveTerm = $resolveTermForItem(now()->format('Y-m-d'));
+        $activeTab = $request->query('tab', $defaultActiveTerm);
 
         $termGoogleData = [
             'prelim' => ['materials' => collect(), 'coursework' => collect()],
@@ -648,7 +649,7 @@ class StudentController extends Controller
             return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. Hindi na-send ang welcome email (" . $e->getMessage() . ") — pakibigay na lang manually ang Student ID at default password sa estudyante.");
         }
 
-        return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. A welcome email with the default password has been sent to the student's email address.");
+        return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. Naipadala na rin ang login credentials sa email ng estudyante.");
     }
 
     public function myClasses()
@@ -741,6 +742,8 @@ class StudentController extends Controller
             return redirect()->route('login')->with('error', 'Unauthorized access.');
         }
 
+        $studentNumber = session('student_id');
+
         $task = DB::table('google_classroom_coursework')
             ->where('id', $id)
             ->first();
@@ -755,16 +758,30 @@ class StudentController extends Controller
 
         $scheduleId = $course ? $course->linked_class_schedule_id : null;
 
+        if (!$scheduleId) {
+            return redirect()->back()->with('error', 'This task is not linked to any class.');
+        }
+
+        $isEnrolled = DB::table('student_subjects')
+            ->where('schedule_id', $scheduleId)
+            ->where('student_number', $studentNumber)
+            ->where('status', 'Enrolled')
+            ->exists();
+
+        if (!$isEnrolled) {
+            return redirect()->route('student.my_classes')->with('error', 'Unauthorized access to this task.');
+        }
+
         $classDetails = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->where('class_schedules.id', $scheduleId)
             ->select('class_schedules.*', 'subjects.subject_code', 'subjects.subject_title')
             ->first();
 
-        $studentNumber = session('student_id');
+        $resolvedTerm = $this->resolveGoogleClassroomTerm($task->due_date ?? $task->posted_at ?? null);
 
         $submission = DB::table('task_submissions')
-            ->where('task_id', 'gclass_' . $id) 
+            ->where('google_coursework_id', $id)
             ->where('student_id', $studentNumber)
             ->first();
 
@@ -774,7 +791,7 @@ class StudentController extends Controller
             'class_schedule_id' => $scheduleId,
             'subject_code' => $classDetails->subject_code ?? 'GCLASS',
             'section_name' => $classDetails->section_name ?? '',
-            'term' => $task->term ?? 'prelim',
+            'term' => $resolvedTerm,
             'activity_name' => $task->title,
             'activity_type' => $task->work_type ?? 'assignment',
             'max_score' => $task->max_points ?? 100,
@@ -787,6 +804,53 @@ class StudentController extends Controller
             'task' => $taskData,
             'submission' => $submission
         ]);
+    }
+
+    /**
+     * Tinutukoy ang tamang term_period ng isang Google Classroom coursework item
+     * base sa due_date (o posted_at kung walang due date), gamit ang parehong
+     * exact-range-match -> nearest-upcoming -> latest fallback na logic na
+     * ginagamit sa buong class_details view.
+     */
+    private function resolveGoogleClassroomTerm($referenceDate)
+    {
+        if (!$referenceDate) {
+            return 'prelim';
+        }
+
+        $termPeriods = DB::table('term_periods')
+            ->get()
+            ->keyBy(function ($item) {
+                return strtolower(trim($item->term));
+            })
+            ->sortBy('start_date');
+
+        if ($termPeriods->isEmpty()) {
+            return 'prelim';
+        }
+
+        $targetDate = date('Y-m-d', strtotime($referenceDate));
+
+        foreach ($termPeriods as $key => $period) {
+            if ($targetDate >= $period->start_date && $targetDate <= $period->end_date) {
+                return $key;
+            }
+        }
+
+        $nearestTerm = null;
+        $minDiff = PHP_INT_MAX;
+
+        foreach ($termPeriods as $key => $period) {
+            if ($targetDate < $period->start_date) {
+                $diff = strtotime($period->start_date) - strtotime($targetDate);
+                if ($diff < $minDiff) {
+                    $minDiff = $diff;
+                    $nearestTerm = $key;
+                }
+            }
+        }
+
+        return $nearestTerm ?? $termPeriods->keys()->last() ?? 'prelim';
     }
 
     public function downloadTaskFile($id)
@@ -877,6 +941,10 @@ class StudentController extends Controller
 
     public function submitTask(Request $request, $id)
     {
+        if (str_starts_with($id, 'gclass_')) {
+            return $this->submitGoogleTask($request, (int) str_replace('gclass_', '', $id));
+        }
+
         $task_id = $id;
         $student_id = session('student_id');
 
@@ -943,6 +1011,96 @@ class StudentController extends Controller
         }
 
         return redirect()->back()->with('error', 'No file selected.');
+    }
+
+    /**
+     * Pag-submit ng file para sa isang Google Classroom coursework item.
+     * Parehong pattern ng submitTask() pero gumagamit ng google_coursework_id
+     * column sa halip na task_id, dahil hiwalay na table (google_classroom_coursework)
+     * ang pinagmumulan ng gawaing ito, hindi student_tasks.
+     */
+    private function submitGoogleTask(Request $request, int $courseworkId)
+    {
+        $student_id = session('student_id');
+
+        $task = DB::table('google_classroom_coursework')
+            ->where('id', $courseworkId)
+            ->first();
+
+        if (!$task) {
+            return redirect()->back()->with('error', 'Task details not found.');
+        }
+
+        $course = DB::table('google_classroom_courses')
+            ->where('id', $task->course_id)
+            ->first();
+
+        $scheduleId = $course ? $course->linked_class_schedule_id : null;
+
+        if (!$scheduleId) {
+            return redirect()->back()->with('error', 'This task is not linked to any class.');
+        }
+
+        $isEnrolled = DB::table('student_subjects')
+            ->where('schedule_id', $scheduleId)
+            ->where('student_number', $student_id)
+            ->where('status', 'Enrolled')
+            ->exists();
+
+        if (!$isEnrolled) {
+            return redirect()->back()->with('error', 'You are not enrolled in this class.');
+        }
+
+        if ($task->due_date && \Carbon\Carbon::parse($task->due_date)->endOfDay()->isPast()) {
+            return redirect()->back()->with('error', 'Submission closed. The deadline for this task has already passed.');
+        }
+
+        $request->validate([
+            'attachment' => 'required|file|max:25600',
+        ]);
+
+        $file = $request->file('attachment');
+        $originalName = $file->getClientOriginalName();
+        $extension = $file->getClientOriginalExtension();
+
+        $classInfo = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->where('class_schedules.id', $scheduleId)
+            ->select('subjects.subject_code', 'class_schedules.section_name')
+            ->first();
+
+        $classFolder = strtoupper(($classInfo->subject_code ?? 'GCLASS') . '_' . ($classInfo->section_name ?? ''));
+
+        $resolvedTerm = $this->resolveGoogleClassroomTerm($task->due_date ?? $task->posted_at ?? null);
+
+        $termFolderMap = [
+            'prelim' => 'PRELIM_TERM',
+            'midterm' => 'MIDTERM_TERM',
+            'semifinal' => 'SEMI-FINAL_TERM',
+            'final' => 'FINAL_TERM',
+        ];
+        $termFolder = $termFolderMap[$resolvedTerm] ?? strtoupper($resolvedTerm);
+
+        $folderPath = "task_submissions/{$classFolder}/{$termFolder}";
+        $finalName = $student_id . '_' . time() . '.' . $extension;
+
+        $file->storeAs($folderPath, $finalName, 'local');
+
+        $filePath = "{$folderPath}/{$finalName}";
+
+        DB::table('task_submissions')->updateOrInsert(
+            ['google_coursework_id' => $courseworkId, 'student_id' => $student_id],
+            [
+                'task_id' => null,
+                'file_path' => $filePath,
+                'original_filename' => $originalName,
+                'submitted_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+
+        return redirect()->back()->with('success', 'Task submitted successfully!');
     }
 
     public function submitDocumentRequest(Request $request)

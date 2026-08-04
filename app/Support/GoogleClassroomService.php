@@ -135,6 +135,7 @@ class GoogleClassroomService
                     'title' => $cw->getTitle(),
                     'description' => $cw->getDescription(),
                     'work_type' => $cw->getWorkType(),
+                    'max_points' => $cw->getMaxPoints(),
                     'due_date' => $dueDate,
                     'posted_at' => $postedAt,
                     'alternate_link' => $cw->getAlternateLink(),
