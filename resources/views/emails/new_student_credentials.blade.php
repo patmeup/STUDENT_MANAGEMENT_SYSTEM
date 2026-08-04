@@ -23,7 +23,7 @@
         </div>
         <div class="email-body">
             <p>Hi {{ $student->first_name }},</p>
-            <p>Matagumpay kang naka-register sa Student Management System ng Arellano University. Gamitin mo ang mga sumusunod na detalye para mag-log in sa iyong account:</p>
+            <p>You have successfully registered in the Arellano University Student Management System. Please use the following details to log in to your account:</p>
 
             <div class="credential-box">
                 <div class="credential-row">
@@ -37,11 +37,11 @@
             </div>
 
             <div class="notice-box">
-                Para sa seguridad ng iyong account, mangyaring palitan ang iyong password kaagad pagkatapos mong mag-log in sa unang pagkakataon.
+                For the security of your account, please change your password immediately after logging in for the first time.
             </div>
         </div>
         <div class="email-footer">
-            Ito ay awtomatikong email mula sa Arellano University Student Management System. Huwag i-reply sa email na ito.
+            This is an automated email from the Arellano University Student Management System. Please do not reply to this email.
         </div>
     </div>
 </body>

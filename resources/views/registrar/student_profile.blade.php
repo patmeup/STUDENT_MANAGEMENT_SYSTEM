@@ -89,7 +89,7 @@
             @method('PUT')
 
             <p style="font-size: 14px; color: #64748b; margin-top: 0; margin-bottom: 20px;">
-                Ipinapakita sa ibaba ang mga dokumentong kailangan para sa uri ng estudyanteng ito. Maaari mong tingnan o i-update ang mga ito anumang oras.
+                The required documents for this student type are shown below. You can view or update them at any time.
             </p>
 
             @php

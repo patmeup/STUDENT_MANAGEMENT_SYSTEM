@@ -646,10 +646,10 @@ class StudentController extends Controller
         try {
             \Illuminate\Support\Facades\Mail::to($student->email)->send(new \App\Mail\NewStudentCredentials($student, $defaultPassword));
         } catch (\Exception $e) {
-            return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. Hindi na-send ang welcome email (" . $e->getMessage() . ") — pakibigay na lang manually ang Student ID at default password sa estudyante.");
+            return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. The welcome email was not sent. (" . $e->getMessage() . ") — Please manually provide the Student ID and default password to the student.");
         }
 
-        return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. Naipadala na rin ang login credentials sa email ng estudyante.");
+        return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. The login credentials have also been sent to the student's email.");
     }
 
     public function myClasses()
