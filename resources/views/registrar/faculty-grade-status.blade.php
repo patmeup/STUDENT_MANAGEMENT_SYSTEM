@@ -47,7 +47,6 @@
         <span class="legend-chip legend-not-started"><i class="fa-solid fa-circle-xmark"></i> Not Started</span>
     </div>
 
-    <!-- Table Card -->
     <div class="sa-card">
         <div class="table-responsive">
             <table class="minimal-table">

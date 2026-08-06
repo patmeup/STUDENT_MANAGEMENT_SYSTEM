@@ -26,28 +26,32 @@
     @endif
 
     <div class="card-header-flex mb-4">
-        <h3 class="card-title-list">My Assigned Teaching Load</h3>
-        <div class="d-flex align-items-center gap-3">
+        <div class="header-left-group">
+            <h3 class="card-title-list">My Assigned Teaching Load</h3>
+            <span class="badge-count">{{ count($classes) }} Active Class Sections</span>
+        </div>
+
+        <div class="teaching-load-actions">
             @if($gConnection)
-                <div class="google-connected-badge">
-                    <i class="fa-brands fa-google-classroom text-success"></i>
+                <div class="google-connected-pill">
+                    <i class="fa-brands fa-google-classroom"></i>
                     <div class="google-connection-info">
                         <span class="connected-label">Google Classroom Connected</span>
                         <span class="connected-email">{{ $gConnection->google_email }}</span>
                     </div>
+                    <div class="pill-divider"></div>
+                    <form action="{{ route('professor.google-classroom.sync') }}" method="POST" class="m-0">
+                        @csrf
+                        <button type="submit" class="btn-sync-icon" title="Sync Now">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </button>
+                    </form>
                 </div>
-                <form action="{{ route('professor.google-classroom.sync') }}" method="POST">
-                    @csrf
-                    <button type="submit" class="btn-sm-outline">
-                        <i class="fa-solid fa-arrows-rotate"></i> Sync Now
-                    </button>
-                </form>
             @else
                 <a href="{{ route('professor.google-classroom.connect') }}" class="btn-google-classroom-connect">
                     <i class="fa-brands fa-google-classroom"></i> Connect Google Classroom
                 </a>
             @endif
-            <span class="badge-count">{{ count($classes) }} Active Class Sections</span>
         </div>
     </div>
 
@@ -115,14 +119,15 @@
     .header-titles p { color: #666; font-size: 14px; margin-bottom: 0; }
     .prof-level { background: #1e2a5a; color: white; padding: 8px 16px; border-radius: 50px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    .card-header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+    .card-header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 16px; flex-wrap: wrap; gap: 14px; }
+    .header-left-group { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
     .card-title-list { font-size: 16px; font-weight: 700; margin: 0; color: #1e293b; }
-    .badge-count { background: #1e2a5a; color: white; font-size: 12px; padding: 5px 14px; border-radius: 20px; font-weight: 700; }
+    .badge-count { background: #1e2a5a; color: white; font-size: 12px; padding: 6px 14px; border-radius: 20px; font-weight: 700; display: inline-flex; align-items: center; }
 
-    /* Grid Framework */
+    .teaching-load-actions { display: flex; align-items: center; gap: 12px; }
+
     .prof-classes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 25px; }
 
-    /* Clickable Card Core Elements */
     .clickable-card { text-decoration: none !important; color: inherit !important; display: block; }
     
     .prof-class-card { background: white; border-radius: 15px; overflow: hidden; border: 1px solid #e0e0e0; transition: transform 0.25s ease, box-shadow 0.25s ease; display: flex; flex-direction: column; }
@@ -149,8 +154,6 @@
     .prof-alert-danger { background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; }
     .prof-alert-success { background: #f0fdf4; color: #166534; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #16a34a; font-size: 14px; }
 
-    .card-header-flex { flex-wrap: wrap; gap: 12px; }
-
     .btn-google-classroom-connect {
         background-color: #ffffff;
         color: #15803d;
@@ -166,24 +169,46 @@
         transition: all 0.2s ease;
         white-space: nowrap;
     }
+    
     .btn-google-classroom-connect:hover { background-color: #f0fdf4; border-color: #86efac; color: #166534; }
 
-    .google-connected-badge {
-        background-color: #f0fdf4;
-        border: 1px solid #bbf7d0;
-        padding: 6px 12px;
-        border-radius: 6px;
+    .google-connected-pill {
         display: inline-flex;
         align-items: center;
         gap: 10px;
-        font-size: 12.5px;
+        background-color: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        padding: 6px 8px 6px 12px;
+        border-radius: 30px;
     }
-    .google-connected-badge i { font-size: 18px; }
-    .google-connection-info { display: flex; flex-direction: column; }
-    .connected-label { font-weight: 700; color: #166534; line-height: 1.2; }
-    .connected-email { font-size: 11.5px; color: #475569; }
+    .google-connected-pill > i { font-size: 18px; color: #15803d; }
+    .google-connection-info { display: flex; flex-direction: column; line-height: 1.2; }
+    .connected-label { font-weight: 700; color: #166534; font-size: 12px; }
+    .connected-email { font-size: 11px; color: #64748b; }
 
-    .btn-sm-outline { background: white; border: 1px solid #cbd5e1; color: #475569; font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: 0.15s; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
+    .pill-divider { width: 1px; height: 26px; background: #bbf7d0; }
+
+    .btn-sync-icon {
+        width: 30px; height: 30px;
+        border-radius: 50%;
+        border: none;
+        background: white;
+        color: #15803d;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        cursor: pointer;
+        transition: 0.2s;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
+    .btn-sync-icon:hover {
+        background: #15803d;
+        color: white;
+        transform: rotate(90deg);
+    }
+
+    .btn-sm-outline { background: white; border: 1px solid #cbd5e1; color: #475569; font-size: 12px; font-weight: 600; padding: 7px 12px; border-radius: 6px; cursor: pointer; transition: 0.15s; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; height: 100%; }
     .btn-sm-outline:hover { border-color: #1e2a5a; color: #1e2a5a; background: #eef1fb; }
 </style>
 @endsection
