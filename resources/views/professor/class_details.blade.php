@@ -477,8 +477,16 @@
                             @php
                                 $mergedDeliverables = collect();
 
-                                // Dito na natin ginagamit ang $termTasks nang ligtas
-                                $currentTermTasks = $termTasks[$key] ?? collect();
+                                // 1. Filter System Tasks para sa TANGING active term tab lang ($key)
+                                $currentTermTasks = collect();
+                                if (isset($termTasks)) {
+                                    if ($termTasks instanceof \Illuminate\Support\Collection) {
+                                        $currentTermTasks = $termTasks->get($key, collect());
+                                    } elseif (is_array($termTasks)) {
+                                        $currentTermTasks = collect($termTasks[$key] ?? []);
+                                    }
+                                }
+
                                 foreach ($currentTermTasks as $task) {
                                     $mergedDeliverables->push((object)[
                                         'source'     => 'system',
@@ -492,53 +500,50 @@
                                     ]);
                                 }
 
-                                if ($gConnection && $gLinkedCourse) {
-                                    foreach ($gCourseWork as $cw) {
-                                        $mergedDeliverables->push((object)[
-                                            'source'     => 'gclass_coursework',
-                                            'id'         => $cw->id,
-                                            'title'      => $cw->title,
-                                            'type'       => 'coursework',
-                                            'max_score'  => $cw->max_points ?? null,
-                                            'due_date'   => $cw->due_date,
-                                            'link'       => $cw->alternate_link,
-                                            'sort_date'  => $cw->due_date ?? '1970-01-01',
-                                        ]);
+                                // 2. Google Classroom Items (Naka-filter din per term)
+                                if (isset($gConnection) && $gConnection && isset($gLinkedCourse) && $gLinkedCourse) {
+                                    // Coursework
+                                    if (isset($gCourseWork)) {
+                                        $filteredGCourseWork = $gCourseWork->where('term', $key);
+                                        foreach ($filteredGCourseWork as $cw) {
+                                            $mergedDeliverables->push((object)[
+                                                'source'     => 'gclass_coursework',
+                                                'id'         => $cw->id,
+                                                'title'      => $cw->title,
+                                                'type'       => 'coursework',
+                                                'max_score'  => $cw->max_points ?? null,
+                                                'due_date'   => $cw->due_date,
+                                                'link'       => $cw->alternate_link,
+                                                'sort_date'  => $cw->due_date ?? '1970-01-01',
+                                            ]);
+                                        }
                                     }
 
-                                    $termMaterials = $gMaterials->filter(function($mat) use ($key, $termPeriods) {
-                                        $postDate = $mat->posted_at ? date('Y-m-d', strtotime($mat->posted_at)) : null;
-                                        if (!$postDate) return false;
-                                        $matched = $termPeriods->first(fn($p) => $postDate >= $p->start_date && $postDate <= $p->end_date);
-                                        return $matched && $matched->term === $key;
-                                    });
+                                    // Materials
+                                    if (isset($gMaterials)) {
+                                        $termMaterials = $gMaterials->filter(function($mat) use ($key, $termPeriods) {
+                                            $postDate = $mat->posted_at ? date('Y-m-d', strtotime($mat->posted_at)) : null;
+                                            if (!$postDate) return false;
+                                            if (isset($termPeriods) && count($termPeriods) > 0) {
+                                                $matched = $termPeriods->first(fn($p) => $postDate >= $p->start_date && $postDate <= $p->end_date);
+                                                return $matched && $matched->term === $key;
+                                            }
+                                            return isset($mat->term) && $mat->term === $key;
+                                        });
 
-                                    foreach ($gMaterials as $mat) {
-                                        $mergedDeliverables->push((object)[
-                                            'source'     => 'gclass_material',
-                                            'id'         => $mat->id,
-                                            'title'      => $mat->title,
-                                            'type'       => 'material',
-                                            'max_score'  => null,
-                                            'due_date'   => null,
-                                            'posted_at'  => $mat->created_at ?? null,
-                                            'link'       => $mat->alternate_link ?? null,
-                                            'sort_date'  => $mat->created_at ?? '1970-01-01',
-                                        ]);
-                                    }
-
-                                    foreach ($gAnnouncements as $a) {
-                                        $mergedDeliverables->push((object)[
-                                            'source'     => 'gclass_announcement',
-                                            'id'         => $a->id,
-                                            'title'      => \Illuminate\Support\Str::limit($a->text, 70),
-                                            'type'       => 'announcement',
-                                            'max_score'  => null,
-                                            'due_date'   => null,
-                                            'posted_at'  => $a->posted_at,
-                                            'link'       => null,
-                                            'sort_date'  => $a->posted_at ?? '1970-01-01',
-                                        ]);
+                                        foreach ($termMaterials as $mat) {
+                                            $mergedDeliverables->push((object)[
+                                                'source'     => 'gclass_material',
+                                                'id'         => $mat->id,
+                                                'title'      => $mat->title,
+                                                'type'       => 'material',
+                                                'max_score'  => null,
+                                                'due_date'   => null,
+                                                'posted_at'  => $mat->created_at ?? null,
+                                                'link'       => $mat->alternate_link ?? null,
+                                                'sort_date'  => $mat->created_at ?? '1970-01-01',
+                                            ]);
+                                        }
                                     }
                                 }
 
