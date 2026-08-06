@@ -81,7 +81,7 @@ class ProfessorController extends Controller
 
         $professor_id = session('user_id');
 
-        $classes = \DB::table('class_schedules')
+        $classes = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->select(
                 'class_schedules.id as schedule_id',
@@ -95,10 +95,10 @@ class ProfessorController extends Controller
                 'subjects.lecture_units',
                 'subjects.lab_units',
 
-                \DB::raw('(SELECT COUNT(*) 
-                        FROM student_subjects 
+                DB::raw('(SELECT COUNT(*)
+                        FROM student_subjects
                         JOIN students ON student_subjects.student_number = students.student_id
-                        WHERE student_subjects.schedule_id = class_schedules.id 
+                        WHERE student_subjects.schedule_id = class_schedules.id
                         AND student_subjects.status = "Enrolled") as students_count')
             )
             ->where('subjects.professor_id', $professor_id)
@@ -251,7 +251,7 @@ class ProfessorController extends Controller
                 $academicPeriodId = DB::table('term_periods')->max('academic_period_id') ?? 1;
 
                 $termPeriods = DB::table('term_periods')
-                    ->where('academic_period_id', $academicPeriodId) 
+                    ->where('academic_period_id', $academicPeriodId)
                     ->get();
 
 
@@ -261,7 +261,7 @@ class ProfessorController extends Controller
                     ->get()
                     ->map(function($cw) use ($termPeriods) {
                         $postDate = $cw->posted_at ? date('Y-m-d', strtotime($cw->posted_at)) : null;
-                        
+
                         $matchedTerm = null;
                         if ($postDate) {
                             $matchedTerm = $termPeriods->first(function($period) use ($postDate) {
@@ -269,7 +269,7 @@ class ProfessorController extends Controller
                             });
                         }
 
-                        $cw->term = $matchedTerm ? $matchedTerm->term : 'prelim'; 
+                        $cw->term = $matchedTerm ? $matchedTerm->term : 'prelim';
                         return $cw;
                     });
 
