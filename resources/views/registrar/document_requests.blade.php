@@ -9,11 +9,11 @@
     <div class="docreq-header">
         <div>
             <h2 class="docreq-title">Student Document Requests</h2>
-            <p class="docreq-subtitle">Pamahalaan at i-apruba ang mga kahilingan ng dokumento mula sa mga estudyante.</p>
+            <p class="docreq-subtitle">Manage and approve document requests from students.</p>
         </div>
         <div class="docreq-search">
             <i class="fa-solid fa-search"></i>
-            <input type="text" x-model="search" placeholder="Maghanap ng estudyante o ID...">
+            <input type="text" x-model="search" placeholder="Search for a student or ID...">
         </div>
     </div>
 
@@ -30,7 +30,7 @@
 
     <div class="docreq-card">
         <div class="docreq-card-header">
-            <i class="fa-solid fa-folder-open"></i> Listahan ng mga Nag-request ng Dokumento
+            <i class="fa-solid fa-folder-open"></i> List of Students Who Requested Documents
             <span class="docreq-count-badge">{{ count($requests) }}</span>
         </div>
 
@@ -87,7 +87,7 @@
                         <tr>
                             <td colspan="6" class="docreq-empty-row">
                                 <i class="fa-regular fa-folder-open"></i>
-                                <span>Walang nakitang document requests sa kasalukuyan.</span>
+                                <span>No document requests found at the moment.</span>
                             </td>
                         </tr>
                     @endforelse
@@ -138,7 +138,7 @@
                         @csrf
                         @method('PUT')
 
-                        <label class="docreq-doclist-label">Mga Nire-request na Dokumento</label>
+                        <label class="docreq-doclist-label">Requested Documents</label>
                         <div class="docreq-doclist-table">
                             <div class="docreq-doclist-head">
                                 <span>Document</span>

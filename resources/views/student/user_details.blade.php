@@ -310,7 +310,7 @@
 <div class="modal-overlay" id="documentRequestModal">
     <div class="modal-container">
         <div class="modal-header">
-            <h3 class="modal-title"><i class="fa-solid fa-file-arrow-down"></i> Mag-request ng Dokumento</h3>
+            <h3 class="modal-title"><i class="fa-solid fa-file-arrow-down"></i> Request Document</h3>
             <button type="button" class="modal-close-btn" onclick="closeRequestModal()">&times;</button>
         </div>
         
@@ -320,19 +320,19 @@
                 <input type="hidden" name="document_code" id="modalDocCode">
                 
                 <div class="form-group-modal">
-                    <label class="modal-label">Nire-request na Dokumento</label>
+                    <label class="modal-label">Requested Document</label>
                     <input type="text" id="modalDocName" class="form-control-modal disabled-input" readonly>
                 </div>
 
                 <div class="form-group-modal" style="margin-top: 12px;">
-                    <label class="modal-label">Layunin / Purpose <span class="required-star">*</span></label>
-                    <textarea name="purpose" required class="form-control-modal" rows="3" placeholder="Ilagay kung para saan gagamitin ang dokumento (Hal. Employment, Board Exam, Scholarship)"></textarea>
+                    <label class="modal-label">Purpose <span class="required-star">*</span></label>
+                    <textarea name="purpose" required class="form-control-modal" rows="3" placeholder="Specify the purpose of the document (e.g., Employment, Board Exam, Scholarship)"></textarea>
                 </div>
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn-modal-cancel" onclick="closeRequestModal()">Kanselahin</button>
-                <button type="submit" class="btn-modal-save">Ipadala ang Request</button>
+                <button type="button" class="btn-modal-cancel" onclick="closeRequestModal()">Cancel</button>
+                <button type="submit" class="btn-modal-save">Submit Request</button>
             </div>
         </form>
     </div>

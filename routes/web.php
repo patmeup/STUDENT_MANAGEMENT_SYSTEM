@@ -91,6 +91,8 @@ Route::put('/registrar/students/{id}/documents', [RegistrarController::class, 'u
 Route::get('/registrar/students/{student_id}/file/{filename}', [RegistrarController::class, 'secureViewFile'])->name('registrar.secure-view');
 Route::get('/registrar/faculty-grade-status', [RegistrarController::class, 'facultyGradeStatus'])->name('registrar.faculty-grade-status');
 Route::get('/registrar/manage-grades', [RegistrarController::class, 'manageGrades'])->name('registrar.manage-grades');
+Route::post('/registrar/release-grades/{student_id}', [RegistrarController::class, 'releaseGradesToStudent'])->name('registrar.release-grades');
+Route::get('/registrar/student-grades-json/{student_id}', [RegistrarController::class, 'getStudentTermGradesJson'])->name('registrar.student-grades-json');
 Route::get('/registrar/document-requests', [RegistrarController::class, 'manageDocumentRequests'])->name('registrar.document.requests');
 Route::post('/registrar/send-document/{requestId}', [RegistrarController::class, 'sendDocument'])->name('registrar.send.document');
 Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
@@ -126,7 +128,6 @@ Route::post('/professor/class/{schedule_id}/attendance/save', [ProfessorControll
 
 Route::get('/professor/google-classroom/connect', [GoogleClassroomController::class, 'redirect'])->name('professor.google-classroom.connect');
 Route::get('/professor/google-classroom/callback', [GoogleClassroomController::class, 'callback'])->name('professor.google-classroom.callback');
-Route::post('/professor/google-classroom/sync', [GoogleClassroomController::class, 'syncNow'])->name('professor.google-classroom.sync');
 Route::post('/professor/google-classroom/sync', [ProfessorController::class, 'syncGoogleClassroom'])->name('professor.google-classroom.sync');
 Route::post('/professor/class/{schedule_id}/google-classroom/link', [ProfessorController::class, 'linkGoogleClassroomCourse'])->name('professor.google-classroom.link');
 Route::post('/professor/class/{schedule_id}/google-classroom/unlink', [ProfessorController::class, 'unlinkGoogleClassroomCourse'])->name('professor.google-classroom.unlink');
@@ -142,7 +143,9 @@ Route::post('/professor/task-grading/{submission_id}/submit', [ProfessorControll
 Route::get('/professor/class/{schedule_id}/student/{student_id}/breakdown', [ProfessorController::class, 'viewStudentBreakdown'])->name('professor.grades.breakdown');
 Route::post('/professor/save-grades',[ProfessorController::class, 'saveDraftGrades'])->name('professor.save-grades');
 Route::post('/professor/recalculate-grade', [ProfessorController::class, 'recalculateAutoGrade'])->name('professor.recalculate-grade');
+Route::post('/professor/submit-to-registrar', [ProfessorController::class, 'submitToRegistrar'])->name('professor.submit-registrar');
 Route::get('/professor/user_details', [ProfessorController::class, 'profileView'])->name('professor.user_details');
+Route::post('/professor/google-classroom/disconnect', [GoogleClassroomController::class, 'disconnect'])->name('professor.google-classroom.disconnect');
 
 // STUDENT ROUTES
 Route::get('/student/dashboard', [StudentController::class, 'dashboard'])->name('student.dashboard');

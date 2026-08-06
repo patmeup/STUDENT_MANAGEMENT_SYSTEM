@@ -115,6 +115,17 @@ class GoogleClassroomService
         $courseWork = $service->courses_courseWork->listCoursesCourseWork($googleCourseId);
         $seenIds = [];
 
+        $localCourse = DB::table('google_classroom_courses')->where('id', $localCourseId)->first();
+        $scheduleId = $localCourse ? $localCourse->linked_class_schedule_id : null;
+
+        $termPeriods = collect();
+        if ($scheduleId) {
+            $academicPeriodId = DB::table('term_periods')->max('academic_period_id') ?? 1;
+            $termPeriods = DB::table('term_periods')
+                ->where('academic_period_id', $academicPeriodId)
+                ->get();
+        }
+
         foreach ($courseWork->getCourseWork() ?? [] as $cw) {
             $seenIds[] = $cw->getId();
 
@@ -135,6 +146,7 @@ class GoogleClassroomService
                     'title' => $cw->getTitle(),
                     'description' => $cw->getDescription(),
                     'work_type' => $cw->getWorkType(),
+                    'max_points' => $cw->getMaxPoints(),
                     'due_date' => $dueDate,
                     'posted_at' => $postedAt,
                     'alternate_link' => $cw->getAlternateLink(),
@@ -142,12 +154,51 @@ class GoogleClassroomService
                     'created_at' => DB::raw("COALESCE(created_at, '" . now() . "')"),
                 ]
             );
+
+            if ($scheduleId) {
+                $postDateOnly = $postedAt ? date('Y-m-d', strtotime($postedAt)) : null;
+                $matchedTerm = null;
+                if ($postDateOnly && $termPeriods->count() > 0) {
+                    $matchedTerm = $termPeriods->first(function($period) use ($postDateOnly) {
+                        return $postDateOnly >= $period->start_date && $postDateOnly <= $period->end_date;
+                    });
+                }
+                $term = $matchedTerm ? $matchedTerm->term : 'prelim';
+
+                $workType = strtolower($cw->getWorkType());
+                $activityType = 'assignment';
+                if (str_contains($workType, 'quiz') || str_contains($workType, 'question')) {
+                    $activityType = 'quiz';
+                }
+
+                DB::table('student_tasks')->updateOrInsert(
+                    ['google_coursework_id' => $cw->getId()],
+                    [
+                        'class_schedule_id' => $scheduleId,
+                        'term' => $term,
+                        'activity_name' => $cw->getTitle(),
+                        'activity_type' => $activityType,
+                        'max_score' => $cw->getMaxPoints() ?? 100,
+                        'due_date' => $dueDate,
+                        'updated_at' => now(),
+                        'created_at' => DB::raw("COALESCE(created_at, '" . now() . "')"),
+                    ]
+                );
+            }
         }
 
         DB::table('google_classroom_coursework')
             ->where('course_id', $localCourseId)
             ->whereNotIn('google_coursework_id', $seenIds)
             ->delete();
+
+        if ($scheduleId) {
+            DB::table('student_tasks')
+                ->where('class_schedule_id', $scheduleId)
+                ->whereNotNull('google_coursework_id')
+                ->whereNotIn('google_coursework_id', $seenIds)
+                ->delete();
+        }
     }
 
     protected function syncCourseWorkMaterials($service, $googleCourseId, $localCourseId)

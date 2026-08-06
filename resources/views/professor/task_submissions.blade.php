@@ -68,7 +68,11 @@
                                 {{ $row->last_name }}, {{ $row->first_name }}
                             </td>
                             <td style="padding: 16px 24px; border-bottom: 1px solid #f1f5f9;">
-                                @if($row->submission_id)
+                                @if($row->submission_id && isset($row->grade) && $row->grade !== null)
+                                    <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; background-color: #eef1fb; color: #1e2a5a;">
+                                        Graded
+                                    </span>
+                                @elseif($row->submission_id)
                                     <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; background-color: #dcfce7; color: #15803d;">
                                         Submitted
                                     </span>
@@ -96,7 +100,7 @@
                                         </span>
                                     @else
                                         <span style="font-weight: 600; color: #ea580c; font-size: 13px; display: inline-flex; align-items: center; gap: 4px;">
-                                            <span style="width: 6px; height: 6px; background-color: #ea580c; border-radius: 50%;"></span> For Evaluation
+                                            <span style="width: 6px; height: 6px; background-color: #ea580c; border-radius: 50%;"></span> For Checking
                                         </span>
                                     @endif
                                 @else

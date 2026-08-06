@@ -81,7 +81,7 @@ class ProfessorController extends Controller
 
         $professor_id = session('user_id');
 
-        $classes = \DB::table('class_schedules')
+        $classes = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->select(
                 'class_schedules.id as schedule_id',
@@ -95,8 +95,9 @@ class ProfessorController extends Controller
                 'subjects.lecture_units',
                 'subjects.lab_units',
 
-                \DB::raw('(SELECT COUNT(*)
+                DB::raw('(SELECT COUNT(*)
                         FROM student_subjects
+                        JOIN students ON student_subjects.student_number = students.student_id
                         WHERE student_subjects.schedule_id = class_schedules.id
                         AND student_subjects.status = "Enrolled") as students_count')
             )
@@ -174,7 +175,6 @@ class ProfessorController extends Controller
             ->get()
             ->groupBy('term');
 
-        // 1. Dito na lang mag-loop para sa grades (malinis at hiwalay)
         foreach ($terms as $term) {
             foreach ($students as $student) {
                 $saved = $savedGrades->get($term . '_' . $student->student_id);
@@ -198,7 +198,6 @@ class ProfessorController extends Controller
             }
         }
 
-        // 2. Google Classroom Connection & Sync Logic (Nasa labas na ng term loops)
         $gConnection = DB::table('google_classroom_connections')
             ->where('professor_id', $professorId)
             ->first();
@@ -210,7 +209,7 @@ class ProfessorController extends Controller
         $gMaterials = collect();
 
         if ($gConnection) {
-            // Auto-sync courses kung konektado naman pero blangko pa ang database
+
             $hasCourses = DB::table('google_classroom_courses')
                 ->where('connection_id', $gConnection->id)
                 ->exists();
@@ -220,13 +219,20 @@ class ProfessorController extends Controller
                     $service = new \App\Support\GoogleClassroomService($gConnection);
                     $service->syncCourses();
                 } catch (\Exception $e) {
-                    // Mag-catch kung sakaling may error sa API connection
+
                 }
             }
 
             $gLinkedCourse = DB::table('google_classroom_courses')
                 ->where('linked_class_schedule_id', $schedule_id)
                 ->first();
+
+            $termTasks = DB::table('student_tasks')
+                ->where('class_schedule_id', $schedule_id)
+                ->orderBy('due_date', 'asc')
+                ->get()
+                ->groupBy('term');
+            $termPeriods = collect();
 
             $gAvailableCourses = DB::table('google_classroom_courses')
                 ->where('connection_id', $gConnection->id)
@@ -242,10 +248,30 @@ class ProfessorController extends Controller
                     ->orderBy('posted_at', 'desc')
                     ->get();
 
+                $academicPeriodId = DB::table('term_periods')->max('academic_period_id') ?? 1;
+
+                $termPeriods = DB::table('term_periods')
+                    ->where('academic_period_id', $academicPeriodId)
+                    ->get();
+
+
                 $gCourseWork = DB::table('google_classroom_coursework')
                     ->where('course_id', $gLinkedCourse->id)
-                    ->orderBy('due_date', 'desc')
-                    ->get();
+                    ->orderBy('posted_at', 'desc')
+                    ->get()
+                    ->map(function($cw) use ($termPeriods) {
+                        $postDate = $cw->posted_at ? date('Y-m-d', strtotime($cw->posted_at)) : null;
+
+                        $matchedTerm = null;
+                        if ($postDate) {
+                            $matchedTerm = $termPeriods->first(function($period) use ($postDate) {
+                                return $postDate >= $period->start_date && $postDate <= $period->end_date;
+                            });
+                        }
+
+                        $cw->term = $matchedTerm ? $matchedTerm->term : 'prelim';
+                        return $cw;
+                    });
 
                 $gMaterials = DB::table('google_classroom_materials')
                     ->where('course_id', $gLinkedCourse->id)
@@ -258,6 +284,8 @@ class ProfessorController extends Controller
             'classDetails',
             'students',
             'tasks',
+            'termTasks',
+            'termPeriods',
             'autoGrades',
             'draftGrades',
             'gConnection',
@@ -596,11 +624,27 @@ class ProfessorController extends Controller
             return redirect()->back()->with('error', 'Task not found.');
         }
 
+        $googleCourseworkLocalId = null;
+        if (!empty($task->google_coursework_id)) {
+            $gcWork = DB::table('google_classroom_coursework')
+                ->where('google_coursework_id', $task->google_coursework_id)
+                ->first();
+            if ($gcWork) {
+                $googleCourseworkLocalId = $gcWork->id;
+            }
+        }
+
         $submissions = DB::table('student_subjects')
             ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
-            ->leftJoin('task_submissions', function($join) use ($task_id) {
+            ->leftJoin('task_submissions', function($join) use ($task, $googleCourseworkLocalId) {
                 $join->on('students.student_id', '=', 'task_submissions.student_id')
-                    ->where('task_submissions.task_id', '=', $task_id);
+                    ->where(function($q) use ($task, $googleCourseworkLocalId) {
+                        $q->where('task_submissions.task_id', '=', $task->id);
+                        
+                        if ($googleCourseworkLocalId) {
+                            $q->orWhere('task_submissions.google_coursework_id', '=', $googleCourseworkLocalId);
+                        }
+                    });
             })
             ->where('student_subjects.schedule_id', $task->class_schedule_id)
             ->where('student_subjects.status', 'Enrolled')
@@ -624,14 +668,15 @@ class ProfessorController extends Controller
     {
         $submission = DB::table('task_submissions')
             ->join('students', 'task_submissions.student_id', '=', 'students.student_id')
-            ->join('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
+            ->leftJoin('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
+            ->leftJoin('google_classroom_coursework', 'task_submissions.google_coursework_id', '=', 'google_classroom_coursework.id')
             ->where('task_submissions.id', $submission_id)
             ->select(
                 'task_submissions.*',
                 'students.first_name',
                 'students.last_name',
-                'student_tasks.activity_name',
-                'student_tasks.max_score'
+                DB::raw('COALESCE(student_tasks.activity_name, google_classroom_coursework.title, "Untitled Task") as activity_name'),
+                DB::raw('COALESCE(student_tasks.max_score, google_classroom_coursework.max_points, 100) as max_score')
             )
             ->first();
 
@@ -676,10 +721,23 @@ class ProfessorController extends Controller
             return redirect()->back()->with('error', 'Submission record not found.');
         }
 
-        $task = DB::table('student_tasks')->where('id', $submission->task_id)->first();
+        if ($submission->task_id) {
+            $task = DB::table('student_tasks')->where('id', $submission->task_id)->first();
+            $maxScore = $task->max_score ?? null;
+        } elseif ($submission->google_coursework_id) {
+            $task = DB::table('google_classroom_coursework')->where('id', $submission->google_coursework_id)->first();
+            $maxScore = $task->max_points ?? null;
+        } else {
+            $task = null;
+            $maxScore = null;
+        }
+
+        if (!$task) {
+            return redirect()->back()->with('error', 'Associated task details not found.');
+        }
 
         $request->validate([
-            'grade' => "required|numeric|min:0|max:{$task->max_score}",
+            'grade' => "required|numeric|min:0|max:" . ($maxScore ?? 100),
             'feedback' => 'nullable|string|max:1000'
         ]);
 
@@ -851,6 +909,31 @@ class ProfessorController extends Controller
         ]);
     }
 
+    public function submitToRegistrar(Request $request)
+    {
+        if (session('user_role') !== 'professor') {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access.'], 403);
+        }
+
+        $request->validate([
+            'schedule_id' => 'required|integer',
+            'term'        => 'required|in:prelim,midterm,semifinal,final',
+        ]);
+
+        try {
+            StudentTermGrade::where('schedule_id', $request->schedule_id)
+                ->where('term', $request->term)
+                ->update(['is_submitted' => true]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Grades successfully submitted to the registrar.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function profileView()
     {
         if (session('user_role') !== 'professor') {
@@ -863,7 +946,11 @@ class ProfessorController extends Controller
 
         $isLocked = !Str::startsWith($user->password, '$2y$');
 
-        return view('professor.user_details', compact('user', 'isLocked'));
+        $gConnection = DB::table('google_classroom_connections')
+            ->where('professor_id', $professor_id)
+            ->first();
+
+        return view('professor.user_details', compact('user', 'isLocked', 'gConnection'));
     }
 
 }

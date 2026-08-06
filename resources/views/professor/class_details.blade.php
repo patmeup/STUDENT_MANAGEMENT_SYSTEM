@@ -437,7 +437,7 @@
 
             @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key => $termLabel)
                 @php
-                    $termTasks = $tasks->where('term', $key);
+                    $termCourseWork = $gCourseWork->where('term', $key);
                 @endphp
                 <div x-show="currentTab === '{{ $key }}'" x-transition style="display: none;"
                     x-data="{
@@ -477,7 +477,16 @@
                             @php
                                 $mergedDeliverables = collect();
 
-                                foreach ($termTasks as $task) {
+                                $currentTermTasks = collect();
+                                if (isset($termTasks)) {
+                                    if ($termTasks instanceof \Illuminate\Support\Collection) {
+                                        $currentTermTasks = $termTasks->get($key, collect());
+                                    } elseif (is_array($termTasks)) {
+                                        $currentTermTasks = collect($termTasks[$key] ?? []);
+                                    }
+                                }
+
+                                foreach ($currentTermTasks as $task) {
                                     $mergedDeliverables->push((object)[
                                         'source'     => 'system',
                                         'id'         => $task->id,
@@ -490,46 +499,49 @@
                                     ]);
                                 }
 
-                                if ($gConnection && $gLinkedCourse) {
-                                    foreach ($gCourseWork as $cw) {
-                                        $mergedDeliverables->push((object)[
-                                            'source'     => 'gclass_coursework',
-                                            'id'         => $cw->id,
-                                            'title'      => $cw->title,
-                                            'type'       => 'coursework',
-                                            'max_score'  => null,
-                                            'due_date'   => $cw->due_date,
-                                            'link'       => $cw->alternate_link,
-                                            'sort_date'  => $cw->due_date ?? '1970-01-01',
-                                        ]);
+                                if (isset($gConnection) && $gConnection && isset($gLinkedCourse) && $gLinkedCourse) {
+                                    if (isset($gCourseWork)) {
+                                        $filteredGCourseWork = $gCourseWork->where('term', $key);
+                                        foreach ($filteredGCourseWork as $cw) {
+                                            $studentTask = DB::table('student_tasks')->where('google_coursework_id', $cw->google_coursework_id)->first();
+
+                                            $mergedDeliverables->push((object)[
+                                                'source'     => 'gclass_coursework',
+                                                'id'         => $studentTask ? $studentTask->id : $cw->id,
+                                                'title'      => $cw->title,
+                                                'type'       => 'coursework',
+                                                'max_score'  => $cw->max_points ?? null,
+                                                'due_date'   => $cw->due_date,
+                                                'link'       => $cw->alternate_link,
+                                                'sort_date'  => $cw->due_date ?? '1970-01-01',
+                                            ]);
+                                        }
                                     }
 
-                                    foreach ($gMaterials as $mat) {
-                                        $mergedDeliverables->push((object)[
-                                            'source'     => 'gclass_material',
-                                            'id'         => $mat->id,
-                                            'title'      => $mat->title,
-                                            'type'       => 'material',
-                                            'max_score'  => null,
-                                            'due_date'   => null,
-                                            'posted_at'  => $mat->created_at ?? null,
-                                            'link'       => $mat->alternate_link ?? null,
-                                            'sort_date'  => $mat->created_at ?? '1970-01-01',
-                                        ]);
-                                    }
+                                    if (isset($gMaterials)) {
+                                        $termMaterials = $gMaterials->filter(function($mat) use ($key, $termPeriods) {
+                                            $postDate = $mat->posted_at ? date('Y-m-d', strtotime($mat->posted_at)) : null;
+                                            if (!$postDate) return false;
+                                            if (isset($termPeriods) && count($termPeriods) > 0) {
+                                                $matched = $termPeriods->first(fn($p) => $postDate >= $p->start_date && $postDate <= $p->end_date);
+                                                return $matched && $matched->term === $key;
+                                            }
+                                            return isset($mat->term) && $mat->term === $key;
+                                        });
 
-                                    foreach ($gAnnouncements as $a) {
-                                        $mergedDeliverables->push((object)[
-                                            'source'     => 'gclass_announcement',
-                                            'id'         => $a->id,
-                                            'title'      => \Illuminate\Support\Str::limit($a->text, 70),
-                                            'type'       => 'announcement',
-                                            'max_score'  => null,
-                                            'due_date'   => null,
-                                            'posted_at'  => $a->posted_at,
-                                            'link'       => null,
-                                            'sort_date'  => $a->posted_at ?? '1970-01-01',
-                                        ]);
+                                        foreach ($termMaterials as $mat) {
+                                            $mergedDeliverables->push((object)[
+                                                'source'     => 'gclass_material',
+                                                'id'         => $mat->id,
+                                                'title'      => $mat->title,
+                                                'type'       => 'material',
+                                                'max_score'  => null,
+                                                'due_date'   => null,
+                                                'posted_at'  => $mat->created_at ?? null,
+                                                'link'       => $mat->alternate_link ?? null,
+                                                'sort_date'  => $mat->created_at ?? '1970-01-01',
+                                            ]);
+                                        }
                                     }
                                 }
 
@@ -559,11 +571,15 @@
                             @endif
 
                             @if($gConnection && $gLinkedCourse)
-                                <div class="d-flex justify-content-end mb-2">
-                                    <form action="{{ route('professor.google-classroom.sync') }}" method="POST">
+                                <div class="gclass-linked-row mb-3">
+                                    <span class="gclass-linked-info">
+                                        <i class="fa-brands fa-google-classroom"></i>
+                                        Linked to: <strong>{{ $gLinkedCourse->course_name }}</strong>
+                                    </span>
+                                    <form action="{{ route('professor.google-classroom.sync') }}" method="POST" class="m-0">
                                         @csrf
-                                        <button type="submit" class="btn-sm-outline">
-                                            <i class="fa-solid fa-arrows-rotate"></i> Sync Now
+                                        <button type="submit" class="btn-sync-icon-sm" title="Sync Now">
+                                            <i class="fa-solid fa-arrows-rotate"></i>
                                         </button>
                                     </form>
                                 </div>
@@ -621,21 +637,38 @@
                                                         <td class="text-center">
                                                             @if($item->source === 'system')
                                                                 <div class="action-btn-group">
-                                                                    <a href="{{ route('professor.task-submissions', $item->id) }}" class="btn-sm-outline btn-grade">
-                                                                        <i class="fa fa-star"></i> Grade
-                                                                    </a>
                                                                     <button type="button" class="btn-sm-outline btn-edit"
                                                                         @click="openEditModal({ id: {{ $item->id }}, term: '{{ $key }}', activity_name: @js($item->title), activity_type: '{{ $item->type }}', max_score: {{ $item->max_score }}, due_date: '{{ $item->due_date }}' })">
                                                                         <i class="fa-solid fa-pen"></i>
                                                                     </button>
+                                                                    <a href="{{ route('professor.task-submissions', $item->id) }}" class="btn-sm-outline btn-grade">
+                                                                        <i class="fa fa-star"></i> Grade
+                                                                    </a>
                                                                     <button type="button" class="btn-sm-outline btn-delete" @click="deleteTask({{ $item->id }}, '{{ $key }}')">
                                                                         <i class="fa-solid fa-trash"></i>
                                                                     </button>
                                                                 </div>
-                                                            @elseif($item->link)
-                                                                <a href="{{ $item->link }}" target="_blank" class="btn-sm-outline">
-                                                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open
-                                                                </a>
+                                                            @elseif($item->source === 'gclass_coursework')
+                                                                <div class="action-btn-group">
+                                                                    @if($item->link)
+                                                                        <a href="{{ $item->link }}" target="_blank" class="btn-sm-outline" title="Open in Google Classroom">
+                                                                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open
+                                                                        </a>
+                                                                    @endif
+                                                                    <a href="{{ route('professor.task-submissions', $item->id) }}" class="btn-sm-outline btn-grade" title="Grade Google Classroom Submissions">
+                                                                        <i class="fa fa-star"></i> Grade
+                                                                    </a>
+                                                                </div>
+                                                            @elseif($item->source === 'gclass_material')
+                                                                @if($item->link)
+                                                                    <div class="action-btn-group">
+                                                                        <a href="{{ $item->link }}" target="_blank" class="btn-sm-outline">
+                                                                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open
+                                                                        </a>
+                                                                    </div>
+                                                                @else
+                                                                    <span class="text-muted small">—</span>
+                                                                @endif
                                                             @else
                                                                 <span class="text-muted small">—</span>
                                                             @endif
@@ -696,7 +729,7 @@
                                     this.hasUnsavedChanges = true;
 
                                     if (mode === 'auto') {
-                                        let response = type = await fetch('{{ route('professor.recalculate-grade') }}', {
+                                        let response = await fetch('{{ route('professor.recalculate-grade') }}', {
                                             method: 'POST',
                                             headers: {
                                                 'Content-Type': 'application/json',
@@ -761,6 +794,42 @@
                                             alert('Error saving grades.');
                                         }
                                     });
+                                },
+
+                                submitToRegistrar() {
+                                    if (this.hasUnsavedChanges) {
+                                        alert('Please save your draft changes before submitting to the registrar.');
+                                        return;
+                                    }
+
+                                    if (!confirm('Are you sure you want to submit these grades to the registrar? This action cannot be undone.')) {
+                                        return;
+                                    }
+
+                                    fetch('{{ route('professor.submit-registrar') }}', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                        },
+                                        body: JSON.stringify({
+                                            schedule_id: {{ $classDetails->schedule_id }},
+                                            term: '{{ $key }}'
+                                        })
+                                    })
+                                    .then(res => res.json())
+                                    .then(data => {
+                                        if (data.success) {
+                                            alert('Grades successfully submitted to the registrar!');
+                                            window.location.reload();
+                                        } else {
+                                            alert('Error: ' + (data.message || 'Failed to submit grades.'));
+                                        }
+                                    })
+                                    .catch(err => {
+                                        console.error(err);
+                                        alert('Something went wrong. Please try again.');
+                                    });
                                 }
                             }"
                             x-init="init()">
@@ -774,7 +843,7 @@
                                         <i class="fa-solid fa-floppy-disk"></i>
                                         Save Draft
                                     </button>
-                                    <button type="button" class="btn-primary-portal py-1 px-3" style="font-size: 12px;">
+                                    <button type="button" class="btn-primary-portal py-1 px-3" style="font-size: 12px;" @click="submitToRegistrar()">
                                         <i class="fa-solid fa-paper-plane"></i> Submit to Registrar
                                     </button>
                                 </div>
@@ -842,7 +911,6 @@
                                                     </div>
                                                 </td>
 
-                                                <!-- Major Exam Input -->
                                                 <td class="text-center">
                                                     <input type="number" min="0" max="100" step="0.01" class="encoding-input"
                                                         x-model.number="manualGrades['{{ $sid }}'].major_exam"
@@ -863,7 +931,6 @@
                                                         ">
                                                 </td>
 
-                                                <!-- Equivalent Input -->
                                                 <td class="text-center">
                                                     <span class="equivalent-pill">
                                                         <input type="text" class="equivalent-input"
@@ -885,7 +952,6 @@
                                                     </span>
                                                 </td>
 
-                                                <!-- Mode Toggle -->
                                                 <td class="text-center">
                                                     <div class="mode-toggle-group">
                                                         <button type="button"
@@ -1123,6 +1189,41 @@
         color: #1e2a5a !important;
         border-bottom-color: #1e2a5a;
     }
+
+    .gclass-linked-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        padding: 8px 14px;
+        border-radius: 8px;
+    }
+    .gclass-linked-info {
+        font-size: 12.5px;
+        color: #166534;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .gclass-linked-info i { font-size: 14px; }
+    .gclass-linked-info strong { color: #14532d; }
+
+    .btn-sync-icon-sm {
+        width: 26px; height: 26px;
+        border-radius: 50%;
+        border: none;
+        background: white;
+        color: #15803d;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        cursor: pointer;
+        transition: 0.2s;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
+    .btn-sync-icon-sm:hover { background: #15803d; color: white; transform: rotate(90deg); }
 
     .btn-google-classroom-connect {
         background-color: #ffffff;
