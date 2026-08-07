@@ -177,20 +177,6 @@
                         <a href="javascript:void(0);" 
                         style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
                             <i data-lucide="lock" style="color: #ef4444;"></i>
-                            <span>Faculty Grade Status</span>
-                        </a>
-                    @else
-                        <a href="{{ route('registrar.faculty-grade-status') }}" class="{{ Route::is('registrar.faculty-grade-status') ? 'active' : '' }}">
-                            <i data-lucide="list-checks"></i> <span>Faculty Grade Status</span>
-                        </a>
-                    @endif
-                </li>
-
-                <li>
-                    @if($isAccountLocked)
-                        <a href="javascript:void(0);" 
-                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
-                            <i data-lucide="lock" style="color: #ef4444;"></i>
                             <span>Manage Grades</span>
                         </a>
                     @else
@@ -275,6 +261,20 @@
                     @else
                         <a href="{{ route('dean.subject_list') }}" class="{{ Request::is('dean/subject_list') ? 'active' : '' }}">
                             <i data-lucide="book-open"></i> <span>Subject Catalog</span>
+                        </a>
+                    @endif
+                </li>
+
+                <li>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i>
+                            <span>Faculty Grade Status</span>
+                        </a>
+                    @else
+                        <a href="{{ route('dean.faculty-grade-status') }}" class="{{ Route::is('dean.faculty-grade-status') ? 'active' : '' }}">
+                            <i data-lucide="list-checks"></i> <span>Faculty Grade Status</span>
                         </a>
                     @endif
                 </li>
@@ -418,6 +418,20 @@
                         <a href="{{ route('student.my_classes') }}" class="{{ Route::is('student.my_classes') || Route::is('student.class_details') || 
                             Route::is('student.view-task') ? 'active' : '' }}">
                             <i data-lucide="calendar"></i> <span>My Classes</span>
+                        </a>
+                    @endif
+                </li>
+
+                <li>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i> 
+                            <span>My Grades</span>
+                        </a>
+                    @else
+                        <a href="{{ route('student.my_grades') }}" class="{{ Route::is('student.my_grades') ? 'active' : '' }}">
+                            <i data-lucide="file-text"></i> <span>My Grades</span>
                         </a>
                     @endif
                 </li>

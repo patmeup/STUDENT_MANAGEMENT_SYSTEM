@@ -801,12 +801,6 @@ class StudentController extends Controller
         ]);
     }
 
-    /**
-     * Tinutukoy ang tamang term_period ng isang Google Classroom coursework item
-     * base sa due_date (o posted_at kung walang due date), gamit ang parehong
-     * exact-range-match -> nearest-upcoming -> latest fallback na logic na
-     * ginagamit sa buong class_details view.
-     */
     private function resolveGoogleClassroomTerm($referenceDate)
     {
         if (!$referenceDate) {
@@ -1008,12 +1002,6 @@ class StudentController extends Controller
         return redirect()->back()->with('error', 'No file selected.');
     }
 
-    /**
-     * Pag-submit ng file para sa isang Google Classroom coursework item.
-     * Parehong pattern ng submitTask() pero gumagamit ng google_coursework_id
-     * column sa halip na task_id, dahil hiwalay na table (google_classroom_coursework)
-     * ang pinagmumulan ng gawaing ito, hindi student_tasks.
-     */
     private function submitGoogleTask(Request $request, int $courseworkId)
     {
         $student_id = session('student_id');
@@ -1130,6 +1118,77 @@ class StudentController extends Controller
         }
 
         return redirect()->back()->with('success', 'Your requested documents have been successfully sent to the Registrar!');
+    }
+
+    public function myGrades()
+    {
+        if (session('user_role') !== 'student') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $studentNumber = session('student_id');
+
+        $enrolledClasses = DB::table('student_subjects')
+            ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id')
+            ->where('student_subjects.student_number', $studentNumber)
+            ->where('student_subjects.status', 'Enrolled')
+            ->select(
+                'class_schedules.id as schedule_id',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'subjects.total_units',
+                'subjects.lecture_units',
+                'subjects.lab_units',
+                'employees.first_name as prof_first_name',
+                'employees.last_name as prof_last_name'
+            )
+            ->get();
+
+        $gradesData = [];
+        $totalUnits = 0;
+
+        foreach ($enrolledClasses as $class) {
+            $getTermGrade = function($termName) use ($class, $studentNumber) {
+                $record = DB::table('student_term_grades')
+                    ->where('schedule_id', $class->schedule_id)
+                    ->where('student_number', $studentNumber)
+                    ->where('term', $termName)
+                    ->where('is_sent_to_student', 1) 
+                    ->first();
+
+                return [
+                    'grade' => $record ? $record->major_exam : null, 
+                    'equivalent' => $record ? $record->equivalent : null
+                ];
+            };
+
+            $prelim = $getTermGrade('prelim');
+            $midterm = $getTermGrade('midterm');
+            $finals = $getTermGrade('final'); 
+
+            $gradesData[] = [
+                'subject_code' => $class->subject_code,
+                'subject_title' => $class->subject_title,
+                'lec_units' => $class->lecture_units ?? 3.0,
+                'lab_units' => $class->lab_units ?? 0.0,
+                'total_units' => $class->total_units,
+                'professor' => trim(($class->prof_last_name ?? '') . ', ' . ($class->prof_first_name ?? '')),
+                'prelim' => $prelim,
+                'midterm' => $midterm,
+                'finals' => $finals,
+                'final_equivalent' => $finals['equivalent'] ?? 'N/A'
+            ];
+
+            $totalUnits += $class->total_units;
+        }
+
+        $activeAcademicPeriod = DB::table('academic_periods')
+            ->where('is_active', 1)
+            ->first();
+
+        return view('student.my_grades', compact('gradesData', 'totalUnits', 'activeAcademicPeriod'));
     }
 
     public function profileView()
