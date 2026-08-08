@@ -89,7 +89,6 @@ Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'
 Route::get('/registrar/students/{student_id}/profile', [StudentController::class, 'viewStudentProfile'])->name('registrar.students.profile');
 Route::put('/registrar/students/{id}/documents', [RegistrarController::class, 'updateStudentDocuments'])->name('registrar.update-documents');
 Route::get('/registrar/students/{student_id}/file/{filename}', [RegistrarController::class, 'secureViewFile'])->name('registrar.secure-view');
-Route::get('/registrar/faculty-grade-status', [RegistrarController::class, 'facultyGradeStatus'])->name('registrar.faculty-grade-status');
 Route::get('/registrar/manage-grades', [RegistrarController::class, 'manageGrades'])->name('registrar.manage-grades');
 Route::post('/registrar/release-grades/{student_id}', [RegistrarController::class, 'releaseGradesToStudent'])->name('registrar.release-grades');
 Route::get('/registrar/student-grades-json/{student_id}', [RegistrarController::class, 'getStudentTermGradesJson'])->name('registrar.student-grades-json');
@@ -103,6 +102,8 @@ Route::get('/dean/schedule_list', [DeanController::class, 'viewScheduleList'])->
 Route::get('/dean/masterlist', [DeanController::class, 'viewMasterlist'])->name('dean.masterlist');
 Route::get('/dean/section/{section_name}', [DeanController::class, 'viewSectionRoster'])->name('dean.view_section');
 Route::get('/dean/subject_list', [DeanController::class, 'viewSubjectCatalog'])->name('dean.subject_list');
+Route::get('/dean/faculty-grade-status', [DeanController::class, 'facultyGradeStatus'])->name('dean.faculty-grade-status');
+Route::get('/dean/grade-breakdown/{scheduleId}', [DeanController::class, 'getGradeBreakdown'])->name('dean.grade-breakdown');
 Route::get('/dean/user_details', [DeanController::class, 'profileView'])->name('dean.user_details');
 
 // DEPARTMENT SECRETARY ROUTES
@@ -158,7 +159,7 @@ Route::get('/student/google-task/{id}', [StudentController::class, 'viewGoogleTa
 Route::get('/student/task/download/{id}', [StudentController::class, 'downloadTaskFile'])->name('student.task.download');
 Route::get('/student/google-classroom/material/{material_id}/download', [StudentController::class, 'downloadGoogleClassroomMaterial'])->name('student.google-classroom.material-download');
 Route::post('/student/task/{id}/submit', [StudentController::class, 'submitTask'])->name('student.submit_task');
+Route::get('/student/my-grades', [StudentController::class, 'myGrades'])->name('student.my_grades');
 Route::get('/student/user_details', [StudentController::class, 'profileView'])->name('student.user_details');
 Route::put('/account/update-credentials', [StudentController::class, 'updateCredentials'])->name('account.update_credentials');
 Route::post('/student/request-document', [StudentController::class, 'submitDocumentRequest'])->name('student.submit_request');
-Route::put('/account/update-credentials', [StudentController::class, 'updateCredentials'])->name('account.update_credentials');

@@ -174,23 +174,7 @@
         },
 
         initAttendance() {
-            this.attendanceState = {};
-            this.remarksState = {};
-
-            const studentList = @js($students ?? []);
-            studentList.forEach(student => {
-                this.attendanceState[student.student_id] = null;
-                this.remarksState[student.student_id] = '';
-            });
-
-            const initialRecords = @js($attendanceRecords ?? []);
-            if (initialRecords && initialRecords.length > 0) {
-                initialRecords.forEach(rec => {
-                    this.attendanceState[rec.student_id] = rec.status;
-                    this.remarksState[rec.student_id] = rec.remarks || '';
-                });
-                this.hasSaved = true;
-            }
+            this.loadAttendanceData();
         }
     }",
 

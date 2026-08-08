@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Schema;
 
 class StudentController extends Controller
 {
+
     public function dashboard()
     {
         if (session('user_role') !== 'student') {
@@ -101,22 +102,60 @@ class StudentController extends Controller
         }
 
         $totalEnrolledClasses = $enrolledClasses->count();
+        $enrolledScheduleIds = $enrolledClasses->pluck('schedule_id');
 
-        $pendingTasksCount = DB::table('student_tasks')
-            ->join('student_subjects', 'student_tasks.class_schedule_id', '=', 'student_subjects.schedule_id')
-            ->leftJoin('task_submissions', function($join) use ($studentNumber) {
-                $join->on('student_tasks.id', '=', 'task_submissions.task_id')
-                     ->where('task_submissions.student_id', '=', $studentNumber);
-            })
-            ->where('student_subjects.student_number', $studentNumber)
-            ->where('student_subjects.status', 'Enrolled')
-            ->whereNull('task_submissions.id')
-            ->count();
+        // List of terms from Prelim to Final -- gamitin ang parehong eksaktong
+        // values na ginagamit sa buong system (term_periods, student_tasks.term).
+        $terms = ['prelim', 'midterm', 'semifinal', 'final'];
+        $pendingTasksPerTerm = [];
+        $totalLocalPending = 0;
+
+        foreach ($terms as $term) {
+            $count = DB::table('student_tasks')
+                ->whereIn('class_schedule_id', $enrolledScheduleIds)
+                ->where('term', $term) // Sinisiguro na nakagrupo o naka-filter per term
+                ->whereNull('google_coursework_id') // Iwasan ang double-count sa mga naka-mirror na Google Classroom items
+                ->whereNotNull('due_date')
+                ->where('due_date', '!=', '')
+                ->whereNotExists(function ($query) use ($studentNumber) {
+                    $query->select(DB::raw(1))
+                        ->from('task_submissions')
+                        ->whereColumn('task_submissions.task_id', 'student_tasks.id')
+                        ->where('task_submissions.student_id', $studentNumber);
+                })
+                ->count();
+
+            $pendingTasksPerTerm[$term] = $count;
+            $totalLocalPending += $count;
+        }
+
+        // Google Classroom pending tasks (kung meron man, optional i-integrate sa terms o idagdag sa kabuuan)
+        $googleCourseIds = DB::table('google_classroom_courses')
+            ->whereIn('linked_class_schedule_id', $enrolledScheduleIds)
+            ->pluck('id');
+
+        $googlePendingCount = 0;
+        if ($googleCourseIds->isNotEmpty()) {
+            $googlePendingCount = DB::table('google_classroom_coursework')
+                ->whereIn('course_id', $googleCourseIds)
+                ->whereNotNull('due_date')
+                ->where('due_date', '!=', '')
+                ->whereNotExists(function ($query) use ($studentNumber) {
+                    $query->select(DB::raw(1))
+                        ->from('task_submissions')
+                        ->whereColumn('task_submissions.google_coursework_id', 'google_classroom_coursework.id')
+                        ->where('task_submissions.student_id', $studentNumber);
+                })
+                ->count();
+        }
+
+        $pendingTasksCount = $totalLocalPending + $googlePendingCount;
 
         return view('student.dashboard', compact(
             'announcements',
             'totalEnrolledClasses',
             'pendingTasksCount',
+            'pendingTasksPerTerm',
             'predictedTermGWA',
             'gwaStatus',
             'statusClass'
@@ -801,12 +840,6 @@ class StudentController extends Controller
         ]);
     }
 
-    /**
-     * Tinutukoy ang tamang term_period ng isang Google Classroom coursework item
-     * base sa due_date (o posted_at kung walang due date), gamit ang parehong
-     * exact-range-match -> nearest-upcoming -> latest fallback na logic na
-     * ginagamit sa buong class_details view.
-     */
     private function resolveGoogleClassroomTerm($referenceDate)
     {
         if (!$referenceDate) {
@@ -1008,12 +1041,6 @@ class StudentController extends Controller
         return redirect()->back()->with('error', 'No file selected.');
     }
 
-    /**
-     * Pag-submit ng file para sa isang Google Classroom coursework item.
-     * Parehong pattern ng submitTask() pero gumagamit ng google_coursework_id
-     * column sa halip na task_id, dahil hiwalay na table (google_classroom_coursework)
-     * ang pinagmumulan ng gawaing ito, hindi student_tasks.
-     */
     private function submitGoogleTask(Request $request, int $courseworkId)
     {
         $student_id = session('student_id');
@@ -1130,6 +1157,77 @@ class StudentController extends Controller
         }
 
         return redirect()->back()->with('success', 'Your requested documents have been successfully sent to the Registrar!');
+    }
+
+    public function myGrades()
+    {
+        if (session('user_role') !== 'student') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $studentNumber = session('student_id');
+
+        $enrolledClasses = DB::table('student_subjects')
+            ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id')
+            ->where('student_subjects.student_number', $studentNumber)
+            ->where('student_subjects.status', 'Enrolled')
+            ->select(
+                'class_schedules.id as schedule_id',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'subjects.total_units',
+                'subjects.lecture_units',
+                'subjects.lab_units',
+                'employees.first_name as prof_first_name',
+                'employees.last_name as prof_last_name'
+            )
+            ->get();
+
+        $gradesData = [];
+        $totalUnits = 0;
+
+        foreach ($enrolledClasses as $class) {
+            $getTermGrade = function($termName) use ($class, $studentNumber) {
+                $record = DB::table('student_term_grades')
+                    ->where('schedule_id', $class->schedule_id)
+                    ->where('student_number', $studentNumber)
+                    ->where('term', $termName)
+                    ->where('is_sent_to_student', 1) 
+                    ->first();
+
+                return [
+                    'grade' => $record ? $record->major_exam : null, 
+                    'equivalent' => $record ? $record->equivalent : null
+                ];
+            };
+
+            $prelim = $getTermGrade('prelim');
+            $midterm = $getTermGrade('midterm');
+            $finals = $getTermGrade('final'); 
+
+            $gradesData[] = [
+                'subject_code' => $class->subject_code,
+                'subject_title' => $class->subject_title,
+                'lec_units' => $class->lecture_units ?? 3.0,
+                'lab_units' => $class->lab_units ?? 0.0,
+                'total_units' => $class->total_units,
+                'professor' => trim(($class->prof_last_name ?? '') . ', ' . ($class->prof_first_name ?? '')),
+                'prelim' => $prelim,
+                'midterm' => $midterm,
+                'finals' => $finals,
+                'final_equivalent' => $finals['equivalent'] ?? 'N/A'
+            ];
+
+            $totalUnits += $class->total_units;
+        }
+
+        $activeAcademicPeriod = DB::table('academic_periods')
+            ->where('is_active', 1)
+            ->first();
+
+        return view('student.my_grades', compact('gradesData', 'totalUnits', 'activeAcademicPeriod'));
     }
 
     public function profileView()

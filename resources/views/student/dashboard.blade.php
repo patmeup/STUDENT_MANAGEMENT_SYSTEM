@@ -43,7 +43,7 @@
 
     <div class="stats-dashboard-grid mb-5">
         
-        <div class="stat-premium-card">
+        <a href="{{ route('student.my_classes') }}" class="stat-premium-card" style="text-decoration: none; cursor: pointer;">
             <div class="stat-number-side text-blue">
                 {{ $totalEnrolledClasses }}
             </div>
@@ -54,7 +54,7 @@
             <div class="stat-icon-watermark text-blue-icon">
                 <i class="fa-solid fa-graduation-cap"></i>
             </div>
-        </div>
+        </a>
 
         <div class="stat-premium-card">
             <div class="stat-number-side text-orange">

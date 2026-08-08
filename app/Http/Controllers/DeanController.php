@@ -220,6 +220,123 @@ class DeanController extends Controller
         return view('dean.subject_list', compact('curriculumSubjects', 'dept'));
     }
 
+    public function facultyGradeStatus(Request $request)
+    {
+        if (session('user_role') !== 'dean') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        $search = $request->input('search');
+
+        $activeAcademicPeriod = DB::table('academic_periods')->where('is_active', 1)->first();
+
+        $termPeriods = $activeAcademicPeriod
+            ? DB::table('term_periods')->where('academic_period_id', $activeAcademicPeriod->id)->orderBy('start_date', 'asc')->get()
+            : collect();
+
+        $currentDate = now()->toDateString();
+        $defaultTerm = 'prelim';
+        foreach ($termPeriods as $tp) {
+            if ($currentDate >= $tp->start_date && $currentDate <= $tp->end_date) {
+                $defaultTerm = $tp->term;
+                break;
+            }
+        }
+        
+        $termFilter = $request->input('term', $defaultTerm);
+
+        $classesQuery = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->leftJoin('employees', function ($join) {
+                $join->on('subjects.professor_id', '=', 'employees.id')
+                    ->where('employees.role', '=', 'professor');
+            })
+            ->select(
+                'class_schedules.id as schedule_id',
+                'class_schedules.section_name',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'employees.first_name as prof_first_name',
+                'employees.last_name as prof_last_name',
+                DB::raw('(SELECT COUNT(*)
+                        FROM student_subjects
+                        JOIN students ON student_subjects.student_number = students.student_id
+                        WHERE student_subjects.schedule_id = class_schedules.id
+                        AND student_subjects.status = "Enrolled") as enrolled_count')
+            );
+
+        if ($search) {
+            $classesQuery->where(function ($q) use ($search) {
+                $q->where('employees.first_name', 'like', "%{$search}%")
+                ->orWhere('employees.last_name', 'like', "%{$search}%")
+                ->orWhere('subjects.subject_code', 'like', "%{$search}%")
+                ->orWhere('subjects.subject_title', 'like', "%{$search}%")
+                ->orWhere('class_schedules.section_name', 'like', "%{$search}%");
+            });
+        }
+
+        $classes = $classesQuery
+            ->orderBy('employees.last_name')
+            ->orderBy('class_schedules.section_name')
+            ->get();
+
+        $report = $classes->map(function ($class) use ($termFilter) {
+            $submittedCount = DB::table('student_term_grades')
+                ->where('schedule_id', $class->schedule_id)
+                ->where('term', $termFilter)
+                ->where('is_submitted', 1)
+                ->count();
+
+            if ($class->enrolled_count === 0) {
+                $status = 'empty';
+            } elseif ($submittedCount === 0) {
+                $status = 'not_started';
+            } elseif ($submittedCount < $class->enrolled_count) {
+                $status = 'partial';
+            } else {
+                $status = 'complete';
+            }
+
+            $class->submitted_count = $submittedCount;
+            $class->status = $status;
+
+            return $class;
+        });
+
+        return view('dean.faculty-grade-status', compact('report', 'termPeriods', 'termFilter', 'activeAcademicPeriod', 'search'));
+    }
+
+    public function getGradeBreakdown(Request $request, $scheduleId)
+    {
+        if (session('user_role') !== 'dean') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $term = $request->input('term', 'prelim');
+
+        $grades = DB::table('student_subjects')
+            ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
+            ->leftJoin('student_term_grades', function ($join) use ($scheduleId, $term) {
+                $join->on('student_subjects.student_number', '=', 'student_term_grades.student_number')
+                    ->where('student_term_grades.schedule_id', '=', $scheduleId)
+                    ->where('student_term_grades.term', '=', $term);
+            })
+            ->where('student_subjects.schedule_id', $scheduleId)
+            ->where('student_subjects.status', 'Enrolled')
+            ->select(
+                'students.first_name',
+                'students.last_name',
+                'student_term_grades.class_standing',
+                'student_term_grades.major_exam',
+                'student_term_grades.equivalent',
+                'student_term_grades.is_submitted'
+            )
+            ->orderBy('students.last_name', 'asc')
+            ->get();
+
+        return response()->json($grades);
+    }
+
     public function profileView()
     {
         $userId = session('user_id');

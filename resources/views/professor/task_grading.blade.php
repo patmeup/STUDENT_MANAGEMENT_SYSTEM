@@ -5,7 +5,7 @@
 
 <div class="grading-container py-4">
     <div class="page-header-row mb-4">
-        <a href="javascript:history.back()" class="btn-back-link">
+        <a href="{{ route('professor.task-submissions', $submission->task_id) }}" class="btn-back-custom">
             <i class="fa-solid fa-arrow-left"></i> Back to Submissions List
         </a>
         <span class="badge-portal">Grading Workspace</span>
@@ -23,9 +23,11 @@
                     <div class="avatar-placeholder">
                         <i class="fa-solid fa-user"></i>
                     </div>
-                    <div class="student-name-info">
-                        <h4 class="student-name m-0">{{ $submission->last_name }}, {{ $submission->first_name }}</h4>
-                        <span class="student-id-tag">{{ $submission->student_id }}</span>
+                    <div class="student-name-info" style="flex-grow: 1;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <h4 class="student-name m-0">{{ $submission->last_name }}, {{ $submission->first_name }}</h4>
+                            <span class="student-id-tag">{{ $submission->student_id }}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -79,7 +81,7 @@
                     <p class="small text-muted m-0">Input the score for this student</p>
                 </div>
 
-                <form action="{{ route('professor.submit-grade', $submission->id) }}" method="POST">
+                <form id="gradingForm" action="{{ route('professor.submit-grade', $submission->id) }}" method="POST">
                     @csrf
 
                     <div class="score-field-group">
@@ -92,7 +94,7 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn-submit-assessment">
+                    <button type="submit" id="saveGradeBtn" class="btn-submit-assessment">
                         <i class="fa-solid fa-floppy-disk"></i> Save Grade
                     </button>
                 </form>
@@ -123,6 +125,46 @@
             input.value = min;
         }
     }
+
+    // AJAX Form submission to update grade and immediately redirect to refresh the task_submissions UI
+    document.getElementById('gradingForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const form = this;
+        const submitBtn = document.getElementById('saveGradeBtn');
+        const originalBtnText = submitBtn.innerHTML;
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+        let formData = new FormData(form);
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Redirect back to task submissions list instantly to reflect changes
+                window.location.href = "{{ route('professor.task-submissions', $submission->task_id) }}";
+            } else {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+                alert('Error: ' + (data.message || 'Failed to save grade.'));
+            }
+        })
+        .catch(error => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+            console.error('Error:', error);
+            alert('An unexpected error occurred.');
+        });
+    });
 </script>
 
 <style>
@@ -141,8 +183,28 @@
         align-items: center;
     }
 
-    .btn-back-link { text-decoration: none; color: #475569; font-weight: 600; font-size: 14px; transition: 0.2s; }
-    .btn-back-link:hover { color: #1e2a5a; }
+    /* Bagong ganda at style para sa Back Button */
+    .btn-back-custom {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #475569;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 8px 16px;
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        transition: all 0.2s;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+    .btn-back-custom:hover {
+        background-color: #f8fafc;
+        color: #1e2a5a;
+        border-color: #cbd5e1;
+    }
+
     .badge-portal { background: #f1f5f9; color: #475569; font-weight: 700; font-size: 11px; padding: 6px 14px; border-radius: 30px; text-transform: uppercase; border: 1px solid #cbd5e1; }
 
     .alert-banner { padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; font-weight: 600; }
@@ -177,8 +239,19 @@
     }
     .avatar-placeholder { width: 52px; height: 52px; background: #eef1fb; color: #1e2a5a; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 20px; flex-shrink: 0; }
     .student-name-info { min-width: 0; }
-    .student-name { font-size: 19px; font-weight: 800; color: #1e293b; }
-    .student-id-tag { font-size: 12px; font-weight: 700; color: #64748b; background: white; border: 1px solid #e2e8f0; padding: 3px 10px; border-radius: 6px; display: inline-block; margin-top: 6px; }
+    .student-name { font-size: 18px; font-weight: 800; color: #1e293b; }
+    
+    .student-id-tag { 
+        font-size: 12px; 
+        font-weight: 700; 
+        color: #0f172a; 
+        background: #ffffff; 
+        border: 1px solid #cbd5e1; 
+        padding: 4px 10px; 
+        border-radius: 6px; 
+        font-family: monospace;
+    }
+
     .section-divider { border-color: #e2e8f0; margin: 20px 0; }
 
     .info-label { font-size: 11px; font-weight: 800; color: #94a3b8; letter-spacing: 0.8px; display: block; margin-bottom: 6px; }

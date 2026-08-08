@@ -718,6 +718,9 @@ class ProfessorController extends Controller
         $submission = DB::table('task_submissions')->where('id', $submission_id)->first();
 
         if (!$submission) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Submission record not found.'], 404);
+            }
             return redirect()->back()->with('error', 'Submission record not found.');
         }
 
@@ -733,6 +736,9 @@ class ProfessorController extends Controller
         }
 
         if (!$task) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Associated task details not found.'], 404);
+            }
             return redirect()->back()->with('error', 'Associated task details not found.');
         }
 
@@ -747,7 +753,14 @@ class ProfessorController extends Controller
             'updated_at' => now()
         ]);
 
-        return redirect()->back()->with('Success', 'Grade and feedback updated successfully!');
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Grade and feedback updated successfully!'
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Grade and feedback updated successfully!');
     }
 
     public function viewStudentBreakdown($schedule_id, $student_id, Request $request)
@@ -912,7 +925,10 @@ class ProfessorController extends Controller
     public function submitToRegistrar(Request $request)
     {
         if (session('user_role') !== 'professor') {
-            return response()->json(['success' => false, 'message' => 'Unauthorized access.'], 403);
+            return response()->json([
+                'success' => false, 
+                'message' => 'Unauthorized access.'
+            ], 403);
         }
 
         $request->validate([
@@ -921,16 +937,31 @@ class ProfessorController extends Controller
         ]);
 
         try {
-            StudentTermGrade::where('schedule_id', $request->schedule_id)
+            $updatedCount = StudentTermGrade::where('schedule_id', $request->schedule_id)
                 ->where('term', $request->term)
                 ->update(['is_submitted' => true]);
 
+            if ($updatedCount === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No grades found to submit for this term.'
+                ], 404);
+            }
+
             return response()->json([
-                'success' => true,
-                'message' => 'Grades successfully submitted to the registrar.'
+                'success'     => true,
+                'message'     => 'Grades successfully submitted to the registrar!',
+                'schedule_id' => $request->schedule_id,
+                'term'        => $request->term
             ]);
+
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            \Log::error('Error submitting grades to registrar: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false, 
+                'message' => 'An error occurred while submitting grades. Please try again.'
+            ], 500);
         }
     }
 
