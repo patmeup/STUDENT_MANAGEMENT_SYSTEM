@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Schema;
 
 class StudentController extends Controller
 {
+
     public function dashboard()
     {
         if (session('user_role') !== 'student') {
@@ -101,22 +102,60 @@ class StudentController extends Controller
         }
 
         $totalEnrolledClasses = $enrolledClasses->count();
+        $enrolledScheduleIds = $enrolledClasses->pluck('schedule_id');
 
-        $pendingTasksCount = DB::table('student_tasks')
-            ->join('student_subjects', 'student_tasks.class_schedule_id', '=', 'student_subjects.schedule_id')
-            ->leftJoin('task_submissions', function($join) use ($studentNumber) {
-                $join->on('student_tasks.id', '=', 'task_submissions.task_id')
-                     ->where('task_submissions.student_id', '=', $studentNumber);
-            })
-            ->where('student_subjects.student_number', $studentNumber)
-            ->where('student_subjects.status', 'Enrolled')
-            ->whereNull('task_submissions.id')
-            ->count();
+        // List of terms from Prelim to Final -- gamitin ang parehong eksaktong
+        // values na ginagamit sa buong system (term_periods, student_tasks.term).
+        $terms = ['prelim', 'midterm', 'semifinal', 'final'];
+        $pendingTasksPerTerm = [];
+        $totalLocalPending = 0;
+
+        foreach ($terms as $term) {
+            $count = DB::table('student_tasks')
+                ->whereIn('class_schedule_id', $enrolledScheduleIds)
+                ->where('term', $term) // Sinisiguro na nakagrupo o naka-filter per term
+                ->whereNull('google_coursework_id') // Iwasan ang double-count sa mga naka-mirror na Google Classroom items
+                ->whereNotNull('due_date')
+                ->where('due_date', '!=', '')
+                ->whereNotExists(function ($query) use ($studentNumber) {
+                    $query->select(DB::raw(1))
+                        ->from('task_submissions')
+                        ->whereColumn('task_submissions.task_id', 'student_tasks.id')
+                        ->where('task_submissions.student_id', $studentNumber);
+                })
+                ->count();
+
+            $pendingTasksPerTerm[$term] = $count;
+            $totalLocalPending += $count;
+        }
+
+        // Google Classroom pending tasks (kung meron man, optional i-integrate sa terms o idagdag sa kabuuan)
+        $googleCourseIds = DB::table('google_classroom_courses')
+            ->whereIn('linked_class_schedule_id', $enrolledScheduleIds)
+            ->pluck('id');
+
+        $googlePendingCount = 0;
+        if ($googleCourseIds->isNotEmpty()) {
+            $googlePendingCount = DB::table('google_classroom_coursework')
+                ->whereIn('course_id', $googleCourseIds)
+                ->whereNotNull('due_date')
+                ->where('due_date', '!=', '')
+                ->whereNotExists(function ($query) use ($studentNumber) {
+                    $query->select(DB::raw(1))
+                        ->from('task_submissions')
+                        ->whereColumn('task_submissions.google_coursework_id', 'google_classroom_coursework.id')
+                        ->where('task_submissions.student_id', $studentNumber);
+                })
+                ->count();
+        }
+
+        $pendingTasksCount = $totalLocalPending + $googlePendingCount;
 
         return view('student.dashboard', compact(
             'announcements',
             'totalEnrolledClasses',
             'pendingTasksCount',
+            'pendingTasksPerTerm',
             'predictedTermGWA',
             'gwaStatus',
             'statusClass'

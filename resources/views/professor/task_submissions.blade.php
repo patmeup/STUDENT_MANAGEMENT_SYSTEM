@@ -4,7 +4,7 @@
 <div class="submissions-master-container" style="max-width: 1300px; margin: 0 auto; padding: 24px; font-family: 'Inter', sans-serif;">
     
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <a href="javascript:history.back()" style="display: inline-flex; align-items: center; gap: 8px; color: #475569; font-size: 14px; font-weight: 600; text-decoration: none; padding: 8px 16px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+        <a href="{{ route('professor.class_details', ['schedule_id' => $task->class_schedule_id, 'tab' => $task->term]) }}" style="display: inline-flex; align-items: center; gap: 8px; color: #475569; font-size: 14px; font-weight: 600; text-decoration: none; padding: 8px 16px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
             <i class="fa-solid fa-arrow-left" style="font-size: 12px;"></i> Back to Term Panel
         </a>
         <span style="background-color: #0033A0; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
