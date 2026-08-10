@@ -14,7 +14,7 @@
         </div>
     @endif
 
-    <div class="announcement-carousel-wrapper">
+    <div class="announcement-carousel-wrapper mb-4">
         <div class="announcement-box">
             <span class="announcement-tag">ANNOUNCEMENT:</span>
             
@@ -104,42 +104,63 @@
 
     </div>
 
-    <hr class="my-5">
-
-    <!-- LOWER CONSOLE SPLIT LAYOUT -->
-    <div class="split-layout-grid">
-        
-        <!-- LEFT PANEL: Empty Notification Console Box (Same as Dept Sec) -->
-        <div class="panel-card-premium">
-            <h3 class="panel-title-premium"><i class="fa-solid fa-bell"></i> System Notifications</h3>
-            <div class="panel-card-content d-flex-center">
-                <div class="empty-placeholder-block">
-                    <i class="fa-regular fa-bell-slash fa-3x mb-3 text-muted"></i>
-                    <p class="empty-text-premium m-0">No new system alerts or system requests log available.</p>
-                </div>
+    <!-- LOWER SECTION: QUICK ACCESS TO PROFESSOR'S CLASSES -->
+    <div class="panel-card-premium">
+        <h3 class="panel-title-premium">
+            <i class="fa-solid fa-chalkboard-user"></i> My Assigned Classes Overview
+        </h3>
+        <div class="panel-card-content">
+            <div class="table-responsive">
+                <table class="table-custom">
+                    <thead>
+                        <tr>
+                            <th>Subject Code</th>
+                            <th>Subject Title</th>
+                            <th>Section</th>
+                            <th>Schedule & Room</th>
+                            <th>Enrolled Students</th>
+                            <th class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($classesList as $class)
+                            <tr>
+                                <td><span class="badge-code">{{ $class->subject_code }}</span></td>
+                                <td class="fw-bold text-dark">{{ $class->subject_title }}</td>
+                                <td><span class="badge-section">{{ $class->section_name }}</span></td>
+                                <td>
+                                    <div class="small text-muted">
+                                        <i class="fa-regular fa-clock"></i> {{ $class->class_days }} | {{ date('h:i A', strtotime($class->start_time)) }} - {{ date('h:i A', strtotime($class->end_time)) }}
+                                    </div>
+                                    <div class="small text-secondary">
+                                        <i class="fa-solid fa-location-dot"></i> {{ $class->room_assignment ?? 'TBA' }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge-students">
+                                        <i class="fa-solid fa-users"></i> {{ $class->students_count }} Students
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ route('professor.manage-classes', $class->schedule_id) }}" class="btn-manage-sm">
+                                        <i class="fa-solid fa-folder-open"></i> Manage Class
+                                    </a>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">
+                                    <i class="fa-regular fa-folder-open fa-2x mb-2"></i>
+                                    <p>No assigned classes found in your load record.</p>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
-
-        <!-- RIGHT PANEL: Quick Block Section Summary Tracker -->
-        <div class="panel-card-premium">
-            <h3 class="panel-title-premium"><i class="fa-solid fa-list-check"></i> Quick Block Registry</h3>
-            <div class="panel-card-content">
-                <div class="block-list-premium">
-                    @forelse($classesList as $block)
-                        <div class="block-item-premium">
-                            <span class="block-badge-tag">{{ $block->section_name }}</span>
-                            <span class="block-info-text">
-                                {{ $block->students_count }} {{ $block->students_count <= 1 ? 'Enrolled Student' : 'Enrolled Students' }}
-                            </span>
-                        </div>
-                    @empty
-                        <p class="empty-text-premium" style="margin: 20px 0;">No active sections registered.</p>
-                    @endforelse
-                </div>
-            </div>
-        </div>
-
     </div>
+
 </div>
 
 <script>
@@ -173,14 +194,12 @@
 </script>
 
 <style>
-    /* --- GENERAL BASE --- */
     .dashboard-wrapper {
         max-width: 1140px; 
         margin: 0 auto; 
         font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; 
     }
 
-    /* --- ANNOUNCEMENT CAROUSEL SLIDER --- */
     .announcement-box {
         background: #e2e8f0; 
         border: 3px solid #1e293b;
@@ -228,20 +247,13 @@
     }
     
     .carousel-slide.active { opacity: 1; }
-
-    .carousel-slide img { 
-        width: 100%; 
-        height: 100%; 
-        object-fit: fill; 
-    }
-    
+    .carousel-slide img { width: 100%; height: 100%; object-fit: fill; }
     .no-banner-placeholder { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #64748b; }
 
     .carousel-dots { text-align: center; margin-top: 14px; }
     .dot { cursor: pointer; height: 14px; width: 14px; margin: 0 6px; background-color: #ffffff; border: 3px solid #1e293b; border-radius: 50%; display: inline-block; transition: 0.2s; }
     .dot.active { background-color: #f59e0b; }
 
-    /* --- DASHBOARD SYSTEM CARD GRID --- */
     .stats-dashboard-grid { 
         display: grid; 
         grid-template-columns: repeat(4, 1fr); 
@@ -300,9 +312,6 @@
         font-size: 32px; 
         opacity: 1; 
         z-index: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
     }
 
     .text-blue { color: #1e3a8a; }
@@ -315,41 +324,31 @@
     .text-orange-icon { color: #ea580c; }
     .text-purple-icon { color: #9333ea; }
 
-    /* --- SPLIT LAYOUT LOWER MATRICES --- */
-    .split-layout-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+    /* PANEL STYLING */
     .panel-card-premium { background: #ffffff; border: 3px solid #1e293b; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
-    
     .panel-title-premium { font-size: 15px; font-weight: 800; color: #1e293b; background: #f8fafc; padding: 14px 20px; margin: 0; border-bottom: 3px solid #1e293b; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
-
     .panel-card-content { padding: 20px; flex: 1; }
-    .d-flex-center { display: flex; align-items: center; justify-content: center; min-height: 220px; text-align: center; }
-    
-    .empty-placeholder-block { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .empty-text-premium { color: #94a3b8; font-size: 14px; font-weight: 500; }
-    .mb-3 { margin-bottom: 1rem !important; }
-    .m-0 { margin: 0 !important; }
 
-    /* Block Items Premium Registry List */
-    .block-list-premium { display: flex; flex-direction: column; gap: 12px; }
-    .block-item-premium { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background-color: #f8fafc; border-radius: 10px; border: 2px solid #e2e8f0; }
-    .block-badge-tag { background-color: #eff6ff; color: #2563eb; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 12px; border: 1px solid #bfdbfe; font-family: monospace; }
-    .block-info-text { font-size: 14px; color: #475569; font-weight: 600; }
+    /* TABLE STYLES */
+    .table-responsive { width: 100%; overflow-x: auto; }
+    .table-custom { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+    .table-custom th { background-color: #f1f5f9; color: #1e293b; font-weight: 800; padding: 12px 16px; border-bottom: 2px solid #cbd5e1; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
+    .table-custom td { padding: 14px 16px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+    .table-custom tbody tr:hover { background-color: #f8fafc; }
 
-    .alert-banner { 
-        padding: 14px 18px; 
-        border-radius: 8px; 
-        margin-bottom: 20px; 
-        font-size: 14px; 
-        font-weight: 600; 
-        border: none;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-    }
+    .badge-code { background-color: #eff6ff; color: #2563eb; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 12px; border: 1px solid #bfdbfe; font-family: monospace; }
+    .badge-section { background-color: #f3e8ff; color: #7e22ce; font-weight: 700; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+    .badge-students { background-color: #f0fdf4; color: #15803d; font-weight: 700; padding: 4px 10px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; }
+
+    .btn-manage-sm { background-color: #1e293b; color: #ffffff; padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s; }
+    .btn-manage-sm:hover { background-color: #0f172a; color: #ffffff; }
+
+    .alert-banner { padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; font-weight: 600; border: none; }
     .alert-success { background: #dcfce7; color: #14532d; }
     .alert-danger { background: #fee2e2; color: #991b1b; }
 
     @media (max-width: 1024px) {
         .stats-dashboard-grid { grid-template-columns: repeat(2, 1fr); }
-        .split-layout-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 640px) {
         .stats-dashboard-grid { grid-template-columns: 1fr; }

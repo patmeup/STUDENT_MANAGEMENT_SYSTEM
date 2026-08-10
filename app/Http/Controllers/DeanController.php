@@ -111,26 +111,49 @@ class DeanController extends Controller
             ->get();
 
         $sections = DB::table('class_schedules')
-            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-            ->join('curricula', 'subjects.id', '=', 'curricula.subject_id')
-            ->select(
-                'class_schedules.section_name',
-                DB::raw('count(distinct class_schedules.subject_id) as total_subjects'),
-                DB::raw('(
-                    select count(distinct student_subjects.student_number)
-                    from student_subjects
-                    inner join class_schedules as cs2 on student_subjects.schedule_id = cs2.id
-                    where cs2.section_name = class_schedules.section_name
-                    and student_subjects.status = "Enrolled"
-                ) as enrolled_count')
-            )
-            ->groupBy('class_schedules.section_name')
-            ->orderBy('class_schedules.section_name', 'asc')
-            ->get();
+            ->whereNotNull('section_name')
+            ->where(function($query) use ($allowedCourses) {
+                foreach ($allowedCourses as $course) {
+                    $query->orWhere('section_name', 'LIKE', $course . '%');
+                }
+            })
+            ->select('section_name')
+            ->groupBy('section_name')
+            ->orderBy('section_name', 'asc')
+            ->get()
+            ->map(function ($sec) use ($allowedCourses) {
+                // Bilangin ang active subjects ng section
+                $sec->total_subjects = DB::table('class_schedules')
+                    ->where('section_name', $sec->section_name)
+                    ->count();
+
+                $count = DB::table('student_subjects')
+                    ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
+                    ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
+                    ->where('class_schedules.section_name', $sec->section_name)
+                    ->whereIn('students.course', $allowedCourses)
+                    ->where('student_subjects.status', 'Enrolled')
+                    ->distinct('students.student_id')
+                    ->count('students.student_id');
+
+                if ($count === 0) {
+                    $count = DB::table('student_subjects')
+                        ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
+                        ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
+                        ->where('class_schedules.section_name', $sec->section_name)
+                        ->whereIn('students.course', $allowedCourses)
+                        ->distinct('students.student_id')
+                        ->count('students.student_id');
+                }
+
+                $sec->enrolled_count = $count;
+
+                return $sec;
+            });
 
         return view('dean.masterlist', compact('students', 'sections', 'dept'));
     }
-
+    
     public function viewSectionRoster($section_name)
     {
         if (session('user_role') !== 'dean') {

@@ -34,18 +34,23 @@ class ProfessorController extends Controller
         $totalStudents = DB::table('student_subjects')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
             ->where('subjects.professor_id', $professor_id)
             ->where('student_subjects.status', 'Enrolled')
-            ->distinct('student_subjects.student_number')
-            ->count('student_subjects.student_number');
+            ->count('student_subjects.id');
 
         $pendingGrading = DB::table('task_submissions')
             ->join('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
             ->join('class_schedules', 'student_tasks.class_schedule_id', '=', 'class_schedules.id')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->join('student_subjects', function ($join) {
+                $join->on('student_subjects.schedule_id', '=', 'class_schedules.id')
+                    ->on('student_subjects.student_number', '=', 'task_submissions.student_id');
+            })
             ->where('subjects.professor_id', $professor_id)
+            ->where('student_subjects.status', 'Enrolled')
             ->whereNull('task_submissions.grade')
-            ->count('task_submissions.id');
+            ->count(DB::raw('DISTINCT CONCAT(task_submissions.task_id, "-", task_submissions.student_id)'));
 
         $classesList = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
@@ -58,7 +63,11 @@ class ProfessorController extends Controller
                 'class_schedules.room_assignment',
                 'subjects.subject_code',
                 'subjects.subject_title',
-                DB::raw('(SELECT COUNT(*) FROM student_subjects WHERE student_subjects.schedule_id = class_schedules.id AND student_subjects.status = "Enrolled") as students_count')
+                DB::raw('(SELECT COUNT(*) 
+                        FROM student_subjects 
+                        JOIN students ON student_subjects.student_number = students.student_id 
+                        WHERE student_subjects.schedule_id = class_schedules.id 
+                        AND student_subjects.status = "Enrolled") as students_count')
             )
             ->where('subjects.professor_id', $professor_id)
             ->orderBy('class_schedules.section_name')
