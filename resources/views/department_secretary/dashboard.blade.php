@@ -19,7 +19,7 @@
             <span class="announcement-tag">ANNOUNCEMENT:</span>
             
             <div class="carousel-track" id="carouselTrack">
-                @forelse($announcements as $index => $item)
+                @forelse($announcements as $index =>$item)
                     <div class="carousel-slide {{ $index === 0 ? 'active' : '' }}">
                         <img src="{{ asset('storage/' . $item->image_path) }}" alt="{{ $item->title ?? 'Announcement Banner' }}">
                     </div>
@@ -36,7 +36,7 @@
 
         @if($announcements->count() > 0)
             <div class="carousel-dots">
-                @foreach($announcements as $index => $item)
+                @foreach($announcements as $index =>$item)
                     <span class="dot {{ $index === 0 ? 'active' : '' }}" onclick="currentSlide({{ $index }})"></span>
                 @endforeach
             </div>
@@ -99,35 +99,6 @@
 
     </div>
 
-    <hr class="my-5">
-
-    <div class="split-layout-grid">
-        
-        <div class="panel-card-premium">
-            <h3 class="panel-title-premium"><i class="fa-solid fa-bolt"></i> Today's Deployment Highlights</h3>
-            <div class="panel-card-content">
-                <p class="empty-text-premium">No recent schedule modification alerts for today.</p>
-            </div>
-        </div>
-
-          <div class="panel-card-premium">
-            <h3 class="panel-title-premium"><i class="fa-solid fa-list-check"></i> Quick Block Summary</h3>
-            <div class="panel-card-content">
-                <div class="block-list-premium">
-                    @forelse($blockSummaryList as $block)
-                        <div class="block-item-premium">
-                            <span class="block-badge-tag">{{ $block->section_name }}</span>
-                            <span class="block-info-text">
-                                {{ $block->total_students }} Enrolled {{ $block->total_students <= 1 ? 'Student' : 'Students' }}
-                            </span>
-                        </div>
-                    @empty
-                        <p class="empty-text-premium" style="margin: 20px 0;">No active sections found.</p>
-                    @endforelse
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script>
@@ -161,14 +132,12 @@
 </script>
 
 <style>
-    /* --- GENERAL BASE --- */
     .dashboard-wrapper {
         max-width: 1140px; 
         margin: 0 auto; 
         font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; 
     }
 
-    /* --- ANNOUNCEMENT CAROUSEL SLIDER --- */
     .announcement-box {
         background: #e2e8f0; 
         border: 3px solid #1e293b;
@@ -229,7 +198,6 @@
     .dot { cursor: pointer; height: 14px; width: 14px; margin: 0 6px; background-color: #ffffff; border: 3px solid #1e293b; border-radius: 50%; display: inline-block; transition: 0.2s; }
     .dot.active { background-color: #f59e0b; }
 
-    /* --- DASHBOARD SYSTEM CARD GRID --- */
     .stats-dashboard-grid { 
         display: grid; 
         grid-template-columns: repeat(4, 1fr); 
@@ -303,22 +271,6 @@
     .text-orange-icon { color: #ea580c; }
     .text-purple-icon { color: #9333ea; }
 
-    /* --- SPLIT LAYOUT LOWER MATRICES --- */
-    .split-layout-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
-    .panel-card-premium { background: #ffffff; border: 3px solid #1e293b; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
-    
-    .panel-title-premium { font-size: 15px; font-weight: 800; color: #1e293b; background: #f8fafc; padding: 14px 20px; margin: 0; border-bottom: 3px solid #1e293b; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
-
-    .panel-card-content { padding: 20px; flex: 1; }
-    .empty-text-premium { color: #94a3b8; font-size: 14px; text-align: center; margin: 40px 0; font-weight: 500; }
-
-    /* Block Items Premium Registry List */
-    .block-list-premium { display: flex; flex-direction: column; gap: 12px; }
-    .block-item-premium { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background-color: #f8fafc; border-radius: 10px; border: 2px solid #e2e8f0; }
-    .block-badge-tag { background-color: #eff6ff; color: #2563eb; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 12px; border: 1px solid #bfdbfe; font-family: monospace; }
-    .block-info-text { font-size: 14px; color: #475569; font-weight: 600; }
-
-    /* --- ALERTS --- */
     .alert-banner { 
         padding: 14px 18px; 
         border-radius: 8px; 
@@ -331,10 +283,8 @@
     .alert-success { background: #dcfce7; color: #14532d; }
     .alert-danger { background: #fee2e2; color: #991b1b; }
 
-    /* --- RESPONSIVE BREAKPOINTS --- */
     @media (max-width: 1024px) {
         .stats-dashboard-grid { grid-template-columns: repeat(2, 1fr); }
-        .split-layout-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 640px) {
         .stats-dashboard-grid { grid-template-columns: 1fr; }

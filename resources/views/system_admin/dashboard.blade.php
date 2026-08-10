@@ -5,8 +5,11 @@
 
 <div class="dashboard-wrapper py-4 px-3">
     
+    {{-- Alert Notifications --}}
     @if(session('success'))
-        <div class="alert-banner alert-success"><i class="fa-solid fa-circle-check"></i> {{ session('success') }}</div>
+        <div class="alert-banner alert-success">
+            <i class="fa-solid fa-circle-check"></i> {{ session('success') }}
+        </div>
     @endif
     @if($errors->any())
         <div class="alert-banner alert-danger">
@@ -14,7 +17,8 @@
         </div>
     @endif
 
-    <div class="announcement-carousel-wrapper">
+    {{-- Announcement Carousel Section --}}
+    <div class="announcement-carousel-wrapper mb-4">
         <div class="announcement-box">
             <span class="announcement-tag">ANNOUNCEMENT:</span>
             
@@ -26,7 +30,7 @@
                 @empty
                     <div class="carousel-slide active">
                         <div class="no-banner-placeholder">
-                            <i class="fa-regular fa-image fa-3x"></i>
+                            <i class="fa-regular fa-image fa-3x mb-2"></i>
                             <p>No active announcements. Upload banners below.</p>
                         </div>
                     </div>
@@ -43,12 +47,10 @@
         @endif
     </div>
 
+    {{-- System Statistics Grid --}}
     <div class="stats-dashboard-grid mb-5">
-        
         <div class="stat-premium-card">
-            <div class="stat-number-side text-blue">
-                {{ $totalEmployees }}
-            </div>
+            <div class="stat-number-side text-blue">{{ $totalEmployees }}</div>
             <div class="stat-label-side">
                 <span class="lbl-main">Total</span>
                 <span class="lbl-sub">Employees</span>
@@ -59,9 +61,7 @@
         </div>
         
         <div class="stat-premium-card">
-            <div class="stat-number-side text-green">
-                {{ $totalStudents }}
-            </div>
+            <div class="stat-number-side text-green">{{ $totalStudents }}</div>
             <div class="stat-label-side">
                 <span class="lbl-main">Total</span>
                 <span class="lbl-sub">Students</span>
@@ -72,9 +72,7 @@
         </div>
 
         <div class="stat-premium-card">
-            <div class="stat-number-side text-orange">
-                {{ $totalCourses }}
-            </div>
+            <div class="stat-number-side text-orange">{{ $totalCourses }}</div>
             <div class="stat-label-side">
                 <span class="lbl-main">Active</span>
                 <span class="lbl-sub">Courses</span>
@@ -85,9 +83,7 @@
         </div>
 
         <div class="stat-premium-card">
-            <div class="stat-number-side text-purple">
-                {{ $totalSubjects }}
-            </div>
+            <div class="stat-number-side text-purple">{{ $totalSubjects }}</div>
             <div class="stat-label-side">
                 <span class="lbl-main">Total</span>
                 <span class="lbl-sub">Subjects</span>
@@ -96,11 +92,11 @@
                 <i class="fa-solid fa-folder-open"></i>
             </div>
         </div>
-
     </div>
 
-    <hr class="my-5">
+    <hr class="my-5 divider-custom">
 
+    {{-- Carousel & Banner Management Panel --}}
     <div class="management-panel">
         <h3 class="panel-title"><i class="fa-solid fa-sliders"></i> Carousel Image Management Panel (System Admin Mode)</h3>
         
@@ -114,34 +110,36 @@
         </form>
 
         <div class="uploaded-banners-table">
-            <h4>Current Active Banners (Max Recommended: 5)</h4>
+            <h4 class="text-sm font-bold text-slate-700 mb-3">Current Active Banners (Max Recommended: 5)</h4>
             @if($announcements->count() > 0)
-                <table class="custom-table">
-                    <thead>
-                        <tr>
-                            <th>Preview</th>
-                            <th>Label/Title</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($announcements as $item)
+                <div class="overflow-x-auto">
+                    <table class="custom-table">
+                        <thead>
                             <tr>
-                                <td><img src="{{ asset('storage/' . $item->image_path) }}" class="table-preview-img"></td>
-                                <td>{{ $item->title ?? 'Untitled Banner' }}</td>
-                                <td>
-                                    <form action="{{ route('system_admin.announcements.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this banner?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn-delete-banner"><i class="fa-solid fa-trash-can"></i> Delete</button>
-                                    </form>
-                                </td>
+                                <th>Preview</th>
+                                <th>Label/Title</th>
+                                <th class="text-right">Action</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach($announcements as $item)
+                                <tr>
+                                    <td><img src="{{ asset('storage/' . $item->image_path) }}" class="table-preview-img" alt="Preview"></td>
+                                    <td class="font-medium text-slate-800">{{ $item->title ?? 'Untitled Banner' }}</td>
+                                    <td class="text-right">
+                                        <form action="{{ route('system_admin.announcements.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this banner?');" style="display:inline;">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn-delete-banner"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             @else
-                <p class="text-muted text-sm">No banners found in the system.</p>
+                <p class="text-muted text-sm text-slate-500">No banners found in the system.</p>
             @endif
         </div>
     </div>
@@ -235,7 +233,7 @@
     .carousel-slide img { 
         width: 100%; 
         height: 100%; 
-        object-fit: fill; 
+        object-fit: cover; 
     }
     
     .no-banner-placeholder { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #64748b; }
@@ -300,7 +298,7 @@
         position: absolute;
         right: 24px;
         font-size: 32px; 
-        opacity: 1; 
+        opacity: 0.8; 
         z-index: 1;
         display: flex;
         align-items: center;
@@ -326,15 +324,17 @@
     }
 
     .panel-title { font-size: 16px; font-weight: 800; margin-bottom: 18px; color: #1e293b; }
-    .form-group-custom { display: flex; gap: 10px; flex-wrap: wrap; }
-    .form-control-custom { flex: 1; min-width: 200px; padding: 8px 12px; border: 2px solid #cbd5e1; border-radius: 6px; }
-    .form-file-input { padding: 6px; }
-    .btn-upload { background: #1e293b; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; }
+    .form-group-custom { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .form-control-custom { flex: 1; min-width: 200px; padding: 8px 12px; border: 2px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+    .form-file-input { padding: 6px; font-size: 14px; }
+    .btn-upload { background: #1e293b; color: white; border: none; padding: 9px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 14px; }
+    .btn-upload:hover { background: #334155; }
     
     .custom-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    .custom-table th, .custom-table td { padding: 10px; text-align: left; border-bottom: 2px solid #e2e8f0; font-size: 14px; }
+    .custom-table th, .custom-table td { padding: 10px 12px; text-align: left; border-bottom: 2px solid #e2e8f0; font-size: 14px; }
     .table-preview-img { width: 110px; height: 50px; object-fit: cover; border-radius: 4px; border: 2px solid #cbd5e1; }
-    .btn-delete-banner { background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: 600; }
+    .btn-delete-banner { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: 600; }
+    .btn-delete-banner:hover { background: #dc2626; }
 
     .alert-banner { 
         padding: 14px 18px; 

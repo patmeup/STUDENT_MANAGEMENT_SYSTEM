@@ -9,7 +9,6 @@ use App\Models\User;
 
 class DeanController extends Controller
 {
-
     public function dashboard() {
         if (session('user_role') !== 'dean') {
             return redirect('/')->with('error', 'Unauthorized access.');
@@ -20,12 +19,17 @@ class DeanController extends Controller
         $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
 
         $allowedCourses = ['BSIT']; 
+        $dbDepartmentSearch = $dept; 
+
         if (str_contains(strtolower($dept), 'computer studies') || str_contains(strtolower($dept), 'ccs')) {
             $allowedCourses = ['BSIT', 'BSCS'];
+            $dbDepartmentSearch = 'Computer Studies'; // Hahanapin ang text na ito sa database
         } elseif (str_contains(strtolower($dept), 'business') || str_contains(strtolower($dept), 'cba')) {
             $allowedCourses = ['BSBA'];
+            $dbDepartmentSearch = 'Business';
         } elseif (str_contains(strtolower($dept), 'hospitality') || str_contains(strtolower($dept), 'chm')) {
             $allowedCourses = ['BSHM', 'BSTM'];
+            $dbDepartmentSearch = 'Hospitality';
         }
 
         $trackedSubjectsCount = DB::table('curricula')
@@ -53,26 +57,10 @@ class DeanController extends Controller
             })
             ->count();
 
-        $blockSummaryList = DB::table('class_schedules')
-            ->where(function($query) use ($allowedCourses) {
-                foreach ($allowedCourses as $course) {
-                    $query->orWhere('class_schedules.section_name', 'LIKE', $course . '%');
-                }
-            })
-            ->select(
-                'class_schedules.section_name',
-                DB::raw('(
-                    select count(distinct student_subjects.student_number)
-                    from student_subjects
-                    inner join class_schedules as cs2 on student_subjects.schedule_id = cs2.id
-                    where cs2.section_name = class_schedules.section_name
-                    and student_subjects.status = "Enrolled"
-                ) as total_students')
-            )
-            ->groupBy('class_schedules.section_name')
-            ->orderBy('class_schedules.section_name', 'asc')
-            ->take(5)
-            ->get();
+        $totalFacultyCount = DB::table('employees')
+            ->whereIn('role', ['professor', 'dept_sec'])
+            ->where('department', 'LIKE', '%' . $dbDepartmentSearch . '%')
+            ->count();
 
         return view('dean.dashboard', compact(
             'dept',
@@ -81,7 +69,7 @@ class DeanController extends Controller
             'totalStudentsCount', 
             'activeBlocksCount', 
             'deployedSlotsCount',
-            'blockSummaryList'
+            'totalFacultyCount'
         ));
     }
 
@@ -122,7 +110,6 @@ class DeanController extends Controller
             ->orderBy('section_name', 'asc')
             ->get()
             ->map(function ($sec) use ($allowedCourses) {
-                // Bilangin ang active subjects ng section
                 $sec->total_subjects = DB::table('class_schedules')
                     ->where('section_name', $sec->section_name)
                     ->count();

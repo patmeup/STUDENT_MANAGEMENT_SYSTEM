@@ -43,7 +43,7 @@
         @endif
     </div>
 
-    <!-- DASHBOARD PREMIUM STATS GRID -->
+    <!-- DASHBOARD PREMIUM STATS GRID (3 CARDS ONLY) -->
     <div class="stats-dashboard-grid mb-5">
       
         <!-- CARD 1: Total Handled Classes -->
@@ -88,77 +88,6 @@
             </div>
         </div>
 
-        <!-- CARD 4: General Active Load Status Badge Indicator -->
-        <div class="stat-premium-card">
-            <div class="stat-number-side text-purple">
-                {{ $totalClasses }}
-            </div>
-            <div class="stat-label-side">
-                <span class="lbl-main">Active</span>
-                <span class="lbl-sub">Subject Groups</span>
-            </div>
-            <div class="stat-icon-watermark text-purple-icon">
-                <i class="fa-solid fa-calendar-days"></i>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- LOWER SECTION: QUICK ACCESS TO PROFESSOR'S CLASSES -->
-    <div class="panel-card-premium">
-        <h3 class="panel-title-premium">
-            <i class="fa-solid fa-chalkboard-user"></i> My Assigned Classes Overview
-        </h3>
-        <div class="panel-card-content">
-            <div class="table-responsive">
-                <table class="table-custom">
-                    <thead>
-                        <tr>
-                            <th>Subject Code</th>
-                            <th>Subject Title</th>
-                            <th>Section</th>
-                            <th>Schedule & Room</th>
-                            <th>Enrolled Students</th>
-                            <th class="text-center">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($classesList as $class)
-                            <tr>
-                                <td><span class="badge-code">{{ $class->subject_code }}</span></td>
-                                <td class="fw-bold text-dark">{{ $class->subject_title }}</td>
-                                <td><span class="badge-section">{{ $class->section_name }}</span></td>
-                                <td>
-                                    <div class="small text-muted">
-                                        <i class="fa-regular fa-clock"></i> {{ $class->class_days }} | {{ date('h:i A', strtotime($class->start_time)) }} - {{ date('h:i A', strtotime($class->end_time)) }}
-                                    </div>
-                                    <div class="small text-secondary">
-                                        <i class="fa-solid fa-location-dot"></i> {{ $class->room_assignment ?? 'TBA' }}
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="badge-students">
-                                        <i class="fa-solid fa-users"></i> {{ $class->students_count }} Students
-                                    </span>
-                                </td>
-                                <td class="text-center">
-                                    <a href="{{ route('professor.manage-classes', $class->schedule_id) }}" class="btn-manage-sm">
-                                        <i class="fa-solid fa-folder-open"></i> Manage Class
-                                    </a>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="text-center py-4 text-muted">
-                                    <i class="fa-regular fa-folder-open fa-2x mb-2"></i>
-                                    <p>No assigned classes found in your load record.</p>
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
     </div>
 
 </div>
@@ -254,9 +183,10 @@
     .dot { cursor: pointer; height: 14px; width: 14px; margin: 0 6px; background-color: #ffffff; border: 3px solid #1e293b; border-radius: 50%; display: inline-block; transition: 0.2s; }
     .dot.active { background-color: #f59e0b; }
 
+    /* In-adjust natin sa 3 columns para sa stats grid */
     .stats-dashboard-grid { 
         display: grid; 
-        grid-template-columns: repeat(4, 1fr); 
+        grid-template-columns: repeat(3, 1fr); 
         gap: 20px; 
         width: 100%;
         margin-top: 25px;
@@ -317,31 +247,10 @@
     .text-blue { color: #1e3a8a; }
     .text-green { color: #15803d; }
     .text-orange { color: #c2410c; }
-    .text-purple { color: #6b21a8; }
 
     .text-blue-icon { color: #2563eb; }
     .text-green-icon { color: #16a34a; }
     .text-orange-icon { color: #ea580c; }
-    .text-purple-icon { color: #9333ea; }
-
-    /* PANEL STYLING */
-    .panel-card-premium { background: #ffffff; border: 3px solid #1e293b; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
-    .panel-title-premium { font-size: 15px; font-weight: 800; color: #1e293b; background: #f8fafc; padding: 14px 20px; margin: 0; border-bottom: 3px solid #1e293b; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
-    .panel-card-content { padding: 20px; flex: 1; }
-
-    /* TABLE STYLES */
-    .table-responsive { width: 100%; overflow-x: auto; }
-    .table-custom { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
-    .table-custom th { background-color: #f1f5f9; color: #1e293b; font-weight: 800; padding: 12px 16px; border-bottom: 2px solid #cbd5e1; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
-    .table-custom td { padding: 14px 16px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
-    .table-custom tbody tr:hover { background-color: #f8fafc; }
-
-    .badge-code { background-color: #eff6ff; color: #2563eb; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 12px; border: 1px solid #bfdbfe; font-family: monospace; }
-    .badge-section { background-color: #f3e8ff; color: #7e22ce; font-weight: 700; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
-    .badge-students { background-color: #f0fdf4; color: #15803d; font-weight: 700; padding: 4px 10px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; }
-
-    .btn-manage-sm { background-color: #1e293b; color: #ffffff; padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s; }
-    .btn-manage-sm:hover { background-color: #0f172a; color: #ffffff; }
 
     .alert-banner { padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; font-weight: 600; border: none; }
     .alert-success { background: #dcfce7; color: #14532d; }

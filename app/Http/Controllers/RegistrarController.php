@@ -15,8 +15,11 @@ class RegistrarController extends Controller
     {
         $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
         $totalStudents = DB::table('students')->count();
+
+        $pendingApprovals = DB::table('document_requests')->where('status', 'Pending')->count();
+        $academicRecords = DB::table('student_subjects')->count();
         
-        return view('registrar.dashboard', compact('announcements', 'totalStudents'));
+        return view('registrar.dashboard', compact('announcements', 'totalStudents', 'pendingApprovals', 'academicRecords'));
     }
 
     public function storeAnnouncement(Request $request)

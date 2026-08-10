@@ -53,46 +53,33 @@
                 <span class="lbl-main">Total</span>
                 <span class="lbl-sub">Students</span>
             </div>
-            <div class="stat-icon-watermark text-green-icon">
+            <div class="stat-icon-right text-green">
                 <i class="fa-solid fa-graduation-cap"></i>
             </div>
         </div>
-        
-        <a href="{{ route('registrar.manage-enrollment') }}" class="stat-premium-card clickable-card" style="text-decoration: none;">
-            <div class="stat-number-side text-blue">
-                <i class="fa-solid fa-user-plus" style="font-size: 32px;"></i>
-            </div>
-            <div class="stat-label-side">
-                <span class="lbl-main">Enrollment</span>
-                <span class="lbl-sub">Registration</span>
-            </div>
-            <div class="stat-icon-watermark text-blue-icon">
-                <i class="fa-solid fa-id-card"></i>
-            </div>
-        </a>
 
         <div class="stat-premium-card">
             <div class="stat-number-side text-orange">
-                --
+                {{ $pendingApprovals ?? 0 }}
             </div>
             <div class="stat-label-side">
                 <span class="lbl-main">Pending</span>
-                <span class="lbl-sub">Approvals</span>
+                <span class="lbl-sub">Document Requests</span>
             </div>
-            <div class="stat-icon-watermark text-orange-icon">
+            <div class="stat-icon-right text-orange">
                 <i class="fa-solid fa-clock-rotate-left"></i>
             </div>
         </div>
 
         <div class="stat-premium-card">
             <div class="stat-number-side text-purple">
-                --
+                {{ $academicRecords ?? 0 }}
             </div>
             <div class="stat-label-side">
                 <span class="lbl-main">Academic</span>
                 <span class="lbl-sub">Records</span>
             </div>
-            <div class="stat-icon-watermark text-purple-icon">
+            <div class="stat-icon-right text-purple">
                 <i class="fa-solid fa-file-invoice"></i>
             </div>
         </div>
@@ -178,14 +165,12 @@
 </script>
 
 <style>
-    /* --- DASHBOARD WRAPPER & GENERAL BASE --- */
     .dashboard-wrapper {
         max-width: 1140px; 
         margin: 0 auto; 
         font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; 
     }
     
-    /* --- ANNOUNCEMENT CAROUSEL SLIDER (FIGMA MATCH) --- */
     .announcement-box {
         background: #e2e8f0; 
         border: 3px solid #1e293b; 
@@ -241,10 +226,9 @@
     .dot { cursor: pointer; height: 14px; width: 14px; margin: 0 6px; background-color: #ffffff; border: 3px solid #1e293b; border-radius: 50%; display: inline-block; transition: 0.2s; }
     .dot.active { background-color: #f59e0b; }
 
-    /* --- PERFECT EQUAL GRID WITH FIGMA BORDERS --- */
     .stats-dashboard-grid { 
         display: grid; 
-        grid-template-columns: repeat(4, 1fr); 
+        grid-template-columns: repeat(3, 1fr); 
         gap: 20px; 
         width: 100%;
         margin-top: 25px;
@@ -261,15 +245,6 @@
         position: relative;
         overflow: hidden;
         color: inherit;
-    }
-
-    .clickable-card {
-        transition: transform 0.2s ease, background-color 0.2s ease;
-        cursor: pointer;
-    }
-    .clickable-card:hover {
-        transform: translateY(-3px);
-        background-color: #f8fafc;
     }
 
     .stat-number-side {
@@ -300,67 +275,107 @@
     }
 
     .stat-label-side .lbl-sub {
-        font-size: 15px;
+        font-size: 12px;
         font-weight: 600;
-        color: #475569;
-        line-height: 1.2;
+        color: #64748b;
     }
 
-    .stat-icon-watermark {
+    .stat-icon-right {
         position: absolute;
         right: 24px;
-        font-size: 32px; 
-        opacity: 1; 
-        z-index: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        font-size: 28px;
+        z-index: 2;
     }
 
-    /* Solid Colors System */
-    .text-blue { color: #1e3a8a; }
-    .text-green { color: #15803d; }
-    .text-orange { color: #c2410c; }
-    .text-purple { color: #6b21a8; }
+    .text-green { color: #10b981; }
+    .text-orange { color: #f59e0b; }
+    .text-purple { color: #8b5cf6; }
 
-    .text-blue-icon { color: #2563eb; }
-    .text-green-icon { color: #16a34a; }
-    .text-orange-icon { color: #ea580c; }
-    .text-purple-icon { color: #9333ea; }
-
-    /* --- CAROUSEL BANNER MANAGEMENT PANEL --- */
-    .management-panel { 
-        background: #ffffff; 
-        border: 3px solid #1e293b; 
-        border-radius: 16px; 
+    .management-panel {
+        background: #ffffff;
+        border: 3px solid #1e293b;
+        border-radius: 16px;
         padding: 24px;
-        margin-top: 25px;
     }
 
-    .panel-title { font-size: 16px; font-weight: 800; margin-bottom: 18px; color: #1e293b; }
-    .form-group-custom { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    .form-control-custom { flex: 1; min-width: 200px; padding: 10px 12px; border: 2px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
-    .form-file-input { padding: 6px; }
-    .btn-upload { background: #1e293b; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
-    
-    .custom-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    .custom-table th, .custom-table td { padding: 12px 10px; text-align: left; border-bottom: 2px solid #e2e8f0; font-size: 14px; }
-    .custom-table th { font-weight: 700; color: #1e293b; background: #f8fafc; }
-    .table-preview-img { width: 110px; height: 50px; object-fit: cover; border-radius: 4px; border: 2px solid #cbd5e1; }
-    .btn-delete-banner { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
-    
-    /* --- SYSTEM ALERTS BANNERS --- */
-    .alert-banner { padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; font-weight: 600; border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 8px; }
-    .alert-success { background: #dcfce7; color: #14532d; }
-    .alert-danger { background: #fee2e2; color: #991b1b; }
+    .panel-title {
+        font-size: 18px;
+        font-weight: 800;
+        color: #1e293b;
+        margin-bottom: 20px;
+    }
 
-    /* --- RESPONSIVE BREAKPOINTS --- */
-    @media (max-width: 1024px) {
-        .stats-dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+    .upload-inline-form .form-group-custom {
+        display: flex;
+        gap: 12px;
+        align-items: center;
     }
-    @media (max-width: 640px) {
-        .stats-dashboard-grid { grid-template-columns: 1fr; }
-        .form-group-custom { flex-direction: column; align-items: stretch; }
+
+    .form-control-custom, .form-file-input {
+        border: 2px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 14px;
+        outline: none;
     }
+    .form-control-custom { flex: 1; }
+    .form-file-input { background: #f8fafc; }
+
+    .btn-upload {
+        background-color: #10b981;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        font-weight: 700;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .btn-upload:hover { background-color: #059669; }
+
+    .uploaded-banners-table h4 {
+        font-size: 15px;
+        font-weight: 700;
+        color: #334155;
+        margin-bottom: 12px;
+    }
+
+    .custom-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .custom-table th, .custom-table td {
+        padding: 12px;
+        border-bottom: 1px solid #e2e8f0;
+        text-align: left;
+        vertical-align: middle;
+    }
+    .custom-table th {
+        background: #f8fafc;
+        font-size: 12px;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 700;
+    }
+
+    .table-preview-img {
+        width: 120px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 6px;
+        border: 1px solid #cbd5e1;
+    }
+
+    .btn-delete-banner {
+        background-color: #ef4444;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .btn-delete-banner:hover { background-color: #dc2626; }
 </style>
 @endsection

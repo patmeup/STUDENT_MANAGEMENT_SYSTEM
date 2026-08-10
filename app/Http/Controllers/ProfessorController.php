@@ -52,33 +52,11 @@ class ProfessorController extends Controller
             ->whereNull('task_submissions.grade')
             ->count(DB::raw('DISTINCT CONCAT(task_submissions.task_id, "-", task_submissions.student_id)'));
 
-        $classesList = DB::table('class_schedules')
-            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-            ->select(
-                'class_schedules.id as schedule_id',
-                'class_schedules.section_name',
-                'class_schedules.class_days',
-                'class_schedules.start_time',
-                'class_schedules.end_time',
-                'class_schedules.room_assignment',
-                'subjects.subject_code',
-                'subjects.subject_title',
-                DB::raw('(SELECT COUNT(*) 
-                        FROM student_subjects 
-                        JOIN students ON student_subjects.student_number = students.student_id 
-                        WHERE student_subjects.schedule_id = class_schedules.id 
-                        AND student_subjects.status = "Enrolled") as students_count')
-            )
-            ->where('subjects.professor_id', $professor_id)
-            ->orderBy('class_schedules.section_name')
-            ->get();
-
         return view('professor.dashboard', compact(
             'announcements',
             'totalClasses',
             'totalStudents',
-            'pendingGrading',
-            'classesList'
+            'pendingGrading'
         ));
     }
 
@@ -263,24 +241,7 @@ class ProfessorController extends Controller
                     ->where('academic_period_id', $academicPeriodId)
                     ->get();
 
-
-                $gCourseWork = DB::table('google_classroom_coursework')
-                    ->where('course_id', $gLinkedCourse->id)
-                    ->orderBy('posted_at', 'desc')
-                    ->get()
-                    ->map(function($cw) use ($termPeriods) {
-                        $postDate = $cw->posted_at ? date('Y-m-d', strtotime($cw->posted_at)) : null;
-
-                        $matchedTerm = null;
-                        if ($postDate) {
-                            $matchedTerm = $termPeriods->first(function($period) use ($postDate) {
-                                return $postDate >= $period->start_date && $postDate <= $period->end_date;
-                            });
-                        }
-
-                        $cw->term = $matchedTerm ? $matchedTerm->term : 'prelim';
-                        return $cw;
-                    });
+                $gCourseWork = collect(); 
 
                 $gMaterials = DB::table('google_classroom_materials')
                     ->where('course_id', $gLinkedCourse->id)
@@ -621,16 +582,24 @@ class ProfessorController extends Controller
         }
     }
 
-    public function viewTaskSubmissions($task_id)
+    public function viewTaskSubmissions($id)
     {
         if (session('user_role') !== 'professor') {
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
-        $task = DB::table('student_tasks')->where('id', $task_id)->first();
+        $task = DB::table('student_tasks')->where('id', $id)->first();
 
         if (!$task) {
-            return redirect()->back()->with('error', 'Task not found.');
+            $gcWork = DB::table('google_classroom_coursework')->where('id', $id)->first();
+            
+            if ($gcWork) {
+                $task = DB::table('student_tasks')->where('google_coursework_id', $gcWork->google_coursework_id)->first();
+            }
+        }
+
+        if (!$task) {
+            return redirect()->back()->with('error', 'Google Classroom task is not yet synced or set up in the system. Please sync your coursework before attempting to grade.');
         }
 
         $googleCourseworkLocalId = null;
