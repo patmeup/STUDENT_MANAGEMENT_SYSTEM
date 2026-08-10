@@ -14,7 +14,7 @@
         </div>
     @endif
 
-    <div class="announcement-carousel-wrapper">
+    <div class="announcement-carousel-wrapper mb-4">
         <div class="announcement-box">
             <span class="announcement-tag">ANNOUNCEMENT:</span>
             
@@ -43,7 +43,7 @@
         @endif
     </div>
 
-    <!-- DASHBOARD PREMIUM STATS GRID -->
+    <!-- DASHBOARD PREMIUM STATS GRID (3 CARDS ONLY) -->
     <div class="stats-dashboard-grid mb-5">
       
         <!-- CARD 1: Total Handled Classes -->
@@ -88,58 +88,8 @@
             </div>
         </div>
 
-        <!-- CARD 4: General Active Load Status Badge Indicator -->
-        <div class="stat-premium-card">
-            <div class="stat-number-side text-purple">
-                {{ $totalClasses }}
-            </div>
-            <div class="stat-label-side">
-                <span class="lbl-main">Active</span>
-                <span class="lbl-sub">Subject Groups</span>
-            </div>
-            <div class="stat-icon-watermark text-purple-icon">
-                <i class="fa-solid fa-calendar-days"></i>
-            </div>
-        </div>
-
     </div>
 
-    <hr class="my-5">
-
-    <!-- LOWER CONSOLE SPLIT LAYOUT -->
-    <div class="split-layout-grid">
-        
-        <!-- LEFT PANEL: Empty Notification Console Box (Same as Dept Sec) -->
-        <div class="panel-card-premium">
-            <h3 class="panel-title-premium"><i class="fa-solid fa-bell"></i> System Notifications</h3>
-            <div class="panel-card-content d-flex-center">
-                <div class="empty-placeholder-block">
-                    <i class="fa-regular fa-bell-slash fa-3x mb-3 text-muted"></i>
-                    <p class="empty-text-premium m-0">No new system alerts or system requests log available.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- RIGHT PANEL: Quick Block Section Summary Tracker -->
-        <div class="panel-card-premium">
-            <h3 class="panel-title-premium"><i class="fa-solid fa-list-check"></i> Quick Block Registry</h3>
-            <div class="panel-card-content">
-                <div class="block-list-premium">
-                    @forelse($classesList as $block)
-                        <div class="block-item-premium">
-                            <span class="block-badge-tag">{{ $block->section_name }}</span>
-                            <span class="block-info-text">
-                                {{ $block->students_count }} {{ $block->students_count <= 1 ? 'Enrolled Student' : 'Enrolled Students' }}
-                            </span>
-                        </div>
-                    @empty
-                        <p class="empty-text-premium" style="margin: 20px 0;">No active sections registered.</p>
-                    @endforelse
-                </div>
-            </div>
-        </div>
-
-    </div>
 </div>
 
 <script>
@@ -173,14 +123,12 @@
 </script>
 
 <style>
-    /* --- GENERAL BASE --- */
     .dashboard-wrapper {
         max-width: 1140px; 
         margin: 0 auto; 
         font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; 
     }
 
-    /* --- ANNOUNCEMENT CAROUSEL SLIDER --- */
     .announcement-box {
         background: #e2e8f0; 
         border: 3px solid #1e293b;
@@ -228,23 +176,17 @@
     }
     
     .carousel-slide.active { opacity: 1; }
-
-    .carousel-slide img { 
-        width: 100%; 
-        height: 100%; 
-        object-fit: fill; 
-    }
-    
+    .carousel-slide img { width: 100%; height: 100%; object-fit: fill; }
     .no-banner-placeholder { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #64748b; }
 
     .carousel-dots { text-align: center; margin-top: 14px; }
     .dot { cursor: pointer; height: 14px; width: 14px; margin: 0 6px; background-color: #ffffff; border: 3px solid #1e293b; border-radius: 50%; display: inline-block; transition: 0.2s; }
     .dot.active { background-color: #f59e0b; }
 
-    /* --- DASHBOARD SYSTEM CARD GRID --- */
+    /* In-adjust natin sa 3 columns para sa stats grid */
     .stats-dashboard-grid { 
         display: grid; 
-        grid-template-columns: repeat(4, 1fr); 
+        grid-template-columns: repeat(3, 1fr); 
         gap: 20px; 
         width: 100%;
         margin-top: 25px;
@@ -300,56 +242,22 @@
         font-size: 32px; 
         opacity: 1; 
         z-index: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
     }
 
     .text-blue { color: #1e3a8a; }
     .text-green { color: #15803d; }
     .text-orange { color: #c2410c; }
-    .text-purple { color: #6b21a8; }
 
     .text-blue-icon { color: #2563eb; }
     .text-green-icon { color: #16a34a; }
     .text-orange-icon { color: #ea580c; }
-    .text-purple-icon { color: #9333ea; }
 
-    /* --- SPLIT LAYOUT LOWER MATRICES --- */
-    .split-layout-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
-    .panel-card-premium { background: #ffffff; border: 3px solid #1e293b; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
-    
-    .panel-title-premium { font-size: 15px; font-weight: 800; color: #1e293b; background: #f8fafc; padding: 14px 20px; margin: 0; border-bottom: 3px solid #1e293b; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
-
-    .panel-card-content { padding: 20px; flex: 1; }
-    .d-flex-center { display: flex; align-items: center; justify-content: center; min-height: 220px; text-align: center; }
-    
-    .empty-placeholder-block { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .empty-text-premium { color: #94a3b8; font-size: 14px; font-weight: 500; }
-    .mb-3 { margin-bottom: 1rem !important; }
-    .m-0 { margin: 0 !important; }
-
-    /* Block Items Premium Registry List */
-    .block-list-premium { display: flex; flex-direction: column; gap: 12px; }
-    .block-item-premium { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background-color: #f8fafc; border-radius: 10px; border: 2px solid #e2e8f0; }
-    .block-badge-tag { background-color: #eff6ff; color: #2563eb; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 12px; border: 1px solid #bfdbfe; font-family: monospace; }
-    .block-info-text { font-size: 14px; color: #475569; font-weight: 600; }
-
-    .alert-banner { 
-        padding: 14px 18px; 
-        border-radius: 8px; 
-        margin-bottom: 20px; 
-        font-size: 14px; 
-        font-weight: 600; 
-        border: none;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-    }
+    .alert-banner { padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; font-weight: 600; border: none; }
     .alert-success { background: #dcfce7; color: #14532d; }
     .alert-danger { background: #fee2e2; color: #991b1b; }
 
     @media (max-width: 1024px) {
         .stats-dashboard-grid { grid-template-columns: repeat(2, 1fr); }
-        .split-layout-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 640px) {
         .stats-dashboard-grid { grid-template-columns: 1fr; }

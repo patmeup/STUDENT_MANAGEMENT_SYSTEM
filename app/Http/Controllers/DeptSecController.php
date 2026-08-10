@@ -57,35 +57,13 @@ class DeptSecController extends Controller
             })
             ->count();
 
-        $blockSummaryList = DB::table('class_schedules')
-            ->where(function($query) use ($allowedCourses) {
-                foreach ($allowedCourses as $course) {
-                    $query->orWhere('class_schedules.section_name', 'LIKE', $course . '%');
-                }
-            })
-            ->select(
-                'class_schedules.section_name',
-                DB::raw('(
-                    select count(distinct student_subjects.student_number)
-                    from student_subjects
-                    inner join class_schedules as cs2 on student_subjects.schedule_id = cs2.id
-                    where cs2.section_name = class_schedules.section_name
-                    and student_subjects.status = "Enrolled"
-                ) as total_students')
-            )
-            ->groupBy('class_schedules.section_name')
-            ->orderBy('class_schedules.section_name', 'asc')
-            ->take(5)
-            ->get();
-
         return view('department_secretary.dashboard', compact(
             'dept',
             'announcements',
             'trackedSubjectsCount', 
             'totalStudentsCount', 
             'activeBlocksCount', 
-            'deployedSlotsCount',
-            'blockSummaryList'
+            'deployedSlotsCount'
         ));
     }
 

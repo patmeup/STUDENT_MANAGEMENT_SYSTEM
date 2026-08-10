@@ -459,62 +459,60 @@
                         <div x-show="termSubTab === 'deliverables'">
 
                             @php
-                                $mergedDeliverables = collect();
+                                $mergedDeliverables = collect();$currentTermTasks = collect($termTasks->get($key, []));
 
-                                $currentTermTasks = collect();
-                                if (isset($termTasks)) {
-                                    if ($termTasks instanceof \Illuminate\Support\Collection) {
-                                        $currentTermTasks = $termTasks->get($key, collect());
-                                    } elseif (is_array($termTasks)) {
-                                        $currentTermTasks = collect($termTasks[$key] ?? []);
+                                $systemTaskTitles =$currentTermTasks->pluck('activity_name')->map(fn($t) => strtolower(trim($t)))->toArray();
+
+                                foreach ($currentTermTasks as$task) {
+                                    $isGoogleTask = !empty($task->google_coursework_id);
+
+                                    $gLink = null;
+                                    if ($isGoogleTask) {$gLink = DB::table('google_classroom_coursework')
+                                            ->where('google_coursework_id', $task->google_coursework_id)
+                                            ->value('alternate_link');
                                     }
-                                }
 
-                                foreach ($currentTermTasks as $task) {
                                     $mergedDeliverables->push((object)[
-                                        'source'     => 'system',
+                                        'source'     => $isGoogleTask ? 'gclass_coursework' : 'system',
                                         'id'         => $task->id,
                                         'title'      => $task->activity_name,
                                         'type'       => $task->activity_type,
                                         'max_score'  => $task->max_score,
                                         'due_date'   => $task->due_date,
-                                        'link'       => null,
+                                        'link'       => $gLink,
                                         'sort_date'  => $task->due_date ?? '1970-01-01',
                                     ]);
                                 }
 
-                                if (isset($gConnection) && $gConnection && isset($gLinkedCourse) && $gLinkedCourse) {
-                                    if (isset($gCourseWork)) {
-                                        $filteredGCourseWork = $gCourseWork->where('term', $key);
-                                        foreach ($filteredGCourseWork as $cw) {
-                                            $studentTask = DB::table('student_tasks')->where('google_coursework_id', $cw->google_coursework_id)->first();
+                                if (isset($gConnection) &&$gConnection && isset($gLinkedCourse) &&$gLinkedCourse) {
+                                    if (isset($gCourseWork)) {$filteredGCourseWork = $gCourseWork->where('term',$key);
+                                        foreach ($filteredGCourseWork as$cw) {
+                                            $existsInDb = DB::table('student_tasks')->where('google_coursework_id', $cw->google_coursework_id)->exists();$titleMatches = in_array(strtolower(trim($cw->title)),$systemTaskTitles);
 
-                                            $mergedDeliverables->push((object)[
-                                                'source'     => 'gclass_coursework',
-                                                'id'         => $studentTask ? $studentTask->id : $cw->id,
-                                                'title'      => $cw->title,
-                                                'type'       => 'coursework',
-                                                'max_score'  => $cw->max_points ?? null,
-                                                'due_date'   => $cw->due_date,
-                                                'link'       => $cw->alternate_link,
-                                                'sort_date'  => $cw->due_date ?? '1970-01-01',
-                                            ]);
+                                            if (!$existsInDb && !$titleMatches) {$mergedDeliverables->push((object)[
+                                                    'source'     => 'gclass_coursework',
+                                                    'id'         => $cw->id,
+                                                    'title'      => $cw->title,
+                                                    'type'       => 'coursework',
+                                                    'max_score'  => $cw->max_points ?? null,
+                                                    'due_date'   => $cw->due_date,
+                                                    'link'       => $cw->alternate_link,
+                                                    'sort_date'  => $cw->due_date ?? '1970-01-01',
+                                                ]);
+                                            }
                                         }
                                     }
 
                                     if (isset($gMaterials)) {
-                                        $termMaterials = $gMaterials->filter(function($mat) use ($key, $termPeriods) {
-                                            $postDate = $mat->posted_at ? date('Y-m-d', strtotime($mat->posted_at)) : null;
+                                        $termMaterials =$gMaterials->filter(function($mat) use ($key, $termPeriods) {$postDate = $mat->posted_at ? date('Y-m-d', strtotime($mat->posted_at)) : null;
                                             if (!$postDate) return false;
-                                            if (isset($termPeriods) && count($termPeriods) > 0) {
-                                                $matched = $termPeriods->first(fn($p) => $postDate >= $p->start_date && $postDate <= $p->end_date);
-                                                return $matched && $matched->term === $key;
+                                            if (isset($termPeriods) && count($termPeriods) > 0) {$matched = $termPeriods->first(fn($p) => $postDate >=$p->start_date && $postDate <=$p->end_date);
+                                                return $matched && $matched->term ===$key;
                                             }
-                                            return isset($mat->term) && $mat->term === $key;
+                                            return isset($mat->term) && $mat->term ===$key;
                                         });
 
-                                        foreach ($termMaterials as $mat) {
-                                            $mergedDeliverables->push((object)[
+                                        foreach ($termMaterials as $mat) {$mergedDeliverables->push((object)[
                                                 'source'     => 'gclass_material',
                                                 'id'         => $mat->id,
                                                 'title'      => $mat->title,
@@ -529,7 +527,7 @@
                                     }
                                 }
 
-                                $mergedDeliverables = $mergedDeliverables->sortByDesc('sort_date')->values();
+                                $mergedDeliverables =$mergedDeliverables->sortByDesc('sort_date')->values();
                             @endphp
 
                             @if($gConnection && !$gLinkedCourse)
