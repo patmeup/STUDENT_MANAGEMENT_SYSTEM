@@ -11,6 +11,7 @@ use App\Http\Controllers\DeanController;
 use App\Http\Controllers\DeptSecController;
 use App\Http\Controllers\ProfessorController;
 use App\Http\Controllers\FacultyController;
+use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\CurriculumController;
@@ -163,3 +164,9 @@ Route::get('/student/my-grades', [StudentController::class, 'myGrades'])->name('
 Route::get('/student/user_details', [StudentController::class, 'profileView'])->name('student.user_details');
 Route::put('/account/update-credentials', [StudentController::class, 'updateCredentials'])->name('account.update_credentials');
 Route::post('/student/request-document', [StudentController::class, 'submitDocumentRequest'])->name('student.submit_request');
+
+// FORGOT PASSWORD ROUTES
+Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
+Route::get('/reset-password/{token}', [ForgotPasswordController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('password.update');
