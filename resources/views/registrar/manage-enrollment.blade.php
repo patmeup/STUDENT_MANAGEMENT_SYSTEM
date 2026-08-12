@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="sis-container">
-    
+
     <div class="sis-header">
         <div class="header-titles">
             <h2>Enrollment Processing Portal</h2>
@@ -32,6 +32,14 @@
         </div>
     @endif
 
+    <div id="enrollment-validation-error" style="display: none; background-color: #f8d7da; color: #842029; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #842029;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+            <i class="fas fa-triangle-exclamation"></i>
+            Please complete all required fields before submitting the enrollment form.
+        </div>
+        <div id="validation-error-field" style="font-size: 13.5px; font-weight: 500;"></div>
+    </div>
+
     <div class="sis-tabs-nav">
         <!-- Combined Tab 1 -->
         <button class="tab-btn active" onclick="switchSisTab(event, 'tab-admission')">1. Admission & Personal Info</button>
@@ -44,8 +52,8 @@
         <div class="card-title-bar">
             Student Information Sheet (SIS) Digital Capture
         </div>
-        
-        <form action="{{ route('registrar.enroll.store') }}" method="POST" autocomplete="off" class="pure-form" enctype="multipart/form-data">
+
+        <form action="{{ route('registrar.enroll.store') }}" method="POST" autocomplete="off" class="pure-form" enctype="multipart/form-data" novalidate>
             @csrf
 
             <!-- COMBINED TAB: Admission Info + Personal Profile -->
@@ -145,13 +153,13 @@
                     </div>
                     <div class="form-group">
                         <label>Zip Code</label>
-                        <input type="text" 
-                            name="zip_code" 
-                            placeholder="xxxx" 
+                        <input type="text"
+                            name="zip_code"
+                            placeholder="xxxx"
                             inputmode="numeric"
                             pattern="[0-9]*"
                             maxlength="4"
-                            oninput="this.value = this.value.replace(/[^0-9]/g, '');" 
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '');"
                             required>
                     </div>
                 </div>
@@ -163,13 +171,13 @@
                     </div>
                     <div class="form-group">
                         <label>Mobile Number / Telephone</label>
-                        <input type="text" 
-                            name="contact_no" 
-                            placeholder="09xxxxxxxxx" 
+                        <input type="text"
+                            name="contact_no"
+                            placeholder="09xxxxxxxxx"
                             inputmode="numeric"
                             pattern="[0-9]*"
                             maxlength="11"
-                            oninput="this.value = this.value.replace(/[^0-9]/g, '');" 
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '');"
                             required>
                     </div>
                     <div class="form-group">
@@ -216,12 +224,13 @@
                         <div class="school-inputs">
                             <input type="text" name="primary_school_name[]" placeholder="School Name" required>
                             <input type="text" name="primary_school_address[]" placeholder="School Address" required>
-                            <input type="text" 
-                                name="primary_school_year[]" 
-                                placeholder="Year Graduated (YYYY-YYYY)" 
+                            <input type="text"
+                                name="primary_school_year[]"
+                                placeholder="Year Graduated (YYYY-YYYY)"
                                 inputmode="text"
+                                pattern="[0-9]{4}-[0-9]{4}"
                                 maxlength="9"
-                                oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
+                                oninput="this.value = this.value.replace(/[^0-9-]/g, '');"
                                 required>
                         </div>
                         <button type="button" class="btn-remove-school" onclick="removePrimarySchool(this)" style="display: none;">
@@ -283,7 +292,7 @@
                 <p style="color: #64748b; font-size: 13px; margin-bottom: 20px;">
                     Please upload or drag-and-drop the scanned documents submitted by the applicant for <strong id="selected-type-label" style="color: #0033A0;">Freshman (New Student)</strong>:
                 </p>
-                
+
                 <div class="checkbox-grid" id="credentials-wrapper">
                     <div class="file-upload-card" data-types="New,Transferee,Cross-Enrollee">
                         <span class="file-label-text">PSA Birth Certificate</span>
@@ -305,7 +314,7 @@
 
                     <div class="file-upload-card" data-types="New">
                         <span class="file-label-text">Form 138 / SF9 (Report Card)</span>
-                        <div class="drop-zone" onclick="triggerFileInput('file_f138')">
+                        <div class="drop-zone" tabindex="0" onclick="triggerFileInput('file_f138')">
                             <i class="fas fa-file-invoice upload-icon"></i>
                             <span class="drop-zone-text">Click or Drag PDF/Image here</span>
                             <input type="file" name="doc_f138" id="file_f138" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
@@ -314,7 +323,7 @@
 
                     <div class="file-upload-card" data-types="New">
                         <span class="file-label-text">Good Moral Character Certificate</span>
-                        <div class="drop-zone" onclick="triggerFileInput('file_good_moral_new')">
+                        <div class="drop-zone" tabindex="0" onclick="triggerFileInput('file_good_moral_new')">
                             <i class="fas fa-certificate upload-icon"></i>
                             <span class="drop-zone-text">Click or Drag PDF/Image here</span>
                             <input type="file" name="doc_good_moral_new" id="file_good_moral_new" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
@@ -379,7 +388,7 @@
 <script>
     function switchSisTab(evt, tabId) {
         evt.preventDefault();
-        
+
         var tabContents = document.getElementsByClassName("sis-tab-content");
         for (var i = 0; i < tabContents.length; i++) {
             tabContents[i].classList.remove("active");
@@ -402,7 +411,7 @@
         var dropZone = input.parentElement;
         var zoneText = dropZone.querySelector('.drop-zone-text');
         var icon = dropZone.querySelector('.upload-icon');
-        
+
         if (input.files && input.files.length > 0) {
             var fileName = input.files[0].name;
             dropZone.classList.add('has-file');
@@ -475,12 +484,12 @@
             <div class="school-inputs">
                 <input type="text" name="primary_school_name[]" placeholder="School Name" required>
                 <input type="text" name="primary_school_address[]" placeholder="School Address" required>
-                <input type="text" 
-                    name="primary_school_year[]" 
-                    placeholder="Year Graduated (YYYY-YYYY)" 
+                <input type="text"
+                    name="primary_school_year[]"
+                    placeholder="Year Graduated (YYYY-YYYY)"
                     inputmode="text"
                     maxlength="9"
-                    oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
+                    oninput="this.value = this.value.replace(/[^0-9-]/g, '');"
                     required>
             </div>
             <button type="button" class="btn-remove-school" onclick="removePrimarySchool(this)">
@@ -562,10 +571,10 @@
         updateSecondaryRemoveButtons();
 
         var dropZones = document.querySelectorAll('.drop-zone');
-        
+
         dropZones.forEach(zone => {
             var input = zone.querySelector('input[type="file"]');
-            
+
             zone.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 zone.style.borderColor = "#10b981";
@@ -581,7 +590,7 @@
                 e.preventDefault();
                 zone.style.borderColor = "#cbd5e1";
                 zone.style.background = "#f8fafc";
-                
+
                 if (e.dataTransfer.files.length > 0) {
                     var dt = new DataTransfer();
                     dt.items.add(e.dataTransfer.files[0]);
@@ -599,6 +608,10 @@
             var invalidTab = null;
             var invalidTabIndex = -1;
             var firstInvalidField = null;
+            var errorBox = document.getElementById('enrollment-validation-error');
+            var errorField = document.getElementById('validation-error-field');
+            errorBox.style.display = 'none';
+            errorField.innerText = '';
 
             for (var i = 0; i < tabContents.length; i++) {
                 var invalidField = tabContents[i].querySelector(':invalid');
@@ -609,32 +622,67 @@
                     break;
                 }
             }
-
-            if (invalidTab) {
+            if (firstInvalidField) {
                 e.preventDefault();
-
                 for (var j = 0; j < tabContents.length; j++) {
                     tabContents[j].classList.remove('active');
                 }
                 for (var k = 0; k < tabBtns.length; k++) {
                     tabBtns[k].classList.remove('active');
                 }
-
                 invalidTab.classList.add('active');
                 if (tabBtns[invalidTabIndex]) {
                     tabBtns[invalidTabIndex].classList.add('active');
                 }
+                errorBox.style.display = 'block';
+                var fieldLabel = '';
+                var parentGroup = firstInvalidField.closest('.form-group');
+                if (parentGroup) {
+                    var label = parentGroup.querySelector('label');
+                    if (label) {
+                        fieldLabel = label.innerText;
+                    }
+                }
 
                 setTimeout(function () {
-                    firstInvalidField.reportValidity();
-                    firstInvalidField.focus();
+                    if (firstInvalidField.type === 'file') {
+                        var fileCard = firstInvalidField.closest('.file-upload-card');
+                        var dropZone = fileCard
+                            ? fileCard.querySelector('.drop-zone')
+                            : null;
+                        if (dropZone) {
+                            dropZone.focus();
+                            dropZone.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center'
+                            });
+                        }
+                    } else {
+                        firstInvalidField.focus();
+                        firstInvalidField.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                        firstInvalidField.reportValidity();
+                    }
                 }, 50);
+                errorBox.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
             }
         });
+
     });
+
 </script>
 
 <style>
+    .validation-error-field {
+        border-color: #dc2626 !important;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+}
+
     .sis-container {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         color: #1e293b;
@@ -936,7 +984,7 @@
         border-radius: 10px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.01);
     }
-    
+
     .file-label-text {
         display: block;
         font-size: 13.5px;
@@ -944,7 +992,7 @@
         color: #1e293b;
         margin-bottom: 8px;
     }
-    
+
     .drop-zone {
         border: 2px dashed #cbd5e1;
         background-color: #f8fafc;
@@ -958,29 +1006,29 @@
         gap: 8px;
         transition: all 0.2s ease;
     }
-    
+
     .drop-zone:hover {
         border-color: #0033A0;
         background-color: rgba(0, 51, 160, 0.02);
     }
-    
+
     .drop-zone.has-file {
         border-color: #10b981;
         background-color: rgba(16, 185, 129, 0.03);
     }
-    
+
     .upload-icon {
         font-size: 24px;
         color: #0033A0;
         transition: color 0.2s ease;
     }
-    
+
     .drop-zone-text {
         font-size: 12px;
         font-weight: 600;
         color: #64748b;
     }
-    
+
     .hidden-file-input {
         display: none;
     }
