@@ -69,19 +69,42 @@
             <input type="email" name="email" class="form-control" value="{{ $email ?? old('email') }}" placeholder="Your Email" required readonly>
         </div>
 
+        <!-- New Password Field with Eye Toggle -->
         <div class="input-group mb-3">
             <span class="input-group-text"><i class="fas fa-lock text-muted"></i></span>
-            <input type="password" name="password" class="form-control" placeholder="New Password" required autofocus>
+            <input type="password" name="password" id="password" class="form-control" placeholder="New Password" required autofocus>
+            <span class="input-group-text" onclick="togglePassword('password', 'eyeIcon1')" style="cursor: pointer;">
+                <i class="fas fa-eye text-muted" id="eyeIcon1"></i>
+            </span>
         </div>
 
         <div class="input-group mb-4">
             <span class="input-group-text"><i class="fas fa-check-circle text-muted"></i></span>
-            <input type="password" name="password_confirmation" class="form-control" placeholder="Confirm New Password" required>
+            <input type="password" name="password_confirmation" id="password_confirmation" class="form-control" placeholder="Confirm New Password" required>
+            <span class="input-group-text" onclick="togglePassword('password_confirmation', 'eyeIcon2')" style="cursor: pointer;">
+                <i class="fas fa-eye text-muted" id="eyeIcon2"></i>
+            </span>
         </div>
 
         <button type="submit" class="btn btn-au w-100">Update Password</button>
     </form>
 </div>
 
+<script>
+    function togglePassword(inputId, iconId) {
+        const passwordInput = document.getElementById(inputId);
+        const eyeIcon = document.getElementById(iconId);
+
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            eyeIcon.classList.remove('fa-eye');
+            eyeIcon.classList.add('fa-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            eyeIcon.classList.remove('fa-eye-slash');
+            eyeIcon.classList.add('fa-eye');
+        }
+    }
+</script>
 </body>
 </html>
