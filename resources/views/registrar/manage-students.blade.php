@@ -13,6 +13,13 @@
         </div>
     </div>
 
+    {{-- ✚ ADD: Success alert pagkatapos mag-delete --}}
+    @if(session('success'))
+        <div style="background-color: #d1e7dd; color: #0f5132; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #0f5132;">
+            <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
+        </div>
+    @endif
+
     <div class="filter-card" style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
         <form id="liveFilterForm" action="{{ route('registrar.manage-students') }}" method="GET" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
             
@@ -96,9 +103,24 @@
                             </td>
                             
                             <td style="text-align: center;">
-                                <a href="{{ route('registrar.students.profile', ['student_id' => $student->student_id]) }}" class="btn-action-view" title="View/Edit Full Profile">
-                                    <i class="fas fa-folder-open"></i> View Profile
-                                </a>
+                                {{-- ✚ ADD: Flex wrapper para magkatabi ang View at Delete --}}
+                                <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+                                    <a href="{{ route('registrar.students.profile', ['student_id' => $student->student_id]) }}" class="btn-action-view" title="View/Edit Full Profile">
+                                        <i class="fas fa-folder-open"></i> View Profile
+                                    </a>
+
+                                    {{-- ✚ ADD: Delete Button --}}
+                                    <form action="{{ route('registrar.students.destroy', ['student_id' => $student->student_id]) }}" 
+                                          method="POST" 
+                                          style="display: inline;"
+                                          onsubmit="return confirm('⚠ DELETE RECORD:\n\n{{ $student->last_name }}, {{ $student->first_name }} ({{ $student->student_id }})\n\nAre you sure you want to permanently remove this student record from the system? This action cannot be undone.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn-action-delete" title="Delete Student Record">
+                                            <i class="fas fa-trash-alt"></i> Delete
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     @empty
@@ -265,6 +287,25 @@
         background-color: #0033A0;
         color: white;
         box-shadow: 0 2px 6px rgba(0, 51, 160, 0.2);
+    }
+
+    /* ✚ ADD: Delete button style — katwin ng View Profile pero pula */
+    .btn-action-delete {
+        display: inline-block;
+        background-color: transparent;
+        color: #dc2626;
+        border: 1px solid #dc2626;
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 12.5px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .btn-action-delete:hover {
+        background-color: #dc2626;
+        color: white;
+        box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
     }
 
     .empty-table-state {

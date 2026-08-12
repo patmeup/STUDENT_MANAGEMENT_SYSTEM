@@ -235,7 +235,7 @@
                 </button>
 
                 <div class="panel-title-label mt-4">TERM GRADE ENCODING</div>
-                @foreach(['prelim' => 'Prelim Term', 'midterm' => 'Midterm Term', 'semifinal' => 'Semi-Final Term', 'final' => 'Final Term'] as $key => $label)
+                @foreach(['prelim' => 'Prelim Term', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final Term', 'final' => 'Final Term'] as $key => $label)
                     <button class="nav-tab-btn" :class="currentTab === '{{ $key }}' ? 'active-tab' : ''" @click="switchTab('{{ $key }}')">
                         <i class="fa-regular fa-pen-to-square"></i> {{ $label }}
                     </button>
@@ -676,7 +676,7 @@
                                 $gradeModes[$student->student_id] = ($draft && $draft->is_manual) ? 'manual' : 'auto';
 
                                 $autoGradeStudent = $autoGrades[$key][$student->student_id] ?? [];
-                                
+
                                 $manualGrades[$student->student_id] = [
                                     'class_standing' => $draft->class_standing ?? $autoGradeStudent['class_standing'] ?? '',
                                     'major_exam'     => $draft->major_exam ?? $autoGradeStudent['major_exam'] ?? '',

@@ -11,6 +11,7 @@ use App\Http\Controllers\DeanController;
 use App\Http\Controllers\DeptSecController;
 use App\Http\Controllers\ProfessorController;
 use App\Http\Controllers\FacultyController;
+use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\CurriculumController;
@@ -95,6 +96,7 @@ Route::get('/registrar/student-grades-json/{student_id}', [RegistrarController::
 Route::get('/registrar/document-requests', [RegistrarController::class, 'manageDocumentRequests'])->name('registrar.document.requests');
 Route::post('/registrar/send-document/{requestId}', [RegistrarController::class, 'sendDocument'])->name('registrar.send.document');
 Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
+Route::delete('/manage-students/{student_id}', [RegistrarController::class, 'destroyStudent'])->name('registrar.students.destroy');
 
 // DEAN ROUTES
 Route::get('/dean/dashboard', [DeanController::class, 'dashboard'])->name('dean.dashboard');
@@ -110,6 +112,7 @@ Route::get('/dean/user_details', [DeanController::class, 'profileView'])->name('
 Route::get('/department-secretary/dashboard', [DeptSecController::class, 'dashboard'])->name('department_secretary.dashboard');
 Route::get('/department_secretary/subject-catalog', [DeptSecController::class, 'subjectCatalog'])->name('department_secretary.subject_catalog');
 Route::get('/department-secretary/masterlist', [DeptSecController::class, 'studentsList'])->name('department_secretary.students');
+Route::delete('/department-secretary/student/delete/{student_id}', [DeptSecController::class, 'deleteStudent'])->name('department_secretary.delete_student');
 Route::get('/department-secretary/section/{section_name}', [DeptSecController::class, 'viewSectionRoster'])->name('department_secretary.view_section');
 Route::post('/department-secretary/section/bulk-enroll', [DeptSecController::class, 'bulkEnrollSection'])->name('department_secretary.bulk_enroll');
 Route::get('/department_secretary/student/{student_id}/plot', [DeptSecController::class, 'plotSubjects'])->name('department_secretary.plot_subjects');
@@ -163,3 +166,9 @@ Route::get('/student/my-grades', [StudentController::class, 'myGrades'])->name('
 Route::get('/student/user_details', [StudentController::class, 'profileView'])->name('student.user_details');
 Route::put('/account/update-credentials', [StudentController::class, 'updateCredentials'])->name('account.update_credentials');
 Route::post('/student/request-document', [StudentController::class, 'submitDocumentRequest'])->name('student.submit_request');
+
+// FORGOT PASSWORD ROUTES
+Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
+Route::get('/reset-password/{token}', [ForgotPasswordController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('password.update');

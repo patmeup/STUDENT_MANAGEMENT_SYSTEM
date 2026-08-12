@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arellano University - Login Portal</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="icon" type="image/png" href="{{ asset('images/tab_logo.png') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <style>
@@ -52,6 +51,10 @@
             background-color: #002270;
             color: white;
         }
+
+        input::-ms-reveal {
+            display: none;
+        }
     </style>
 </head>
 
@@ -68,6 +71,10 @@
         <div class="alert alert-danger p-2 small mb-3">{{ session('error') }}</div>
     @endif
 
+    @if(session('status'))
+        <div class="alert alert-success p-2 small mb-3 text-start">{{ session('status') }}</div>
+    @endif
+
     @if($errors->any())
         <div class="alert alert-danger p-2 small mb-3 text-start">
             @foreach($errors->all() as $error)
@@ -75,6 +82,7 @@
             @endforeach
         </div>
     @endif
+
 
     <form method="POST" action="{{ route('login.submit') }}" autocomplete="off">
         @csrf
@@ -93,6 +101,10 @@
         </div>
 
         <button type="submit" class="btn btn-au w-100">Login to Portal</button>
+
+        <a href="{{ route('password.request') }}" class="text-decoration-none small" style="color: #0033A0; font-weight: 500;">
+            Forgot Password?
+        </a>
     </form>
 
     <div class="mt-4">

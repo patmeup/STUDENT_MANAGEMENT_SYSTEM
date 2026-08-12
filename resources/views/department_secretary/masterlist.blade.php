@@ -60,9 +60,19 @@
                                 <td><span class="sem-tag">{{ $student->course }}</span></td>
                                 <td><span class="year-tag">{{ $student->year_level }}</span></td>
                                 <td style="text-align: center;">
-                                    <a href="{{ route('department_secretary.plot_subjects', $student->student_id) }}" class="btn-action-plot">
-                                        <i class="fas fa-edit"></i> Plot Subjects
-                                    </a>
+                                    <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
+                                        <a href="{{ route('department_secretary.plot_subjects', $student->student_id) }}" class="btn-action-plot">
+                                            <i class="fas fa-edit"></i> Plot
+                                        </a>
+
+                                        <form action="{{ route('department_secretary.delete_student', $student->student_id) }}" method="POST" style="display: inline-block;">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn-action-delete" onclick="return confirm('Are you sure you want to delete student {{ $student->student_id }}? This will permanently remove their record from the database.')">
+                                                <i class="fas fa-trash-alt"></i> Delete
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -329,12 +339,30 @@
     .minimal-table td { padding: 14px 24px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
     .minimal-table tbody tr:hover { background-color: #f8fafc; }
 
-    /* Action Buttons UI Styling */
     .btn-action-plot { text-decoration: none; background: #0f172a; color: white; padding: 6px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 600; display: inline-block; }
     .btn-action-plot:hover { background: #1e293b; }
     .btn-action-view { text-decoration: none; background: #2563eb; color: white; padding: 6px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 600; display: inline-block; }
     .btn-action-view:hover { background: #1d4ed8; }
     
+    .btn-action-delete {
+        background: #dc2626;
+        color: #ffffff;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 12.5px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: background 0.15s ease;
+    }
+
+    .btn-action-delete:hover {
+        background: #b91c1c;
+    }
+
     .select-input-helper { background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 5px; color: #334155; cursor: pointer; }
     .btn-helper { color: white; border: none; padding: 6px 12px; border-radius: 5px; font-weight: 600; cursor: pointer; }
 

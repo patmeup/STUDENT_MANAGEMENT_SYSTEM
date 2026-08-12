@@ -147,6 +147,34 @@ class DeptSecController extends Controller
         return view('department_secretary.masterlist', compact('students', 'sections', 'dept'));
     }
 
+    public function deleteStudent($student_id)
+    {
+        if (session('user_role') !== 'dept_sec') {
+            return redirect('/')->with('error', 'Unauthorized access.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            DB::table('student_subjects')->where('student_number', $student_id)->delete();
+
+            $deleted = DB::table('students')->where('student_id', $student_id)->delete();
+
+            if (!$deleted) {
+                DB::rollBack();
+                return redirect()->back()->with('error', 'Student record not found or already deleted.');
+            }
+
+            DB::commit();
+
+            return redirect()->back()->with('success', 'Student record successfully deleted from the system.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Failed to delete student record: ' . $e->getMessage());
+        }
+    }
+
     public function viewSectionRoster($section_name)
     {
         if (session('user_role') !== 'dept_sec') {
