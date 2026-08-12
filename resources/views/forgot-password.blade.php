@@ -51,6 +51,10 @@
             background-color: #002270;
             color: white;
         }
+
+        input::-ms-reveal {
+            display: none;
+        }
     </style>
 </head>
 

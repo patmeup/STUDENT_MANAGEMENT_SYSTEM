@@ -33,10 +33,11 @@
     @endif
 
     <div class="sis-tabs-nav">
-        <button class="tab-btn active" onclick="switchSisTab(event, 'tab-admission')">1. Admission Info</button>
-        <button class="tab-btn" onclick="switchSisTab(event, 'tab-personal')">2. Personal Profile</button>
-        <button class="tab-btn" onclick="switchSisTab(event, 'tab-education')">3. Educational Background</button>
-        <button class="tab-btn" onclick="switchSisTab(event, 'tab-credentials')">4. Credentials Checklist</button>
+        <!-- Combined Tab 1 -->
+        <button class="tab-btn active" onclick="switchSisTab(event, 'tab-admission')">1. Admission & Personal Info</button>
+        <!-- Renumbered Tabs -->
+        <button class="tab-btn" onclick="switchSisTab(event, 'tab-education')">2. Educational Background</button>
+        <button class="tab-btn" onclick="switchSisTab(event, 'tab-credentials')">3. Credentials Checklist</button>
     </div>
 
     <div class="sis-card">
@@ -47,7 +48,10 @@
         <form action="{{ route('registrar.enroll.store') }}" method="POST" autocomplete="off" class="pure-form" enctype="multipart/form-data">
             @csrf
 
+            <!-- COMBINED TAB: Admission Info + Personal Profile -->
             <div id="tab-admission" class="sis-tab-content active">                
+                
+                <!-- ADMISSION INFO SECTION -->
                 <div class="form-grid-3">
                     <div class="form-group">
                         <label>Registration Date</label>
@@ -104,9 +108,8 @@
                         <input type="text" name="middle_name" placeholder="SANTOS" class="uppercase-input">
                     </div>
                 </div>
-            </div>
 
-            <div id="tab-personal" class="sis-tab-content">
+                <!-- PERSONAL PROFILE SECTION -->
                 <h3 class="section-divider">Demographic & Contact Coordinates</h3>
                 <div class="form-grid-4">
                     <div class="form-group">
@@ -153,7 +156,7 @@
                     </div>
                 </div>
                 
-                <div class="form-grid-2" style="margin-top: 15px;">
+                <div class="form-grid-3" style="margin-top: 15px;">
                     <div class="form-group">
                         <label>Place of Birth</label>
                         <input type="text" name="place_of_birth" placeholder="City or Province">
@@ -196,17 +199,20 @@
                 </div>
             </div>
 
+            <!-- TAB 2: Educational Background -->
             <div id="tab-education" class="sis-tab-content">
                 <h3 class="section-divider">Academic Institutional History</h3>
                 
+                <!-- PRIMARY SCHOOL SECTION -->
+                <div class="school-section-header">
+                    <div class="section-header-title">Primary School</div>
+                    <button type="button" class="btn-add-school" onclick="addPrimarySchool()">
+                        <i class="fas fa-plus"></i> Add Primary School
+                    </button>
+                </div>
+
                 <div id="primary-schools-container">
                     <div class="school-row primary-school-row">
-                        <div class="school-title">
-                            Primary School
-                            <button type="button" class="btn-remove-school" onclick="removePrimarySchool(this)" style="display: none;">
-                                <i class="fas fa-times"></i> Remove
-                            </button>
-                        </div>
                         <div class="school-inputs">
                             <input type="text" name="primary_school_name[]" placeholder="School Name" required>
                             <input type="text" name="primary_school_address[]" placeholder="School Address" required>
@@ -218,44 +224,60 @@
                                 oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
                                 required>
                         </div>
+                        <button type="button" class="btn-remove-school" onclick="removePrimarySchool(this)" style="display: none;">
+                            <i class="fas fa-times"></i> Remove
+                        </button>
                     </div>
                 </div>
 
-                <button type="button" class="btn-add-school" onclick="addPrimarySchool()">
-                    <i class="fas fa-plus"></i> Add Another Primary School
-                </button>
+                <!-- SECONDARY SCHOOL SECTION -->
+                <div class="school-section-header" style="margin-top: 25px;">
+                    <div class="section-header-title">Secondary School</div>
+                    <button type="button" class="btn-add-school" onclick="addSecondarySchool()">
+                        <i class="fas fa-plus"></i> Add Secondary School
+                    </button>
+                </div>
 
-                <div class="school-row">
-                    <div class="school-title">Secondary School</div>
-                    <div class="school-inputs">
-                        <input type="text" name="secondary_school_name" placeholder="School Name" required>
-                        <input type="text" name="secondary_school_address" placeholder="School Address" required>
-                        <input type="text" 
-                            name="secondary_school_year" 
-                            placeholder="Year Graduated (YYYY-YYYY)" 
-                            inputmode="text"
-                            maxlength="9"
-                            oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
-                            required>
+                <div id="secondary-schools-container">
+                    <div class="school-row secondary-school-row">
+                        <div class="school-inputs">
+                            <input type="text" name="secondary_school_name[]" placeholder="School Name" required>
+                            <input type="text" name="secondary_school_address[]" placeholder="School Address" required>
+                            <input type="text" 
+                                name="secondary_school_year[]" 
+                                placeholder="Year Graduated (YYYY-YYYY)" 
+                                inputmode="text"
+                                maxlength="9"
+                                oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
+                                required>
+                        </div>
+                        <button type="button" class="btn-remove-school" onclick="removeSecondarySchool(this)" style="display: none;">
+                            <i class="fas fa-times"></i> Remove
+                        </button>
                     </div>
                 </div>
 
-                <div class="school-row transferee-row">
-                    <div class="school-title">College (Transferee)</div>
-                    <div class="school-inputs">
-                        <input type="text" name="college_school_name" placeholder="Previous Institution (If applicable)">
-                        <input type="text" name="college_school_address" placeholder="Campus Location Address">
-                        <input type="text" 
-                            name="college_school_year" 
-                            placeholder="Year Attended" 
-                            inputmode="text"
-                            maxlength="9"
-                            oninput="this.value = this.value.replace(/[^0-9-]/g, '');"
-                            required>
+                <!-- COLLEGE (TRANSFEREE) SECTION - HIDDEN BY DEFAULT -->
+                <div id="transferee-section" style="display: none;">
+                    <div class="school-section-header" style="margin-top: 25px;">
+                        <div class="section-header-title">College (Transferee)</div>
+                    </div>
+                    <div class="school-row transferee-row" style="margin-bottom: 0;">
+                        <div class="school-inputs">
+                            <input type="text" name="college_school_name" placeholder="Previous Institution (If applicable)">
+                            <input type="text" name="college_school_address" placeholder="Campus Location Address">
+                            <input type="text" 
+                                name="college_school_year" 
+                                placeholder="Year Attended" 
+                                inputmode="text"
+                                maxlength="9"
+                                oninput="this.value = this.value.replace(/[^0-9-]/g, '');">
+                        </div>
                     </div>
                 </div>
             </div>
 
+            <!-- TAB 3: Credentials Checklist -->
             <div id="tab-credentials" class="sis-tab-content">
                 <h3 class="section-divider">Mandatory Enrollment Credentials Digital Capture</h3>
                 <p style="color: #64748b; font-size: 13px; margin-bottom: 20px;">
@@ -372,12 +394,10 @@
         evt.currentTarget.classList.add("active");
     }
 
-    // Function para pindutin ang nakatagong input file kapag kinlik ang box
     function triggerFileInput(inputId) {
         document.getElementById(inputId).click();
     }
 
-    // Baguhin ang UI ng box kapag may napiling file
     function updateDropZoneStatus(input) {
         var dropZone = input.parentElement;
         var zoneText = dropZone.querySelector('.drop-zone-text');
@@ -387,7 +407,7 @@
             var fileName = input.files[0].name;
             dropZone.classList.add('has-file');
             zoneText.innerText = "Selected: " + fileName;
-            icon.style.color = "#10b981"; // Magiging green ang icon kapag loaded
+            icon.style.color = "#10b981"; 
         } else {
             dropZone.classList.remove('has-file');
             zoneText.innerText = "Click or Drag PDF/Image here";
@@ -395,7 +415,6 @@
         }
     }
 
-    // I-reset ang mga boxes kapag nag clear ng form
     function resetDropZones() {
         var dropZones = document.querySelectorAll('.drop-zone');
         dropZones.forEach(zone => {
@@ -405,63 +424,54 @@
         });
     }
 
-    // REALTIME ENGINE: Sinasala ang mga document slots depende sa Entry Type
     function filterCredentials() {
-    var dropdown = document.getElementById("student_type");
-    var selectedType = dropdown.value;
-    var selectedText = dropdown.options[dropdown.selectedIndex].text;
-    
-    document.getElementById("selected-type-label").innerText = selectedText;
-
-    // 1. Handle Document Upload Cards
-    var cards = document.getElementById("credentials-wrapper").getElementsByClassName("file-upload-card");
-    for (var i = 0; i < cards.length; i++) {
-        var allowedTypes = cards[i].getAttribute("data-types").split(",");
-        var fileInput = cards[i].querySelector('input[type="file"]');
+        var dropdown = document.getElementById("student_type");
+        var selectedType = dropdown.value;
+        var selectedText = dropdown.options[dropdown.selectedIndex].text;
         
-        if (allowedTypes.includes(selectedType)) {
-            cards[i].style.display = "block"; 
-        } else {
-            cards[i].style.display = "none";  
-            if (fileInput) {
-                fileInput.value = "";
-                updateDropZoneStatus(fileInput);
+        document.getElementById("selected-type-label").innerText = selectedText;
+
+        var cards = document.getElementById("credentials-wrapper").getElementsByClassName("file-upload-card");
+        for (var i = 0; i < cards.length; i++) {
+            var allowedTypes = cards[i].getAttribute("data-types").split(",");
+            var fileInput = cards[i].querySelector('input[type="file"]');
+            
+            if (allowedTypes.includes(selectedType)) {
+                cards[i].style.display = "block"; 
+            } else {
+                cards[i].style.display = "none";  
+                if (fileInput) {
+                    fileInput.value = "";
+                    updateDropZoneStatus(fileInput);
+                }
             }
+        }
+
+        var transfereeSection = document.getElementById('transferee-section');
+        var collegeInputs = transfereeSection.querySelectorAll('input');
+        
+        if (selectedType === 'Transferee') {
+            transfereeSection.style.display = "block";
+            collegeInputs.forEach(input => {
+                if (input.name === 'college_school_year') {
+                    input.setAttribute('required', 'required');
+                }
+            });
+        } else {
+            transfereeSection.style.display = "none";
+            collegeInputs.forEach(input => {
+                input.removeAttribute('required');
+                input.value = "";
+            });
         }
     }
 
-    // 2. Handle College Input Section for Transferees dynamically
-    var transfereeRow = document.querySelector('.transferee-row');
-    var collegeInputs = transfereeRow.querySelectorAll('input');
-    
-    if (selectedType === 'Transferee') {
-        transfereeRow.style.display = "block";
-        collegeInputs.forEach(input => {
-            if (input.name === 'college_school_year') {
-                input.setAttribute('required', 'required');
-            }
-        });
-    } else {
-        transfereeRow.style.display = "none";
-        collegeInputs.forEach(input => {
-            input.removeAttribute('required');
-            input.value = ""; // Clear values if toggled away
-        });
-    }
-}
-
-    // Add/Remove Primary School Functions
+    /* Primary School Dynamic Functions */
     function addPrimarySchool() {
         var container = document.getElementById('primary-schools-container');
         var newRow = document.createElement('div');
         newRow.className = 'school-row primary-school-row';
         newRow.innerHTML = `
-            <div class="school-title">
-                Primary School
-                <button type="button" class="btn-remove-school" onclick="removePrimarySchool(this)">
-                    <i class="fas fa-times"></i> Remove
-                </button>
-            </div>
             <div class="school-inputs">
                 <input type="text" name="primary_school_name[]" placeholder="School Name" required>
                 <input type="text" name="primary_school_address[]" placeholder="School Address" required>
@@ -473,32 +483,83 @@
                     oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
                     required>
             </div>
+            <button type="button" class="btn-remove-school" onclick="removePrimarySchool(this)">
+                <i class="fas fa-times"></i> Remove
+            </button>
         `;
         container.appendChild(newRow);
-        updateRemoveButtons();
+        updatePrimaryRemoveButtons();
     }
 
     function removePrimarySchool(button) {
         var schoolRow = button.closest('.school-row');
         schoolRow.remove();
-        updateRemoveButtons();
+        updatePrimaryRemoveButtons();
     }
 
-    function updateRemoveButtons() {
+    function updatePrimaryRemoveButtons() {
         var schoolRows = document.querySelectorAll('.primary-school-row');
         schoolRows.forEach((row, index) => {
             var removeBtn = row.querySelector('.btn-remove-school');
-            if (index === 0) {
-                removeBtn.style.display = 'none';
-            } else {
-                removeBtn.style.display = 'inline-block';
+            if (removeBtn) {
+                if (index === 0) {
+                    removeBtn.style.display = 'none';
+                } else {
+                    removeBtn.style.display = 'inline-flex';
+                }
             }
         });
     }
 
-    // Drag and Drop Engine Setup para sa modern feel
+    /* Secondary School Dynamic Functions */
+    function addSecondarySchool() {
+        var container = document.getElementById('secondary-schools-container');
+        var newRow = document.createElement('div');
+        newRow.className = 'school-row secondary-school-row';
+        newRow.innerHTML = `
+            <div class="school-inputs">
+                <input type="text" name="secondary_school_name[]" placeholder="School Name" required>
+                <input type="text" name="secondary_school_address[]" placeholder="School Address" required>
+                <input type="text" 
+                    name="secondary_school_year[]" 
+                    placeholder="Year Graduated (YYYY-YYYY)" 
+                    inputmode="text"
+                    maxlength="9"
+                    oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
+                    required>
+            </div>
+            <button type="button" class="btn-remove-school" onclick="removeSecondarySchool(this)">
+                <i class="fas fa-times"></i> Remove
+            </button>
+        `;
+        container.appendChild(newRow);
+        updateSecondaryRemoveButtons();
+    }
+
+    function removeSecondarySchool(button) {
+        var schoolRow = button.closest('.school-row');
+        schoolRow.remove();
+        updateSecondaryRemoveButtons();
+    }
+
+    function updateSecondaryRemoveButtons() {
+        var schoolRows = document.querySelectorAll('.secondary-school-row');
+        schoolRows.forEach((row, index) => {
+            var removeBtn = row.querySelector('.btn-remove-school');
+            if (removeBtn) {
+                if (index === 0) {
+                    removeBtn.style.display = 'none';
+                } else {
+                    removeBtn.style.display = 'inline-flex';
+                }
+            }
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
         filterCredentials();
+        updatePrimaryRemoveButtons();
+        updateSecondaryRemoveButtons();
 
         var dropZones = document.querySelectorAll('.drop-zone');
         
@@ -522,21 +583,15 @@
                 zone.style.background = "#f8fafc";
                 
                 if (e.dataTransfer.files.length > 0) {
-                    // Gumamit ng DataTransfer object constructor para sa malinis na browser binding execution
                     var dt = new DataTransfer();
                     dt.items.add(e.dataTransfer.files[0]);
                     input.files = dt.files;
                     
-                    // I-trigger ang update status native listener
                     updateDropZoneStatus(input);
                 }
             });
         });
 
-        // FIX: Kapag may hidden na required field sa ibang tab na hindi napunan,
-        // hindi maipapakita ng browser ang validation tooltip (dahil display:none ang tab),
-        // kaya tahimik lang ito bino-block ang submit. Awtomatiko na lang tayong lilipat
-        // sa tamang tab kung saan nagmula ang unang invalid field, bago i-report ang error.
         var enrollmentForm = document.querySelector('.pure-form');
         enrollmentForm.addEventListener('submit', function (e) {
             var tabContents = document.querySelectorAll('.sis-tab-content');
@@ -570,8 +625,6 @@
                     tabBtns[invalidTabIndex].classList.add('active');
                 }
 
-                // Hintayin munang lumabas ang tab bago i-report ang validation error,
-                // dahil kailangang visible muna ang field bago maipakita ng browser ang tooltip.
                 setTimeout(function () {
                     firstInvalidField.reportValidity();
                     firstInvalidField.focus();
@@ -720,27 +773,41 @@
         text-transform: uppercase;
     }
 
+    /* Section Headers with Inline Action Buttons */
+    .school-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    .section-header-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #475569;
+        text-transform: uppercase;
+    }
+
+    /* Clean Horizontal Flex Alignment for School Rows */
     .school-row {
         background-color: #f8fafc;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 15px;
+        padding: 12px 15px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
-    .school-title {
-        font-size: 13px;
-        font-weight: 700;
-        color: #475569;
-        margin-bottom: 10px;
-        text-transform: uppercase;
-    }
+
     .transferee-row {
         border-left: 4px solid #eab308;
     }
+
     .school-inputs {
+        flex: 1;
         display: grid;
-        grid-template-columns: 2fr 2fr 1fr;
-        gap: 15px;
+        grid-template-columns: 2fr 2fr 1.2fr;
+        gap: 12px;
     }
     .school-inputs input {
         border: 1px solid #cbd5e1;
@@ -753,11 +820,11 @@
         border-color: #0033A0;
     }
 
-    .btn-add-school, .btn-remove-school {
+    .btn-add-school {
         background-color: #0033A0;
         color: white;
         border: none;
-        padding: 8px 16px;
+        padding: 6px 14px;
         font-size: 12px;
         font-weight: 600;
         border-radius: 6px;
@@ -767,15 +834,24 @@
         align-items: center;
         gap: 6px;
     }
-    .btn-add-school {
-        margin-bottom: 20px;
-    }
+    
     .btn-remove-school {
         background-color: #ef4444;
-        margin-left: 15px;
-        padding: 4px 10px;
-        font-size: 11px;
+        color: white;
+        border: none;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        height: 38px;
     }
+
     .btn-add-school:hover {
         background-color: #002270;
     }
@@ -853,7 +929,7 @@
         color: #334155;
     }
 
-.file-upload-card {
+    .file-upload-card {
         background: #ffffff;
         border: 1px solid #e2e8f0;
         padding: 15px;
@@ -907,13 +983,6 @@
     
     .hidden-file-input {
         display: none;
-    }
-
-    /* Panatilihin ang grid system */
-    .checkbox-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 15px;
     }
 </style>
 @endsection
