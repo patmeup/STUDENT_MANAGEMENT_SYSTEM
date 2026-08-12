@@ -96,6 +96,7 @@ Route::get('/registrar/student-grades-json/{student_id}', [RegistrarController::
 Route::get('/registrar/document-requests', [RegistrarController::class, 'manageDocumentRequests'])->name('registrar.document.requests');
 Route::post('/registrar/send-document/{requestId}', [RegistrarController::class, 'sendDocument'])->name('registrar.send.document');
 Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
+Route::delete('/manage-students/{student_id}', [RegistrarController::class, 'destroyStudent'])->name('registrar.students.destroy');
 
 // DEAN ROUTES
 Route::get('/dean/dashboard', [DeanController::class, 'dashboard'])->name('dean.dashboard');

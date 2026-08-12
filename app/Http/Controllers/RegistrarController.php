@@ -317,7 +317,7 @@ class RegistrarController extends Controller
             ->where('is_active', 1)
             ->first();
 
-        $academicPeriodId = $activeAcademicPeriod ? $activeAcademicPeriod->id : 1;
+        $academicPeriodId = $activeAcademicPeriod->id ?? 1;
 
         $termPeriods = DB::table('term_periods')
             ->where('academic_period_id', $activeAcademicPeriod->id)
@@ -465,8 +465,6 @@ class RegistrarController extends Controller
             ->orderBy('document_requests.created_at', 'desc')
             ->get();
 
-        // Iisang mapping lang ng requested-doc-name -> DB column + upload input name,
-        // ginagamit ng blade para malaman kung ano ang tamang field na ipapakita/papalitan.
         $docMapping = [
             'PSA Birth Certificate'    => ['column' => 'path_psa',              'input' => 'doc_psa'],
             '2x2 ID Picture'           => ['column' => 'path_2x2',              'input' => 'doc_2x2'],
@@ -514,7 +512,7 @@ class RegistrarController extends Controller
             '2x2 ID Picture' => 'path_2x2',
             'Form 138 (F138)' => 'path_f138',
             'Form 138' => 'path_f138',
-            'Good Moral Character' => 'path_good_moral_new', // O path_good_moral_trans depende sa form niyo
+            'Good Moral Character' => 'path_good_moral_new',
             'Good Moral' => 'path_good_moral_new',
             'High School Diploma' => 'path_diploma',
             'Diploma' => 'path_diploma',
@@ -596,5 +594,37 @@ class RegistrarController extends Controller
         $isLocked = !Str::startsWith($user->password, '$2y$');
 
         return view('registrar.user_details', compact('user', 'isLocked'));
+    }
+
+    // ✚ ADD: Delete student record along with their associated credential files
+    public function destroyStudent($student_id)
+    {
+        if (session('user_role') !== 'registrar') {
+            abort(403, 'Unauthorized Access.');
+        }
+
+        $student = Student::where('student_id', $student_id)->firstOrFail();
+
+        $sid = $student->student_id;
+        $fullName = strtoupper($student->last_name . ', ' . $student->first_name);
+
+        // Delete the entire student records folder (PSA, TOR, 2x2, etc.)
+        $folderPath = "student_records/{$sid}";
+        if (Storage::disk('local')->exists($folderPath)) {
+            Storage::disk('local')->deleteDirectory($folderPath);
+        }
+
+        // Optional: Also clean up any pending document requests tied to this student
+        DB::table('document_requests')->where('student_id', $sid)->delete();
+
+        // Optional: Clean up enrolled subjects and grades (para hindi mag-orphan)
+        DB::table('student_subjects')->where('student_number', $sid)->delete();
+        DB::table('student_term_grades')->where('student_number', $sid)->delete();
+
+        // Finally, delete the student record itself
+        $student->delete();
+
+        return redirect()->route('registrar.manage-students')
+            ->with('success', "Student record {$sid} ({$fullName}) has been permanently removed from the system.");
     }
 }

@@ -199,20 +199,31 @@
             <div id="tab-education" class="sis-tab-content">
                 <h3 class="section-divider">Academic Institutional History</h3>
                 
-                <div class="school-row">
-                    <div class="school-title">Primary School</div>
-                    <div class="school-inputs">
-                        <input type="text" name="primary_school_name" placeholder="School Name" required>
-                        <input type="text" name="primary_school_address" placeholder="School Address" required>
-                        <input type="text" 
-                            name="primary_school_year" 
-                            placeholder="Year Graduated (YYYY-YYYY)" 
-                            inputmode="text"
-                            maxlength="9"
-                            oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
-                            required>
+                <div id="primary-schools-container">
+                    <div class="school-row primary-school-row">
+                        <div class="school-title">
+                            Primary School
+                            <button type="button" class="btn-remove-school" onclick="removePrimarySchool(this)" style="display: none;">
+                                <i class="fas fa-times"></i> Remove
+                            </button>
+                        </div>
+                        <div class="school-inputs">
+                            <input type="text" name="primary_school_name[]" placeholder="School Name" required>
+                            <input type="text" name="primary_school_address[]" placeholder="School Address" required>
+                            <input type="text" 
+                                name="primary_school_year[]" 
+                                placeholder="Year Graduated (YYYY-YYYY)" 
+                                inputmode="text"
+                                maxlength="9"
+                                oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
+                                required>
+                        </div>
                     </div>
                 </div>
+
+                <button type="button" class="btn-add-school" onclick="addPrimarySchool()">
+                    <i class="fas fa-plus"></i> Add Another Primary School
+                </button>
 
                 <div class="school-row">
                     <div class="school-title">Secondary School</div>
@@ -438,6 +449,52 @@
         });
     }
 }
+
+    // Add/Remove Primary School Functions
+    function addPrimarySchool() {
+        var container = document.getElementById('primary-schools-container');
+        var newRow = document.createElement('div');
+        newRow.className = 'school-row primary-school-row';
+        newRow.innerHTML = `
+            <div class="school-title">
+                Primary School
+                <button type="button" class="btn-remove-school" onclick="removePrimarySchool(this)">
+                    <i class="fas fa-times"></i> Remove
+                </button>
+            </div>
+            <div class="school-inputs">
+                <input type="text" name="primary_school_name[]" placeholder="School Name" required>
+                <input type="text" name="primary_school_address[]" placeholder="School Address" required>
+                <input type="text" 
+                    name="primary_school_year[]" 
+                    placeholder="Year Graduated (YYYY-YYYY)" 
+                    inputmode="text"
+                    maxlength="9"
+                    oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
+                    required>
+            </div>
+        `;
+        container.appendChild(newRow);
+        updateRemoveButtons();
+    }
+
+    function removePrimarySchool(button) {
+        var schoolRow = button.closest('.school-row');
+        schoolRow.remove();
+        updateRemoveButtons();
+    }
+
+    function updateRemoveButtons() {
+        var schoolRows = document.querySelectorAll('.primary-school-row');
+        schoolRows.forEach((row, index) => {
+            var removeBtn = row.querySelector('.btn-remove-school');
+            if (index === 0) {
+                removeBtn.style.display = 'none';
+            } else {
+                removeBtn.style.display = 'inline-block';
+            }
+        });
+    }
 
     // Drag and Drop Engine Setup para sa modern feel
     document.addEventListener("DOMContentLoaded", function() {
@@ -694,6 +751,36 @@
     }
     .school-inputs input:focus {
         border-color: #0033A0;
+    }
+
+    .btn-add-school, .btn-remove-school {
+        background-color: #0033A0;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .btn-add-school {
+        margin-bottom: 20px;
+    }
+    .btn-remove-school {
+        background-color: #ef4444;
+        margin-left: 15px;
+        padding: 4px 10px;
+        font-size: 11px;
+    }
+    .btn-add-school:hover {
+        background-color: #002270;
+    }
+    .btn-remove-school:hover {
+        background-color: #dc2626;
     }
 
     .checkbox-grid {
