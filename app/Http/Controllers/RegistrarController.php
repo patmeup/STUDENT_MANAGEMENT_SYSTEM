@@ -197,15 +197,17 @@ class RegistrarController extends Controller
         $student->mothers_name = $request->mothers_name;
         $student->mothers_occupation = $request->mothers_occupation;
         
-        $student->primary_school_name = $request->primary_school_name;
-        $student->primary_school_address = $request->primary_school_address;
-        $student->primary_school_year = $request->primary_school_year;
-        $student->secondary_school_name = $request->secondary_school_name;
-        $student->secondary_school_address = $request->secondary_school_address;
-        $student->secondary_school_year = $request->secondary_school_year;
-        $student->college_school_name = $request->college_school_name;
+        $student->primary_school_name    = array_values(array_filter($request->input('primary_school_name', [])));
+        $student->primary_school_address = array_values(array_filter($request->input('primary_school_address', [])));
+        $student->primary_school_year    = array_values(array_filter($request->input('primary_school_year', [])));
+
+        $student->secondary_school_name    = array_values(array_filter($request->input('secondary_school_name', [])));
+        $student->secondary_school_address = array_values(array_filter($request->input('secondary_school_address', [])));
+        $student->secondary_school_year    = array_values(array_filter($request->input('secondary_school_year', [])));
+
+        $student->college_school_name    = $request->college_school_name;
         $student->college_school_address = $request->college_school_address;
-        $student->college_school_year = $request->college_school_year;
+        $student->college_school_year    = $request->college_school_year;
 
         $student->path_psa = $filePaths['doc_psa'] ?? null;
         $student->path_2x2 = $filePaths['doc_2x2'] ?? null;
@@ -219,7 +221,10 @@ class RegistrarController extends Controller
         
         $student->save();
 
-        return redirect()->back()->with('Success', "Student credentials compiled successfully! Allocated Student ID: {$generatedStudentId}");
+        return redirect()->back()->with([
+            'success' => 'Student registration successful!',
+            'student_id' => $student->student_id
+        ]);
     }
 
     public function secureViewFile($student_id, $filename)

@@ -14,36 +14,55 @@
     </div>
 
     @if(session('success'))
-        <div style="background-color: #d1e7dd; color: #0f5132; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #0f5132;">
-            <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
-        </div>
-    @endif
-
-    @if($errors->any())
-        <div style="background-color: #f8d7da; color: #842029; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #842029;">
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom: 8px;">
-                <i class="fas fa-triangle-exclamation"></i> There were some issues with your submission:
+        <div class="alert alert-success d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 shadow-sm border-start border-success border-4" role="alert">
+            <div class="d-flex align-items-center gap-3">
+                <i class="bi bi-check-circle-fill fs-2 text-success"></i>
+                <div>
+                    <span class="text-uppercase fw-bold text-success d-block small tracking-wide">
+                        Enrollment Successful
+                    </span>
+                    <div class="fs-5 text-dark mt-1">
+                        Assigned Student ID: 
+                        <span class="badge bg-success fs-6 px-3 py-2 ms-1 font-monospace shadow-sm">
+                            {{ session('student_id') }}
+                        </span>
+                    </div>
+                </div>
             </div>
-            <ul style="margin: 0; padding-left: 20px; font-weight: 500; font-size: 13.5px;">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
 
-    <div id="enrollment-validation-error" style="display: none; background-color: #f8d7da; color: #842029; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #842029;">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
-            <i class="fas fa-triangle-exclamation"></i>
-            Please complete all required fields before submitting the enrollment form.
+    @if(session('success'))
+        <div class="sis-alert sis-alert-success">
+            <i class="fas fa-check-circle sis-alert-icon"></i>
+            <div style="flex: 1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <div class="sis-alert-title">ENROLLMENT SUCCESSFUL</div>
+                    <div class="sis-alert-body">
+                        Assigned Student ID: 
+                        <span class="student-id-badge">
+                            {{ session('student_id') ?? '26-00089' }}
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div id="validation-error-field" style="font-size: 13.5px; font-weight: 500;"></div>
+    @endif
+
+    <div id="enrollment-validation-error" class="sis-alert sis-alert-error" style="display: none;">
+        <i class="fas fa-exclamation-circle sis-alert-icon"></i>
+        <div style="width: 100%;">
+            <div class="sis-alert-title">ACTION REQUIRED: MISSING OR INVALID INFORMATION</div>
+            <div class="sis-alert-body" style="margin-top: 4px;">
+                Please complete all required fields before submitting the enrollment form.
+            </div>
+            <div id="validation-error-field" class="missing-field-container"></div>
+        </div>
     </div>
 
     <div class="sis-tabs-nav">
-        <!-- Combined Tab 1 -->
         <button class="tab-btn active" onclick="switchSisTab(event, 'tab-admission')">1. Admission & Personal Info</button>
-        <!-- Renumbered Tabs -->
         <button class="tab-btn" onclick="switchSisTab(event, 'tab-education')">2. Educational Background</button>
         <button class="tab-btn" onclick="switchSisTab(event, 'tab-credentials')">3. Credentials Checklist</button>
     </div>
@@ -290,12 +309,15 @@
             <div id="tab-credentials" class="sis-tab-content">
                 <h3 class="section-divider">Mandatory Enrollment Credentials Digital Capture</h3>
                 <p style="color: #64748b; font-size: 13px; margin-bottom: 20px;">
-                    Please upload or drag-and-drop the scanned documents submitted by the applicant for <strong id="selected-type-label" style="color: #0033A0;">Freshman (New Student)</strong>:
+                    Please check and upload or drag-and-drop the scanned documents submitted by the applicant for <strong id="selected-type-label" style="color: #0033A0;">Freshman (New Student)</strong>:
                 </p>
 
                 <div class="checkbox-grid" id="credentials-wrapper">
                     <div class="file-upload-card" data-types="New,Transferee,Cross-Enrollee">
-                        <span class="file-label-text">PSA Birth Certificate</span>
+                        <label class="credential-header">
+                            <input type="checkbox" name="check_psa" class="credential-checkbox" required>
+                            <span class="file-label-text">PSA Birth Certificate</span>
+                        </label>
                         <div class="drop-zone" onclick="triggerFileInput('file_psa')">
                             <i class="fas fa-cloud-upload-alt upload-icon"></i>
                             <span class="drop-zone-text">Click or Drag PDF/Image here</span>
@@ -304,7 +326,10 @@
                     </div>
 
                     <div class="file-upload-card" data-types="New,Transferee,Cross-Enrollee">
-                        <span class="file-label-text">2x2 ID Picture w/ Name Tag</span>
+                        <label class="credential-header">
+                            <input type="checkbox" name="check_2x2" class="credential-checkbox" required>
+                            <span class="file-label-text">2x2 ID Picture w/ Name Tag</span>
+                        </label>
                         <div class="drop-zone" onclick="triggerFileInput('file_2x2')">
                             <i class="fas fa-image upload-icon"></i>
                             <span class="drop-zone-text">Click or Drag Image here</span>
@@ -313,7 +338,10 @@
                     </div>
 
                     <div class="file-upload-card" data-types="New">
-                        <span class="file-label-text">Form 138 / SF9 (Report Card)</span>
+                        <label class="credential-header">
+                            <input type="checkbox" name="check_f138" class="credential-checkbox" required>
+                            <span class="file-label-text">Form 138 / SF9 (Report Card)</span>
+                        </label>
                         <div class="drop-zone" tabindex="0" onclick="triggerFileInput('file_f138')">
                             <i class="fas fa-file-invoice upload-icon"></i>
                             <span class="drop-zone-text">Click or Drag PDF/Image here</span>
@@ -322,7 +350,10 @@
                     </div>
 
                     <div class="file-upload-card" data-types="New">
-                        <span class="file-label-text">Good Moral Character Certificate</span>
+                        <label class="credential-header">
+                            <input type="checkbox" name="check_good_moral_new" class="credential-checkbox" required>
+                            <span class="file-label-text">Good Moral Character Certificate</span>
+                        </label>
                         <div class="drop-zone" tabindex="0" onclick="triggerFileInput('file_good_moral_new')">
                             <i class="fas fa-certificate upload-icon"></i>
                             <span class="drop-zone-text">Click or Drag PDF/Image here</span>
@@ -331,7 +362,10 @@
                     </div>
 
                     <div class="file-upload-card" data-types="New">
-                        <span class="file-label-text">Certificate of Graduation / Diploma</span>
+                        <label class="credential-header">
+                            <input type="checkbox" name="check_diploma" class="credential-checkbox" required>
+                            <span class="file-label-text">Certificate of Graduation / Diploma</span>
+                        </label>
                         <div class="drop-zone" onclick="triggerFileInput('file_diploma')">
                             <i class="fas fa-graduation-cap upload-icon"></i>
                             <span class="drop-zone-text">Click or Drag PDF/Image here</span>
@@ -340,7 +374,10 @@
                     </div>
 
                     <div class="file-upload-card" data-types="Transferee">
-                        <span class="file-label-text">Transcript of Records (TOR)</span>
+                        <label class="credential-header">
+                            <input type="checkbox" name="check_tor" class="credential-checkbox" required>
+                            <span class="file-label-text">Transcript of Records (TOR)</span>
+                        </label>
                         <div class="drop-zone" onclick="triggerFileInput('file_tor')">
                             <i class="fas fa-file-alt upload-icon"></i>
                             <span class="drop-zone-text">Click or Drag PDF/Image here</span>
@@ -349,7 +386,10 @@
                     </div>
 
                     <div class="file-upload-card" data-types="Transferee">
-                        <span class="file-label-text">Honorable Dismissal</span>
+                        <label class="credential-header">
+                            <input type="checkbox" name="check_dismissal" class="credential-checkbox" required>
+                            <span class="file-label-text">Honorable Dismissal</span>
+                        </label>
                         <div class="drop-zone" onclick="triggerFileInput('file_dismissal')">
                             <i class="fas fa-door-open upload-icon"></i>
                             <span class="drop-zone-text">Click or Drag PDF/Image here</span>
@@ -358,7 +398,10 @@
                     </div>
 
                     <div class="file-upload-card" data-types="Transferee">
-                        <span class="file-label-text">Certificate of Good Moral</span>
+                        <label class="credential-header">
+                            <input type="checkbox" name="check_good_moral_trans" class="credential-checkbox" required>
+                            <span class="file-label-text">Certificate of Good Moral</span>
+                        </label>
                         <div class="drop-zone" onclick="triggerFileInput('file_good_moral_trans')">
                             <i class="fas fa-user-shield upload-icon"></i>
                             <span class="drop-zone-text">Click or Drag PDF/Image here</span>
@@ -367,7 +410,10 @@
                     </div>
 
                     <div class="file-upload-card" data-types="Cross-Enrollee">
-                        <span class="file-label-text">Cross Enroll Permit</span>
+                        <label class="credential-header">
+                            <input type="checkbox" name="check_permit" class="credential-checkbox" required>
+                            <span class="file-label-text">Cross Enroll Permit</span>
+                        </label>
                         <div class="drop-zone" onclick="triggerFileInput('file_permit')">
                             <i class="fas fa-clipboard-check upload-icon"></i>
                             <span class="drop-zone-text">Click or Drag PDF/Image here</span>
@@ -431,6 +477,18 @@
             zone.querySelector('.drop-zone-text').innerText = "Click or Drag PDF/Image here";
             zone.querySelector('.upload-icon').style.color = "#0033A0";
         });
+
+        var checkboxes = document.querySelectorAll('.credential-checkbox');
+        checkboxes.forEach(chk => {
+            chk.checked = false;
+        });
+
+        clearInputHighlights();
+    }
+
+    function clearInputHighlights() {
+        var highlighted = document.querySelectorAll('.input-field-error');
+        highlighted.forEach(el => el.classList.remove('input-field-error'));
     }
 
     function filterCredentials() {
@@ -444,14 +502,20 @@
         for (var i = 0; i < cards.length; i++) {
             var allowedTypes = cards[i].getAttribute("data-types").split(",");
             var fileInput = cards[i].querySelector('input[type="file"]');
+            var chkInput = cards[i].querySelector('.credential-checkbox');
             
             if (allowedTypes.includes(selectedType)) {
                 cards[i].style.display = "block"; 
+                if (chkInput) chkInput.required = true;
             } else {
                 cards[i].style.display = "none";  
                 if (fileInput) {
                     fileInput.value = "";
                     updateDropZoneStatus(fileInput);
+                }
+                if (chkInput) {
+                    chkInput.checked = false;
+                    chkInput.required = false;
                 }
             }
         }
@@ -603,15 +667,18 @@
 
         var enrollmentForm = document.querySelector('.pure-form');
         enrollmentForm.addEventListener('submit', function (e) {
+            clearInputHighlights();
+
             var tabContents = document.querySelectorAll('.sis-tab-content');
             var tabBtns = document.querySelectorAll('.tab-btn');
             var invalidTab = null;
             var invalidTabIndex = -1;
             var firstInvalidField = null;
             var errorBox = document.getElementById('enrollment-validation-error');
-            var errorField = document.getElementById('validation-error-field');
+            var errorFieldContainer = document.getElementById('validation-error-field');
+            
             errorBox.style.display = 'none';
-            errorField.innerText = '';
+            errorFieldContainer.innerHTML = '';
 
             for (var i = 0; i < tabContents.length; i++) {
                 var invalidField = tabContents[i].querySelector(':invalid');
@@ -622,8 +689,11 @@
                     break;
                 }
             }
+
             if (firstInvalidField) {
                 e.preventDefault();
+
+                // Switch Tab
                 for (var j = 0; j < tabContents.length; j++) {
                     tabContents[j].classList.remove('active');
                 }
@@ -634,41 +704,55 @@
                 if (tabBtns[invalidTabIndex]) {
                     tabBtns[invalidTabIndex].classList.add('active');
                 }
-                errorBox.style.display = 'block';
+
+                // Identify missing field name
                 var fieldLabel = '';
-                var parentGroup = firstInvalidField.closest('.form-group');
-                if (parentGroup) {
-                    var label = parentGroup.querySelector('label');
-                    if (label) {
-                        fieldLabel = label.innerText;
+                if (firstInvalidField.classList.contains('credential-checkbox')) {
+                    var headerLabel = firstInvalidField.closest('.credential-header');
+                    if (headerLabel) fieldLabel = headerLabel.innerText.trim();
+                    
+                    errorFieldContainer.innerHTML = `
+                        <div class="missing-field-badge-row">
+                            <span>Missing Requirement:</span>
+                            <span class="missing-field-badge">${fieldLabel || 'Credential Verification Checkbox'}</span>
+                        </div>
+                    `;
+
+                    var card = firstInvalidField.closest('.file-upload-card');
+                    if (card) card.classList.add('input-field-error');
+                } else {
+                    var parentGroup = firstInvalidField.closest('.form-group');
+                    if (parentGroup) {
+                        var label = parentGroup.querySelector('label');
+                        if (label) fieldLabel = label.innerText;
+                    } else if (firstInvalidField.placeholder) {
+                        fieldLabel = firstInvalidField.placeholder;
                     }
+
+                    errorFieldContainer.innerHTML = `
+                        <div class="missing-field-badge-row">
+                            <span>Required Field Missing:</span>
+                            <span class="missing-field-badge">${fieldLabel || 'Input Field'}</span>
+                        </div>
+                    `;
+
+                    firstInvalidField.classList.add('input-field-error');
                 }
 
+                errorBox.style.display = 'flex';
+
+                // Scroll to view
                 setTimeout(function () {
-                    if (firstInvalidField.type === 'file') {
-                        var fileCard = firstInvalidField.closest('.file-upload-card');
-                        var dropZone = fileCard
-                            ? fileCard.querySelector('.drop-zone')
-                            : null;
-                        if (dropZone) {
-                            dropZone.focus();
-                            dropZone.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'center'
-                            });
-                        }
-                    } else {
-                        firstInvalidField.focus();
-                        firstInvalidField.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'center'
-                        });
-                        firstInvalidField.reportValidity();
-                    }
-                }, 50);
-                errorBox.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center'
+                    firstInvalidField.focus();
+                    firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+
+                // Add live event listener to clear highlight on user input
+                firstInvalidField.addEventListener('input', function clearErr() {
+                    firstInvalidField.classList.remove('input-field-error');
+                    var parentCard = firstInvalidField.closest('.file-upload-card');
+                    if(parentCard) parentCard.classList.remove('input-field-error');
+                    firstInvalidField.removeEventListener('input', clearErr);
                 });
             }
         });
@@ -678,10 +762,125 @@
 </script>
 
 <style>
-    .validation-error-field {
-        border-color: #dc2626 !important;
-        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
-}
+    .sis-alert {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 18px 24px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+        border-left: 8px solid;
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .sis-alert-error {
+        background-color: #fef2f2;
+        border-color: #dc2626;
+        color: #7f1d1d;
+    }
+
+    .sis-alert-success {
+        background-color: #f0fdf4;
+        border-color: #16a34a;
+        color: #14532d;
+    }
+
+    .sis-alert-icon {
+        font-size: 28px;
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+
+    .sis-alert-error .sis-alert-icon {
+        color: #dc2626;
+    }
+
+    .sis-alert-success .sis-alert-icon {
+        color: #16a34a;
+    }
+
+    .sis-alert-title {
+        font-size: 16px;
+        font-weight: 800;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+    }
+
+    .sis-alert-body {
+        font-size: 14.5px;
+        font-weight: 600;
+        margin-top: 2px;
+    }
+
+    .sis-alert-list {
+        margin: 8px 0 0 0;
+        padding-left: 20px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .student-id-badge {
+        background-color: #16a34a;
+        color: #ffffff;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 16px;
+        font-weight: 800;
+        padding: 4px 12px;
+        border-radius: 6px;
+        margin-left: 6px;
+        letter-spacing: 0.5px;
+        box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);
+        display: inline-block;
+    }
+
+    .missing-field-container {
+        margin-top: 10px;
+    }
+
+    .missing-field-badge-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: rgba(220, 38, 38, 0.1);
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #991b1b;
+        border: 1px solid rgba(220, 38, 38, 0.2);
+    }
+
+    .missing-field-badge {
+        background-color: #dc2626;
+        color: #ffffff;
+        padding: 3px 10px;
+        border-radius: 6px;
+        font-size: 13.5px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+    }
+
+    /* RED HIGHLIGHT ON INVALID FIELDS */
+    .input-field-error {
+        border: 2px solid #dc2626 !important;
+        background-color: #fff5f5 !important;
+        box-shadow: 0 0 10px rgba(220, 38, 38, 0.35) !important;
+        outline: none;
+        animation: shake 0.3s ease-in-out;
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 
     .sis-container {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -811,7 +1010,7 @@
         outline: none;
         box-sizing: border-box;
         width: 100%;
-        transition: border-color 0.15s ease;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
     .form-group input:focus, .form-group select:focus {
         border-color: #0033A0;
@@ -912,32 +1111,6 @@
         grid-template-columns: repeat(3, 1fr);
         gap: 15px;
     }
-    .check-box-card {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        padding: 15px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.15s ease;
-    }
-    .check-box-card:hover {
-        border-color: #0033A0;
-        background-color: rgba(0, 51, 160, 0.01);
-    }
-    .check-box-card input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        cursor: pointer;
-        accent-color: #0033A0;
-    }
-    .check-box-card span {
-        font-size: 14px;
-        font-weight: 600;
-        color: #334155;
-    }
 
     .form-actions-bar {
         display: flex;
@@ -983,14 +1156,29 @@
         padding: 15px;
         border-radius: 10px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.01);
+        transition: all 0.2s ease;
+    }
+
+    .credential-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        cursor: pointer;
+    }
+
+    .credential-checkbox {
+        width: 18px;
+        height: 18px;
+        accent-color: #0033A0;
+        cursor: pointer;
     }
 
     .file-label-text {
-        display: block;
         font-size: 13.5px;
         font-weight: 700;
         color: #1e293b;
-        margin-bottom: 8px;
+        margin-bottom: 0;
     }
 
     .drop-zone {

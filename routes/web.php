@@ -112,6 +112,7 @@ Route::get('/dean/user_details', [DeanController::class, 'profileView'])->name('
 Route::get('/department-secretary/dashboard', [DeptSecController::class, 'dashboard'])->name('department_secretary.dashboard');
 Route::get('/department_secretary/subject-catalog', [DeptSecController::class, 'subjectCatalog'])->name('department_secretary.subject_catalog');
 Route::get('/department-secretary/masterlist', [DeptSecController::class, 'studentsList'])->name('department_secretary.students');
+Route::delete('/department-secretary/student/delete/{student_id}', [DeptSecController::class, 'deleteStudent'])->name('department_secretary.delete_student');
 Route::get('/department-secretary/section/{section_name}', [DeptSecController::class, 'viewSectionRoster'])->name('department_secretary.view_section');
 Route::post('/department-secretary/section/bulk-enroll', [DeptSecController::class, 'bulkEnrollSection'])->name('department_secretary.bulk_enroll');
 Route::get('/department_secretary/student/{student_id}/plot', [DeptSecController::class, 'plotSubjects'])->name('department_secretary.plot_subjects');

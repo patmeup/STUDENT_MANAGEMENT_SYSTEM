@@ -30,5 +30,12 @@ class Student extends Model
         'registration_date' => 'date',
         'date_of_birth' => 'date',
         'password' => 'hashed',
+        
+        'primary_school_name'    => 'array',
+        'primary_school_address' => 'array',
+        'primary_school_year'    => 'array',
+        'secondary_school_name'    => 'array',
+        'secondary_school_address' => 'array',
+        'secondary_school_year'    => 'array',
     ];
 }
