@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="sis-container">
-    
+
     <div class="sis-header">
         <div class="header-titles">
             <h2>Enrollment Processing Portal</h2>
@@ -32,6 +32,14 @@
         </div>
     @endif
 
+    <div id="enrollment-validation-error" style="display: none; background-color: #f8d7da; color: #842029; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #842029;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+            <i class="fas fa-triangle-exclamation"></i>
+            Please complete all required fields before submitting the enrollment form.
+        </div>
+        <div id="validation-error-field" style="font-size: 13.5px; font-weight: 500;"></div>
+    </div>
+
     <div class="sis-tabs-nav">
         <button class="tab-btn active" onclick="switchSisTab(event, 'tab-admission')">1. Admission Info</button>
         <button class="tab-btn" onclick="switchSisTab(event, 'tab-personal')">2. Personal Profile</button>
@@ -43,11 +51,11 @@
         <div class="card-title-bar">
             Student Information Sheet (SIS) Digital Capture
         </div>
-        
-        <form action="{{ route('registrar.enroll.store') }}" method="POST" autocomplete="off" class="pure-form" enctype="multipart/form-data">
+
+        <form action="{{ route('registrar.enroll.store') }}" method="POST" autocomplete="off" class="pure-form" enctype="multipart/form-data" novalidate>
             @csrf
 
-            <div id="tab-admission" class="sis-tab-content active">                
+            <div id="tab-admission" class="sis-tab-content active">
                 <div class="form-grid-3">
                     <div class="form-group">
                         <label>Registration Date</label>
@@ -142,17 +150,17 @@
                     </div>
                     <div class="form-group">
                         <label>Zip Code</label>
-                        <input type="text" 
-                            name="zip_code" 
-                            placeholder="xxxx" 
+                        <input type="text"
+                            name="zip_code"
+                            placeholder="xxxx"
                             inputmode="numeric"
                             pattern="[0-9]*"
                             maxlength="4"
-                            oninput="this.value = this.value.replace(/[^0-9]/g, '');" 
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '');"
                             required>
                     </div>
                 </div>
-                
+
                 <div class="form-grid-2" style="margin-top: 15px;">
                     <div class="form-group">
                         <label>Place of Birth</label>
@@ -160,13 +168,13 @@
                     </div>
                     <div class="form-group">
                         <label>Mobile Number / Telephone</label>
-                        <input type="text" 
-                            name="contact_no" 
-                            placeholder="09xxxxxxxxx" 
+                        <input type="text"
+                            name="contact_no"
+                            placeholder="09xxxxxxxxx"
                             inputmode="numeric"
                             pattern="[0-9]*"
                             maxlength="11"
-                            oninput="this.value = this.value.replace(/[^0-9]/g, '');" 
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '');"
                             required>
                     </div>
                     <div class="form-group">
@@ -198,7 +206,7 @@
 
             <div id="tab-education" class="sis-tab-content">
                 <h3 class="section-divider">Academic Institutional History</h3>
-                
+
                 <div id="primary-schools-container">
                     <div class="school-row primary-school-row">
                         <div class="school-title">
@@ -210,12 +218,13 @@
                         <div class="school-inputs">
                             <input type="text" name="primary_school_name[]" placeholder="School Name" required>
                             <input type="text" name="primary_school_address[]" placeholder="School Address" required>
-                            <input type="text" 
-                                name="primary_school_year[]" 
-                                placeholder="Year Graduated (YYYY-YYYY)" 
+                            <input type="text"
+                                name="primary_school_year[]"
+                                placeholder="Year Graduated (YYYY-YYYY)"
                                 inputmode="text"
+                                pattern="[0-9]{4}-[0-9]{4}"
                                 maxlength="9"
-                                oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
+                                oninput="this.value = this.value.replace(/[^0-9-]/g, '');"
                                 required>
                         </div>
                     </div>
@@ -230,12 +239,13 @@
                     <div class="school-inputs">
                         <input type="text" name="secondary_school_name" placeholder="School Name" required>
                         <input type="text" name="secondary_school_address" placeholder="School Address" required>
-                        <input type="text" 
-                            name="secondary_school_year" 
-                            placeholder="Year Graduated (YYYY-YYYY)" 
+                        <input type="text"
+                            name="secondary_school_year"
+                            placeholder="Year Graduated (YYYY-YYYY)"
                             inputmode="text"
+                            pattern="[0-9]{4}-[0-9]{4}"
                             maxlength="9"
-                            oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
+                            oninput="this.value = this.value.replace(/[^0-9-]/g, '');"
                             required>
                     </div>
                 </div>
@@ -245,10 +255,11 @@
                     <div class="school-inputs">
                         <input type="text" name="college_school_name" placeholder="Previous Institution (If applicable)">
                         <input type="text" name="college_school_address" placeholder="Campus Location Address">
-                        <input type="text" 
-                            name="college_school_year" 
-                            placeholder="Year Attended" 
+                        <input type="text"
+                            name="college_school_year"
+                            placeholder="Year Attended"
                             inputmode="text"
+                            pattern="[0-9]{4}-[0-9]{4}"
                             maxlength="9"
                             oninput="this.value = this.value.replace(/[^0-9-]/g, '');"
                             required>
@@ -261,7 +272,7 @@
                 <p style="color: #64748b; font-size: 13px; margin-bottom: 20px;">
                     Please upload or drag-and-drop the scanned documents submitted by the applicant for <strong id="selected-type-label" style="color: #0033A0;">Freshman (New Student)</strong>:
                 </p>
-                
+
                 <div class="checkbox-grid" id="credentials-wrapper">
                     <div class="file-upload-card" data-types="New,Transferee,Cross-Enrollee">
                         <span class="file-label-text">PSA Birth Certificate</span>
@@ -283,7 +294,7 @@
 
                     <div class="file-upload-card" data-types="New">
                         <span class="file-label-text">Form 138 / SF9 (Report Card)</span>
-                        <div class="drop-zone" onclick="triggerFileInput('file_f138')">
+                        <div class="drop-zone" tabindex="0" onclick="triggerFileInput('file_f138')">
                             <i class="fas fa-file-invoice upload-icon"></i>
                             <span class="drop-zone-text">Click or Drag PDF/Image here</span>
                             <input type="file" name="doc_f138" id="file_f138" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
@@ -292,7 +303,7 @@
 
                     <div class="file-upload-card" data-types="New">
                         <span class="file-label-text">Good Moral Character Certificate</span>
-                        <div class="drop-zone" onclick="triggerFileInput('file_good_moral_new')">
+                        <div class="drop-zone" tabindex="0" onclick="triggerFileInput('file_good_moral_new')">
                             <i class="fas fa-certificate upload-icon"></i>
                             <span class="drop-zone-text">Click or Drag PDF/Image here</span>
                             <input type="file" name="doc_good_moral_new" id="file_good_moral_new" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
@@ -357,7 +368,7 @@
 <script>
     function switchSisTab(evt, tabId) {
         evt.preventDefault();
-        
+
         var tabContents = document.getElementsByClassName("sis-tab-content");
         for (var i = 0; i < tabContents.length; i++) {
             tabContents[i].classList.remove("active");
@@ -382,7 +393,7 @@
         var dropZone = input.parentElement;
         var zoneText = dropZone.querySelector('.drop-zone-text');
         var icon = dropZone.querySelector('.upload-icon');
-        
+
         if (input.files && input.files.length > 0) {
             var fileName = input.files[0].name;
             dropZone.classList.add('has-file');
@@ -410,7 +421,7 @@
     var dropdown = document.getElementById("student_type");
     var selectedType = dropdown.value;
     var selectedText = dropdown.options[dropdown.selectedIndex].text;
-    
+
     document.getElementById("selected-type-label").innerText = selectedText;
 
     // 1. Handle Document Upload Cards
@@ -418,12 +429,16 @@
     for (var i = 0; i < cards.length; i++) {
         var allowedTypes = cards[i].getAttribute("data-types").split(",");
         var fileInput = cards[i].querySelector('input[type="file"]');
-        
+
         if (allowedTypes.includes(selectedType)) {
-            cards[i].style.display = "block"; 
-        } else {
-            cards[i].style.display = "none";  
+            cards[i].style.display = "block";
             if (fileInput) {
+                fileInput.setAttribute('required', 'required');
+            }
+        } else {
+            cards[i].style.display = "none";
+            if (fileInput) {
+                fileInput.removeAttribute('required');
                 fileInput.value = "";
                 updateDropZoneStatus(fileInput);
             }
@@ -433,7 +448,7 @@
     // 2. Handle College Input Section for Transferees dynamically
     var transfereeRow = document.querySelector('.transferee-row');
     var collegeInputs = transfereeRow.querySelectorAll('input');
-    
+
     if (selectedType === 'Transferee') {
         transfereeRow.style.display = "block";
         collegeInputs.forEach(input => {
@@ -465,12 +480,12 @@
             <div class="school-inputs">
                 <input type="text" name="primary_school_name[]" placeholder="School Name" required>
                 <input type="text" name="primary_school_address[]" placeholder="School Address" required>
-                <input type="text" 
-                    name="primary_school_year[]" 
-                    placeholder="Year Graduated (YYYY-YYYY)" 
+                <input type="text"
+                    name="primary_school_year[]"
+                    placeholder="Year Graduated (YYYY-YYYY)"
                     inputmode="text"
                     maxlength="9"
-                    oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
+                    oninput="this.value = this.value.replace(/[^0-9-]/g, '');"
                     required>
             </div>
         `;
@@ -501,10 +516,10 @@
         filterCredentials();
 
         var dropZones = document.querySelectorAll('.drop-zone');
-        
+
         dropZones.forEach(zone => {
             var input = zone.querySelector('input[type="file"]');
-            
+
             zone.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 zone.style.borderColor = "#10b981";
@@ -520,13 +535,13 @@
                 e.preventDefault();
                 zone.style.borderColor = "#cbd5e1";
                 zone.style.background = "#f8fafc";
-                
+
                 if (e.dataTransfer.files.length > 0) {
                     // Gumamit ng DataTransfer object constructor para sa malinis na browser binding execution
                     var dt = new DataTransfer();
                     dt.items.add(e.dataTransfer.files[0]);
                     input.files = dt.files;
-                    
+
                     // I-trigger ang update status native listener
                     updateDropZoneStatus(input);
                 }
@@ -537,6 +552,7 @@
         // hindi maipapakita ng browser ang validation tooltip (dahil display:none ang tab),
         // kaya tahimik lang ito bino-block ang submit. Awtomatiko na lang tayong lilipat
         // sa tamang tab kung saan nagmula ang unang invalid field, bago i-report ang error.
+
         var enrollmentForm = document.querySelector('.pure-form');
         enrollmentForm.addEventListener('submit', function (e) {
             var tabContents = document.querySelectorAll('.sis-tab-content');
@@ -544,6 +560,10 @@
             var invalidTab = null;
             var invalidTabIndex = -1;
             var firstInvalidField = null;
+            var errorBox = document.getElementById('enrollment-validation-error');
+            var errorField = document.getElementById('validation-error-field');
+            errorBox.style.display = 'none';
+            errorField.innerText = '';
 
             for (var i = 0; i < tabContents.length; i++) {
                 var invalidField = tabContents[i].querySelector(':invalid');
@@ -554,34 +574,96 @@
                     break;
                 }
             }
-
-            if (invalidTab) {
+            if (firstInvalidField) {
                 e.preventDefault();
-
                 for (var j = 0; j < tabContents.length; j++) {
                     tabContents[j].classList.remove('active');
                 }
                 for (var k = 0; k < tabBtns.length; k++) {
                     tabBtns[k].classList.remove('active');
                 }
-
                 invalidTab.classList.add('active');
                 if (tabBtns[invalidTabIndex]) {
                     tabBtns[invalidTabIndex].classList.add('active');
                 }
+                errorBox.style.display = 'block';
+                var fieldLabel = '';
+                var parentGroup = firstInvalidField.closest('.form-group');
+                if (parentGroup) {
+                    var label = parentGroup.querySelector('label');
+                    if (label) {
+                        fieldLabel = label.innerText;
+                    }
+                }
 
-                // Hintayin munang lumabas ang tab bago i-report ang validation error,
-                // dahil kailangang visible muna ang field bago maipakita ng browser ang tooltip.
+                if (!fieldLabel && firstInvalidField.type === 'file') {
+                    var fileCard = firstInvalidField.closest('.file-upload-card');
+                    if (fileCard) {
+                        var fileLabel = fileCard.querySelector('.file-label-text');
+                        if (fileLabel) {
+                            fieldLabel = fileLabel.innerText;
+                        }
+                    }
+                }
+
+                if (!fieldLabel) {
+                    fieldLabel = firstInvalidField.name;
+                }
+                errorField.innerText = 'Missing required field: ' + fieldLabel;
+                document.querySelectorAll('.validation-error-field').forEach(function(field) {
+                    field.classList.remove('validation-error-field');
+                });
+                if (firstInvalidField.type === 'file') {
+
+                    var invalidFileCard = firstInvalidField.closest('.file-upload-card');
+                    var invalidDropZone = invalidFileCard
+                        ? invalidFileCard.querySelector('.drop-zone')
+                        : null;
+                    if (invalidDropZone) {
+                        invalidDropZone.classList.add('validation-error-field');
+                    }
+                } else {
+                    firstInvalidField.classList.add('validation-error-field');
+                }
                 setTimeout(function () {
-                    firstInvalidField.reportValidity();
-                    firstInvalidField.focus();
+                    if (firstInvalidField.type === 'file') {
+                        var fileCard = firstInvalidField.closest('.file-upload-card');
+                        var dropZone = fileCard
+                            ? fileCard.querySelector('.drop-zone')
+                            : null;
+                        if (dropZone) {
+                            dropZone.focus();
+                            dropZone.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center'
+                            });
+                        }
+                    } else {
+                        firstInvalidField.focus();
+                        firstInvalidField.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                        firstInvalidField.reportValidity();
+                    }
                 }, 50);
+                errorBox.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
             }
         });
+
     });
+
 </script>
 
 <style>
+    .validation-error-field {
+        border-color: #dc2626 !important;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+}
+
     .sis-container {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         color: #1e293b;
@@ -860,7 +942,7 @@
         border-radius: 10px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.01);
     }
-    
+
     .file-label-text {
         display: block;
         font-size: 13.5px;
@@ -868,7 +950,7 @@
         color: #1e293b;
         margin-bottom: 8px;
     }
-    
+
     .drop-zone {
         border: 2px dashed #cbd5e1;
         background-color: #f8fafc;
@@ -882,29 +964,29 @@
         gap: 8px;
         transition: all 0.2s ease;
     }
-    
+
     .drop-zone:hover {
         border-color: #0033A0;
         background-color: rgba(0, 51, 160, 0.02);
     }
-    
+
     .drop-zone.has-file {
         border-color: #10b981;
         background-color: rgba(16, 185, 129, 0.03);
     }
-    
+
     .upload-icon {
         font-size: 24px;
         color: #0033A0;
         transition: color 0.2s ease;
     }
-    
+
     .drop-zone-text {
         font-size: 12px;
         font-weight: 600;
         color: #64748b;
     }
-    
+
     .hidden-file-input {
         display: none;
     }

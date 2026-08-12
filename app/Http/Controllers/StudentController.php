@@ -62,12 +62,12 @@ class StudentController extends Controller
                 }
 
                 $majorExam = $averages['major exam'] ?? $averages['exam'] ?? 0;
-                
+
                 $writtenComponents = [];
                 if (isset($averages['written'])) $writtenComponents[] = $averages['written'];
                 if (isset($averages['quiz'])) $writtenComponents[] = $averages['quiz'];
                 if (isset($averages['activity'])) $writtenComponents[] = $averages['activity'];
-                
+
                 $currentWrittenWorks = count($writtenComponents) > 0 ? (array_sum($writtenComponents) / count($writtenComponents)) : 0;
                 $currentRecitation = $averages['recitation'] ?? 0;
                 $currentAttendance = $averages['attendance'] ?? 0;
@@ -75,8 +75,8 @@ class StudentController extends Controller
                 $classStandingComponents = array_filter([$currentWrittenWorks, $currentRecitation, $currentAttendance]);
                 $classStandingAverage = count($classStandingComponents) > 0 ? (array_sum($classStandingComponents) / count($classStandingComponents)) : 0;
 
-                $classStandingContribution = $classStandingAverage * 0.60; 
-                $examContribution = $majorExam * 0.40;                      
+                $classStandingContribution = $classStandingAverage * 0.60;
+                $examContribution = $majorExam * 0.40;
 
                 $subjectGrade = round($classStandingContribution + $examContribution, 2);
 
@@ -162,14 +162,14 @@ class StudentController extends Controller
         ));
     }
 
-    public function updateCredentials(Request $request) 
+    public function updateCredentials(Request $request)
     {
         if (session('user_role') !== 'student') {
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 
         $studentNumber = session('student_id');
-        
+
         // Tiyaking hinahanap gamit ang student_id core field
         $student = Student::where('student_id', $studentNumber)->firstOrFail();
 
@@ -217,7 +217,7 @@ class StudentController extends Controller
         }
 
         $students = $query->orderBy('student_id', 'desc')->get();
-        
+
         $totalRecords = $students->count();
 
         return view('registrar.manage-students', compact('students', 'totalRecords'));
@@ -259,7 +259,7 @@ class StudentController extends Controller
             ->select('class_schedules.*', 'subjects.subject_code', 'subjects.subject_title')
             ->first();
 
-        $activities = DB::table('student_tasks') 
+        $activities = DB::table('student_tasks')
             ->leftJoin('task_submissions', function($join) use ($studentNumber) {
                 $join->on('student_tasks.id', '=', 'task_submissions.task_id')
                     ->where('task_submissions.student_id', '=', $studentNumber);
@@ -351,7 +351,7 @@ class StudentController extends Controller
         }
 
         $calculateTermGrades = function($termName) use ($schedule_id, $studentNumber, $activities, $attendanceRecords, $termPeriods) {
-            
+
             $periodConfig = $termPeriods->get($termName);
 
             $termTasks = $activities->where('term', $termName);
@@ -387,7 +387,7 @@ class StudentController extends Controller
                 });
 
                 $totalAttendanceCount = $termAttendance->count();
-                
+
                 if ($totalAttendanceCount > 0) {
                     $presentCount = $termAttendance->where('status', 'Present')->count();
                     $currentAttendance = ($presentCount / $totalAttendanceCount) * 100;
@@ -423,8 +423,8 @@ class StudentController extends Controller
                 $classStandingAverage = 0;
             }
 
-            $classStandingContribution = $classStandingAverage * 0.60; 
-            $examContribution = $majorExam * 0.40;                     
+            $classStandingContribution = $classStandingAverage * 0.60;
+            $examContribution = $majorExam * 0.40;
 
             return [
                 'quizAverage' => $quizAverage,
@@ -444,9 +444,9 @@ class StudentController extends Controller
         ];
 
         return view('student.class_details', compact(
-            'classDetails', 
-            'activities', 
-            'materials', 
+            'classDetails',
+            'activities',
+            'materials',
             'activeTab',
             'termGrades',
             'attendanceRecords',
@@ -490,7 +490,7 @@ class StudentController extends Controller
         if (isset($averages['quiz'])) $writtenComponents[] = $averages['quiz'];
         if (isset($averages['activity'])) $writtenComponents[] = $averages['activity'];
         if (isset($averages['assignment'])) $writtenComponents[] = $averages['assignment'];
-        
+
         $currentWrittenWorks = count($writtenComponents) > 0 ? (array_sum($writtenComponents) / count($writtenComponents)) : 0;
         $currentRecitation = $averages['recitation'] ?? 0;
 
@@ -502,13 +502,13 @@ class StudentController extends Controller
             $presentCount = $attendanceRecords->where('status', 'Present')->count();
             $currentAttendance = ($presentCount / $totalAttendanceCount) * 100;
         } else {
-            $currentAttendance = $averages['attendance'] ?? 0; 
+            $currentAttendance = $averages['attendance'] ?? 0;
         }
 
         if ($totalAttendanceCount > 0 || isset($averages['attendance'])) {
-            $classStandingAverage = ($taskAverage * 0.80) + ($currentAttendance * 0.20); 
+            $classStandingAverage = ($taskAverage * 0.80) + ($currentAttendance * 0.20);
         } else {
-            $classStandingAverage = $taskAverage; 
+            $classStandingAverage = $taskAverage;
         }
 
         $classStandingContribution = $classStandingAverage * 0.60;
@@ -604,7 +604,7 @@ class StudentController extends Controller
         $generatedStudentNumber = $prefix . $nextSequence;
 
         $filePaths = [];
-        
+
         $fileFields = [
             'doc_psa' => 'psa_birth_certificate',
             'doc_2x2' => '2x2_id_picture',
@@ -622,9 +622,9 @@ class StudentController extends Controller
                 $file = $request->file($inputName);
                 $extension = $file->getClientOriginalExtension();
                 $finalFileName = "{$cleanFileName}.{$extension}";
-                
+
                 $file->storeAs("student_records/{$generatedStudentNumber}", $finalFileName, 'local');
-                
+
                 $filePaths[$inputName] = $finalFileName;
             }
         }
@@ -634,11 +634,11 @@ class StudentController extends Controller
         $student->registration_date = $request->registration_date;
         $student->student_type = $request->student_type;
         $student->course = $request->course;
-        
+
         $student->last_name = strtoupper($request->last_name);
         $student->first_name = strtoupper($request->first_name);
         $student->middle_name = $request->middle_name ? strtoupper($request->middle_name) : null;
-        
+
         $student->sex = $request->sex;
         $student->civil_status = $request->civil_status;
         $student->date_of_birth = $request->date_of_birth;
@@ -648,23 +648,31 @@ class StudentController extends Controller
         $student->zip_code = $request->zip_code;
         $student->contact_no = $request->contact_no;
         $student->email = $request->email;
-        
+
         $student->fathers_name = $request->fathers_name;
         $student->fathers_occupation = $request->fathers_occupation;
         $student->mothers_name = $request->mothers_name;
         $student->mothers_occupation = $request->mothers_occupation;
-        
-        $student->primary_school_name = $request->primary_school_name;
-        $student->primary_school_address = $request->primary_school_address;
-        $student->primary_school_year = $request->primary_school_year;
+
+        $student->primary_school_name = $request->primary_school_name
+            ? implode('; ', array_filter($request->primary_school_name))
+            : null;
+        $student->primary_school_address = $request->primary_school_address
+            ? implode('; ', array_filter($request->primary_school_address))
+            : null;
+        $student->primary_school_year = $request->primary_school_year
+            ? implode('; ', array_filter($request->primary_school_year))
+            : null;
+
         $student->secondary_school_name = $request->secondary_school_name;
         $student->secondary_school_address = $request->secondary_school_address;
         $student->secondary_school_year = $request->secondary_school_year;
+
         $student->college_school_name = $request->college_school_name;
         $student->college_school_address = $request->college_school_address;
         $student->college_school_year = $request->college_school_year;
 
-        $student->year_level = ($request->student_type === 'Transferee') ? '1st Year' : '1st Year'; 
+        $student->year_level = ($request->student_type === 'Transferee') ? '1st Year' : '1st Year';
         $student->semester = '1st Semester';
 
         $student->path_psa = $filePaths['doc_psa'] ?? null;
@@ -717,10 +725,10 @@ class StudentController extends Controller
                 'employees.first_name as prof_first_name',
                 'employees.last_name as prof_last_name',
 
-                DB::raw('(SELECT COUNT(*) 
+                DB::raw('(SELECT COUNT(*)
                         FROM student_subjects as ss
                         JOIN students as s ON ss.student_number = s.student_id
-                        WHERE ss.schedule_id = class_schedules.id 
+                        WHERE ss.schedule_id = class_schedules.id
                         AND ss.status = "Enrolled") as enrolled_students_count')
             )
             ->get();
@@ -820,8 +828,8 @@ class StudentController extends Controller
             ->first();
 
         $taskData = (object)[
-            'id' => 'gclass_' . $id, 
-            'real_gclass_id' => $id,  
+            'id' => 'gclass_' . $id,
+            'real_gclass_id' => $id,
             'class_schedule_id' => $scheduleId,
             'subject_code' => $classDetails->subject_code ?? 'GCLASS',
             'section_name' => $classDetails->section_name ?? '',
@@ -1021,13 +1029,13 @@ class StudentController extends Controller
             $finalName = $student_id . '_' . time() . '.' . $extension;
 
             $file->storeAs($folderPath, $finalName, 'local');
-            
+
             $filePath = "{$folderPath}/{$finalName}";
 
             DB::table('task_submissions')->updateOrInsert(
                 ['task_id' => $task_id, 'student_id' => $student_id],
                 [
-                    'file_path' => $filePath, 
+                    'file_path' => $filePath,
                     'original_filename' => $originalName,
                     'submitted_at' => now(),
                     'created_at' => now(),
@@ -1194,18 +1202,18 @@ class StudentController extends Controller
                     ->where('schedule_id', $class->schedule_id)
                     ->where('student_number', $studentNumber)
                     ->where('term', $termName)
-                    ->where('is_sent_to_student', 1) 
+                    ->where('is_sent_to_student', 1)
                     ->first();
 
                 return [
-                    'grade' => $record ? $record->major_exam : null, 
+                    'grade' => $record ? $record->major_exam : null,
                     'equivalent' => $record ? $record->equivalent : null
                 ];
             };
 
             $prelim = $getTermGrade('prelim');
             $midterm = $getTermGrade('midterm');
-            $finals = $getTermGrade('final'); 
+            $finals = $getTermGrade('final');
 
             $gradesData[] = [
                 'subject_code' => $class->subject_code,
@@ -1237,13 +1245,13 @@ class StudentController extends Controller
         }
 
         $studentNumber = session('student_id');
-        
+
         $user = Student::where('student_id', $studentNumber)->first();
 
         if (!$user) {
             return redirect()->route('login')->with('error', 'User not found.');
         }
-        
+
         $isLocked = Hash::check('Welcome@AU2026', $user->password);
 
         return view('student.user_details', compact('user', 'isLocked'));
