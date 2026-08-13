@@ -668,6 +668,9 @@
                             $gradeModes = [];
                             $manualGrades = [];
 
+                            $termDraftCollection = $draftGrades->get($key);
+                            $isTermSubmitted = $termDraftCollection ? $termDraftCollection->where('is_submitted', 1)->count() > 0 : false;
+
                             foreach ($students as $student) {
                                 $draft = optional(
                                     $draftGrades->get($key)?->firstWhere('student_number', $student->student_id)
@@ -692,6 +695,7 @@
                                 cachedManualGrades: JSON.parse(JSON.stringify(@js($manualGrades))),
                                 autoGradesData: @js($autoGrades[$key] ?? []),
                                 hasUnsavedChanges: false,
+                                isSubmitted: @js($isTermSubmitted),
 
                                 init() {
                                     window.addEventListener('beforeunload', (event) => {
@@ -816,19 +820,36 @@
                             }"
                             x-init="init()">
 
-                            <div class="d-flex justify-content-end mb-3">
-                                <div class="d-flex gap-2">
-                                    <button
-                                        type="button"
-                                        class="btn-sm-outline text-dark-blue fw-bold bg-white"
-                                        @click="saveDraftGrades()">
-                                        <i class="fa-solid fa-floppy-disk"></i>
-                                        Save Draft
-                                    </button>
-                                    <button type="button" class="btn-primary-portal py-1 px-3" style="font-size: 12px;" @click="submitToRegistrar()">
-                                        <i class="fa-solid fa-paper-plane"></i> Submit to Registrar
-                                    </button>
+                            <div class="grade-top-row mb-3">
+                                <div class="encoding-legend-bar">
+                                    <span class="legend-item"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto — computed from task scores & attendance</span>
+                                    <span class="legend-item"><i class="fa-solid fa-pen"></i> Manual — professor enters custom score</span>
                                 </div>
+
+                                <template x-if="!isSubmitted">
+                                    <div class="grade-action-buttons">
+                                        <button
+                                            type="button"
+                                            class="btn-sm-outline text-dark-blue fw-bold bg-white"
+                                            @click="saveDraftGrades()">
+                                            <i class="fa-solid fa-floppy-disk me-1"></i> Save Draft
+                                        </button>
+                                        <button 
+                                            type="button" 
+                                            class="btn-primary-portal fw-bold" 
+                                            style="font-size: 13px;" 
+                                            @click="submitToRegistrar()">
+                                            <i class="fa-solid fa-paper-plane me-1"></i> Submit to Registrar
+                                        </button>
+                                    </div>
+                                </template>
+
+                                <template x-if="isSubmitted">
+                                    <div class="submitted-status-pill">
+                                        <i class="fa-solid fa-circle-check"></i>
+                                        <span>Grades Submitted to Registrar</span>
+                                    </div>
+                                </template>
                             </div>
 
                             @if($students->isEmpty())
@@ -838,11 +859,6 @@
                                     <p class="empty-state-text">Grade encoding needs enrolled students to display.</p>
                                 </div>
                             @else
-                                <div class="encoding-legend-bar">
-                                    <span class="legend-item"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto — computed from task scores & attendance</span>
-                                    <span class="legend-item"><i class="fa-solid fa-pen"></i> Manual — professor enters custom score</span>
-                                </div>
-
                                 <div class="table-responsive">
                                     <table class="table custom-portal-table align-middle encoding-table">
                                         <thead>
@@ -869,11 +885,12 @@
 
                                                 <td class="text-center">
                                                     <div class="encoding-cell-row">
-                                                    <input type="number" min="0" max="100" step="0.01" class="encoding-input"
+                                                        <input type="number" min="0" max="100" step="0.01" class="encoding-input"
                                                             x-model.number="manualGrades['{{ $sid }}'].class_standing"
                                                             placeholder="—"
-                                                            :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual'"
-                                                            :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' ? 'encoding-input-active' : 'encoding-input-muted'"
+                                                            :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
+                                                            :disabled="isSubmitted"
+                                                            :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted ? 'encoding-input-active' : 'encoding-input-muted'"
                                                             @input="
                                                                 markChanged();
                                                                 let value = parseFloat($event.target.value);
@@ -897,8 +914,9 @@
                                                     <input type="number" min="0" max="100" step="0.01" class="encoding-input"
                                                         x-model.number="manualGrades['{{ $sid }}'].major_exam"
                                                         placeholder="—"
-                                                        :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual'"
-                                                        :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' ? 'encoding-input-active' : 'encoding-input-muted'"
+                                                        :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
+                                                        :disabled="isSubmitted"
+                                                        :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted ? 'encoding-input-active' : 'encoding-input-muted'"
                                                         @input="
                                                             markChanged();
                                                             let value = parseFloat($event.target.value);
@@ -919,8 +937,9 @@
                                                             x-model="manualGrades['{{ $sid }}'].equivalent"
                                                             placeholder="—"
                                                             maxlength="4"
-                                                            :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual'"
-                                                            :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' ? 'encoding-input-active' : 'encoding-input-muted'"
+                                                            :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
+                                                            :disabled="isSubmitted"
+                                                            :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted ? 'encoding-input-active' : 'encoding-input-muted'"
                                                             @input="
                                                                 markChanged();
                                                                 let v = $event.target.value.replace(/[^0-9.]/g, '');
@@ -935,17 +954,20 @@
                                                 </td>
 
                                                 <td class="text-center">
-                                                    <div class="mode-toggle-group">
+                                                    <div class="mode-toggle-group" :class="isSubmitted ? 'disabled-group' : ''">
                                                         <button type="button"
                                                             class="mode-toggle-btn"
                                                             :class="(gradeMode['{{ $sid }}'] || 'auto') === 'auto' ? 'mode-toggle-active-auto' : ''"
-                                                            @click="setMode('{{ $sid }}', 'auto')">
+                                                            :disabled="isSubmitted"
+                                                            @click="if(!isSubmitted) setMode('{{ $sid }}', 'auto')">
                                                             <i class="fa-solid fa-wand-magic-sparkles"></i> Auto
                                                         </button>
+                                                        
                                                         <button type="button"
                                                             class="mode-toggle-btn"
                                                             :class="gradeMode['{{ $sid }}'] === 'manual' ? 'mode-toggle-active-manual' : ''"
-                                                            @click="setMode('{{ $sid }}', 'manual')">
+                                                            :disabled="isSubmitted"
+                                                            @click="if(!isSubmitted) setMode('{{ $sid }}', 'manual')">
                                                             <i class="fa-solid fa-pen"></i> Manual
                                                         </button>
                                                     </div>
@@ -1341,10 +1363,24 @@
     .empty-attendance-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; text-align: center; padding: 2rem; color: #64748b; }
     .empty-attendance-icon { font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem; }
 
+    .grade-top-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 10px 16px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
     .encoding-legend-bar {
-        display: flex; gap: 24px; margin-bottom: 14px;
-        padding: 10px 16px; background: #f8fafc; border: 1px solid #e2e8f0;
-        border-radius: 8px; font-size: 12px; color: #64748b;
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        font-size: 12px;
+        color: #64748b;
     }
     .legend-item { display: inline-flex; align-items: center; gap: 6px; }
     .legend-item i { font-size: 11px; color: #94a3b8; }
@@ -1352,6 +1388,11 @@
     .encoding-table th { text-align: center; }
     .encoding-table th:nth-child(2),
     .encoding-table th:nth-child(3) { text-align: left; }
+
+    .encoding-table th:nth-child(4) { width: 22%; } 
+    .encoding-table th:nth-child(5) { width: 16%; } 
+    .encoding-table th:nth-child(6) { width: 12%; } 
+    .encoding-table th:nth-child(7) { width: 20%; } 
 
     .encoding-cell-row {
         display: flex;
@@ -1381,10 +1422,19 @@
     }
 
     .encoding-input {
-        width: 100px; text-align: center; font-weight: 700; color: #94a3b8;
-        padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 8px;
-        font-size: 13.5px; background: #f1f5f9; transition: 0.15s;
+        width: 100%; 
+        max-width: 130px; 
+        text-align: center; 
+        font-weight: 700; 
+        color: #94a3b8;
+        padding: 8px 12px; 
+        border: 1px solid #e2e8f0; 
+        border-radius: 8px;
+        font-size: 13.5px; 
+        background: #f1f5f9; 
+        transition: 0.15s;
     }
+
     .encoding-input:read-only { cursor: not-allowed; }
     .encoding-input-active {
         background: #fff; border-color: #1e2a5a; color: #1e2a5a; cursor: text;
@@ -1392,12 +1442,60 @@
     .encoding-input:focus { outline: none; border-color: #1e2a5a; box-shadow: 0 0 0 3px rgba(30,42,90,0.08); }
 
     .equivalent-pill { display: inline-block; }
+
     .equivalent-input {
-        width: 70px; text-align: center; font-weight: 800; color: #94a3b8;
-        padding: 7px 8px; border: 1px solid #e2e8f0; border-radius: 20px;
-        font-size: 13px; background: #f1f5f9;
+        width: 100%;
+        max-width: 95px;
+        text-align: center; 
+        font-weight: 800; 
+        color: #94a3b8;
+        padding: 7px 10px; 
+        border: 1px solid #e2e8f0; 
+        border-radius: 20px;
+        font-size: 13px; 
+        background: #f1f5f9;
     }
+
     .equivalent-input:focus { outline: none; border-color: #15803d; }
+
+    .disabled-group {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
+
+    .disabled-group .mode-toggle-btn {
+        pointer-events: none; 
+    }
+
+    .grade-action-row {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .grade-action-buttons {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .submitted-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: #d1fae5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 13.5px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    .submitted-status-pill i {
+        font-size: 15px;
+        color: #16a34a;
+    }
 
     .mode-toggle-group {
         display: inline-flex;

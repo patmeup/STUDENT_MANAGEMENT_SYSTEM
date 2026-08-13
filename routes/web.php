@@ -140,6 +140,7 @@ Route::middleware(['role:professor'])->group(function () {
     Route::post('/professor/delete-activity/{id}', [ProfessorController::class, 'deleteActivity'])->name('professor.delete-activity');
     Route::get('/professor/task-file/{id}', [ProfessorController::class, 'viewTaskFile'])->name('professor.task-file');
     Route::get('/professor/task/{task_id}/submissions', [ProfessorController::class, 'viewTaskSubmissions'])->name('professor.task-submissions');
+    Route::get('/professor/task/{task_id}/evaluate-student/{student_id}', [ProfessorController::class, 'evaluateStudent'])->name('professor.evaluate_student');
     Route::get('/professor/task-grading/{submission_id}', [ProfessorController::class, 'viewTaskGrading'])->name('professor.task_grading');
     Route::get('/professor/submission/download/{id}', [ProfessorController::class, 'downloadStudentSubmission'])->name('professor.submission.download');
     Route::post('/professor/task-grading/{submission_id}/submit', [ProfessorController::class, 'submitGrade'])->name('professor.submit-grade');

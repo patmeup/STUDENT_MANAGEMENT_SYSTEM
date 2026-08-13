@@ -7,15 +7,22 @@
         <a href="{{ route('professor.class_details', ['schedule_id' => $task->class_schedule_id, 'tab' => $task->term]) }}" style="display: inline-flex; align-items: center; gap: 8px; color: #475569; font-size: 14px; font-weight: 600; text-decoration: none; padding: 8px 16px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
             <i class="fa-solid fa-arrow-left" style="font-size: 12px;"></i> Back to Term Panel
         </a>
-        <span style="background-color: #0033A0; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
-            Professor Portal
-        </span>
     </div>
 
-    <div style="background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+    <div style="background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
         <div>
-            <span style="display: inline-block; font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Active Assignment Registry</span>
+            <!-- DYNAMIC TERM BADGE -->
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <span style="background-color: #0033A0; color: #ffffff; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+                    {{ \Illuminate\Support\Str::endsWith(strtolower($task->term), 'term') ? strtoupper($task->term) : strtoupper($task->term) . ' TERM' }}
+                </span>
+                <span style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">
+                    Active Assignment Registry
+                </span>
+            </div>
+
             <h3 style="margin: 0; font-size: 24px; font-weight: 700; color: #0f172a; letter-spacing: -0.5px;">{{ $task->activity_name }}</h3>
+            
             <div style="display: flex; align-items: center; gap: 12px; margin-top: 8px;">
                 <span style="background: #eff6ff; color: #1e40af; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; border: 1px solid #bfdbfe;">
                     {{ $task->activity_type }}
@@ -28,11 +35,11 @@
 
         <div style="display: flex; gap: 16px;">
             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 20px; text-align: center; min-width: 110px;">
-                <div style="font-size: 20px; font-weight: 700; color: #0f172a;">{{ $submissions->whereNotNull('submission_id')->count() }}</div>
+                <div style="font-size: 20px; font-weight: 700; color: #0f172a;">{{ $submissions->whereNotNull('original_filename')->count() }}</div>
                 <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-top: 2px;">Turned In</div>
             </div>
             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 20px; text-align: center; min-width: 110px;">
-                <div style="font-size: 20px; font-weight: 700; color: #64748b;">{{ $submissions->whereNull('submission_id')->count() }}</div>
+                <div style="font-size: 20px; font-weight: 700; color: #64748b;">{{ $submissions->whereNull('original_filename')->count() }}</div>
                 <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-top: 2px;">Missing</div>
             </div>
         </div>
@@ -68,11 +75,11 @@
                                 {{ $row->last_name }}, {{ $row->first_name }}
                             </td>
                             <td style="padding: 16px 24px; border-bottom: 1px solid #f1f5f9;">
-                                @if($row->submission_id && isset($row->grade) && $row->grade !== null)
+                                @if(isset($row->grade) && $row->grade !== null)
                                     <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; background-color: #eef1fb; color: #1e2a5a;">
                                         Graded
                                     </span>
-                                @elseif($row->submission_id)
+                                @elseif($row->submission_id && ($row->original_filename || $row->file_path))
                                     <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; background-color: #dcfce7; color: #15803d;">
                                         Submitted
                                     </span>
@@ -93,16 +100,14 @@
                                 @endif
                             </td>
                             <td style="padding: 16px 24px; border-bottom: 1px solid #f1f5f9;">
-                                @if($row->submission_id)
-                                    @if(isset($row->grade) && $row->grade !== null)
-                                        <span style="font-weight: 700; color: #16a34a; font-size: 14px;">
-                                            {{ $row->grade }} / {{ $task->max_score }} PTS
-                                        </span>
-                                    @else
-                                        <span style="font-weight: 600; color: #ea580c; font-size: 13px; display: inline-flex; align-items: center; gap: 4px;">
-                                            <span style="width: 6px; height: 6px; background-color: #ea580c; border-radius: 50%;"></span> For Checking
-                                        </span>
-                                    @endif
+                                @if(isset($row->grade) && $row->grade !== null)
+                                    <span style="font-weight: 700; color: #16a34a; font-size: 14px;">
+                                        {{ $row->grade }} / {{ $task->max_score }} PTS
+                                    </span>
+                                @elseif($row->submission_id && ($row->original_filename || $row->file_path))
+                                    <span style="font-weight: 600; color: #ea580c; font-size: 13px; display: inline-flex; align-items: center; gap: 4px;">
+                                        <span style="width: 6px; height: 6px; background-color: #ea580c; border-radius: 50%;"></span> For Checking
+                                    </span>
                                 @else
                                     <span style="color: #94a3b8; font-size: 13px;">No Grade</span>
                                 @endif
@@ -113,9 +118,9 @@
                                         <i class="fa-solid fa-pen-to-square"></i> Evaluate
                                     </a>
                                 @else
-                                    <button style="display: inline-block; background-color: #f1f5f9; color: #94a3b8; border: 1px solid #cbd5e1; padding: 6px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 600; cursor: not-allowed;" disabled>
-                                        Unavailable
-                                    </button>
+                                    <a href="{{ route('professor.evaluate_student', ['task_id' => $task->id, 'student_id' => $row->student_id]) }}" style="display: inline-block; background-color: transparent; color: #0033A0; border: 1px solid #0033A0; padding: 6px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 600; text-decoration: none; transition: all 0.15s ease;" onmouseover="this.style.backgroundColor='#0033A0'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='transparent'; this.style.color='#0033A0';">
+                                        <i class="fa-solid fa-pen-to-square"></i> Evaluate
+                                    </a>
                                 @endif
                             </td>
                         </tr>

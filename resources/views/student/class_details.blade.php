@@ -64,9 +64,9 @@
             </div>
 
             <div class="sidebar-navigation-card border-au-blue" 
-                 x-show="currentTab !== 'attendance'" 
-                 x-transition
-                 x-data="{
+                x-show="currentTab !== 'attendance'" 
+                x-transition
+                x-data="{
                 grades: {
                     prelim: @js($termGrades['prelim']),
                     midterm: @js($termGrades['midterm']),
@@ -82,23 +82,23 @@
                 <div class="performance-breakdown-modern mb-3">
                     <div class="breakdown-row">
                         <span class="text-muted"><i class="fa-solid fa-file-pen text-secondary me-1"></i> Quiz:</span>
-                        <strong class="text-dark-blue" x-text="grades[currentTab].quizAverage > 0 ? grades[currentTab].quizAverage.toFixed(1) + '%' : 'No grades yet'"></strong>
+                        <strong class="text-dark-blue" x-text="grades[currentTab].quizAverage !== null ? grades[currentTab].quizAverage.toFixed(1) + '%' : 'No grades yet'"></strong>
                     </div>
                     <div class="breakdown-row">
                         <span class="text-muted"><i class="fa-solid fa-list-check text-secondary me-1"></i> Activities:</span>
-                        <strong class="text-dark-blue" x-text="grades[currentTab].activityAverage > 0 ? grades[currentTab].activityAverage.toFixed(1) + '%' : 'No grades yet'"></strong>
+                        <strong class="text-dark-blue" x-text="grades[currentTab].activityAverage !== null ? grades[currentTab].activityAverage.toFixed(1) + '%' : 'No grades yet'"></strong>
                     </div>
                     <div class="breakdown-row">
                         <span class="text-muted"><i class="fa-solid fa-book text-secondary me-1"></i> Assignment:</span>
-                        <strong class="text-dark-blue" x-text="grades[currentTab].assignmentAverage > 0 ? grades[currentTab].assignmentAverage.toFixed(1) + '%' : 'No grades yet'"></strong>
+                        <strong class="text-dark-blue" x-text="grades[currentTab].assignmentAverage !== null ? grades[currentTab].assignmentAverage.toFixed(1) + '%' : 'No grades yet'"></strong>
                     </div>
                     <div class="breakdown-row">
                         <span class="text-muted"><i class="fa-solid fa-calendar-check text-secondary me-1"></i> Attendance:</span>
-                        <strong class="text-dark-blue" x-text="grades[currentTab].currentAttendance > 0 ? grades[currentTab].currentAttendance.toFixed(1) + '%' : 'No logs yet'"></strong>
+                        <strong class="text-dark-blue" x-text="grades[currentTab].currentAttendance !== null ? grades[currentTab].currentAttendance.toFixed(1) + '%' : 'No logs yet'"></strong>
                     </div>
                     <div class="breakdown-row border-0 pb-0">
                         <span class="text-muted"><i class="fa-solid fa-graduation-cap text-secondary me-1"></i> Major Exam:</span>
-                        <strong class="text-dark-blue" x-text="grades[currentTab].majorExam > 0 ? grades[currentTab].majorExam.toFixed(1) + '%' : 'Not yet taken'"></strong>
+                        <strong class="text-dark-blue" x-text="grades[currentTab].majorExam !== null ? grades[currentTab].majorExam.toFixed(1) + '%' : 'Not yet taken'"></strong>
                     </div>
                 </div>
 
@@ -110,6 +110,7 @@
                     <div class="predicted-grade-number my-1" x-text="
                         (() => {
                             let p = grades[currentTab].currentCalculatedGrade;
+                            if (p === null || p === undefined) return '--';
                             if (p >= 97) return '1.00';
                             if (p >= 94) return '1.25';
                             if (p >= 91) return '1.50';
@@ -119,28 +120,26 @@
                             if (p >= 79) return '2.50';
                             if (p >= 76) return '2.75';
                             if (p >= 75) return '3.00';
-                            if (p > 0) return '5.00';
-                            return '--';
+                            return '5.00';
                         })()
                     "></div>
                     
                     <div class="mb-2">
                         <span class="badge px-2 py-1" :class="{
-                            'badge-excellent': grades[currentTab].currentCalculatedGrade >= 94,
-                            'badge-passed': grades[currentTab].currentCalculatedGrade >= 75 && grades[currentTab].currentCalculatedGrade < 94,
-                            'badge-failed': grades[currentTab].currentCalculatedGrade > 0 && grades[currentTab].currentCalculatedGrade < 75,
-                            'd-none': grades[currentTab].currentCalculatedGrade <= 0
-                        }" x-text="grades[currentTab].currentCalculatedGrade >= 75 ? 'PASSED (GOOD STANDING)' : (grades[currentTab].currentCalculatedGrade > 0 ? 'AT RISK (FAILED)' : '')"></span>
+                            'badge-excellent': grades[currentTab].currentCalculatedGrade !== null && grades[currentTab].currentCalculatedGrade >= 94,
+                            'badge-passed': grades[currentTab].currentCalculatedGrade !== null && grades[currentTab].currentCalculatedGrade >= 75 && grades[currentTab].currentCalculatedGrade < 94,
+                            'badge-failed': grades[currentTab].currentCalculatedGrade !== null && grades[currentTab].currentCalculatedGrade < 75,
+                            'd-none': grades[currentTab].currentCalculatedGrade === null
+                        }" x-text="grades[currentTab].currentCalculatedGrade !== null ? (grades[currentTab].currentCalculatedGrade >= 75 ? 'PASSED (GOOD STANDING)' : 'AT RISK (FAILED)') : ''"></span>
                     </div>
                     
                     <p class="font-xs text-muted m-0" x-text="
-                        grades[currentTab].currentCalculatedGrade > 0 
+                        grades[currentTab].currentCalculatedGrade !== null 
                             ? 'Equivalent to ' + grades[currentTab].currentCalculatedGrade.toFixed(1) + '%' 
                             : 'This will be updated once you have grades recorded for this term.'
                     "></p>
                 </div>
             </div>
-
         </div>
 
         <div class="unified-workspace">

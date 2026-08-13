@@ -319,10 +319,8 @@ class RegistrarController extends Controller
             ->where('is_active', 1)
             ->first();
 
-        $academicPeriodId = $activeAcademicPeriod->id ?? 1;
-
         $termPeriods = DB::table('term_periods')
-            ->where('academic_period_id', $activeAcademicPeriod->id)
+            ->where('academic_period_id', $activeAcademicPeriod->id ?? 1)
             ->where('term', 'not like', '%semi%')
             ->orderBy('start_date', 'asc')
             ->get();
@@ -337,7 +335,7 @@ class RegistrarController extends Controller
             }
         }
 
-        $termFilter = $request->input('term', $defaultTerm);
+        $termFilter = strtolower(trim($request->input('term', $defaultTerm)));
 
         $students = Student::when($search, function ($query, $search) {
                 return $query->where('last_name', 'like', "%{$search}%")
@@ -348,14 +346,17 @@ class RegistrarController extends Controller
             ->paginate(15);
 
         foreach ($students as $student) {
-            $totalEnrolledSubjects = DB::table('student_subjects')
+            $enrolledSchedules = DB::table('student_subjects')
                 ->where('student_number', $student->student_id)
                 ->where('status', 'Enrolled')
-                ->count();
+                ->pluck('schedule_id');
+
+            $totalEnrolledSubjects = $enrolledSchedules->count();
 
             $grades = DB::table('student_term_grades')
                 ->where('student_number', $student->student_id)
-                ->where('term', $termFilter)
+                ->whereIn('schedule_id', $enrolledSchedules)
+                ->where(DB::raw('LOWER(term)'), $termFilter)
                 ->where('is_submitted', 1)
                 ->get();
 
@@ -364,19 +365,19 @@ class RegistrarController extends Controller
             $student->total_enrolled = $totalEnrolledSubjects;
             $student->total_submitted = $submittedCount;
 
-            if ($totalEnrolledSubjects > 0 && $submittedCount == $totalEnrolledSubjects) {
+            if ($totalEnrolledSubjects > 0 && $submittedCount >= $totalEnrolledSubjects) {
                 $student->grade_status = 'Complete';
                 $student->average_equivalent = $grades->avg('equivalent');
-                $student->is_fully_sent = $grades->every(fn($g) => $g->is_sent_to_student == 1);
             } elseif ($submittedCount > 0) {
                 $student->grade_status = 'Partial';
                 $student->average_equivalent = null; 
-                $student->is_fully_sent = false;
             } else {
                 $student->grade_status = 'Pending';
                 $student->average_equivalent = null;
-                $student->is_fully_sent = false;
             }
+
+            $sentCount = $grades->where('is_sent_to_student', 1)->count();
+            $student->is_fully_sent = ($totalEnrolledSubjects > 0 && $sentCount >= $totalEnrolledSubjects);
         }
 
         return view('registrar.manage-grades', compact('students', 'termPeriods', 'termFilter', 'search', 'activeAcademicPeriod'));
@@ -384,15 +385,15 @@ class RegistrarController extends Controller
 
     public function getStudentTermGradesJson(Request $request, $student_id)
     {
-        $term = $request->input('term', 'prelim');
+        $term = strtolower(trim($request->input('term', 'prelim')));
 
         $subjects = DB::table('student_subjects')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->leftJoin('student_term_grades', function($join) use ($student_id, $term) {
                 $join->on('student_term_grades.schedule_id', '=', 'class_schedules.id')
-                     ->where('student_term_grades.student_number', '=', $student_id)
-                     ->where('student_term_grades.term', '=', $term);
+                    ->where('student_term_grades.student_number', '=', $student_id)
+                    ->where(DB::raw('LOWER(student_term_grades.term)'), '=', $term);
             })
             ->where('student_subjects.student_number', $student_id)
             ->where('student_subjects.status', 'Enrolled')
@@ -412,19 +413,25 @@ class RegistrarController extends Controller
 
     public function releaseGradesToStudent(Request $request, $student_id)
     {
-        $term = $request->input('term', 'prelim');
+        $term = strtolower(trim($request->input('term', 'prelim')));
+
+        $enrolledSchedules = DB::table('student_subjects')
+            ->where('student_number', $student_id)
+            ->where('status', 'Enrolled')
+            ->pluck('schedule_id');
 
         $updated = DB::table('student_term_grades')
             ->where('student_number', $student_id)
-            ->where('term', $term)
+            ->whereIn('schedule_id', $enrolledSchedules)
+            ->where(DB::raw('LOWER(term)'), $term)
             ->where('is_submitted', 1)
             ->update(['is_sent_to_student' => 1]);
 
         if ($updated) {
-            return redirect()->back()->with('Success', "Grades successfully released to student portal for ID: {$student_id}!");
+            return redirect()->back()->with('Success', ucfirst($term) . " term grades successfully released to student portal for ID: {$student_id}!");
         }
 
-        return redirect()->back()->with('Error', 'No submitted grades found to release.');
+        return redirect()->back()->with('Error', 'No submitted grades found for this term to release.');
     }
 
     public function manageDocumentRequests()

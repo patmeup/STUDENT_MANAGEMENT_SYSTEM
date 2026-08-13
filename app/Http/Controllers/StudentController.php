@@ -305,7 +305,11 @@ class StudentController extends Controller
             $periodConfig = $termPeriods->get($termName);
 
             $termTasks = $activities->where('term', $termName);
-            $gradedSubmissions = $termTasks->whereNotNull('student_grade');
+            
+            $gradedSubmissions = $termTasks->whereNotNull('student_grade')->map(function($item) {
+                $item->percentage = ($item->max_score > 0) ? ($item->student_grade / $item->max_score) * 100 : 0;
+                return $item;
+            });
 
             $grouped = $gradedSubmissions->groupBy(function($item) {
                 return strtolower(trim($item->activity_type));
@@ -313,18 +317,22 @@ class StudentController extends Controller
 
             $averages = [];
             foreach ($grouped as $type => $items) {
-                $averages[$type] = $items->avg('student_grade');
+                $averages[$type] = round($items->avg('percentage'), 2);
             }
 
-            $majorExam = $averages['major exam'] ?? $averages['exam'] ?? 0;
-            $quizAverage = $averages['quiz'] ?? 0;
-            $activityAverage = $averages['activity'] ?? 0;
-            $assignmentAverage = $averages['assignment'] ?? $averages['written'] ?? 0;
+            $majorExam = $averages['major exam'] ?? $averages['exam'] ?? null;
+            $quizAverage = $averages['quiz'] ?? null;
+            $activityAverage = $averages['activity'] ?? null;
+            $assignmentAverage = $averages['assignment'] ?? $averages['written'] ?? null;
 
-            $taskComponents = array_filter([$quizAverage, $activityAverage, $assignmentAverage]);
-            $currentTaskAverage = count($taskComponents) > 0 ? (array_sum($taskComponents) / count($taskComponents)) : 0;
+            $taskComponents = array_filter(
+                [$quizAverage, $activityAverage, $assignmentAverage], 
+                fn($val) => !is_null($val)
+            );
 
-            $currentAttendance = 0;
+            $currentTaskAverage = count($taskComponents) > 0 ? (array_sum($taskComponents) / count($taskComponents)) : null;
+
+            $currentAttendance = null;
             $hasAttendanceLogs = false;
 
             if ($periodConfig) {
@@ -339,8 +347,12 @@ class StudentController extends Controller
                 $totalAttendanceCount = $termAttendance->count();
 
                 if ($totalAttendanceCount > 0) {
-                    $presentCount = $termAttendance->where('status', 'Present')->count();
-                    $currentAttendance = ($presentCount / $totalAttendanceCount) * 100;
+                    $earned = $termAttendance->sum(function ($r) {
+                        if ($r->status === 'Present') return 1;
+                        if ($r->status === 'Late') return 0.5;
+                        return 0;
+                    });
+                    $currentAttendance = round(($earned / $totalAttendanceCount) * 100, 2);
                     $hasAttendanceLogs = true;
                 }
             }
@@ -350,16 +362,17 @@ class StudentController extends Controller
                 $hasAttendanceLogs = true;
             }
 
-            $hasTasks = count($taskComponents) > 0;
+            $hasTasks = !is_null($currentTaskAverage);
+            $hasExam = !is_null($majorExam);
 
-            if (!$hasTasks && !$hasAttendanceLogs && $majorExam == 0) {
+            if (!$hasTasks && !$hasAttendanceLogs && !$hasExam) {
                 return [
-                    'quizAverage' => 0,
-                    'activityAverage' => 0,
-                    'assignmentAverage' => 0,
-                    'currentAttendance' => 0,
-                    'majorExam' => 0,
-                    'currentCalculatedGrade' => 0
+                    'quizAverage' => null,
+                    'activityAverage' => null,
+                    'assignmentAverage' => null,
+                    'currentAttendance' => null,
+                    'majorExam' => null,
+                    'currentCalculatedGrade' => null
                 ];
             }
 
@@ -373,8 +386,10 @@ class StudentController extends Controller
                 $classStandingAverage = 0;
             }
 
+            $examScoreToUse = $hasExam ? $majorExam : 0;
+
             $classStandingContribution = $classStandingAverage * 0.60;
-            $examContribution = $majorExam * 0.40;
+            $examContribution = $examScoreToUse * 0.40;
 
             return [
                 'quizAverage' => $quizAverage,
