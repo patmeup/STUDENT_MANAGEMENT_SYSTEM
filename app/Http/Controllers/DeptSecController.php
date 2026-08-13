@@ -13,12 +13,8 @@ use App\Models\ClassSchedule;
 
 class DeptSecController extends Controller
 {
-
-    public function dashboard() {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
+    public function dashboard() 
+    {
         $dept = session('user_department');
 
         $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
@@ -69,10 +65,6 @@ class DeptSecController extends Controller
 
     public function subjectCatalog(Request $request)
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $dept = session('user_department');
         
         $yearFilter = $request->get('year_level');
@@ -101,10 +93,6 @@ class DeptSecController extends Controller
 
     public function studentsList(Request $request)
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $dept = session('user_department');
         $allowedCourses = [];
         
@@ -149,10 +137,6 @@ class DeptSecController extends Controller
 
     public function deleteStudent($student_id)
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         try {
             DB::beginTransaction();
 
@@ -177,10 +161,6 @@ class DeptSecController extends Controller
 
     public function viewSectionRoster($section_name)
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $dept = session('user_department');
 
         $students = DB::table('student_subjects')
@@ -204,10 +184,6 @@ class DeptSecController extends Controller
 
     public function plotSubjects($student_id)
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $dept = session('user_department');
 
         $student = DB::table('students')->where('student_id', $student_id)->first();
@@ -239,10 +215,6 @@ class DeptSecController extends Controller
 
     public function saveSubjects(Request $request)
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $request->validate([
             'student_id' => 'required',
             'schedules'  => 'nullable|array',

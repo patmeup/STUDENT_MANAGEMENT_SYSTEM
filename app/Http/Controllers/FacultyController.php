@@ -10,10 +10,6 @@ class FacultyController extends Controller
 {
     public function index()
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $faculties = User::whereIn('role', ['professor', 'dept_sec', 'dean'])->get();
 
         return view('system_admin.manage-faculty', compact('faculties'));
@@ -21,10 +17,6 @@ class FacultyController extends Controller
 
     public function store(Request $request)
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $request->validate([
             'first_name'  => 'required|string|max:255',
             'last_name'   => 'required|string|max:255',
@@ -65,10 +57,6 @@ class FacultyController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $faculty = User::findOrFail($id);
 
         $request->validate([
@@ -96,10 +84,6 @@ class FacultyController extends Controller
 
     public function destroy($id)
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $faculty = User::findOrFail($id);
         $name = $faculty->first_name . ' ' . $faculty->last_name;
         $faculty->delete();

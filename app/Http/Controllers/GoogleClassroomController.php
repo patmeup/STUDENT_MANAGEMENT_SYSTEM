@@ -11,9 +11,6 @@ class GoogleClassroomController extends Controller
 {
     public function redirect()
     {
-        if (session('user_role') !== 'professor') {
-            abort(403, 'Unauthorized access.');
-        }
 
         return Socialite::driver('google')
             ->scopes([
@@ -34,9 +31,6 @@ class GoogleClassroomController extends Controller
 
     public function callback()
     {
-        if (session('user_role') !== 'professor') {
-            return redirect()->route('professor.dashboard')->with('error', 'Session expired or unauthorized access during callback.');
-        }
 
         try {
             $googleUser = Socialite::driver('google')->user();
@@ -65,9 +59,6 @@ class GoogleClassroomController extends Controller
 
     public function syncNow()
     {
-        if (session('user_role') !== 'professor') {
-            abort(403, 'Unauthorized access.');
-        }
 
         $connection = DB::table('google_classroom_connections')
             ->where('professor_id', session('user_id'))
@@ -80,9 +71,6 @@ class GoogleClassroomController extends Controller
 
     public function disconnect()
     {
-        if (session('user_role') !== 'professor') {
-            abort(403, 'Unauthorized access.');
-        }
 
         $connection = DB::table('google_classroom_connections')
             ->where('professor_id', session('user_id'))

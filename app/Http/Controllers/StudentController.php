@@ -13,13 +13,8 @@ use Illuminate\Support\Facades\Schema;
 
 class StudentController extends Controller
 {
-
     public function dashboard()
     {
-        if (session('user_role') !== 'student') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $studentNumber = session('student_id');
 
         $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
@@ -104,8 +99,6 @@ class StudentController extends Controller
         $totalEnrolledClasses = $enrolledClasses->count();
         $enrolledScheduleIds = $enrolledClasses->pluck('schedule_id');
 
-        // List of terms from Prelim to Final -- gamitin ang parehong eksaktong
-        // values na ginagamit sa buong system (term_periods, student_tasks.term).
         $terms = ['prelim', 'midterm', 'semifinal', 'final'];
         $pendingTasksPerTerm = [];
         $totalLocalPending = 0;
@@ -113,8 +106,8 @@ class StudentController extends Controller
         foreach ($terms as $term) {
             $count = DB::table('student_tasks')
                 ->whereIn('class_schedule_id', $enrolledScheduleIds)
-                ->where('term', $term) // Sinisiguro na nakagrupo o naka-filter per term
-                ->whereNull('google_coursework_id') // Iwasan ang double-count sa mga naka-mirror na Google Classroom items
+                ->where('term', $term) 
+                ->whereNull('google_coursework_id') 
                 ->whereNotNull('due_date')
                 ->where('due_date', '!=', '')
                 ->whereNotExists(function ($query) use ($studentNumber) {
@@ -129,7 +122,6 @@ class StudentController extends Controller
             $totalLocalPending += $count;
         }
 
-        // Google Classroom pending tasks (kung meron man, optional i-integrate sa terms o idagdag sa kabuuan)
         $googleCourseIds = DB::table('google_classroom_courses')
             ->whereIn('linked_class_schedule_id', $enrolledScheduleIds)
             ->pluck('id');
@@ -164,17 +156,11 @@ class StudentController extends Controller
 
     public function updateCredentials(Request $request)
     {
-        if (session('user_role') !== 'student') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $studentNumber = session('student_id');
 
-        // Tiyaking hinahanap gamit ang student_id core field
         $student = Student::where('student_id', $studentNumber)->firstOrFail();
 
         $request->validate([
-            // Inayos ang core unique exception handling para sa parehong composite setups
             'email' => 'required|email|unique:students,email,' . $student->id . ',id',
             'contact_no' => 'required|string|max:20',
             'civil_status' => 'required|in:Single,Married,Divorced,Widowed',
@@ -191,44 +177,8 @@ class StudentController extends Controller
         return redirect()->back()->with('success', 'Personal credentials updated successfully.');
     }
 
-    public function index(Request $request)
-    {
-        if (session('user_role') !== 'registrar') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
-        $query = Student::query();
-
-        if ($request->has('search') && $request->search != '') {
-            $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('student_id', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('first_name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('last_name', 'LIKE', "%{$searchTerm}%");
-            });
-        }
-
-        if ($request->has('course') && $request->course != '') {
-            $query->where('course', $request->course);
-        }
-
-        if ($request->has('student_type') && $request->student_type != '') {
-            $query->where('student_type', $request->student_type);
-        }
-
-        $students = $query->orderBy('student_id', 'desc')->get();
-
-        $totalRecords = $students->count();
-
-        return view('registrar.manage-students', compact('students', 'totalRecords'));
-    }
-
     public function viewClassDashboard($schedule_id, Request $request)
     {
-        if (session('user_role') !== 'student') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
         $studentNumber = session('student_id');
 
         $isEnrolled = DB::table('student_subjects')
@@ -457,10 +407,6 @@ class StudentController extends Controller
 
     public function predictGrade(Request $request, $schedule_id)
     {
-        if (session('user_role') !== 'student') {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $studentNumber = session('student_id');
 
         $attendanceRecords = DB::table('attendances')
@@ -545,21 +491,6 @@ class StudentController extends Controller
             'current_class_standing' => round($classStandingAverage, 2),
             'predictions' => $predictions
         ]);
-    }
-
-    public function viewStudentProfile($student_id)
-    {
-        if (session('user_role') !== 'registrar') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
-        $student = DB::table('students')->where('student_id', $student_id)->first();
-
-        if (!$student) {
-            return redirect()->back()->with('error', 'Student record not found.');
-        }
-
-        return view('registrar.student_profile', compact('student'));
     }
 
     public function store(Request $request)
@@ -701,7 +632,7 @@ class StudentController extends Controller
 
     public function myClasses()
     {
-        $studentId = session('student_id'); // o session('user_id')
+        $studentId = session('student_id');
 
         $classes = DB::table('student_subjects')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
@@ -738,10 +669,6 @@ class StudentController extends Controller
 
     public function viewTaskDetails($id)
     {
-        if (session('user_role') !== 'student') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
         $studentNumber = session('student_id');
 
         $task = DB::table('student_tasks')
@@ -780,10 +707,6 @@ class StudentController extends Controller
 
     public function viewGoogleTask($id)
     {
-        if (session('user_role') !== 'student') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
         $studentNumber = session('student_id');
 
         $task = DB::table('google_classroom_coursework')
@@ -891,10 +814,6 @@ class StudentController extends Controller
 
     public function downloadTaskFile($id)
     {
-        if (session('user_role') !== 'student') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
         $studentNumber = session('student_id');
 
         $task = DB::table('student_tasks')
@@ -928,10 +847,6 @@ class StudentController extends Controller
 
     public function downloadGoogleClassroomMaterial($material_id)
     {
-        if (session('user_role') !== 'student') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
         $studentNumber = session('student_id');
 
         $material = DB::table('google_classroom_materials')->where('id', $material_id)->first();
@@ -1135,19 +1050,15 @@ class StudentController extends Controller
 
     public function submitDocumentRequest(Request $request)
     {
+        $studentId = session('student_id');
+
+        $student = \App\Models\Student::where('student_id', $studentId)->first();
+
         $request->validate([
             'documents' => 'required|array|min:1',
             'documents.*' => 'string',
             'purpose' => 'required|string|max:500',
         ]);
-
-        $studentId = session('student_id');
-
-        if (!session('user_id') || session('user_role') !== 'student') {
-            return redirect()->route('login')->withErrors(['error' => 'You need to login as a student']);
-        }
-
-        $student = \App\Models\Student::where('student_id', $studentId)->first();
 
         if (!$student) {
             return redirect()->route('login')->withErrors(['error' => 'User profile reference not found.']);
@@ -1169,10 +1080,6 @@ class StudentController extends Controller
 
     public function myGrades()
     {
-        if (session('user_role') !== 'student') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $studentNumber = session('student_id');
 
         $enrolledClasses = DB::table('student_subjects')
@@ -1240,10 +1147,6 @@ class StudentController extends Controller
 
     public function profileView()
     {
-        if (session('user_role') !== 'student') {
-            return redirect()->route('login')->with('error', 'Unauthorized access. Please login as a Student.');
-        }
-
         $studentNumber = session('student_id');
 
         $user = Student::where('student_id', $studentNumber)->first();

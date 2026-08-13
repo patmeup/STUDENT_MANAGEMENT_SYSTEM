@@ -11,10 +11,6 @@ class CurriculumController extends Controller
 {
     public function index()
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect()->route('system_admin.dashboard');
-        }
-
         $courses = Course::all();
         $subjects = Subject::all();
 
@@ -84,10 +80,6 @@ class CurriculumController extends Controller
 
     public function destroy($id)
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $mapping = Curriculum::findOrFail($id);
         $mapping->delete();
 

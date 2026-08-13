@@ -17,10 +17,6 @@ class ProfessorController extends Controller
 {
     public function dashboard()
     {
-        if (session('user_role') !== 'professor') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $professor_id = session('user_id');
 
         $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
@@ -62,10 +58,6 @@ class ProfessorController extends Controller
 
     public function manageClasses()
     {
-        if (session('user_role') !== 'professor') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $professor_id = session('user_id');
 
         $classes = DB::table('class_schedules')
@@ -101,10 +93,6 @@ class ProfessorController extends Controller
 
     public function viewClassDashboard($schedule_id)
     {
-        if (session('user_role') !== 'professor') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
         $professorId = session('user_id');
 
         $classDetails = DB::table('class_schedules')
@@ -340,10 +328,6 @@ class ProfessorController extends Controller
 
     public function linkGoogleClassroomCourse(Request $request, $schedule_id)
     {
-        if (session('user_role') !== 'professor') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
         $request->validate([
             'google_course_id' => 'required|integer',
         ]);
@@ -380,10 +364,6 @@ class ProfessorController extends Controller
 
     public function unlinkGoogleClassroomCourse($schedule_id)
     {
-        if (session('user_role') !== 'professor') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
         DB::table('google_classroom_courses')
             ->where('linked_class_schedule_id', $schedule_id)
             ->update(['linked_class_schedule_id' => null]);
@@ -393,10 +373,6 @@ class ProfessorController extends Controller
 
     public function syncGoogleClassroom(Request $request)
     {
-        if (session('user_role') !== 'professor') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
         $professorId = session('user_id');
 
         $connection = DB::table('google_classroom_connections')
@@ -584,10 +560,6 @@ class ProfessorController extends Controller
 
     public function viewTaskSubmissions($id)
     {
-        if (session('user_role') !== 'professor') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $task = DB::table('student_tasks')->where('id', $id)->first();
 
         if (!$task) {
@@ -667,11 +639,6 @@ class ProfessorController extends Controller
 
     public function downloadStudentSubmission($id)
     {
-
-        if (session('user_role') !== 'professor') {
-            abort(403, 'Unauthorized access.');
-        }
-
         $submission = DB::table('task_submissions')
             ->where('id', $id)
             ->first();
@@ -743,10 +710,6 @@ class ProfessorController extends Controller
 
     public function viewStudentBreakdown($schedule_id, $student_id, Request $request)
     {
-        if (session('user_role') !== 'professor') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
         $professorId = session('user_id');
         $selectedTerm = $request->query('term');
 
@@ -902,13 +865,6 @@ class ProfessorController extends Controller
 
     public function submitToRegistrar(Request $request)
     {
-        if (session('user_role') !== 'professor') {
-            return response()->json([
-                'success' => false, 
-                'message' => 'Unauthorized access.'
-            ], 403);
-        }
-
         $request->validate([
             'schedule_id' => 'required|integer',
             'term'        => 'required|in:prelim,midterm,semifinal,final',
@@ -924,6 +880,18 @@ class ProfessorController extends Controller
                     'success' => false,
                     'message' => 'No grades found to submit for this term.'
                 ], 404);
+            }
+
+            if ($request->term === 'final') {
+                $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
+                
+                if ($activePeriod) {
+                    try {
+                        \App\Support\PredictiveGradeHelper::trainModels($activePeriod->id);
+                    } catch (\Exception $e) {
+                        \Log::error('ML Auto-Train Error: ' . $e->getMessage());
+                    }
+                }
             }
 
             return response()->json([
@@ -945,10 +913,6 @@ class ProfessorController extends Controller
 
     public function profileView()
     {
-        if (session('user_role') !== 'professor') {
-            return redirect('/')->with('Error', 'Unauthorized access.');
-        }
-
         $professor_id = session('user_id');
 
         $user = User::where('id', $professor_id)->first();

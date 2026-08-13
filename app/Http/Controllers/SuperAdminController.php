@@ -13,10 +13,8 @@ class SuperAdminController extends Controller
 {
     public function index()
     {
-        if (session('user_role') !== 'super_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
         $currentAdmin = User::find(session('user_id'));
+
         if ($currentAdmin && !Str::startsWith($currentAdmin->password, '$2y$')) {
             return redirect()->route('account.security')
                 ->withErrors(['error' => 'Access Restricted!']);
@@ -31,10 +29,6 @@ class SuperAdminController extends Controller
 
     public function dashboard()
     {
-        if (session('user_role') !== 'super_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
 
         $totalStudents = DB::table('students')->count();
@@ -53,10 +47,6 @@ class SuperAdminController extends Controller
 
     public function store(Request $request)
     {
-        if (session('user_role') !== 'super_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
@@ -96,39 +86,28 @@ class SuperAdminController extends Controller
     }
 
     public function toggleEmployeeStatus($id)
-{
-    // 1. Siguraduhing super_admin lang ang may karapatang pumindot nito
-    if (session('user_role') !== 'super_admin') {
-        return redirect()->back()->withErrors(['error' => 'You do not have sufficient authorization for this action.']);
+    {
+        $employee = \App\Models\User::findOrFail($id);
+
+        if ($employee->email === session('user_email') || $employee->role === 'super_admin') {
+            return redirect()->back()->with('error', 'You cannot disable a Super Admin account for system security reasons.');
+        }
+
+        if (ucfirst($employee->status) === 'Active') {
+            $employee->status = 'Disabled';
+            $message = "The account of {$employee->first_name} {$employee->last_name} has been successfully locked.";
+        } else {
+            $employee->status = 'Active';
+            $message = "The account of {$employee->first_name} {$employee->last_name} has been successfully umlocked.";
+        }
+
+        $employee->save();
+
+        return redirect()->back()->with('success', $message);
     }
-
-    $employee = \App\Models\User::findOrFail($id);
-
-    if ($employee->email === session('user_email') || $employee->role === 'super_admin') {
-        return redirect()->back()->with('error', 'You cannot disable a Super Admin account for system security reasons.');
-    }
-
-    // 3. I-toggle ang status (Gawing kabaligtaran ng kasalukuyan)
-    // Ginawa nating case-insensitive (.toLowerCase type approach) gamit ang ucfirst para malinis sa DB
-    if (ucfirst($employee->status) === 'Active') {
-        $employee->status = 'Disabled';
-        $message = "The account of {$employee->first_name} {$employee->last_name} has been successfully locked.";
-    } else {
-        $employee->status = 'Active';
-        $message = "The account of {$employee->first_name} {$employee->last_name} has been successfully umlocked.";
-    }
-
-    $employee->save();
-
-    return redirect()->back()->with('success', $message);
-}
 
     public function manageCourses()
     {
-        if (session('user_role') !== 'super_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $courses = Course::all();
         return view('super_admin.manage-courses', compact('courses'));
     }
@@ -141,7 +120,6 @@ class SuperAdminController extends Controller
             'course_title' => 'required|string|max:255',
         ]);
 
-        // Gamitin kung anong pangalan ng Model mo (halimbawa ay Course)
         $course = \App\Models\Course::findOrFail($id); 
         $course->update([
             'course_code'  => strtoupper($request->course_code),
@@ -154,10 +132,6 @@ class SuperAdminController extends Controller
 
     public function storeCourse(Request $request)
     {
-        if (session('user_role') !== 'super_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $validated = $request->validate([
             'course_code'  => 'required|string|unique:courses,course_code|max:50',
             'course_title' => 'required|string|max:255',

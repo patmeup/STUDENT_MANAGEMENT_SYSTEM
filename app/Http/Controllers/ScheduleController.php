@@ -12,10 +12,6 @@ class ScheduleController extends Controller
 
     public function index()
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $schedules = DB::table('class_schedules')
             ->leftJoin('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->leftJoin('curricula', 'subjects.id', '=', 'curricula.subject_id')
@@ -66,10 +62,6 @@ class ScheduleController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $request->validate([
             'section_name'    => 'required|string',
             'class_days'      => 'required|string',
@@ -92,13 +84,7 @@ class ScheduleController extends Controller
 
     public function delete($id)
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('Error', 'Unauthorized access.');
-        }
-
         DB::table('student_subjects')->where('schedule_id', $id)->delete();
-
-        // Pagkatapos ay burahin na ang mismong parent schedule row
         DB::table('class_schedules')->where('id', $id)->delete();
 
         return redirect()->back()->with('Success', 'Class deployment record successfully deleted!');

@@ -24,10 +24,6 @@ class RegistrarController extends Controller
 
     public function storeAnnouncement(Request $request)
     {
-        if (session('user_role') !== 'registrar') {
-            abort(403, 'Unauthorized Access.');
-        }
-
         $request->validate([
             'banner_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
@@ -50,10 +46,6 @@ class RegistrarController extends Controller
 
     public function destroyAnnouncement($id)
     {
-        if (session('user_role') !== 'registrar') {
-            abort(403, 'Unauthorized Access.');
-        }
-
         $announcement = DB::table('announcements')->where('id', $id)->first();
 
         if ($announcement) {
@@ -64,15 +56,6 @@ class RegistrarController extends Controller
         }
 
         return redirect()->back()->with('Error', 'Announcement not found.');
-    }
-
-    public function manageEnrollment()
-    {
-        if (session('user_role') !== 'registrar') {
-            return redirect()->route('login')->with('Error', 'Unauthorized access. Please login as Registrar.');
-        }
-
-        return view('registrar.manage-enrollment');
     }
 
     public function storeEnrollment(Request $request)   
@@ -86,7 +69,7 @@ class RegistrarController extends Controller
             'last_name' => 'required|string',
             'first_name' => 'required|string',
             'contact_no' => 'required|string',
-            'email' => 'required|email', // <-- 1. Validates the incoming email field
+            'email' => 'required|email', 
 
             'doc_psa' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'doc_2x2' => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
@@ -229,10 +212,6 @@ class RegistrarController extends Controller
 
     public function secureViewFile($student_id, $filename)
     {
-        if (session('user_role') !== 'registrar') {
-            abort(403, 'Unauthorized Access.');
-        }
-
         $fullStoragePath = "student_records/{$student_id}/{$filename}";
 
         if (!Storage::disk('local')->exists($fullStoragePath)) {
@@ -244,10 +223,6 @@ class RegistrarController extends Controller
 
     public function viewStudentProfile($student_id)
     {
-        if (session('user_role') !== 'registrar') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
         $student = Student::where('student_id', $student_id)->firstOrFail();
 
         return view('registrar.student_profile', compact('student'));
@@ -310,12 +285,34 @@ class RegistrarController extends Controller
         return redirect()->back()->with('Success', "Student documents updated successfully for ID: {$student->student_id}");
     }
 
-    public function manageGrades(Request $request)
+    public function destroyStudent($student_id)
     {
         if (session('user_role') !== 'registrar') {
-            return redirect()->route('login')->with('Error', 'Unauthorized access. Please login as Registrar.');
+            abort(403, 'Unauthorized Access.');
         }
 
+        $student = Student::where('student_id', $student_id)->firstOrFail();
+
+        $sid = $student->student_id;
+        $fullName = strtoupper($student->last_name . ', ' . $student->first_name);
+
+        $folderPath = "student_records/{$sid}";
+        if (Storage::disk('local')->exists($folderPath)) {
+            Storage::disk('local')->deleteDirectory($folderPath);
+        }
+
+        DB::table('document_requests')->where('student_id', $sid)->delete();
+        DB::table('student_subjects')->where('student_number', $sid)->delete();
+        DB::table('student_term_grades')->where('student_number', $sid)->delete();
+
+        $student->delete();
+
+        return redirect()->route('registrar.manage-students')
+            ->with('success', "Student record {$sid} ({$fullName}) has been permanently removed from the system.");
+    }
+
+    public function manageGrades(Request $request)
+    {
         $search = $request->input('search');
 
         $activeAcademicPeriod = DB::table('academic_periods')
@@ -387,10 +384,6 @@ class RegistrarController extends Controller
 
     public function getStudentTermGradesJson(Request $request, $student_id)
     {
-        if (session('user_role') !== 'registrar') {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $term = $request->input('term', 'prelim');
 
         $subjects = DB::table('student_subjects')
@@ -419,10 +412,6 @@ class RegistrarController extends Controller
 
     public function releaseGradesToStudent(Request $request, $student_id)
     {
-        if (session('user_role') !== 'registrar') {
-            abort(403, 'Unauthorized Access.');
-        }
-
         $term = $request->input('term', 'prelim');
 
         $updated = DB::table('student_term_grades')
@@ -440,10 +429,6 @@ class RegistrarController extends Controller
 
     public function manageDocumentRequests()
     {
-        if (session('user_role') !== 'registrar') {
-            return redirect()->route('login')->with('Error', 'Unauthorized access.');
-        }
-
         $requests = DB::table('document_requests')
             ->join('students', 'document_requests.student_id', '=', 'students.student_id')
             ->select(
@@ -490,10 +475,6 @@ class RegistrarController extends Controller
 
     public function sendDocument(Request $request, $requestId)
     {
-        if (session('user_role') !== 'registrar') {
-            abort(403, 'Unauthorized Access.');
-        }
-
         $docRequest = DB::table('document_requests')->where('id', $requestId)->first();
 
         if (!$docRequest) {
@@ -585,10 +566,6 @@ class RegistrarController extends Controller
     
     public function profileView()
     {
-        if (session('user_role') !== 'registrar') {
-            return redirect()->route('login')->with('Error', 'Unauthorized access. Please login as Registrar.');
-        }
-
         $userId = session('user_id');
         $user = \App\Models\User::find($userId);
 
@@ -599,37 +576,5 @@ class RegistrarController extends Controller
         $isLocked = !Str::startsWith($user->password, '$2y$');
 
         return view('registrar.user_details', compact('user', 'isLocked'));
-    }
-
-    // ✚ ADD: Delete student record along with their associated credential files
-    public function destroyStudent($student_id)
-    {
-        if (session('user_role') !== 'registrar') {
-            abort(403, 'Unauthorized Access.');
-        }
-
-        $student = Student::where('student_id', $student_id)->firstOrFail();
-
-        $sid = $student->student_id;
-        $fullName = strtoupper($student->last_name . ', ' . $student->first_name);
-
-        // Delete the entire student records folder (PSA, TOR, 2x2, etc.)
-        $folderPath = "student_records/{$sid}";
-        if (Storage::disk('local')->exists($folderPath)) {
-            Storage::disk('local')->deleteDirectory($folderPath);
-        }
-
-        // Optional: Also clean up any pending document requests tied to this student
-        DB::table('document_requests')->where('student_id', $sid)->delete();
-
-        // Optional: Clean up enrolled subjects and grades (para hindi mag-orphan)
-        DB::table('student_subjects')->where('student_number', $sid)->delete();
-        DB::table('student_term_grades')->where('student_number', $sid)->delete();
-
-        // Finally, delete the student record itself
-        $student->delete();
-
-        return redirect()->route('registrar.manage-students')
-            ->with('success', "Student record {$sid} ({$fullName}) has been permanently removed from the system.");
     }
 }
