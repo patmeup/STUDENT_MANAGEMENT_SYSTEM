@@ -121,11 +121,13 @@ class DeptSecController extends Controller
                 'curricula.semester',
                 DB::raw('count(distinct class_schedules.subject_id) as total_subjects'),
                 DB::raw('(
-                    select count(distinct student_subjects.student_number)
-                    from student_subjects
-                    inner join class_schedules as cs2 on student_subjects.schedule_id = cs2.id
+                    select count(distinct ss.student_number)
+                    from student_subjects ss
+                    inner join class_schedules cs2 on ss.schedule_id = cs2.id
+                    inner join students st on ss.student_number = st.student_id
                     where cs2.section_name = class_schedules.section_name
-                    and student_subjects.status = "Enrolled"
+                    and ss.status = "Enrolled"
+                    and st.course in ("' . implode('","', $allowedCourses) . '")
                 ) as enrolled_count')
             )
             ->groupBy('class_schedules.section_name', 'curricula.year_level', 'curricula.semester')
