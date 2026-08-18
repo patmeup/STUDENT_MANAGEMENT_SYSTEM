@@ -14,9 +14,21 @@
             <i class="fas fa-check-circle"></i> {{ session('success') }}
         </div>
     @endif
+
     @if(session('error'))
         <div class="alert-danger-custom">
             <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="alert-danger-custom">
+            <i class="fas fa-exclamation-circle"></i>
+            <ul style="margin: 0; padding-left: 20px;">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
         </div>
     @endif
 
@@ -90,7 +102,10 @@
         <div class="sa-card">
             <div class="card-header-flex">
                 <h3 class="card-title-list">Active Dynamic Block Sections</h3>
-                <span class="badge-count" style="background: #16a34a;">{{ count($sections) }} Active Blocks</span>
+                {{-- INAYOS: Binibilang na ang unique grouped blocks sa halip na raw un-grouped count --}}
+                <span class="badge-count" style="background: #16a34a;">
+                    {{ $sections->groupBy('section_name')->count() }} Active Blocks
+                </span>
             </div>
 
             <div class="search-bar-container">
@@ -126,8 +141,9 @@
                                 </td>
 
                                 <td>
+                                    {{-- DYNAMIC STUDENT ENROLLED COUNT --}}
                                     <span class="enrolled-count-badge">
-                                        <i class="fas fa-users"></i> {{ $records->first()->enrolled_count }} Students
+                                        <i class="fas fa-users"></i> {{ $records->first()->enrolled_count ?? 0 }} Students
                                     </span>
                                 </td>
 
@@ -170,11 +186,11 @@
                                     </form>
                                 </td>
                             </tr>
-                            @empty
-                                <tr id="blockEmptyRow">
-                                    <td colspan="4" style="text-align: center; padding: 40px; color: #64748b;">No active block sections mapped in schedule matrix for your courses.</td>
-                                </tr>
-                            @endforelse
+                        @empty
+                            <tr id="blockEmptyRow">
+                                <td colspan="4" style="text-align: center; padding: 40px; color: #64748b;">No active block sections mapped in schedule matrix for your courses.</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -370,7 +386,6 @@
     .sem-tag { font-weight: 600; color: #475569; background: #f8fafc; padding: 4px 8px; border-radius: 6px; font-size: 11px; border: 1px solid #e2e8f0; }
     .code-highlight { color: #2563eb; font-family: monospace; font-size: 13.5px; }
 
-    /* Alert Boxes */
     .alert-success-custom { background: #f0fdf4; color: #166534; padding: 12px 18px; border-radius: 8px; border-left: 5px solid #16a34a; margin-bottom: 15px; font-weight: 600; font-size: 13.5px; }
     .alert-danger-custom { background: #fef2f2; color: #991b1b; padding: 12px 18px; border-radius: 8px; border-left: 5px solid #dc2626; margin-bottom: 15px; font-weight: 600; font-size: 13.5px; }
 </style>

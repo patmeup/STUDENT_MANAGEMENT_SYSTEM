@@ -18,7 +18,7 @@
 
     <div class="action-helper-card">
         <h4><i class="fas fa-magic"></i> Regular / Block Section Student Helper</h4>
-        <p>Select the Year, Semester, and type the Section to automatically plot the entire Block Section student schedule.</p>
+        <p>Select the Year, Semester, and type the Section letter to automatically select the Block Section for the student.</p>
         
         <div class="helper-controls">
             <select id="helperYear" class="select-input-helper">
@@ -33,7 +33,7 @@
                 <option value="2nd Semester">2nd Semester</option>
             </select>
 
-            <input type="text" id="helperSection" placeholder="e.g., A" class="input-helper-text">
+            <input type="text" id="helperSection" placeholder="e.g., A, B, or C" class="input-helper-text">
 
             <button type="button" class="btn-helper" id="autoBlockBtn">Apply Block Section</button>
         </div>
@@ -52,7 +52,7 @@
                 <table class="minimal-table" id="subjectPlotTable">
                     <thead>
                         <tr>
-                            <th style="width: 280px; text-align: center;">Select Schedule / Section</th>
+                            <th style="width: 380px; text-align: center;">Select Block Section Schedule (LEC + LAB)</th>
                             <th>Year Level</th>
                             <th>Semester</th>
                             <th>Subject Code</th>
@@ -62,19 +62,27 @@
                     </thead>
                     <tbody>
                         @foreach($curriculumSubjects as $curricula)
+                            @php
+                                $subjectSchedules = $classSchedules->where('subject_id', $curricula->subject_id)->groupBy('section_name');
+                                $currentSection = $enrolledSections[$curricula->subject_id] ?? null;
+                            @endphp
                             <tr data-year="{{ $curricula->year_level }}" data-sem="{{ $curricula->semester }}">
                                 <td style="text-align: center;">
                                     <select name="schedules[{{ $curricula->subject_id }}]" class="select-input table-dropdown sub-selector">
                                         <option value="">-- Not Enrolled --</option>
-                                        
-                                        @php
-                                            $subjectSchedules = $classSchedules->get($curricula->subject_id);
-                                        @endphp
 
                                         @if($subjectSchedules && $subjectSchedules->count() > 0)
-                                            @foreach($subjectSchedules as $sched)
-                                                <option value="{{ $sched->id }}">
-                                                    {{ strtoupper($sched->section_name) }} | {{ $sched->class_days }} ({{ date('g:i A', strtotime($sched->start_time)) }}-{{ date('g:i A', strtotime($sched->end_time)) }}) — {{ $sched->room_assignment }}
+                                            @foreach($subjectSchedules as $secName => $schedGroup)
+                                                @php
+                                                    $details = [];
+                                                    foreach($schedGroup as $s) {
+                                                        $timeStr = date('g:i A', strtotime($s->start_time)) . '-' . date('g:i A', strtotime($s->end_time));
+                                                        $details[] = "{$s->schedule_type}: {$s->class_days} ({$timeStr}) [{$s->room_assignment}]";
+                                                    }
+                                                    $label = strtoupper($secName) . ' — ' . implode(' | ', $details);
+                                                @endphp
+                                                <option value="{{ $secName }}" {{ $currentSection == $secName ? 'selected' : '' }}>
+                                                    {{ $label }}
                                                 </option>
                                             @endforeach
                                         @else
@@ -111,31 +119,27 @@
                 const sectionLetter = document.getElementById('helperSection').value.trim().toUpperCase();
 
                 if (!sectionLetter) {
-                    alert('Please enter the Section (e.g., A, B, or C) you want to apply.');
+                    alert('Please enter the Section letter (e.g., A, B, or C) you want to apply.');
                     return;
                 }
 
                 const rows = document.querySelectorAll('#subjectPlotTable tbody tr');
                 let matchedCount = 0;
-                let totalTargetSubjects = 0;
 
                 rows.forEach(row => {
                     const rowYear = row.getAttribute('data-year');
                     const rowSem = row.getAttribute('data-sem');
 
                     if (rowYear === targetYear && rowSem === targetSem) {
-                        totalTargetSubjects++;
                         const select = row.querySelector('.sub-selector');
                         
                         if (select) {
                             let sectionFound = false;
                             
                             for (let i = 0; i < select.options.length; i++) {
-                                const optionText = select.options[i].text.toUpperCase();
+                                const optionVal = select.options[i].value.toUpperCase();
                                 
-                                const sectionPart = optionText.split('|')[0].trim();
-                                
-                                if (sectionPart.endsWith('-' + sectionLetter) && select.options[i].value !== "") {
+                                if (optionVal.endsWith('-' + sectionLetter) || optionVal === sectionLetter) {
                                     select.selectedIndex = i;
                                     sectionFound = true;
                                     matchedCount++;
@@ -153,7 +157,7 @@
                 if (matchedCount > 0) {
                     alert(`Success! Section ${sectionLetter} has been applied to ${matchedCount} subjects.`);
                 } else {
-                    alert(`Sorry, No schedules/sections ending in "-${sectionLetter}" were found for ${targetYear} (${targetSem}).`);
+                    alert(`Sorry, No sections ending in "-${sectionLetter}" were found for ${targetYear} (${targetSem}).`);
                 }
             });
         }
@@ -161,7 +165,7 @@
 </script>
 
 <style>
-    .sa-container { font-family: 'Segoe UI', sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+    .sa-container { font-family: 'Segoe UI', sans-serif; padding: 20px; max-width: 1250px; margin: 0 auto; }
     .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     .header-titles h2 { margin: 0; font-size: 22px; color: #0f172a; font-weight: 800; }
     .header-titles p { margin: 4px 0 0 0; font-size: 14px; color: #64748b; }
@@ -173,7 +177,7 @@
     
     .helper-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .select-input-helper { background-color: #ffffff; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 6px; font-size: 13px; color: #334155; width: 150px; cursor: pointer; }
-    .input-helper-text { background-color: #ffffff; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 6px; font-size: 13px; color: #334155; width: 120px; text-transform: uppercase; }
+    .input-helper-text { background-color: #ffffff; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 6px; font-size: 13px; color: #334155; width: 140px; text-transform: uppercase; }
     .btn-helper { background: #166534; color: white; border: none; padding: 9px 18px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.2s; }
     .btn-helper:hover { background: #14532d; }
 
@@ -181,11 +185,11 @@
     .card-header-flex { background-color: #f8fafc; padding: 16px 24px; border-bottom: 1px solid #e2e8f0; }
     .card-title-list { font-size: 14px; font-weight: 700; margin: 0; color: #1e293b; }
 
-    .minimal-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    .minimal-table th { background: #f8fafc; padding: 12px 24px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; text-align: left; }
-    .minimal-table td { padding: 14px 24px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
+    .minimal-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    .minimal-table th { background: #f8fafc; padding: 12px 18px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; text-align: left; }
+    .minimal-table td { padding: 12px 18px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
     
-    .table-dropdown { width: 100%; max-width: 260px; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #fff; color: #334155; font-size: 13px; cursor: pointer; }
+    .table-dropdown { width: 100%; max-width: 360px; padding: 7px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #fff; color: #334155; font-size: 12.5px; cursor: pointer; }
     .year-tag { font-weight: 700; color: #1e293b; background: #f1f5f9; padding: 4px 8px; border-radius: 6px; font-size: 11px; }
     .sem-tag { font-weight: 600; color: #475569; background: #f8fafc; padding: 4px 8px; border-radius: 6px; font-size: 11px; border: 1px solid #e2e8f0; }
     .code-highlight { color: #2563eb; font-family: monospace; }

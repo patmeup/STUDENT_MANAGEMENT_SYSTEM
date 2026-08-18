@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Subject;
 use App\Models\Curriculum;
 use App\Models\Course;
+use Illuminate\Support\Facades\DB;
 
 class CurriculumController extends Controller
 {
@@ -70,11 +71,22 @@ class CurriculumController extends Controller
             ]);
         }
 
+        $dean = DB::table('employees')
+            ->where('role', 'dean')
+            ->where('status', 'Active')
+            ->first();
+
+        if ($dean) {
+            Subject::where('id', $request->subject_id)
+                ->whereNull('professor_id')
+                ->update(['professor_id' => $dean->id]);
+        }
+
         Curriculum::create($validated);
 
         return redirect()->back()->with(
             'success',
-            'Subject successfully mapped to the curriculum structure!'
+            'Subject successfully mapped to the curriculum structure (Dean set as default instructor)!'
         );
     }
 
@@ -106,6 +118,17 @@ class CurriculumController extends Controller
             return redirect()->back()->withErrors([
                 'error' => 'This curriculum mapping already exists.'
             ]);
+        }
+
+        $dean = DB::table('employees')
+            ->where('role', 'dean')
+            ->where('status', 'Active')
+            ->first();
+
+        if ($dean) {
+            Subject::where('id', $request->subject_id)
+                ->whereNull('professor_id')
+                ->update(['professor_id' => $dean->id]);
         }
 
         $curriculum = Curriculum::findOrFail($id);
