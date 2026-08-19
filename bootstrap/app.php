@@ -11,6 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        
+        $middleware->alias([
+            'role' => \App\Http\Middleware\CheckUserRole::class,
+        ]);
+
         $middleware->validateCsrfTokens(except: [
             'reset-password',
             'reset-password/*',

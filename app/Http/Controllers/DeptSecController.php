@@ -13,12 +13,8 @@ use App\Models\ClassSchedule;
 
 class DeptSecController extends Controller
 {
-
-    public function dashboard() {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
+    public function dashboard() 
+    {
         $dept = session('user_department');
 
         $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
@@ -69,10 +65,6 @@ class DeptSecController extends Controller
 
     public function subjectCatalog(Request $request)
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $dept = session('user_department');
         
         $yearFilter = $request->get('year_level');
@@ -101,19 +93,11 @@ class DeptSecController extends Controller
 
     public function studentsList(Request $request)
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $dept = session('user_department');
         $allowedCourses = [];
         
         if (str_contains(strtolower($dept), 'computer studies') || str_contains(strtolower($dept), 'ccs')) {
             $allowedCourses = ['BSIT', 'BSCS'];
-        } elseif (str_contains(strtolower($dept), 'business') || str_contains(strtolower($dept), 'cba')) {
-            $allowedCourses = ['BSBA'];
-        } elseif (str_contains(strtolower($dept), 'hospitality') || str_contains(strtolower($dept), 'chm')) {
-            $allowedCourses = ['BSHM', 'BSTM'];
         } else {
             $allowedCourses = ['BSIT']; 
         }
@@ -124,24 +108,22 @@ class DeptSecController extends Controller
             ->orderBy('first_name', 'asc')
             ->get();
 
-        $sections = DB::table('class_schedules')
-            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+        $sections = DB::table('class_schedules as main_cs')
+            ->join('subjects', 'main_cs.subject_id', '=', 'subjects.id')
             ->join('curricula', 'subjects.id', '=', 'curricula.subject_id')
             ->select(
-                'class_schedules.section_name',
+                'main_cs.section_name',
                 'curricula.year_level',
                 'curricula.semester',
-                DB::raw('count(distinct class_schedules.subject_id) as total_subjects'),
-                DB::raw('(
-                    select count(distinct student_subjects.student_number)
-                    from student_subjects
-                    inner join class_schedules as cs2 on student_subjects.schedule_id = cs2.id
-                    where cs2.section_name = class_schedules.section_name
-                    and student_subjects.status = "Enrolled"
-                ) as enrolled_count')
+                DB::raw('count(distinct main_cs.subject_id) as total_subjects'),
+                DB::raw("(
+                    select count(*)
+                    from students
+                    where students.section = main_cs.section_name
+                ) as enrolled_count")
             )
-            ->groupBy('class_schedules.section_name', 'curricula.year_level', 'curricula.semester')
-            ->orderBy('class_schedules.section_name', 'asc')
+            ->groupBy('main_cs.section_name', 'curricula.year_level', 'curricula.semester')
+            ->orderBy('main_cs.section_name', 'asc')
             ->get();
 
         return view('department_secretary.masterlist', compact('students', 'sections', 'dept'));
@@ -149,10 +131,6 @@ class DeptSecController extends Controller
 
     public function deleteStudent($student_id)
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         try {
             DB::beginTransaction();
 
@@ -177,16 +155,13 @@ class DeptSecController extends Controller
 
     public function viewSectionRoster($section_name)
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $dept = session('user_department');
 
         $students = DB::table('student_subjects')
             ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
             ->where('class_schedules.section_name', $section_name)
+            ->where('student_subjects.status', 'Enrolled')
             ->select(
                 'students.student_id',
                 'students.first_name',
@@ -204,10 +179,6 @@ class DeptSecController extends Controller
 
     public function plotSubjects($student_id)
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $dept = session('user_department');
 
         $student = DB::table('students')->where('student_id', $student_id)->first();
@@ -230,19 +201,104 @@ class DeptSecController extends Controller
             ->orderBy('curricula.semester')
             ->get();
 
-        $classSchedules = DB::table('class_schedules')
-            ->get()
-            ->groupBy('subject_id');
+        $classSchedules = DB::table('class_schedules')->get();
 
-        return view('department_secretary.plot_subjects', compact('student', 'curriculumSubjects', 'dept', 'classSchedules'));
+        $enrolledSections = DB::table('student_subjects')
+            ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
+            ->where('student_subjects.student_number', $student_id)
+            ->pluck('class_schedules.section_name', 'student_subjects.subject_id')
+            ->toArray();
+
+        return view('department_secretary.plot_subjects', compact(
+            'student', 
+            'curriculumSubjects', 
+            'dept', 
+            'classSchedules',
+            'enrolledSections'
+        ));
+    }
+
+    public function bulkEnrollSection(Request $request)
+    {
+        $request->validate([
+            'current_section' => 'required|string',
+            'target_year'     => 'nullable|string',
+            'target_semester' => 'nullable|string',
+        ]);
+
+        $sectionName = $request->input('current_section');
+        $targetYear  = $request->input('target_year');
+        $targetSem   = $request->input('target_semester');
+
+        DB::beginTransaction();
+        try {
+            $students = DB::table('students')
+                ->where('section', $sectionName)
+                ->pluck('student_id');
+
+            if ($students->isEmpty()) {
+                return redirect()->back()->with('error', 'No students found in section "' . $sectionName . '". Please ensure students are assigned to this block section.');
+            }
+
+            $schedulesQuery = DB::table('class_schedules')
+                ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+                ->leftJoin('curricula', 'subjects.id', '=', 'curricula.subject_id')
+                ->where('class_schedules.section_name', $sectionName);
+
+            if ($targetYear) {
+                $schedulesQuery->where('curricula.year_level', $targetYear);
+            }
+            if ($targetSem) {
+                $schedulesQuery->where('curricula.semester', $targetSem);
+            }
+
+            $schedules = $schedulesQuery->select('class_schedules.id as schedule_id', 'class_schedules.subject_id')
+                ->distinct()
+                ->get();
+
+            if ($schedules->isEmpty()) {
+                return redirect()->back()->with('error', 'No class schedules found for section "' . $sectionName . '" (' . $targetYear . ' - ' . $targetSem . ').');
+            }
+
+            $enrollments = [];
+            $now = now();
+
+            foreach ($students as $studentNumber) {
+                foreach ($schedules as $sched) {
+                    $exists = DB::table('student_subjects')
+                        ->where('student_number', $studentNumber)
+                        ->where('schedule_id', $sched->schedule_id)
+                        ->exists();
+
+                    if (!$exists) {
+                        $enrollments[] = [
+                            'student_number' => $studentNumber,
+                            'subject_id'     => $sched->subject_id,
+                            'schedule_id'    => $sched->schedule_id,
+                            'status'         => 'Enrolled',
+                            'created_at'     => $now,
+                            'updated_at'     => $now,
+                        ];
+                    }
+                }
+            }
+
+            if (!empty($enrollments)) {
+                DB::table('student_subjects')->insert($enrollments);
+            }
+
+            DB::commit();
+
+            return redirect()->back()->with('success', 'Successfully bulk-enrolled ' . count($students) . ' student(s) into section ' . $sectionName . ' (' . $targetYear . ' - ' . $targetSem . ') across all Lecture and Laboratory schedules!');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return redirect()->back()->with('error', 'An error occurred during bulk enrollment: ' . $e->getMessage());
+        }
     }
 
     public function saveSubjects(Request $request)
     {
-        if (session('user_role') !== 'dept_sec') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $request->validate([
             'student_id' => 'required',
             'schedules'  => 'nullable|array',
@@ -252,7 +308,7 @@ class DeptSecController extends Controller
             DB::beginTransaction();
 
             $studentNumber = $request->input('student_id');
-            $selectedSchedules = $request->input('schedules', []); 
+            $selectedSchedules = $request->input('schedules', []);
 
             $filteredSchedules = array_filter($selectedSchedules, function($value) {
                 return !empty($value);
@@ -264,14 +320,23 @@ class DeptSecController extends Controller
 
             DB::table('student_subjects')->where('student_number', $studentNumber)->delete();
 
-            foreach ($filteredSchedules as $subjectId => $scheduleId) {
-                $scheduleExists = DB::table('class_schedules')->where('id', $scheduleId)->exists();
-                
-                if ($scheduleExists) {
+            $primarySection = null;
+
+            foreach ($filteredSchedules as $subjectId => $sectionName) {
+                if (!$primarySection) {
+                    $primarySection = $sectionName;
+                }
+
+                $matchingSchedules = DB::table('class_schedules')
+                    ->where('subject_id', $subjectId)
+                    ->where('section_name', $sectionName)
+                    ->get();
+
+                foreach ($matchingSchedules as $sched) {
                     DB::table('student_subjects')->insert([
                         'student_number' => $studentNumber,
                         'subject_id'     => $subjectId,  
-                        'schedule_id'    => $scheduleId,  
+                        'schedule_id'    => $sched->id,  
                         'status'         => 'Enrolled',
                         'created_at'     => now(),
                         'updated_at'     => now()
@@ -279,15 +344,21 @@ class DeptSecController extends Controller
                 }
             }
 
+            if ($primarySection) {
+                DB::table('students')
+                    ->where('student_id', $studentNumber)
+                    ->update(['section' => $primarySection]);
+            }
+
             DB::commit();
 
             return redirect()->route('department_secretary.students')
-                            ->with('Success', 'Subjects and class schedules have been successfully plotted and saved for this student!');
+                            ->with('success', 'Subjects (including LEC and LAB schedules) have been successfully plotted and saved for this student!');
 
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
-                            ->with('Error', 'An error occurred while submitting the data: ' . $e->getMessage());
+                            ->with('error', 'An error occurred while saving: ' . $e->getMessage());
         }
     }
     

@@ -6,15 +6,12 @@ use Illuminate\Http\Request;
 use App\Models\Subject;
 use App\Models\Curriculum;
 use App\Models\Course;
+use Illuminate\Support\Facades\DB;
 
 class CurriculumController extends Controller
 {
     public function index()
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect()->route('system_admin.dashboard');
-        }
-
         $courses = Course::all();
         $subjects = Subject::all();
 
@@ -74,20 +71,27 @@ class CurriculumController extends Controller
             ]);
         }
 
+        $dean = DB::table('employees')
+            ->where('role', 'dean')
+            ->where('status', 'Active')
+            ->first();
+
+        if ($dean) {
+            Subject::where('id', $request->subject_id)
+                ->whereNull('professor_id')
+                ->update(['professor_id' => $dean->id]);
+        }
+
         Curriculum::create($validated);
 
         return redirect()->back()->with(
             'success',
-            'Subject successfully mapped to the curriculum structure!'
+            'Subject successfully mapped to the curriculum structure (Dean set as default instructor)!'
         );
     }
 
     public function destroy($id)
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $mapping = Curriculum::findOrFail($id);
         $mapping->delete();
 
@@ -114,6 +118,17 @@ class CurriculumController extends Controller
             return redirect()->back()->withErrors([
                 'error' => 'This curriculum mapping already exists.'
             ]);
+        }
+
+        $dean = DB::table('employees')
+            ->where('role', 'dean')
+            ->where('status', 'Active')
+            ->first();
+
+        if ($dean) {
+            Subject::where('id', $request->subject_id)
+                ->whereNull('professor_id')
+                ->update(['professor_id' => $dean->id]);
         }
 
         $curriculum = Curriculum::findOrFail($id);

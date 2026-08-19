@@ -14,10 +14,6 @@ class SystemAdminController extends Controller
 
     public function dashboard()
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
 
         $totalEmployees = User::whereIn('role', ['professor', 'dept_sec', 'dean'])->count();
@@ -36,10 +32,6 @@ class SystemAdminController extends Controller
 
     public function academicPeriods()
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $periods = DB::table('academic_periods')->orderBy('created_at', 'desc')->get();
 
         $termPeriods = DB::table('term_periods')->get()->groupBy('academic_period_id');
@@ -49,10 +41,6 @@ class SystemAdminController extends Controller
 
     public function storeAcademicPeriod(Request $request)
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $request->validate([
             'school_year' => 'required|string|max:20',
             'semester' => 'required|string|max:30',
@@ -71,10 +59,6 @@ class SystemAdminController extends Controller
 
     public function activateAcademicPeriod($id)
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         DB::table('academic_periods')->update(['is_active' => false]);
         DB::table('academic_periods')->where('id', $id)->update(['is_active' => true]);
 
@@ -83,10 +67,6 @@ class SystemAdminController extends Controller
 
     public function storeTermPeriod(Request $request)
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $request->validate([
             'academic_period_id' => 'required|integer|exists:academic_periods,id',
             'term' => 'required|in:prelim,midterm,semifinal,final',
@@ -121,10 +101,6 @@ class SystemAdminController extends Controller
 
     public function deleteAcademicPeriod($id)
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         DB::table('academic_periods')->where('id', $id)->delete();
 
         return redirect()->back()->with('success', 'Academic period deleted.');

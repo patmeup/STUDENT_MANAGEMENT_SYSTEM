@@ -97,6 +97,19 @@
             </div>
         </div>
 
+        <div class="stat-premium-card stat-card-centered">
+            <div class="stat-number-side text-teal">
+                {{ $avgAccuracy }}%
+            </div>
+            <div class="stat-label-side">
+                <span class="lbl-main">ML Model</span>
+                <span class="lbl-sub">Accuracy</span>
+            </div>
+            <div class="stat-icon-watermark text-teal-icon">
+                <i class="fa-solid fa-brain"></i>
+            </div>
+        </div>
+
     </div>
 
     <hr class="my-5">
@@ -246,10 +259,17 @@
 
     .stats-dashboard-grid { 
         display: grid; 
-        grid-template-columns: repeat(4, 1fr); 
+        grid-template-columns: repeat(2, 1fr); 
         gap: 20px; 
         width: 100%;
         margin-top: 25px;
+    }
+
+    .stat-card-centered {
+        grid-column: span 2;
+        width: 100%;
+        max-width: 540px;
+        margin: 0 auto;
     }
 
     .stat-premium-card {
@@ -311,11 +331,13 @@
     .text-green { color: #15803d; }
     .text-orange { color: #c2410c; }
     .text-purple { color: #6b21a8; }
+    .text-teal { color: #0d9488; }
 
     .text-blue-icon { color: #2563eb; }
     .text-green-icon { color: #16a34a; }
     .text-orange-icon { color: #ea580c; }
     .text-purple-icon { color: #9333ea; }
+    .text-teal-icon { color: #14b8a6; }
 
     .management-panel { 
         background: #ffffff; 
@@ -348,11 +370,9 @@
     .alert-success { background: #dcfce7; color: #14532d; }
     .alert-danger { background: #fee2e2; color: #991b1b; }
 
-    @media (max-width: 1024px) {
-        .stats-dashboard-grid { grid-template-columns: repeat(2, 1fr); }
-    }
     @media (max-width: 640px) {
         .stats-dashboard-grid { grid-template-columns: 1fr; }
+        .stat-card-centered { grid-column: span 1; max-width: 100%; }
     }
 </style>
 @endsection

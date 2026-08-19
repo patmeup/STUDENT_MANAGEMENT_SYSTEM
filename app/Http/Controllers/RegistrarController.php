@@ -24,10 +24,6 @@ class RegistrarController extends Controller
 
     public function storeAnnouncement(Request $request)
     {
-        if (session('user_role') !== 'registrar') {
-            abort(403, 'Unauthorized Access.');
-        }
-
         $request->validate([
             'banner_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
@@ -50,10 +46,6 @@ class RegistrarController extends Controller
 
     public function destroyAnnouncement($id)
     {
-        if (session('user_role') !== 'registrar') {
-            abort(403, 'Unauthorized Access.');
-        }
-
         $announcement = DB::table('announcements')->where('id', $id)->first();
 
         if ($announcement) {
@@ -64,15 +56,6 @@ class RegistrarController extends Controller
         }
 
         return redirect()->back()->with('Error', 'Announcement not found.');
-    }
-
-    public function manageEnrollment()
-    {
-        if (session('user_role') !== 'registrar') {
-            return redirect()->route('login')->with('Error', 'Unauthorized access. Please login as Registrar.');
-        }
-
-        return view('registrar.manage-enrollment');
     }
 
     public function storeEnrollment(Request $request)   
@@ -86,7 +69,7 @@ class RegistrarController extends Controller
             'last_name' => 'required|string',
             'first_name' => 'required|string',
             'contact_no' => 'required|string',
-            'email' => 'required|email', // <-- 1. Validates the incoming email field
+            'email' => 'required|email', 
 
             'doc_psa' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'doc_2x2' => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
@@ -229,10 +212,6 @@ class RegistrarController extends Controller
 
     public function secureViewFile($student_id, $filename)
     {
-        if (session('user_role') !== 'registrar') {
-            abort(403, 'Unauthorized Access.');
-        }
-
         $fullStoragePath = "student_records/{$student_id}/{$filename}";
 
         if (!Storage::disk('local')->exists($fullStoragePath)) {
@@ -244,10 +223,6 @@ class RegistrarController extends Controller
 
     public function viewStudentProfile($student_id)
     {
-        if (session('user_role') !== 'registrar') {
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
-        }
-
         $student = Student::where('student_id', $student_id)->firstOrFail();
 
         return view('registrar.student_profile', compact('student'));
@@ -310,22 +285,42 @@ class RegistrarController extends Controller
         return redirect()->back()->with('Success', "Student documents updated successfully for ID: {$student->student_id}");
     }
 
-    public function manageGrades(Request $request)
+    public function destroyStudent($student_id)
     {
         if (session('user_role') !== 'registrar') {
-            return redirect()->route('login')->with('Error', 'Unauthorized access. Please login as Registrar.');
+            abort(403, 'Unauthorized Access.');
         }
 
+        $student = Student::where('student_id', $student_id)->firstOrFail();
+
+        $sid = $student->student_id;
+        $fullName = strtoupper($student->last_name . ', ' . $student->first_name);
+
+        $folderPath = "student_records/{$sid}";
+        if (Storage::disk('local')->exists($folderPath)) {
+            Storage::disk('local')->deleteDirectory($folderPath);
+        }
+
+        DB::table('document_requests')->where('student_id', $sid)->delete();
+        DB::table('student_subjects')->where('student_number', $sid)->delete();
+        DB::table('student_term_grades')->where('student_number', $sid)->delete();
+
+        $student->delete();
+
+        return redirect()->route('registrar.manage-students')
+            ->with('success', "Student record {$sid} ({$fullName}) has been permanently removed from the system.");
+    }
+
+    public function manageGrades(Request $request)
+    {
         $search = $request->input('search');
 
         $activeAcademicPeriod = DB::table('academic_periods')
             ->where('is_active', 1)
             ->first();
 
-        $academicPeriodId = $activeAcademicPeriod->id ?? 1;
-
         $termPeriods = DB::table('term_periods')
-            ->where('academic_period_id', $activeAcademicPeriod->id)
+            ->where('academic_period_id', $activeAcademicPeriod->id ?? 1)
             ->where('term', 'not like', '%semi%')
             ->orderBy('start_date', 'asc')
             ->get();
@@ -340,7 +335,7 @@ class RegistrarController extends Controller
             }
         }
 
-        $termFilter = $request->input('term', $defaultTerm);
+        $termFilter = strtolower(trim($request->input('term', $defaultTerm)));
 
         $students = Student::when($search, function ($query, $search) {
                 return $query->where('last_name', 'like', "%{$search}%")
@@ -351,14 +346,17 @@ class RegistrarController extends Controller
             ->paginate(15);
 
         foreach ($students as $student) {
-            $totalEnrolledSubjects = DB::table('student_subjects')
+            $enrolledSchedules = DB::table('student_subjects')
                 ->where('student_number', $student->student_id)
                 ->where('status', 'Enrolled')
-                ->count();
+                ->pluck('schedule_id');
+
+            $totalEnrolledSubjects = $enrolledSchedules->count();
 
             $grades = DB::table('student_term_grades')
                 ->where('student_number', $student->student_id)
-                ->where('term', $termFilter)
+                ->whereIn('schedule_id', $enrolledSchedules)
+                ->where(DB::raw('LOWER(term)'), $termFilter)
                 ->where('is_submitted', 1)
                 ->get();
 
@@ -367,19 +365,19 @@ class RegistrarController extends Controller
             $student->total_enrolled = $totalEnrolledSubjects;
             $student->total_submitted = $submittedCount;
 
-            if ($totalEnrolledSubjects > 0 && $submittedCount == $totalEnrolledSubjects) {
+            if ($totalEnrolledSubjects > 0 && $submittedCount >= $totalEnrolledSubjects) {
                 $student->grade_status = 'Complete';
                 $student->average_equivalent = $grades->avg('equivalent');
-                $student->is_fully_sent = $grades->every(fn($g) => $g->is_sent_to_student == 1);
             } elseif ($submittedCount > 0) {
                 $student->grade_status = 'Partial';
                 $student->average_equivalent = null; 
-                $student->is_fully_sent = false;
             } else {
                 $student->grade_status = 'Pending';
                 $student->average_equivalent = null;
-                $student->is_fully_sent = false;
             }
+
+            $sentCount = $grades->where('is_sent_to_student', 1)->count();
+            $student->is_fully_sent = ($totalEnrolledSubjects > 0 && $sentCount >= $totalEnrolledSubjects);
         }
 
         return view('registrar.manage-grades', compact('students', 'termPeriods', 'termFilter', 'search', 'activeAcademicPeriod'));
@@ -387,19 +385,15 @@ class RegistrarController extends Controller
 
     public function getStudentTermGradesJson(Request $request, $student_id)
     {
-        if (session('user_role') !== 'registrar') {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        $term = $request->input('term', 'prelim');
+        $term = strtolower(trim($request->input('term', 'prelim')));
 
         $subjects = DB::table('student_subjects')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->leftJoin('student_term_grades', function($join) use ($student_id, $term) {
                 $join->on('student_term_grades.schedule_id', '=', 'class_schedules.id')
-                     ->where('student_term_grades.student_number', '=', $student_id)
-                     ->where('student_term_grades.term', '=', $term);
+                    ->where('student_term_grades.student_number', '=', $student_id)
+                    ->where(DB::raw('LOWER(student_term_grades.term)'), '=', $term);
             })
             ->where('student_subjects.student_number', $student_id)
             ->where('student_subjects.status', 'Enrolled')
@@ -419,176 +413,29 @@ class RegistrarController extends Controller
 
     public function releaseGradesToStudent(Request $request, $student_id)
     {
-        if (session('user_role') !== 'registrar') {
-            abort(403, 'Unauthorized Access.');
-        }
+        $term = strtolower(trim($request->input('term', 'prelim')));
 
-        $term = $request->input('term', 'prelim');
+        $enrolledSchedules = DB::table('student_subjects')
+            ->where('student_number', $student_id)
+            ->where('status', 'Enrolled')
+            ->pluck('schedule_id');
 
         $updated = DB::table('student_term_grades')
             ->where('student_number', $student_id)
-            ->where('term', $term)
+            ->whereIn('schedule_id', $enrolledSchedules)
+            ->where(DB::raw('LOWER(term)'), $term)
             ->where('is_submitted', 1)
             ->update(['is_sent_to_student' => 1]);
 
         if ($updated) {
-            return redirect()->back()->with('Success', "Grades successfully released to student portal for ID: {$student_id}!");
+            return redirect()->back()->with('Success', ucfirst($term) . " term grades successfully released to student portal for ID: {$student_id}!");
         }
 
-        return redirect()->back()->with('Error', 'No submitted grades found to release.');
-    }
-
-    public function manageDocumentRequests()
-    {
-        if (session('user_role') !== 'registrar') {
-            return redirect()->route('login')->with('Error', 'Unauthorized access.');
-        }
-
-        $requests = DB::table('document_requests')
-            ->join('students', 'document_requests.student_id', '=', 'students.student_id')
-            ->select(
-                'document_requests.id as request_id',
-                'document_requests.document_name',
-                'document_requests.purpose',
-                'document_requests.status',
-                'document_requests.created_at',
-                'students.id as student_pk',
-                'students.student_id',
-                'students.first_name',
-                'students.last_name',
-                'students.email',
-                'students.path_psa',
-                'students.path_2x2',
-                'students.path_f138',
-                'students.path_good_moral_new',
-                'students.path_diploma',
-                'students.path_tor',
-                'students.path_dismissal',
-                'students.path_good_moral_trans',
-                'students.path_permit'
-            )
-            ->orderBy('document_requests.created_at', 'desc')
-            ->get();
-
-        $docMapping = [
-            'PSA Birth Certificate'    => ['column' => 'path_psa',              'input' => 'doc_psa'],
-            '2x2 ID Picture'           => ['column' => 'path_2x2',              'input' => 'doc_2x2'],
-            'Form 138 (F138)'          => ['column' => 'path_f138',             'input' => 'doc_f138'],
-            'Form 138'                 => ['column' => 'path_f138',             'input' => 'doc_f138'],
-            'Good Moral Character'     => ['column' => 'path_good_moral_new',   'input' => 'doc_good_moral_new'],
-            'Good Moral'               => ['column' => 'path_good_moral_new',   'input' => 'doc_good_moral_new'],
-            'High School Diploma'      => ['column' => 'path_diploma',          'input' => 'doc_diploma'],
-            'Diploma'                  => ['column' => 'path_diploma',          'input' => 'doc_diploma'],
-            'Transcript of Records'    => ['column' => 'path_tor',              'input' => 'doc_tor'],
-            'TOR'                      => ['column' => 'path_tor',              'input' => 'doc_tor'],
-            'Honorable Dismissal'      => ['column' => 'path_dismissal',        'input' => 'doc_dismissal'],
-            'Cross-Enrollment Permit'  => ['column' => 'path_permit',           'input' => 'doc_permit'],
-        ];
-
-        return view('registrar.document_requests', compact('requests', 'docMapping'));
-    }
-
-    public function sendDocument(Request $request, $requestId)
-    {
-        if (session('user_role') !== 'registrar') {
-            abort(403, 'Unauthorized Access.');
-        }
-
-        $docRequest = DB::table('document_requests')->where('id', $requestId)->first();
-
-        if (!$docRequest) {
-            return redirect()->back()->with('Error', 'There is no document request found with the provided ID.');
-        }
-
-        $student = DB::table('students')->where('student_id', $docRequest->student_id)->first();
-
-        if (!$student || empty($student->email)) {
-            return redirect()->back()->with('Error', 'Student or email not found.');
-        }
-
-        $requestedDocs = json_decode($docRequest->document_name, true);
-        
-        if (!is_array($requestedDocs) || empty($requestedDocs)) {
-            return redirect()->back()->with('Error', 'There are no documents listed in this request.');
-        }
-
-        $docMapping = [
-            'PSA Birth Certificate' => 'path_psa',
-            '2x2 ID Picture' => 'path_2x2',
-            'Form 138 (F138)' => 'path_f138',
-            'Form 138' => 'path_f138',
-            'Good Moral Character' => 'path_good_moral_new',
-            'Good Moral' => 'path_good_moral_new',
-            'High School Diploma' => 'path_diploma',
-            'Diploma' => 'path_diploma',
-            'Transcript of Records' => 'path_tor',
-            'TOR' => 'path_tor',
-            'Honorable Dismissal' => 'path_dismissal',
-            'Cross-Enrollment Permit' => 'path_permit'
-        ];
-
-        $filesToAttach = [];
-        $foundDocs = [];
-
-        foreach ($requestedDocs as $docName) {
-            if (array_key_exists($docName, $docMapping)) {
-                $columnName = $docMapping[$docName];
-                $fileName = $student->{$columnName}; 
-
-                if ($fileName) {
-                    $fullStoragePath = "student_records/{$student->student_id}/{$fileName}";
-                    
-                    if (Storage::disk('local')->exists($fullStoragePath)) {
-                        $filesToAttach[] = [
-                            'path' => Storage::disk('local')->path($fullStoragePath),
-                            'name' => $docName . '.' . pathinfo($fileName, PATHINFO_EXTENSION)
-                        ];
-                        $foundDocs[] = $docName;
-                    }
-                }
-            }
-        }
-
-        if (empty($filesToAttach)) {
-            return redirect()->back()->with('Error', 'There are no files found on the server for this request.');
-        }
-
-        $displayDocNames = implode(', ', $foundDocs);
-
-        try {
-            Mail::send('emails.send_document', [
-                'studentName' => $student->first_name,
-                'documentName' => $displayDocNames
-            ], function ($message) use ($student, $displayDocNames, $filesToAttach) {
-                $message->to($student->email)
-                        ->subject("Your Requested Documents: " . $displayDocNames);
-                
-                foreach ($filesToAttach as $file) {
-                    $message->attach($file['path'], [
-                        'as' => $file['name']
-                    ]);
-                }
-            });
-
-            DB::table('document_requests')
-                ->where('id', $requestId)
-                ->update([
-                    'status' => 'Completed',
-                    'updated_at' => now()
-                ]);
-
-            return redirect()->back()->with('Success', "The documents have been successfully sent to {$student->first_name}!");
-        } catch (\Exception $e) {
-            return redirect()->back()->with('Error', "Failed to send email: " . $e->getMessage());
-        }
+        return redirect()->back()->with('Error', 'No submitted grades found for this term to release.');
     }
     
     public function profileView()
     {
-        if (session('user_role') !== 'registrar') {
-            return redirect()->route('login')->with('Error', 'Unauthorized access. Please login as Registrar.');
-        }
-
         $userId = session('user_id');
         $user = \App\Models\User::find($userId);
 
@@ -599,37 +446,5 @@ class RegistrarController extends Controller
         $isLocked = !Str::startsWith($user->password, '$2y$');
 
         return view('registrar.user_details', compact('user', 'isLocked'));
-    }
-
-    // ✚ ADD: Delete student record along with their associated credential files
-    public function destroyStudent($student_id)
-    {
-        if (session('user_role') !== 'registrar') {
-            abort(403, 'Unauthorized Access.');
-        }
-
-        $student = Student::where('student_id', $student_id)->firstOrFail();
-
-        $sid = $student->student_id;
-        $fullName = strtoupper($student->last_name . ', ' . $student->first_name);
-
-        // Delete the entire student records folder (PSA, TOR, 2x2, etc.)
-        $folderPath = "student_records/{$sid}";
-        if (Storage::disk('local')->exists($folderPath)) {
-            Storage::disk('local')->deleteDirectory($folderPath);
-        }
-
-        // Optional: Also clean up any pending document requests tied to this student
-        DB::table('document_requests')->where('student_id', $sid)->delete();
-
-        // Optional: Clean up enrolled subjects and grades (para hindi mag-orphan)
-        DB::table('student_subjects')->where('student_number', $sid)->delete();
-        DB::table('student_term_grades')->where('student_number', $sid)->delete();
-
-        // Finally, delete the student record itself
-        $student->delete();
-
-        return redirect()->route('registrar.manage-students')
-            ->with('success', "Student record {$sid} ({$fullName}) has been permanently removed from the system.");
     }
 }

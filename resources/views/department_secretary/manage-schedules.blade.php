@@ -18,7 +18,7 @@
     @endif
 
     @if(session('error'))
-        <div class="sa-alert-error" style="background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px;">
+        <div class="sa-alert-error">
             <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
         </div>
     @endif
@@ -35,9 +35,13 @@
                 
                 <div id="methodContainer"></div>
 
+                <div id="formValidationAlert" class="sa-alert-error" style="display: none; margin-bottom: 15px;">
+                    <i class="fas fa-exclamation-triangle"></i> Please fill out all highlighted fields.
+                </div>
+
                 <div class="form-group" id="subjectSelectGroup">
                     <label>Target Course / Subject</label>
-                        <select name="subject_id" id="formSubjectId" class="select-input" required>
+                        <select name="subject_id" id="formSubjectId" class="select-input custom-validate">
                             <option value="">-- Select Cataloged Subject --</option>
                             @foreach($subjects as $subj)
                                 <option value="{{ $subj->id }}">
@@ -54,15 +58,26 @@
                     <input type="text" id="formSubjectReadOnly" class="select-input" style="background-color: #f8fafc; color: #64748b;" readonly>
                 </div>
 
-                <div class="form-group">
-                    <label>Class Section / Block Name</label>
-                    <input type="text" name="section_name" id="formSectionName" placeholder="E.G., BSIT 2-A, BSIT 3-B, ACT 1-A" class="uppercase-input" required>
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label>Schedule Type</label>
+                        <select name="schedule_type" id="formScheduleType" class="select-input custom-validate">
+                            <option value="">-- Select Type --</option>
+                            <option value="LEC">Lecture (LEC)</option>
+                            <option value="LAB">Laboratory (LAB)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Class Section / Block Name</label>
+                        <input type="text" name="section_name" id="formSectionName" placeholder="E.G., BSIT 2-A" class="uppercase-input custom-validate">
+                    </div>
                 </div>
 
                 <div class="form-grid-2">
                     <div class="form-group">
                         <label>Class Days</label>
-                        <select name="class_days" id="formClassDays" class="select-input" required>
+                        <select name="class_days" id="formClassDays" class="select-input custom-validate">
                             <option value="">-- Select Days --</option>
                             <option value="Monday">Monday</option>
                             <option value="Tuesday">Tuesday</option>
@@ -70,27 +85,39 @@
                             <option value="Thursday">Thursday</option>
                             <option value="Friday">Friday</option>
                             <option value="Saturday">Saturday</option>
-                            <option value="MW">MW</option>
-                            <option value="TTH">TTH</option>
-                            <option value="FS">FS</option>
+                            <option value="Monday and Wednesday">Monday and Wednesday</option>
+                            <option value="Tuesday and Thursday">Tuesday and Thursday</option>
+                            <option value="Friday and Saturday">Friday and Saturday</option>
                         </select>
                     </div>
                     
                     <div class="form-group">
                         <label>Room / Laboratory</label>
-                        <input type="text" name="room_assignment" id="formRoomAssignment" placeholder="E.G., IT LAB 1, RM 304" class="uppercase-input" required>
+                        <input type="text" name="room_assignment" id="formRoomAssignment" placeholder="E.G., IT LAB 1, RM 304" class="uppercase-input custom-validate">
                     </div>
                 </div>
 
                 <div class="form-grid-2">
                     <div class="form-group">
                         <label>Start Time</label>
-                        <input type="time" name="start_time" id="formStartTime" required>
+                        <input type="time" name="start_time" id="formStartTime" class="custom-validate">
                     </div>
                     <div class="form-group">
                         <label>End Time</label>
-                        <input type="time" name="end_time" id="formEndTime" required>
+                        <input type="time" name="end_time" id="formEndTime" class="custom-validate">
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="formProfessorId">Assigned Faculty / Instructor</label>
+                    <select name="professor_id" id="formProfessorId" class="select-input custom-validate">
+                        <option value="">-- Select Assigned Faculty / Dean --</option>
+                        @foreach($professors as $prof)
+                            <option value="{{ $prof->id }}">
+                                {{ strtoupper($prof->last_name) }}, {{ $prof->first_name }} ({{ strtoupper($prof->role) }})
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div class="form-actions-bar">
@@ -153,13 +180,20 @@
                                     data-year="{{ $sched->year_level ?? '' }}"
                                     data-sem="{{ $sched->semester ?? '' }}">
 
-                                    <td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 6px;">
                                         <span class="subject-code-tag">{{ strtoupper($sched->subject_code ?? '') }}</span>
-                                        <div style="font-size: 12px; color: #64748b; margin-top: 4px; font-weight: 500;">
-                                            {{ $sched->subject_title ?? '' }}
-                                        </div>
-                                    </td>
-
+                                        @if(($sched->schedule_type ?? 'LEC') === 'LAB')
+                                            <span style="background-color: #fef3c7; color: #92400e; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a;">LAB</span>
+                                        @else
+                                            <span style="background-color: #e0f2fe; color: #075985; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; border: 1px solid #bae6fd;">LEC</span>
+                                        @endif
+                                    </div>
+                                    <div style="font-size: 12px; color: #64748b; margin-top: 4px; font-weight: 500;">
+                                        {{ $sched->subject_title ?? '' }}
+                                    </div>
+                                </td>
+                                    
                                     <td><strong style="color: #0f172a;">{{ strtoupper($sched->section_name) }}</strong></td>
 
                                     <td>
@@ -191,11 +225,13 @@
                                                     data-id="{{ $sched->id }}"
                                                     data-subject-id="{{ $sched->subject_id }}"
                                                     data-subject-text="[{{ strtoupper($sched->subject_code ?? '') }}] — {{ $sched->subject_title ?? '' }}"
+                                                    data-schedule-type="{{ $sched->schedule_type ?? 'LEC' }}"
                                                     data-section="{{ $sched->section_name }}"
                                                     data-days="{{ $sched->class_days }}"
                                                     data-room="{{ $sched->room_assignment }}"
                                                     data-start="{{ $sched->start_time }}"
-                                                    data-end="{{ $sched->end_time }}">
+                                                    data-end="{{ $sched->end_time }}"
+                                                    data-professor-id="{{ $sched->professor_id ?? '' }}">
                                                 Edit
                                             </button>
                                             <form action="{{ route('department_secretary.schedules.delete', $sched->id) }}" method="POST"
@@ -227,7 +263,53 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         
-        // --- 1. Multi-Criteria Search & Filter Dropdown Engine ---
+        const mainForm = document.getElementById('scheduleMainForm');
+        const validationAlert = document.getElementById('formValidationAlert');
+        const validateFields = document.querySelectorAll('.custom-validate');
+
+        if (mainForm) {
+            mainForm.addEventListener('submit', function (e) {
+                let hasError = false;
+
+                validateFields.forEach(field => {
+                    field.classList.remove('input-error');
+                });
+
+                validateFields.forEach(field => {
+                    if (field.offsetParent === null) {
+                        return;
+                    }
+
+                    if (!field.value || field.value.trim() === '') {
+                        field.classList.add('input-error');
+                        hasError = true;
+                    }
+                });
+
+                if (hasError) {
+                    e.preventDefault(); 
+                    validationAlert.style.display = 'block';
+                    
+                    validationAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    validationAlert.style.display = 'none';
+                }
+            });
+
+            validateFields.forEach(field => {
+                field.addEventListener('input', function() {
+                    if (this.value.trim() !== '') {
+                        this.classList.remove('input-error');
+                    }
+                });
+                field.addEventListener('change', function() {
+                    if (this.value.trim() !== '') {
+                        this.classList.remove('input-error');
+                    }
+                });
+            });
+        }
+
         const searchInput = document.getElementById('scheduleSearchInput');
         const filterYearLevel = document.getElementById('filterYearLevel');
         const filterSemester = document.getElementById('filterSemester');
@@ -241,15 +323,12 @@
             let visibleCount = 0;
 
             tableRows.forEach(row => {
-                // Laktawan ang empty layout warning row kung sakali
                 if (row.querySelector('.empty-table-state')) return;
 
-                // Basahin ang content at data attributes ng row
                 const rowText = row.innerText.toLowerCase();
                 const rowYear = row.getAttribute('data-year') || '';
                 const rowSem = row.getAttribute('data-sem') || '';
 
-                // Kondisyon para sa pagsasala (Filters matching check)
                 const matchesSearch = rowText.includes(searchTerm);
                 const matchesYear = selectedYear === '' || rowYear === selectedYear;
                 const matchesSem = selectedSem === '' || rowSem === selectedSem;
@@ -262,29 +341,23 @@
                 }
             });
 
-            // I-update ang badge counter nang real-time base sa nakikitang rows
             if (visibleClassesCount) {
                 visibleClassesCount.textContent = `${visibleCount} Active Classes`;
             }
         }
 
-        // Makinig sa bawat event change at input fields
         if (searchInput) searchInput.addEventListener('input', filterScheduleMatrixTable);
         if (filterYearLevel) filterYearLevel.addEventListener('change', filterScheduleMatrixTable);
         if (filterSemester) filterSemester.addEventListener('change', filterScheduleMatrixTable);
 
-        // Patakbuhin ang filter engine agad pagka-load ng pahina
         filterScheduleMatrixTable();
 
-
-        // --- 2. Deployment Matrix Form CRUD (Edit, Revert & Cancel) Logic ---
-        const mainForm = document.getElementById('scheduleMainForm');
         const formPanelTitle = document.querySelector('.form-panel .card-bar span');
         const btnSubmitForm = document.querySelector('.btn-submit-subj');
         const btnResetForm = document.getElementById('btnResetForm');
         
-        let methodInput = mainForm.querySelector('input[name="_method"]');
-        if (!methodInput) {
+        let methodInput = mainForm ? mainForm.querySelector('input[name="_method"]') : null;
+        if (mainForm && !methodInput) {
             methodInput = document.createElement('input');
             methodInput.type = 'hidden';
             methodInput.name = '_method';
@@ -292,7 +365,7 @@
         }
 
         let btnCancelEdit = document.getElementById('btnCancelEdit');
-        if (!btnCancelEdit) {
+        if (!btnCancelEdit && btnSubmitForm) {
             btnCancelEdit = document.createElement('button');
             btnCancelEdit.type = 'button';
             btnCancelEdit.id = 'btnCancelEdit';
@@ -303,16 +376,19 @@
             btnSubmitForm.parentNode.insertBefore(btnCancelEdit, btnSubmitForm);
         }
 
-        const subjectSelect = mainForm.querySelector('select[name="subject_id"]');
+        const subjectSelect = mainForm ? mainForm.querySelector('select[name="subject_id"]') : null;
         let subjectReadOnly = document.getElementById('formSubjectReadOnly');
         const subjectSelectGroup = document.getElementById('subjectSelectGroup');
         const subjectReadOnlyGroup = document.getElementById('subjectReadOnlyGroup');
 
-        const defaultStoreAction = mainForm.action;
+        const defaultStoreAction = mainForm ? mainForm.action : '';
         const editButtons = document.querySelectorAll('.btn-action-edit');
 
         editButtons.forEach(button => {
             button.addEventListener('click', function () {
+                if (validationAlert) validationAlert.style.display = 'none';
+                validateFields.forEach(f => f.classList.remove('input-error'));
+
                 const schedId = this.getAttribute('data-id');
                 const subjectId = this.getAttribute('data-subject-id');
                 const subjectText = this.getAttribute('data-subject-text');
@@ -321,60 +397,80 @@
                 const room = this.getAttribute('data-room');
                 const start = this.getAttribute('data-start');
                 const end = this.getAttribute('data-end');
-
-                if(subjectSelect) subjectSelect.value = subjectId;
-                if(subjectReadOnly) subjectReadOnly.value = subjectText;
+                const professorId = this.getAttribute('data-professor-id');
+                const scheduleType = this.getAttribute('data-schedule-type');
+                
+                if (subjectSelect) subjectSelect.value = subjectId;
+                if (subjectReadOnly) subjectReadOnly.value = subjectText;
                 
                 const inputSection = mainForm.querySelector('input[name="section_name"]');
                 const selectDays = mainForm.querySelector('select[name="class_days"]');
                 const inputRoom = mainForm.querySelector('input[name="room_assignment"]');
                 const inputStart = mainForm.querySelector('input[name="start_time"]');
                 const inputEnd = mainForm.querySelector('input[name="end_time"]');
+                const selectProfessor = mainForm.querySelector('select[name="professor_id"]');
+                const selectScheduleType = mainForm.querySelector('select[name="schedule_type"]');
 
-                if(inputSection) inputSection.value = section;
-                if(selectDays) selectDays.value = days;
-                if(inputRoom) inputRoom.value = room;
-                if(inputStart) inputStart.value = start.substring(0, 5);
-                if(inputEnd) inputEnd.value = end.substring(0, 5);
+                if (inputSection) inputSection.value = section;
+                if (selectDays) selectDays.value = days;
+                if (inputRoom) inputRoom.value = room;
+                if (inputStart) inputStart.value = start ? start.substring(0, 5) : '';
+                if (inputEnd) inputEnd.value = end ? end.substring(0, 5) : '';
+                
+                if (selectScheduleType) {
+                    selectScheduleType.value = scheduleType || 'LEC';
+                }
 
-                if(subjectSelectGroup) subjectSelectGroup.style.display = 'none';
-                if(subjectSelect) subjectSelect.removeAttribute('required');
-                if(subjectReadOnlyGroup) subjectReadOnlyGroup.style.display = 'block';
+                if (selectProfessor) {
+                    selectProfessor.value = professorId || '';
+                }
 
-                methodInput.value = 'PUT';
+                if (subjectSelectGroup) subjectSelectGroup.style.display = 'none';
+                if (subjectSelect) subjectSelect.classList.remove('custom-validate'); 
+                if (subjectReadOnlyGroup) subjectReadOnlyGroup.style.display = 'block';
 
-                if(formPanelTitle) formPanelTitle.innerHTML = '<i class="fas fa-edit"></i> Update Deployment Specifications';
-                if(btnSubmitForm) {
+                if (methodInput) methodInput.value = 'PUT';
+
+                if (formPanelTitle) formPanelTitle.innerHTML = '<i class="fas fa-edit"></i> Update Deployment Specifications';
+                if (btnSubmitForm) {
                     btnSubmitForm.textContent = 'Update Class';
                     btnSubmitForm.style.backgroundColor = '#0284c7';
                 }
 
-                if(btnResetForm) btnResetForm.style.display = 'none';
-                btnCancelEdit.style.display = 'inline-block';
+                if (btnResetForm) btnResetForm.style.display = 'none';
+                if (btnCancelEdit) btnCancelEdit.style.display = 'inline-block';
 
-                mainForm.action = `/department-secretary/manage-schedules/update/${schedId}`;
+                if (mainForm) {
+                    mainForm.action = `/department-secretary/manage-schedules/update/${schedId}`;
+                }
 
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             });
         });
 
         function revertToCreateMode() {
+            if (!mainForm) return;
+
+            // Clear validation errors pag nag-reset
+            if (validationAlert) validationAlert.style.display = 'none';
+            validateFields.forEach(f => f.classList.remove('input-error'));
+
             mainForm.reset();
             mainForm.action = defaultStoreAction;
-            methodInput.value = ''; 
+            if (methodInput) methodInput.value = ''; 
 
-            if(subjectSelectGroup) subjectSelectGroup.style.display = 'block';
-            if(subjectSelect) subjectSelect.setAttribute('required', 'required');
-            if(subjectReadOnlyGroup) subjectReadOnlyGroup.style.display = 'none';
+            if (subjectSelectGroup) subjectSelectGroup.style.display = 'block';
+            if (subjectSelect) subjectSelect.classList.add('custom-validate'); // Ibalik validation
+            if (subjectReadOnlyGroup) subjectReadOnlyGroup.style.display = 'none';
 
-            if(formPanelTitle) formPanelTitle.innerHTML = '<i class="fas fa-calendar-plus"></i> Deployment Specifications Form';
-            if(btnSubmitForm) {
+            if (formPanelTitle) formPanelTitle.innerHTML = '<i class="fas fa-calendar-plus"></i> Deployment Specifications Form';
+            if (btnSubmitForm) {
                 btnSubmitForm.textContent = 'Deploy Class';
                 btnSubmitForm.style.backgroundColor = '#0033A0';
             }
 
-            if(btnResetForm) btnResetForm.style.display = 'inline-block';
-            btnCancelEdit.style.display = 'none';
+            if (btnResetForm) btnResetForm.style.display = 'inline-block';
+            if (btnCancelEdit) btnCancelEdit.style.display = 'none';
         }
 
         if (btnCancelEdit) btnCancelEdit.addEventListener('click', revertToCreateMode);
@@ -397,28 +493,39 @@
     .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group label { font-size: 12px; font-weight: 600; color: #475569; }
-    .form-group input, .select-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 14px; color: #0f172a; outline: none; background: #ffffff; box-sizing: border-box; width: 100%; }
+    
+    /* Input Styling */
+    .form-group input, .select-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 14px; color: #0f172a; outline: none; background: #ffffff; box-sizing: border-box; width: 100%; transition: all 0.2s; }
     .form-group input:focus, .select-input:focus { border-color: #0033A0; box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.15); }
+    
+    /* Error Validation UI */
+    .input-error { border-color: #ef4444 !important; background-color: #fef2f2 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important; }
+    .sa-alert-error { background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; }
+    
     .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .uppercase-input { text-transform: uppercase; }
     .field-help { font-size: 11px; color: #94a3b8; margin-top: 2px; }
     .select-input { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 12px center; background-repeat: no-repeat; background-size: 20px; -webkit-appearance: none; -moz-appearance: none; appearance: none; padding-right: 40px; cursor: pointer; }
+    
     .form-actions-bar { display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 16px; }
     .btn-submit-subj { background: #0033A0; color: #ffffff; border: none; padding: 10px 20px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; transition: background 0.2s; text-align: center; }
     .btn-submit-subj:hover { opacity: 0.9; }
     .btn-clear { background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 10px 16px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; }
     .btn-clear:hover { background: #f8fafc; color: #334155; }
+    
     .table-responsive { width: 100%; overflow-x: auto; }
     .minimal-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px; }
     .minimal-table th { background: #f8fafc; padding: 14px 20px; font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
     .minimal-table td { padding: 15px 20px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
     .minimal-table tbody tr:hover { background-color: #f8fafc; }
+    
     .subject-code-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; color: #2563eb; background-color: #eff6ff; padding: 4px 8px; border-radius: 6px; font-size: 12px; display: inline-block; }
     .sched-info-tag { font-size: 11.5px; font-weight: 600; color: #1e293b; background-color: #f1f5f9; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-right: 4px; border: 1px solid #e2e8f0; }
     .sched-info-tag i { color: #475569; margin-right: 3px; }
     .prof-assigned-tag { font-size: 12.5px; font-weight: 600; color: #047857; background-color: #ecfdf5; border: 1px solid #a7f3d0; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; }
     .prof-unassigned-tag { font-size: 12px; font-weight: 500; color: #64748b; background-color: #f1f5f9; padding: 4px 10px; border-radius: 6px; display: inline-block; font-style: italic; }
     .empty-table-state { text-align: center; color: #94a3b8; padding: 50px 0 !important; font-style: italic; font-size: 13.5px; }
+    
     .btn-action-edit { background-color: transparent; border: 1px solid #cbd5e1; color: #475569; padding: 5px 12px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
     .btn-action-edit:hover { background-color: #f1f5f9; color: #1e293b; border-color: #94a3b8; }
     .btn-action-delete { background-color: transparent; border: 1px solid #fee2e2; color: #dc2626; padding: 5px 12px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s; }

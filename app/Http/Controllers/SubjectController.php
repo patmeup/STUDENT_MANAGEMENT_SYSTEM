@@ -12,19 +12,20 @@ class SubjectController extends Controller
 {
     public function index()
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $subjects = Subject::with('professor')->get();
-        $courses = Course::all();
+        $courses  = Course::all();
+
+        $dean = DB::table('employees')
+            ->where('role', 'dean')
+            ->where('status', 'Active')
+            ->first();
 
         $professors = User::where('role', 'professor')
                           ->where('status', 'Active')
                           ->orderBy('last_name', 'asc')
                           ->get();
 
-        return view('system_admin.manage-subjects', compact('subjects', 'courses', 'professors'));
+        return view('system_admin.manage-subjects', compact('subjects', 'courses', 'professors', 'dean'));
     }
 
     public function store(Request $request)
@@ -34,8 +35,15 @@ class SubjectController extends Controller
             'subject_title' => 'required|string|max:255',
             'lecture_units' => 'required|integer|min:0|max:9',
             'lab_units'     => 'required|integer|min:0|max:9',
-            'professor_id'  => 'nullable|exists:employees,id',
+            'professor_id'  => 'nullable',
         ]);
+
+        $dean = DB::table('employees')
+            ->where('role', 'dean')
+            ->where('status', 'Active')
+            ->first();
+
+        $professorId = $request->professor_id ?: ($dean ? $dean->id : null);
 
         Subject::create([
             'subject_code'  => strtoupper($request->subject_code),
@@ -43,7 +51,7 @@ class SubjectController extends Controller
             'lecture_units' => $request->lecture_units,
             'lab_units'     => $request->lab_units,
             'total_units'   => (int)$request->lecture_units + (int)$request->lab_units,
-            'professor_id'  => $request->professor_id, 
+            'professor_id'  => $professorId, 
         ]);
 
         return redirect()->back()->with('success', 'Global Subject catalog entry established successfully!');
@@ -77,55 +85,61 @@ class SubjectController extends Controller
             return redirect()->back()->with('error', 'Target subject entry could not be found.');
         }
 
+        $dean = DB::table('employees')
+            ->where('role', 'dean')
+            ->where('status', 'Active')
+            ->first();
+
+        $professorId = $request->professor_id ?: ($subject->professor_id ?: ($dean ? $dean->id : null));
+
         $subject->update([
             'subject_code'  => strtoupper($request->subject_code),
             'subject_title' => $request->subject_title,
             'lecture_units' => $request->lecture_units,
             'lab_units'     => $request->lab_units,
             'total_units'   => (int)$request->lecture_units + (int)$request->lab_units,
-            'professor_id'  => $request->professor_id ?: null,
+            'professor_id'  => $professorId,
         ]);
 
         return redirect()->back()->with('success', 'Global Subject entry updated successfully!');
     }
 
-            public function update(Request $request, $id)
-            {
-                if (session('user_role') !== 'system_admin') {
-                    return redirect('/')->with('error', 'Unauthorized access.');
-                }
+    public function update(Request $request, $id)
+    {
+        $subject = Subject::findOrFail($id);
 
-                $subject = Subject::findOrFail($id);
+        $request->validate([
+            'subject_code'  => 'required|string|max:50|unique:subjects,subject_code,' . $subject->id,
+            'subject_title' => 'required|string|max:255',
+            'lecture_units' => 'required|integer|min:0|max:9',
+            'lab_units'     => 'required|integer|min:0|max:9',
+            'professor_id'  => 'nullable',
+        ]);
 
-                $request->validate([
-                    'subject_code'  => 'required|string|max:50|unique:subjects,subject_code,' . $subject->id,
-                    'subject_title' => 'required|string|max:255',
-                    'lecture_units' => 'required|integer|min:0|max:9',
-                    'lab_units'     => 'required|integer|min:0|max:9',
-                    'professor_id'  => 'nullable|exists:employees,id',
-                ]);
+        $dean = DB::table('employees')
+            ->where('role', 'dean')
+            ->where('status', 'Active')
+            ->first();
 
-                $subject->update([
-                    'subject_code'  => strtoupper($request->subject_code),
-                    'subject_title' => $request->subject_title,
-                    'lecture_units' => $request->lecture_units,
-                    'lab_units'     => $request->lab_units,
-                    'total_units'   => (int)$request->lecture_units + (int)$request->lab_units,
-                    'professor_id'  => $request->professor_id ?: null,
-                ]);
+        $professorId = $request->professor_id ?: ($subject->professor_id ?: ($dean ? $dean->id : null));
 
-                return redirect()->back()->with(
-                    'success',
-                    "Subject [{$subject->subject_code}] updated successfully!"
-                );
-            }
+        $subject->update([
+            'subject_code'  => strtoupper($request->subject_code),
+            'subject_title' => $request->subject_title,
+            'lecture_units' => $request->lecture_units,
+            'lab_units'     => $request->lab_units,
+            'total_units'   => (int)$request->lecture_units + (int)$request->lab_units,
+            'professor_id'  => $professorId,
+        ]);
+
+        return redirect()->back()->with(
+            'success',
+            "Subject [{$subject->subject_code}] updated successfully!"
+        );
+    }
 
     public function destroy($id)
     {
-        if (session('user_role') !== 'system_admin') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
-
         $subject = Subject::findOrFail($id);
         $code = $subject->subject_code;
 

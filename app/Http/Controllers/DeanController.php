@@ -10,9 +10,6 @@ use App\Models\User;
 class DeanController extends Controller
 {
     public function dashboard() {
-        if (session('user_role') !== 'dean') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
 
         $dept = session('user_department');
 
@@ -75,9 +72,6 @@ class DeanController extends Controller
 
     public function viewMasterlist(Request $request)
     {
-        if (session('user_role') !== 'dean') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
 
         $dept = session('user_department');
         $allowedCourses = [];
@@ -143,9 +137,6 @@ class DeanController extends Controller
     
     public function viewSectionRoster($section_name)
     {
-        if (session('user_role') !== 'dean') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
 
         $dept = session('user_department');
 
@@ -170,9 +161,6 @@ class DeanController extends Controller
 
     public function viewScheduleList()
     {
-        if (session('user_role') !== 'dean') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
 
         $schedules = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
@@ -232,9 +220,6 @@ class DeanController extends Controller
 
     public function facultyGradeStatus(Request $request)
     {
-        if (session('user_role') !== 'dean') {
-            return redirect('/')->with('error', 'Unauthorized access.');
-        }
 
         $search = $request->input('search');
 
@@ -318,9 +303,6 @@ class DeanController extends Controller
 
     public function getGradeBreakdown(Request $request, $scheduleId)
     {
-        if (session('user_role') !== 'dean') {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
 
         $term = $request->input('term', 'prelim');
 

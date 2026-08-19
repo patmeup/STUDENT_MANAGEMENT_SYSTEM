@@ -14,12 +14,12 @@
         </div>
     </div>
 
-    <div class="filter-bar-card">
+    <form id="filterForm" method="GET" action="{{ route('registrar.manage-grades') }}" class="filter-bar-card">
         <div class="term-select-wrapper">
             <i class="fa-regular fa-calendar-days"></i>
-            <select id="termSelect" class="term-select">
+            <select id="termSelect" name="term" class="term-select" onchange="document.getElementById('filterForm').submit();">
                 @foreach($termPeriods->sortBy('start_date') as $tp)
-                    <option value="{{ $tp->term }}" {{ $termFilter == $tp->term ? 'selected' : '' }}>
+                    <option value="{{ strtolower($tp->term) }}" {{ strtolower($termFilter) == strtolower($tp->term) ? 'selected' : '' }}>
                         {{ ucfirst($tp->term) }} Term ({{ \Carbon\Carbon::parse($tp->start_date)->format('M d') }} - {{ \Carbon\Carbon::parse($tp->end_date)->format('M d, Y') }})
                     </option>
                 @endforeach
@@ -29,10 +29,10 @@
         <div class="search-form" style="display: flex; gap: 10px; flex: 1;">
             <div class="search-input-wrapper" style="position: relative; flex: 1;">
                 <i class="fas fa-search search-icon"></i>
-                <input type="text" id="searchInput" class="search-input" placeholder="Search by Student ID, First Name, or Last Name..." value="{{ request('search') }}">
+                <input type="text" name="search" id="searchInput" class="search-input" placeholder="Search by Student ID, First Name, or Last Name..." value="{{ $search }}">
             </div>
         </div>
-    </div>
+    </form>
 
     <div id="gradesResultContainer">
         <div class="sa-card">
@@ -91,17 +91,21 @@
                                         @if($student->grade_status == 'Complete')
                                             @if($student->is_fully_sent)
                                                 <span class="status-pill status-submitted" style="padding: 5px 10px; font-size: 11px;">
-                                                    <i class="fa-solid fa-check-double"></i> Sent
+                                                    <i class="fa-solid fa-check-double"></i> Released
                                                 </span>
                                             @else
                                                 <form action="{{ route('registrar.release-grades', $student->student_id) }}" method="POST" style="display:inline;">
                                                     @csrf
                                                     <input type="hidden" name="term" value="{{ $termFilter }}">
-                                                    <button type="submit" class="btn-action btn-release" title="Release grades to student portal">
-                                                        <i class="fa-solid fa-share"></i> Release
+                                                    <button type="submit" class="btn-action btn-release" title="Release {{ $termFilter }} grades to student portal">
+                                                        <i class="fa-solid fa-share"></i> Release {{ ucfirst($termFilter) }}
                                                     </button>
                                                 </form>
                                             @endif
+                                        @else
+                                            <button type="button" class="btn-action" style="background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; cursor: not-allowed;" title="Waiting for all enrolled subjects to be submitted for {{ $termFilter }} term">
+                                                <i class="fa-solid fa-lock"></i> Locked
+                                            </button>
                                         @endif
                                     </div>
                                 </td>
@@ -120,7 +124,7 @@
 
             @if($students->hasPages())
                 <div class="pagination-footer">
-                    {{ $students->appends(['search' => request('search'), 'term' => $termFilter])->links() }}
+                    {{ $students->appends(['search' => $search, 'term' => $termFilter])->links() }}
                 </div>
             @endif
         </div>
@@ -158,40 +162,18 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('searchInput');
-        const termSelect = document.getElementById('termSelect');
-        const resultContainer = document.getElementById('gradesResultContainer');
+        const filterForm = document.getElementById('filterForm');
         let debounceTimer;
 
-        function fetchFilteredResults() {
-            const searchValue = searchInput.value;
-            const termValue = termSelect.value;
-            const url = `{{ route('registrar.manage-grades') }}?search=${encodeURIComponent(searchValue)}&term=${encodeURIComponent(termValue)}`;
-
-            fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.text())
-            .then(html => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const newContent = doc.getElementById('gradesResultContainer');
-                if (newContent) {
-                    resultContainer.innerHTML = newContent.innerHTML;
-                }
-            })
-            .catch(error => console.error('Error updating grades list:', error));
+        // Auto-submit pag nag-type sa Search bar pagkatapos ng 500ms
+        if (searchInput && filterForm) {
+            searchInput.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function() {
+                    filterForm.submit();
+                }, 500);
+            });
         }
-
-        searchInput.addEventListener('input', function() {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(fetchFilteredResults, 300);
-        });
-
-        termSelect.addEventListener('change', function() {
-            fetchFilteredResults();
-        });
     });
 
     function openGradesModal(studentId, studentName, term) {
@@ -199,7 +181,7 @@
         document.getElementById('modalTermLabel').innerText = term;
         
         const tbody = document.getElementById('modalGradesTableBody');
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Loading grades...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading grades...</td></tr>';
         
         document.getElementById('gradesModal').style.display = 'flex';
 
@@ -207,20 +189,24 @@
             .then(response => response.json())
             .then(data => {
                 tbody.innerHTML = '';
-                if (data.length === 0) {
+                if (!data || data.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #64748b;">No enrolled subjects found.</td></tr>';
                     return;
                 }
 
                 data.forEach(item => {
                     let isSubmitted = item.is_submitted == 1;
+                    let classStanding = (isSubmitted && item.class_standing !== null) ? item.class_standing : '—';
+                    let majorExam = (isSubmitted && item.major_exam !== null) ? item.major_exam : '—';
+                    let equivalent = (isSubmitted && item.equivalent !== null) ? parseFloat(item.equivalent).toFixed(2) : '—';
+
                     let tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td><strong>${item.subject_code}</strong><br><small style="color:#64748b;">${item.subject_title}</small></td>
                         <td class="text-center"><span class="sem-tag">${item.section_name || '—'}</span></td>
-                        <td class="text-center">${isSubmitted ? item.class_standing : '—'}</td>
-                        <td class="text-center">${isSubmitted ? item.major_exam : '—'}</td>
-                        <td class="text-center"><strong>${isSubmitted && item.equivalent !== null ? parseFloat(item.equivalent).toFixed(2) : '—'}</strong></td>
+                        <td class="text-center">${classStanding}</td>
+                        <td class="text-center">${majorExam}</td>
+                        <td class="text-center"><strong>${equivalent}</strong></td>
                         <td class="text-center">
                             ${isSubmitted 
                                 ? '<span class="status-pill status-submitted" style="font-size:10px; padding:3px 8px;">Submitted</span>' 
@@ -231,7 +217,7 @@
                 });
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('Error fetching modal grades:', error);
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red; padding: 20px;">Failed to load grades.</td></tr>';
             });
     }

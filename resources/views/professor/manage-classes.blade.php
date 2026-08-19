@@ -38,6 +38,9 @@
                     <div class="google-connection-info">
                         <span class="connected-label">Google Classroom Connected</span>
                         <span class="connected-email">{{ $gConnection->google_email }}</span>
+                        <span class="connected-synced" style="font-size: 15px; color: #374151; font-weight: 500; margin-top: 3px; display: block;">
+                            Last synced: {{ $gConnection->last_synced_at ? \Carbon\Carbon::parse($gConnection->last_synced_at)->diffForHumans() : 'Never' }}
+                        </span>
                     </div>
                     <div class="pill-divider"></div>
                     <form action="{{ route('professor.google-classroom.sync') }}" method="POST" class="m-0">
@@ -55,6 +58,15 @@
         </div>
     </div>
 
+    <div class="filter-tab-group mb-4">
+        <button type="button" class="filter-btn active" data-filter="LEC">
+            <i class="fa-solid fa-chalkboard-user me-1"></i> Lecture
+        </button>
+        <button type="button" class="filter-btn" data-filter="LAB">
+            <i class="fa-solid fa-flask me-1"></i> Laboratory
+        </button>
+    </div>
+
     @if($classes->isEmpty())
         <div class="empty-placeholder-card">
             <i class="fa-solid fa-chalkboard-user fs-1 mb-2" style="color: #ccc;"></i>
@@ -67,9 +79,13 @@
                 @php
                     $isEven = $loop->index % 2 == 0;
                     $accentColor = $isEven ? '#1e2a5a' : '#facc15';
+                    $schedType = strtoupper($class->schedule_type ?? 'LEC');
                 @endphp
                 
-                <a href="{{ route('professor.class_details', $class->schedule_id) }}" class="prof-class-card clickable-card">
+                <a href="{{ route('professor.class_details', $class->schedule_id) }}" 
+                   class="prof-class-card clickable-card class-card-item" 
+                   data-type="{{ $schedType }}">
+                    
                     <div class="card-accent" style="background: {{ $accentColor }};"></div>
                     
                     <div class="card-body">
@@ -77,6 +93,10 @@
                             <span class="subject-code">{{ strtoupper($class->subject_code) }}</span>
                             <span class="section-divider">•</span>
                             <span class="section-display-text">{{ strtoupper($class->section_name) }}</span>
+
+                            <span class="badge-sched-type {{ strtolower($schedType) }} ms-auto">
+                                {{ $schedType }}
+                            </span>
                         </div>
 
                         <h3 class="subject-title" title="{{ $class->subject_title }}">
@@ -125,6 +145,56 @@
     .badge-count { background: #1e2a5a; color: white; font-size: 12px; padding: 6px 14px; border-radius: 20px; font-weight: 700; display: inline-flex; align-items: center; }
 
     .teaching-load-actions { display: flex; align-items: center; gap: 12px; }
+
+    .filter-tab-group {
+        display: flex;
+        gap: 8px;
+        background: #f1f5f9;
+        padding: 5px;
+        border-radius: 10px;
+        width: fit-content;
+    }
+
+    .filter-btn {
+        border: none;
+        background: transparent;
+        padding: 8px 20px;
+        border-radius: 7px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .filter-btn:hover {
+        color: #1e2a5a;
+    }
+
+    .filter-btn.active {
+        background: #1e2a5a;
+        color: #ffffff;
+        box-shadow: 0 2px 6px rgba(30, 42, 90, 0.2);
+    }
+
+    .badge-sched-type {
+        font-size: 10px;
+        font-weight: 800;
+        padding: 3px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-sched-type.lec {
+        background-color: #e0f2fe;
+        color: #0369a1;
+    }
+
+    .badge-sched-type.lab {
+        background-color: #fef3c7;
+        color: #b45309;
+    }
 
     .prof-classes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 25px; }
 
@@ -183,8 +253,8 @@
     }
     .google-connected-pill > i { font-size: 18px; color: #15803d; }
     .google-connection-info { display: flex; flex-direction: column; line-height: 1.2; }
-    .connected-label { font-weight: 700; color: #166534; font-size: 12px; }
-    .connected-email { font-size: 11px; color: #64748b; }
+    .connected-label { font-weight: 700; color: #166534; font-size: 15px; }
+    .connected-email { font-size: 13px; color: #64748b; }
 
     .pill-divider { width: 1px; height: 26px; background: #bbf7d0; }
 
@@ -211,4 +281,37 @@
     .btn-sm-outline { background: white; border: 1px solid #cbd5e1; color: #475569; font-size: 12px; font-weight: 600; padding: 7px 12px; border-radius: 6px; cursor: pointer; transition: 0.15s; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; height: 100%; }
     .btn-sm-outline:hover { border-color: #1e2a5a; color: #1e2a5a; background: #eef1fb; }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const classCards = document.querySelectorAll('.class-card-item');
+
+    function filterCards(targetType) {
+        classCards.forEach(card => {
+            const cardType = card.getAttribute('data-type');
+            if (cardType === targetType) {
+                card.style.display = 'flex';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    const activeBtn = document.querySelector('.filter-btn.active');
+    if (activeBtn) {
+        filterCards(activeBtn.getAttribute('data-filter'));
+    }
+
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', function () {
+            filterBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            const filterValue = this.getAttribute('data-filter');
+            filterCards(filterValue);
+        });
+    });
+});
+</script>
 @endsection

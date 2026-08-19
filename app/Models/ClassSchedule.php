@@ -11,6 +11,8 @@ class ClassSchedule extends Model
 
     protected $fillable = [
         'subject_id',
+        'professor_id',
+        'schedule_type',
         'section_name',
         'class_days',
         'start_time',
