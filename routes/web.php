@@ -36,11 +36,13 @@ Route::middleware(['role:super_admin'])->group(function () {
     Route::delete('/super_admin/announcements/delete/{id}', [AnnouncementController::class, 'destroy'])->name('super_admin.announcements.destroy');
     Route::get('/super_admin/manage-employee', [SuperAdminController::class, 'index'])->name('super_admin.manage-employee');
     Route::post('/super_admin/manage-employee', [SuperAdminController::class, 'store'])->name('super_admin.employee.store');
-    Route::get('/super_admin/user_details', [SuperAdminController::class, 'profileView'])->name('super_admin.user_details');
     Route::get('/super_admin/manage-courses', [SuperAdminController::class, 'manageCourses'])->name('super_admin.manage-courses');
     Route::post('/super_admin/manage-courses', [SuperAdminController::class, 'storeCourse'])->name('super_admin.courses.store');
     Route::patch('/super-admin/courses/{id}', [SuperAdminController::class, 'updateCourse'])->name('super_admin.courses.update');
     Route::patch('/super-admin/employees/{id}/toggle-status', [SuperAdminController::class, 'toggleEmployeeStatus'])->name('super_admin.employees.toggle_status');
+    Route::get('/super-admin/manage-ml', [SuperAdminController::class, 'manageMlModels'])->name('super_admin.manage-ml');
+    Route::post('/super-admin/ml-train', [SuperAdminController::class, 'trainMlModel'])->name('super_admin.ml.train');
+    Route::get('/super_admin/user_details', [SuperAdminController::class, 'profileView'])->name('super_admin.user_details');
 });
 
 // SYSTEM ADMIN ROUTES

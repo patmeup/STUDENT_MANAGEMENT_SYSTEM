@@ -871,14 +871,14 @@ class StudentController extends Controller
 
         $material = DB::table('google_classroom_materials')->where('id', $material_id)->first();
 
-        if (!$material || !$material->drive_file_id) {
-            abort(404, 'Material or attached file not found.');
+        if (!$material) {
+            return redirect()->back()->with('error', 'Material record not found.');
         }
 
         $course = DB::table('google_classroom_courses')->where('id', $material->course_id)->first();
 
         if (!$course || !$course->linked_class_schedule_id) {
-            abort(404, 'This material is not linked to any class.');
+            return redirect()->back()->with('error', 'This material is not linked to any class.');
         }
 
         $isEnrolled = DB::table('student_subjects')
@@ -888,18 +888,28 @@ class StudentController extends Controller
             ->exists();
 
         if (!$isEnrolled) {
-            abort(403, 'You are not enrolled in this class.');
+            return redirect()->back()->with('error', 'You are not enrolled in this class.');
         }
 
         $connection = DB::table('google_classroom_connections')->where('id', $course->connection_id)->first();
 
         if (!$connection) {
-            abort(404, 'Google Classroom connection for this course no longer exists.');
+            return redirect()->back()->with('error', 'Google Classroom connection for this course no longer exists.');
+        }
+
+        $fileId = $material->drive_file_id;
+        if (!$fileId && !empty($material->alternate_link)) {
+            preg_match('/[-\w]{25,}/', $material->alternate_link, $matches);
+            $fileId = $matches[0] ?? null;
+        }
+
+        if (!$fileId) {
+            return redirect()->back()->with('error', 'No downloadable attachment file found for this material.');
         }
 
         try {
             $service = new \App\Support\GoogleClassroomService($connection);
-            $file = $service->downloadDriveFile($material->drive_file_id);
+            $file = $service->downloadDriveFile($fileId);
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Unable to download file from Google Classroom: ' . $e->getMessage());
         }

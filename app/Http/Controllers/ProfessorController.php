@@ -407,6 +407,7 @@ class ProfessorController extends Controller
             'max_score' => 'nullable|integer|min:1|required_unless:type,module',
             'term' => 'required|string',
             'schedule_id' => 'required|integer',
+            'due_date' => 'nullable|date',
             'attachment' => 'nullable|file|max:25600|mimes:pdf,doc,docx,ppt,pptx,zip,jpg,png',
         ]);
 
@@ -442,13 +443,15 @@ class ProfessorController extends Controller
                 $filePath = "{$folderPath}/{$finalName}";
             }
 
+            $formattedDueDate = $request->due_date ? date('Y-m-d H:i:s', strtotime($request->due_date)) : null;
+
             $taskId = DB::table('student_tasks')->insertGetId([
                 'class_schedule_id' => $request->schedule_id,
                 'term' => $request->term,
                 'activity_name' => $request->title,
                 'activity_type' => $request->type,
                 'max_score' => $request->type === 'module' ? null : $request->max_score,
-                'due_date' => $request->due_date,
+                'due_date' => $formattedDueDate,
                 'file_path' => $filePath,
                 'original_filename' => $originalName,
                 'created_at' => now(),
@@ -461,7 +464,7 @@ class ProfessorController extends Controller
                     'title' => $request->title,
                     'type' => $request->type,
                     'max_score' => $request->max_score,
-                    'due_date' => $request->due_date,
+                    'due_date' => $formattedDueDate,
                 ]
             ]);
 
@@ -487,11 +490,13 @@ class ProfessorController extends Controller
                 return response()->json(['success' => false, 'message' => 'Task not found.'], 404);
             }
 
+            $formattedDueDate = $request->due_date ? date('Y-m-d H:i:s', strtotime($request->due_date)) : null;
+
             $updateData = [
                 'activity_name' => $request->title,
                 'activity_type' => $request->type,
                 'max_score' => $request->type === 'module' ? null : $request->max_score,
-                'due_date' => $request->due_date,
+                'due_date' => $formattedDueDate,
                 'updated_at' => now(),
             ];
 

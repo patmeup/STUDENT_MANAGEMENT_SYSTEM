@@ -43,6 +43,19 @@
                 </li>
 
                 <li>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i>
+                            <span>Manage ML Model Analytics
+                    @else
+                    <a href="{{ route('super_admin.manage-ml') }}" class="nav-link {{ request()->routeIs('super_admin.manage-ml') ? 'active' : '' }}">
+                        <i data-lucide="brain-circuit"></i></i><span>ML Model Analytics</span>
+                    </a>
+                    @endif
+                </li>
+
+                <li>
                     <a href="{{ route('super_admin.user_details') }}" class="{{ Request::is('super_admin/user_details') ? 'active' : '' }}">
                         <i data-lucide="user"></i> <span>Profile</span>
                     </a>

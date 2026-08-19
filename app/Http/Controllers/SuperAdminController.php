@@ -8,6 +8,7 @@ use App\Models\Course;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Artisan;
 
 class SuperAdminController extends Controller
 {
@@ -36,12 +37,24 @@ class SuperAdminController extends Controller
         $totalCourses   = DB::table('courses')->count();
         $totalSubjects  = DB::table('subjects')->count();
 
+        $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
+        $avgAccuracy = 0;
+
+        if ($activePeriod) {
+            $avgR2 = DB::table('ml_grade_models')
+                ->where('academic_period_id', $activePeriod->id)
+                ->avg('r_squared');
+
+            $avgAccuracy = $avgR2 ? round($avgR2 * 100, 2) : 0;
+        }
+
         return view('super_admin.dashboard', compact(
             'announcements', 
             'totalStudents', 
             'totalEmployees', 
             'totalCourses', 
-            'totalSubjects'
+            'totalSubjects',
+            'avgAccuracy'
         ));
     }
 
@@ -144,6 +157,45 @@ class SuperAdminController extends Controller
         Course::create($validated);
 
         return redirect()->back()->with('Success', 'New institutional course program successfully registered!');
+    }
+
+    public function manageMlModels()
+    {
+        $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
+
+        $mlModels = collect();
+        $avgAccuracy = 0;
+        $lastTrainedAt = null;
+
+        if ($activePeriod) {
+            $mlModels = DB::table('ml_grade_models')
+                ->where('academic_period_id', $activePeriod->id)
+                ->orderBy('stage', 'asc')
+                ->get();
+
+            if ($mlModels->isNotEmpty()) {
+                $avgAccuracy = round($mlModels->avg('r_squared') * 100, 2);
+                $lastTrainedAt = $mlModels->max('trained_at');
+            }
+        }
+
+        return view('super_admin.manage-ml', compact(
+            'mlModels', 
+            'avgAccuracy', 
+            'lastTrainedAt', 
+            'activePeriod'
+        ));
+    }
+
+    public function trainMlModel()
+    {
+        try {
+            Artisan::call('ml:train');
+
+            return redirect()->back()->with('success', 'ML Predictive Models trained and updated successfully!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'ML Training Failed: ' . $e->getMessage());
+        }
     }
 
     public function profileView()

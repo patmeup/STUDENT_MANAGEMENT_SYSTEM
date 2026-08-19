@@ -229,15 +229,15 @@
                                                     {{ $mat->title }} 
                                                     <span class="gclass-badge">Google Classroom</span>
                                                 </span>
-                                                <span class="material-filename">{{ $mat->drive_file_name ?? 'Posted via Google Classroom' }}</span>
+                                                
+                                                <span class="material-filename">
+                                                    {{ $mat->drive_file_id ? ($mat->drive_file_name ?? 'Attached File') : 'No file attached' }}
+                                                </span>
                                             </div>
+
                                             @if($mat->drive_file_id)
                                                 <a href="{{ route('student.google-classroom.material-download', $mat->id) }}" class="btn-sm-outline btn-download">
                                                     <i class="fa-solid fa-download"></i> Download
-                                                </a>
-                                            @elseif($mat->alternate_link)
-                                                <a href="{{ $mat->alternate_link }}" class="btn-sm-outline btn-download" target="_blank">
-                                                    <i class="fa-brands fa-google-classroom"></i> Open in Classroom
                                                 </a>
                                             @endif
                                         </div>
