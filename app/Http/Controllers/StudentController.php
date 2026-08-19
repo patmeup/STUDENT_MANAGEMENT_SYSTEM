@@ -106,8 +106,8 @@ class StudentController extends Controller
         foreach ($terms as $term) {
             $count = DB::table('student_tasks')
                 ->whereIn('class_schedule_id', $enrolledScheduleIds)
-                ->where('term', $term) 
-                ->whereNull('google_coursework_id') 
+                ->where('term', $term)
+                ->whereNull('google_coursework_id')
                 ->whereNotNull('due_date')
                 ->where('due_date', '!=', '')
                 ->whereNotExists(function ($query) use ($studentNumber) {
@@ -305,7 +305,7 @@ class StudentController extends Controller
             $periodConfig = $termPeriods->get($termName);
 
             $termTasks = $activities->where('term', $termName);
-            
+
             $gradedSubmissions = $termTasks->whereNotNull('student_grade')->map(function($item) {
                 $item->percentage = ($item->max_score > 0) ? ($item->student_grade / $item->max_score) * 100 : 0;
                 return $item;
@@ -326,7 +326,7 @@ class StudentController extends Controller
             $assignmentAverage = $averages['assignment'] ?? $averages['written'] ?? null;
 
             $taskComponents = array_filter(
-                [$quizAverage, $activityAverage, $assignmentAverage], 
+                [$quizAverage, $activityAverage, $assignmentAverage],
                 fn($val) => !is_null($val)
             );
 
@@ -506,6 +506,21 @@ class StudentController extends Controller
             'current_class_standing' => round($classStandingAverage, 2),
             'predictions' => $predictions
         ]);
+    }
+
+    public function index(Request $request)
+    {
+        $search = $request->input('search');
+
+        $students = Student::when($search, function ($query, $search) {
+                return $query->where('last_name', 'like', "%{$search}%")
+                            ->orWhere('first_name', 'like', "%{$search}%")
+                            ->orWhere('student_id', 'like', "%{$search}%");
+            })
+            ->orderBy('last_name', 'asc')
+            ->paginate(15);
+
+        return view('registrar.manage-students', compact('students', 'search'));
     }
 
     public function store(Request $request)

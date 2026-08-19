@@ -8,12 +8,8 @@
             <h2>Student Masterlist Ledger</h2>
             <p>Arellano University — Andres Bonifacio Campus (Active Academic Registry)</p>
         </div>
-        <div class="header-count">
-            Total Records: <strong>{{ $totalRecords }}</strong>
-        </div>
     </div>
 
-    {{-- ✚ ADD: Success alert pagkatapos mag-delete --}}
     @if(session('success'))
         <div style="background-color: #d1e7dd; color: #0f5132; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #0f5132;">
             <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
@@ -22,10 +18,10 @@
 
     <div class="filter-card" style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
         <form id="liveFilterForm" action="{{ route('registrar.manage-students') }}" method="GET" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
-            
+
             <div style="flex: 1; min-width: 250px;">
                 <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Search Directory</label>
-                <input type="text" id="searchInput" name="search" value="{{ request('search') }}" placeholder="Search ID, First Name, or Last Name..." 
+                <input type="text" id="searchInput" name="search" value="{{ request('search') }}" placeholder="Search ID, First Name, or Last Name..."
                        style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; box-sizing: border-box; color: #334155;">
             </div>
 
@@ -35,7 +31,6 @@
                     <option value="">All Courses</option>
                     <option value="BSIT" {{ request('course') == 'BSIT' ? 'selected' : '' }}>BSIT</option>
                     <option value="BSCS" {{ request('course') == 'BSCS' ? 'selected' : '' }}>BSCS</option>
-                    <option value="BSIS" {{ request('course') == 'BSIS' ? 'selected' : '' }}>BSIS</option>
                 </select>
             </div>
 
@@ -82,11 +77,11 @@
                             <td>
                                 <span class="student-id-badge">{{ $student->student_id }}</span>
                             </td>
-                            
+
                             <td class="student-name">
                                 {{ $student->last_name }}, {{ $student->first_name }} {{ $student->middle_name }}
                             </td>
-                            
+
                             <td class="student-course">
                                 <span class="course-tag">{{ $student->course }}</span>
                             </td>
@@ -101,17 +96,15 @@
                                     {{ $student->student_type }}
                                 </span>
                             </td>
-                            
+
                             <td style="text-align: center;">
-                                {{-- ✚ ADD: Flex wrapper para magkatabi ang View at Delete --}}
                                 <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
                                     <a href="{{ route('registrar.students.profile', ['student_id' => $student->student_id]) }}" class="btn-action-view" title="View/Edit Full Profile">
                                         <i class="fas fa-folder-open"></i> View Profile
                                     </a>
 
-                                    {{-- ✚ ADD: Delete Button --}}
-                                    <form action="{{ route('registrar.students.destroy', ['student_id' => $student->student_id]) }}" 
-                                          method="POST" 
+                                    <form action="{{ route('registrar.students.destroy', ['student_id' => $student->student_id]) }}"
+                                          method="POST"
                                           style="display: inline;"
                                           onsubmit="return confirm('⚠ DELETE RECORD:\n\n{{ $student->last_name }}, {{ $student->first_name }} ({{ $student->student_id }})\n\nAre you sure you want to permanently remove this student record from the system? This action cannot be undone.');">
                                         @csrf
@@ -289,7 +282,6 @@
         box-shadow: 0 2px 6px rgba(0, 51, 160, 0.2);
     }
 
-    /* ✚ ADD: Delete button style — katwin ng View Profile pero pula */
     .btn-action-delete {
         display: inline-block;
         background-color: transparent;
@@ -330,7 +322,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const filterForm = document.getElementById('liveFilterForm');
     const searchInput = document.getElementById('searchInput');
     const selectDropdowns = document.querySelectorAll('.auto-submit-select');
-    
+
     // 1. Instantly trigger submission when selection changes
     selectDropdowns.forEach(dropdown => {
         dropdown.addEventListener('change', () => {
@@ -344,7 +336,7 @@ document.addEventListener('DOMContentLoaded', function () {
         clearTimeout(typingDebounceTimer);
         typingDebounceTimer = setTimeout(() => {
             filterForm.submit();
-        }, 500); 
+        }, 500);
     });
 
     // 3. Keep the input focus clean upon asynchronous interface refresh

@@ -18,7 +18,7 @@ class RegistrarController extends Controller
 
         $pendingApprovals = DB::table('document_requests')->where('status', 'Pending')->count();
         $academicRecords = DB::table('student_subjects')->count();
-        
+
         return view('registrar.dashboard', compact('announcements', 'totalStudents', 'pendingApprovals', 'academicRecords'));
     }
 
@@ -58,7 +58,14 @@ class RegistrarController extends Controller
         return redirect()->back()->with('Error', 'Announcement not found.');
     }
 
-    public function storeEnrollment(Request $request)   
+    public function manageEnrollment()
+    {
+        $students = Student::orderBy('registration_date', 'desc')->paginate(15);
+
+        return view('registrar.manage-enrollment', compact('students'));
+    }
+
+    public function storeEnrollment(Request $request)
     {
         $rules = [
             'registration_date' => 'required|date',
@@ -69,7 +76,7 @@ class RegistrarController extends Controller
             'last_name' => 'required|string',
             'first_name' => 'required|string',
             'contact_no' => 'required|string',
-            'email' => 'required|email', 
+            'email' => 'required|email',
 
             'doc_psa' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'doc_2x2' => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
@@ -105,7 +112,7 @@ class RegistrarController extends Controller
         $request->validate($rules);
 
         $currentYear = date('Y');
-        
+
         $lastStudent = DB::table('students')
             ->where('student_id', 'LIKE', $currentYear . '-%')
             ->orderBy('student_id', 'desc')
@@ -121,7 +128,7 @@ class RegistrarController extends Controller
         $generatedStudentId = $currentYear . '-' . $nextSequence;
 
         $filePaths = [];
-        
+
         $fileFields = [
             'doc_psa'              => 'psa_birth_certificate',
             'doc_2x2'              => '2x2_id_picture',
@@ -142,13 +149,13 @@ class RegistrarController extends Controller
         foreach ($fileFields as $inputName => $cleanFileName) {
             if ($request->hasFile($inputName)) {
                 $file = $request->file($inputName);
-                
+
                 if ($file->isValid()) {
                     $extension = $file->getClientOriginalExtension();
                     $finalName = "{$cleanFileName}.{$extension}";
-                    
+
                     $file->storeAs($folderPath, $finalName, 'local');
-                    
+
                     $filePaths[$inputName] = $finalName;
                 }
             }
@@ -164,7 +171,7 @@ class RegistrarController extends Controller
         $student->last_name = strtoupper($request->last_name);
         $student->first_name = strtoupper($request->first_name);
         $student->middle_name = $request->middle_name ? strtoupper($request->middle_name) : null;
-        
+
         $student->sex = $request->sex;
         $student->civil_status = $request->civil_status;
         $student->date_of_birth = $request->date_of_birth;
@@ -174,12 +181,12 @@ class RegistrarController extends Controller
         $student->place_of_birth = $request->place_of_birth;
         $student->contact_no = $request->contact_no;
         $student->email = $request->email;
-        
+
         $student->fathers_name = $request->fathers_name;
         $student->fathers_occupation = $request->fathers_occupation;
         $student->mothers_name = $request->mothers_name;
         $student->mothers_occupation = $request->mothers_occupation;
-        
+
         $student->primary_school_name    = array_values(array_filter($request->input('primary_school_name', [])));
         $student->primary_school_address = array_values(array_filter($request->input('primary_school_address', [])));
         $student->primary_school_year    = array_values(array_filter($request->input('primary_school_year', [])));
@@ -201,7 +208,7 @@ class RegistrarController extends Controller
         $student->path_dismissal = $filePaths['doc_dismissal'] ?? null;
         $student->path_good_moral_trans = $filePaths['doc_good_moral_trans'] ?? null;
         $student->path_permit = $filePaths['doc_permit'] ?? null;
-        
+
         $student->save();
 
         return redirect()->back()->with([
@@ -264,7 +271,7 @@ class RegistrarController extends Controller
         foreach ($fileFields as $inputName => $info) {
             if ($request->hasFile($inputName)) {
                 $file = $request->file($inputName);
-                
+
                 if ($file->isValid()) {
                     $extension = $file->getClientOriginalExtension();
                     $finalName = "{$info['name']}.{$extension}";
@@ -274,7 +281,7 @@ class RegistrarController extends Controller
                     }
 
                     $file->storeAs($folderPath, $finalName, 'local');
-                    
+
                     $student->{$info['column']} = $finalName;
                 }
             }
@@ -325,7 +332,7 @@ class RegistrarController extends Controller
             ->orderBy('start_date', 'asc')
             ->get();
 
-        $currentDate = now()->toDateString(); 
+        $currentDate = now()->toDateString();
         $defaultTerm = $termPeriods->first()->term ?? 'prelim';
 
         foreach ($termPeriods as $tp) {
@@ -361,7 +368,7 @@ class RegistrarController extends Controller
                 ->get();
 
             $submittedCount = $grades->count();
-            
+
             $student->total_enrolled = $totalEnrolledSubjects;
             $student->total_submitted = $submittedCount;
 
@@ -370,7 +377,7 @@ class RegistrarController extends Controller
                 $student->average_equivalent = $grades->avg('equivalent');
             } elseif ($submittedCount > 0) {
                 $student->grade_status = 'Partial';
-                $student->average_equivalent = null; 
+                $student->average_equivalent = null;
             } else {
                 $student->grade_status = 'Pending';
                 $student->average_equivalent = null;
@@ -495,7 +502,7 @@ class RegistrarController extends Controller
         }
 
         $requestedDocs = json_decode($docRequest->document_name, true);
-        
+
         if (!is_array($requestedDocs) || empty($requestedDocs)) {
             return redirect()->back()->with('Error', 'There are no documents listed in this request.');
         }
@@ -521,11 +528,11 @@ class RegistrarController extends Controller
         foreach ($requestedDocs as $docName) {
             if (array_key_exists($docName, $docMapping)) {
                 $columnName = $docMapping[$docName];
-                $fileName = $student->{$columnName}; 
+                $fileName = $student->{$columnName};
 
                 if ($fileName) {
                     $fullStoragePath = "student_records/{$student->student_id}/{$fileName}";
-                    
+
                     if (Storage::disk('local')->exists($fullStoragePath)) {
                         $filesToAttach[] = [
                             'path' => Storage::disk('local')->path($fullStoragePath),
@@ -550,7 +557,7 @@ class RegistrarController extends Controller
             ], function ($message) use ($student, $displayDocNames, $filesToAttach) {
                 $message->to($student->email)
                         ->subject("Your Requested Documents: " . $displayDocNames);
-                
+
                 foreach ($filesToAttach as $file) {
                     $message->attach($file['path'], [
                         'as' => $file['name']
@@ -570,7 +577,7 @@ class RegistrarController extends Controller
             return redirect()->back()->with('Error', "Failed to send email: " . $e->getMessage());
         }
     }
-    
+
     public function profileView()
     {
         $userId = session('user_id');
