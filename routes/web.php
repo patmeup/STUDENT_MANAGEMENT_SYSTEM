@@ -19,6 +19,7 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\StudentTermGradeController;
 use App\Http\Controllers\GoogleClassroomController;
+use App\Http\Controllers\DocumentRequestController;
 
 // ACCOUNT ROUTES
 Route::get('/', function () { return view('login'); })->name('login');
@@ -88,8 +89,8 @@ Route::middleware(['role:registrar'])->group(function () {
     Route::get('/registrar/manage-grades', [RegistrarController::class, 'manageGrades'])->name('registrar.manage-grades');
     Route::post('/registrar/release-grades/{student_id}', [RegistrarController::class, 'releaseGradesToStudent'])->name('registrar.release-grades');
     Route::get('/registrar/student-grades-json/{student_id}', [RegistrarController::class, 'getStudentTermGradesJson'])->name('registrar.student-grades-json');
-    Route::get('/registrar/document-requests', [RegistrarController::class, 'manageDocumentRequests'])->name('registrar.document.requests');
-    Route::post('/registrar/send-document/{requestId}', [RegistrarController::class, 'sendDocument'])->name('registrar.send.document');
+    Route::get('/registrar/document-requests', [DocumentRequestController::class, 'manageDocumentRequests'])->name('registrar.document.requests');
+    Route::post('/registrar/document-requests/{id}/update-status', [DocumentRequestController::class, 'updateStatus'])->name('registrar.update_document_status');
     Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
     Route::delete('/registrar/manage-students/{student_id}', [RegistrarController::class, 'destroyStudent'])->name('registrar.students.destroy');
 });
@@ -166,12 +167,13 @@ Route::middleware(['role:student'])->group(function () {
     Route::post('/student/task/{id}/submit', [StudentController::class, 'submitTask'])->name('student.submit_task');
     Route::get('/student/my-grades', [StudentController::class, 'myGrades'])->name('student.my_grades');
     Route::get('/student/user_details', [StudentController::class, 'profileView'])->name('student.user_details');
+    Route::get('/student/document-requests', [DocumentRequestController::class, 'showDocumentReqList'])->name('student.document_request');
+    Route::post('/student/document-requests', [DocumentRequestController::class, 'store'])->name('student.submit_document_request');
     Route::put('/account/update-credentials', [StudentController::class, 'updateCredentials'])->name('account.update_credentials');
-    Route::post('/student/request-document', [StudentController::class, 'submitDocumentRequest'])->name('student.submit_request');
 
-    // FORGOT PASSWORD ROUTES
-    Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
-    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
-    Route::get('/reset-password/{token}', [ForgotPasswordController::class, 'showResetForm'])->name('password.reset');
-    Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('password.update');
+// FORGOT PASSWORD ROUTES
+Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
+Route::get('/reset-password/{token}', [ForgotPasswordController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('password.update');
 });

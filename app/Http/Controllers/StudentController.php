@@ -677,8 +677,11 @@ class StudentController extends Controller
                 'class_schedules.start_time',
                 'class_schedules.end_time',
                 'class_schedules.room_assignment',
+                DB::raw("COALESCE(class_schedules.schedule_type, 'LEC') as component_type"),
+                'subjects.id as subject_id',
                 'subjects.subject_code',
                 'subjects.subject_title',
+                'subjects.total_units',
                 'subjects.lecture_units',
                 'subjects.lab_units',
                 'student_subjects.status',
@@ -694,7 +697,9 @@ class StudentController extends Controller
             )
             ->get();
 
-        return view('student.my_classes', compact('classes'));
+        $totalUnits = $classes->unique('subject_id')->sum('total_units');
+
+        return view('student.my_classes', compact('classes', 'totalUnits'));
     }
 
     public function viewTaskDetails($id)
