@@ -65,6 +65,7 @@ class ProfessorController extends Controller
             ->select(
                 'class_schedules.id as schedule_id',
                 'class_schedules.section_name',
+                'class_schedules.schedule_type',
                 'class_schedules.class_days',
                 'class_schedules.start_time',
                 'class_schedules.end_time',
@@ -102,6 +103,7 @@ class ProfessorController extends Controller
             ->select(
                 'class_schedules.id as schedule_id',
                 'class_schedules.section_name',
+                'class_schedules.schedule_type',
                 'class_schedules.class_days',
                 'class_schedules.start_time',
                 'class_schedules.end_time',

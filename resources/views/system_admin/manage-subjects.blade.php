@@ -62,21 +62,6 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Assigned Instructor / Professor</label>
-                    <select name="professor_id" id="form_professor_id" class="select-input">
-                        <option value="">-- Unassigned / Pool Assignment --</option>
-                        @if(isset($professors) && $professors->count() > 0)
-                            @foreach($professors as $prof)
-                                <option value="{{ $prof->id }}">
-                                    {{ strtoupper($prof->last_name) }}, {{ $prof->first_name }}
-                                </option>
-                            @endforeach
-                        @endif
-                    </select>
-                    <small class="field-help">Select an active instructor to handle this class section deployment.</small>
-                </div>
-
                 <div class="form-actions-bar">
                     <button type="button" class="btn-clear" onclick="resetFormState()">Reset Form</button>
                     <button type="submit" id="btn-submit-action" class="btn-submit-subj">Compile & Save</button>
@@ -133,8 +118,14 @@
                                             <span class="prof-assigned-tag">
                                                 <i class="fas fa-user-tie"></i> {{ strtoupper($subject->professor->last_name) }}, {{ $subject->professor->first_name }}
                                             </span>
+                                        @elseif(isset($dean) && $dean)
+                                            <span class="prof-assigned-tag">
+                                                <i class="fas fa-user-tie"></i> {{ strtoupper($dean->last_name) }}, {{ $dean->first_name }}
+                                            </span>
                                         @else
-                                            <span class="prof-unassigned-tag">Vacant Pool</span>
+                                            <span class="prof-assigned-tag">
+                                                <i class="fas fa-user-tie"></i> DE SANTA, MICHAEL
+                                            </span>
                                         @endif
                                     </td>
 
@@ -171,8 +162,8 @@
                         @endif
                     </tbody>
                 </table>
-                <div id="subjectNoResults" style="display:none; text-align:center; color:#94a3b8; padding:40px; font-style:italic; font-size:13.5px;">
-                    No subjects match your search.
+                <div id="subjectNoResults" style="display:none; text-align:center; color:#ef4444; padding:40px; font-weight:600; font-size:14px;">
+                    <i class="fas fa-search-minus" style="margin-right: 6px;"></i> There's no subject data found for that search query.
                 </div>
             </div>
         </div>
@@ -180,8 +171,6 @@
     </div>
 </div>
 
-
-{{-- ===================== DELETE MODAL ===================== --}}
 <div id="deleteSubjectModal" class="modal-overlay" style="display:none;">
     <div class="modal-box modal-box-sm">
         <div class="modal-header modal-header-danger">
@@ -209,7 +198,6 @@
     .header-titles p { margin: 0; font-size: 14.5px; color: #64748b; }
     .system-level { background-color: #dc2626; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    /* Layout Grids */
     .sa-workspace { display: flex; flex-direction: row; gap: 28px; align-items: flex-start; justify-content: space-between; width: 100%; }
     .form-panel { flex: 1; min-width: 380px; background: #ffffff; }
     .table-panel { flex: 1.8; background: #ffffff; }
@@ -217,18 +205,15 @@
     .sa-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px -2px rgba(0,0,0,0.03); overflow: hidden; }
     .card-bar { background: #f8fafc; padding: 16px 22px; font-weight: 700; font-size: 14.5px; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
 
-    /* Flex Container layouts for Card Headers */
     .card-header-flex { background-color: #f8fafc; padding: 12px 22px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
     .card-title-list { font-size: 14.5px; font-weight: 700; color: #1e293b; margin: 0; }
     .header-controls-flex { display: flex; align-items: center; gap: 16px; }
 
-    /* Clean Built-in Custom Search Inputs layout structures */
     .search-bar-container { position: relative; display: flex; align-items: center; }
     .search-icon { position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none; }
     .custom-search-input { width: 280px; padding: 7px 12px 7px 32px; font-size: 12.5px; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; transition: all 0.15s ease; background: #ffffff; }
     .custom-search-input:focus { border-color: #0033A0; box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.12); width: 320px; }
 
-    /* Form Mechanics */
     .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group label { font-size: 12px; font-weight: 600; color: #475569; }
@@ -238,10 +223,8 @@
     .uppercase-input { text-transform: uppercase; }
     .field-help { font-size: 11px; color: #94a3b8; margin-top: 2px; }
 
-    /* Custom Dropdown Styling */
     .select-input { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 12px center; background-repeat: no-repeat; background-size: 20px; -webkit-appearance: none; -moz-appearance: none; appearance: none; padding-right: 40px; cursor: pointer; }
 
-    /* Action Buttons */
     .form-actions-bar { display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 16px; }
     .btn-submit-subj { background: #0033A0; color: #ffffff; border: none; padding: 10px 20px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; }
     .btn-submit-subj:hover { background: #002270; }
@@ -257,7 +240,6 @@
     .subject-code-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; color: #2563eb; background-color: #eff6ff; padding: 4px 8px; border-radius: 6px; font-size: 12px; display: inline-block; }
     .subject-title-text { font-weight: 600; color: #1e293b; }
 
-    /* Professor Assignment Badges */
     .prof-assigned-tag { font-size: 12.5px; font-weight: 600; color: #047857; background-color: #ecfdf5; border: 1px solid #a7f3d0; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; }
     .prof-unassigned-tag { font-size: 12px; font-weight: 500; color: #64748b; background-color: #f1f5f9; padding: 4px 10px; border-radius: 6px; display: inline-block; font-style: italic; }
 
@@ -274,7 +256,6 @@
     .sa-alert-danger { background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; }
     .badge-count { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 4px 12px; border-radius: 20px; font-weight: 700; }
 
-    /* ===== MODAL STYLES ===== */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 9999; display: flex; align-items: center; justify-content: center; }
     .modal-box { background: #ffffff; border-radius: 14px; width: 100%; max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden; }
     .modal-box-sm { max-width: 420px; }
@@ -295,41 +276,47 @@
     .btn-modal-confirm-delete:hover { background: #b91c1c; }
 </style>
 
-{{-- JavaScript Section --}}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const editButtons = document.querySelectorAll('.btn-trigger-edit');
     const formElement = document.getElementById('subjectForm');
     const submitBtn = document.getElementById('btn-submit-action');
 
-    // --- Live Subject Catalog Filtering System Engine ---
     const searchInput = document.getElementById('adminSubjectSearch');
     const tableBody = document.getElementById('adminSubjectTableBody');
+    const noResultsDiv = document.getElementById('subjectNoResults');
 
     if (searchInput && tableBody) {
         const rows = tableBody.getElementsByClassName('subject-data-row');
 
         searchInput.addEventListener('input', function () {
             const query = searchInput.value.toLowerCase().trim();
+            let visibleCount = 0;
 
             for (let i = 0; i < rows.length; i++) {
-                // Instantly checks codes, descriptors, and instructor assignments elements
                 const contentText = rows[i].textContent.toLowerCase();
                 if (contentText.includes(query)) {
                     rows[i].style.display = '';
+                    visibleCount++;
                 } else {
                     rows[i].style.display = 'none';
+                }
+            }
+
+            if (noResultsDiv) {
+                if (visibleCount === 0 && query !== '') {
+                    noResultsDiv.style.display = 'block';
+                } else {
+                    noResultsDiv.style.display = 'none';
                 }
             }
         });
     }
 
-    // --- Edit Mode Event Trigger Listeners ---
     editButtons.forEach(button => {
         button.addEventListener('click', function () {
             const id = this.getAttribute('data-id');
 
-            // Gagamit tayo ng dynamic string replacement para i-inject ang ID sa tamang Laravel Route
             let editUrl = "{{ route('admin.subject.edit', ':id') }}";
             editUrl = editUrl.replace(':id', id);
 
@@ -339,15 +326,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     return response.json();
                 })
                 .then(data => {
-                    // Punuin ang input fields gamit ang natanggap na data
                     document.getElementById('form_subject_id').value = data.id;
                     document.getElementById('form_subject_code').value = data.subject_code;
                     document.getElementById('form_subject_title').value = data.subject_title;
                     document.getElementById('form_lecture_units').value = data.lecture_units;
                     document.getElementById('form_lab_units').value = data.lab_units;
-                    document.getElementById('form_professor_id').value = data.professor_id || '';
 
-                    // Palitan ang Form Action at Button Design para maging malinaw na UPDATE operation
                     let updateUrl = "{{ route('system_admin.subjects.update', ':id') }}";
                     updateUrl = updateUrl.replace(':id', data.id);
 
@@ -356,11 +340,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     document.getElementById('form_method').value = 'PATCH';
 
                     submitBtn.innerText = "Update Record Entry";
-                    submitBtn.style.backgroundColor = "#dc2626"; // Papalitan ng kulay admin-red
+                    submitBtn.style.backgroundColor = "#dc2626"; 
                 })
                 .catch(error => {
                     console.error('Fetch error:', error);
-                    alert('Hindi makuha ang detalye ng subject. Pakisigurado na ang route name na "admin.subject.edit" ay rehistrado sa iyong web.php at gumagana ang Controller method nito.');
+                    alert('The details of the subject could not be retrieved. Please ensure that the route name "admin.subject.edit" is registered in your web.php and that its corresponding Controller method is functioning correctly.');
+                    
                 });
         });
     });

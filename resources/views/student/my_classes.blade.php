@@ -10,12 +10,20 @@
             <h2>My Enrolled Classes</h2>
             <p>1st Semester — Academic Year 2026-2027</p>
         </div>
-        <div class="header-badge student-level">Total Units: {{ $classes->isEmpty() ? 0 : $classes->sum('total_units') }}</div>
+        <div class="header-badge student-level">Total Units: {{ $totalUnits ?? 0 }}</div>
     </div>
 
     <div class="card-header-flex mb-4">
         <h3 class="card-title-list">Currently Enrolled Subjects</h3>
-        <span class="badge-count">{{ count($classes) }} Active Class{{ count($classes) === 1 ? '' : 'es' }}</span>
+
+        <div class="filter-tab-group">
+            <button type="button" class="filter-tab-btn active" onclick="filterClasses('LEC', this)">
+                <i class="fa-solid fa-book-open"></i> Lecture
+            </button>
+            <button type="button" class="filter-tab-btn" onclick="filterClasses('LAB', this)">
+                <i class="fa-solid fa-flask"></i> Laboratory
+            </button>
+        </div>
     </div>
 
     @if($classes->isEmpty())
@@ -28,17 +36,27 @@
         <div class="prof-classes-grid">
             @foreach($classes as $index => $class)
                 @php
-                    $isEven = $index % 2 == 0;
-                    $accentColor = $isEven ? '#1e2a5a' : '#facc15';
+                    $type = strtoupper($class->component_type ?? 'LEC');
+                    $isLab = $type === 'LAB';
+                    $accentColor = $isLab ? '#eab308' : '#1e2a5a';
                 @endphp
 
-                <a href="{{ route('student.class_details', $class->schedule_id) }}" class="prof-class-card clickable-card">
+                <a href="{{ route('student.class_details', $class->schedule_id) }}" 
+                   class="prof-class-card clickable-card class-card-item" 
+                   data-type="{{ $isLab ? 'LAB' : 'LEC' }}"
+                   style="{{ $isLab ? 'display: none !important;' : '' }}">
+                    
                     <div class="card-accent" style="background: {{ $accentColor }};"></div>
 
                     <div class="card-body">
                         <div class="card-top-row">
                             <div class="card-top-meta">
                                 <span class="subject-code">{{ strtoupper($class->subject_code) }}</span>
+                                
+                                <span class="badge-component {{ $isLab ? 'component-lab' : 'component-lec' }}">
+                                    <i class="{{ $isLab ? 'fa-solid fa-flask' : 'fa-solid fa-book-open' }}"></i>
+                                    {{ $isLab ? 'LAB' : 'LEC' }}
+                                </span>
                             </div>
                             <span class="badge-enrolled-status">
                                 <span class="status-pulse-dot"></span> {{ $class->status }}
@@ -81,8 +99,45 @@
                 </a>
             @endforeach
         </div>
+
+        <div id="no-classes-found" class="empty-placeholder-card" style="display: none;">
+            <i class="fa-solid fa-folder-open fs-1 mb-2" style="color: #cbd5e1;"></i>
+            <p class="fw-medium mb-1" style="color: #64748b;">No enrolled classes found for this component</p>
+        </div>
     @endif
 </div>
+
+<script>
+    function filterClasses(type, btnElement) {
+        document.querySelectorAll('.filter-tab-btn').forEach(btn => btn.classList.remove('active'));
+
+        btnElement.classList.add('active');
+
+        const cards = document.querySelectorAll('.class-card-item');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            if (card.getAttribute('data-type') === type) {
+                card.style.setProperty('display', 'flex', 'important');
+                visibleCount++;
+            } else {
+                card.style.setProperty('display', 'none', 'important');
+            }
+        });
+
+        const noClassesCard = document.getElementById('no-classes-found');
+        if (noClassesCard) {
+            noClassesCard.style.display = (visibleCount === 0) ? 'flex' : 'none';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const activeBtn = document.querySelector('.filter-tab-btn.active');
+        if (activeBtn) {
+            filterClasses('LEC', activeBtn);
+        }
+    });
+</script>
 
 <style>
     .prof-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 1200px; margin: 0 auto; }
@@ -93,20 +148,72 @@
 
     .card-header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
     .card-title-list { font-size: 16px; font-weight: 700; margin: 0; color: #1e293b; }
-    .badge-count { background: #1e2a5a; color: white; font-size: 12px; padding: 5px 14px; border-radius: 20px; font-weight: 700; }
+
+    .filter-tab-group {
+        display: flex;
+        gap: 6px;
+        background: #f1f5f9;
+        padding: 4px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+    }
+    .filter-tab-btn {
+        border: none;
+        background: transparent;
+        padding: 6px 16px;
+        border-radius: 7px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .filter-tab-btn:hover {
+        color: #1e2a5a;
+    }
+    .filter-tab-btn.active {
+        background: #1e2a5a;
+        color: #ffffff;
+        box-shadow: 0 2px 6px rgba(30, 42, 90, 0.2);
+    }
 
     .prof-classes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 25px; }
 
-    .clickable-card { text-decoration: none !important; color: inherit !important; display: block; }
+    .clickable-card { text-decoration: none !important; color: inherit !important; display: flex; }
 
-    .prof-class-card { background: white; border-radius: 15px; overflow: hidden; border: 1px solid #e0e0e0; transition: transform 0.25s ease, box-shadow 0.25s ease; display: flex; flex-direction: column; }
+    .prof-class-card { background: white; border-radius: 15px; overflow: hidden; border: 1px solid #e0e0e0; transition: transform 0.25s ease, box-shadow 0.25s ease; flex-direction: column; width: 100%; }
     .prof-class-card:hover { transform: translateY(-5px); box-shadow: 0 12px 24px rgba(30, 42, 90, 0.12); border-color: #cbd5e1; }
 
     .card-accent { height: 6px; width: 100%; }
     .card-body { padding: 22px; flex-grow: 1; display: flex; flex-direction: column; }
 
     .card-top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .card-top-meta { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: #0284c7; letter-spacing: 0.5px; }
+    .card-top-meta { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #0284c7; letter-spacing: 0.5px; }
+
+    .badge-component {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10.5px;
+        font-weight: 800;
+        padding: 2px 8px;
+        border-radius: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .component-lec {
+        background-color: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+    }
+    .component-lab {
+        background-color: #fef9c3;
+        color: #a16207;
+        border: 1px solid #fef08a;
+    }
 
     .badge-enrolled-status {
         display: inline-flex; align-items: center; gap: 6px;
@@ -133,6 +240,6 @@
     .meta-item { font-size: 13px; color: #475569; display: flex; align-items: center; gap: 8px; }
     .meta-item i { width: 14px; color: #1e2a5a; text-align: center; }
 
-    .empty-placeholder-card { border: 2px dashed #cbd5e1; border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; color: #94a3b8; text-align: center; background: #f8fafc; min-height: 250px; }
+    .empty-placeholder-card { border: 2px dashed #cbd5e1; border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; color: #94a3b8; text-align: center; background: #f8fafc; min-height: 250px; width: 100%; }
 </style>
 @endsection

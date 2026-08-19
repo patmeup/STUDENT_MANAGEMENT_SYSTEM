@@ -5,7 +5,7 @@
     <div class="sa-header">
         <div class="header-titles">
             <h2><i class="fas fa-users"></i> Block Section Roster</h2>
-            <p>Section: <span class="section-badge-title">{{ strtoupper($section_name) }}</span> — Department of {{ strtoupper($dept) }}</p>
+            <p>Section: <span class="section-badge-title">{{ strtoupper($section_name) }}
         </div>
         <a href="{{ route('department_secretary.students') }}" class="btn-back">
             <i class="fas fa-arrow-left"></i> Back to Masterlist
@@ -40,7 +40,7 @@
                             <td><span class="year-tag">{{ $student->year_level }}</span></td>
                             <td style="text-align: center;">
                                 <a href="{{ route('department_secretary.plot_subjects', $student->student_id) }}" class="btn-action-plot">
-                                    <i class="fas fa-search-plus"></i> View/Modify Matrix
+                                    <i class="fas fa-search-plus"></i> View/Edit Schedule
                                 </a>
                             </td>
                         </tr>
