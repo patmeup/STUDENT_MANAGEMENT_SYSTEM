@@ -13,7 +13,7 @@
             } elseif (session()->has('employee_id')) {
                 $user = \App\Models\User::where('employee_id', session('employee_id'))->first();
             } elseif (session()->has('student_id')) {
-                $user = \App\Models\Student::where('student_id', session('student_id'))->first(); // Baguhin ang Model kung iba ang pangalan ng Student model mo
+                $user = \App\Models\Student::where('student_id', session('student_id'))->first();
             }
 
             // Kunin ang role galing sa session o user model, default sa 'student' kung wala
@@ -46,9 +46,13 @@
                     </div>
                 </div>
 
-                {{-- 3. Avatar Icon sa dulong kanan --}}
+                {{-- 3. Avatar Icon sa dulong kanan (Chine-check na ang na-upload na profile_picture) --}}
                 <div class="avatar">
-                    <img src="https://api.dicebear.com/7.x/initials/svg?seed={{ $user->first_name }}+{{ $user->last_name }}&backgroundType=solid&backgroundColor=cbd5e1" alt="Profile">
+                    @if(!empty($user->profile_picture))
+                        <img src="{{ asset('storage/' . $user->profile_picture) }}" alt="Profile Picture">
+                    @else
+                        <img src="https://api.dicebear.com/7.x/initials/svg?seed={{ $user->first_name }}+{{ $user->last_name }}&backgroundType=solid&backgroundColor=cbd5e1" alt="Profile">
+                    @endif
                 </div>
 
             </div>
@@ -141,8 +145,9 @@
     .role-badge.badge-dept_sec { background: #ec4899; border-color: #f472b6; }    
     .role-badge.badge-professor { background: #64748b; border-color: #475569; }   
     .role-badge.badge-registrar { background: #0284c7; border-color: #0ea5e9; }   
-    .role-badge.badge-student { background: #059669; border-color: #10b981; } /* Kulay berde para sa mga estudyante */
+    .role-badge.badge-student { background: #059669; border-color: #10b981; }
 
+    /* Circle Avatar Styling */
     .avatar img {
         width: 45px;
         height: 45px;

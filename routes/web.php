@@ -172,6 +172,7 @@ Route::middleware(['role:student'])->group(function () {
     Route::get('/student/document-requests', [DocumentRequestController::class, 'showDocumentReqList'])->name('student.document_request');
     Route::post('/student/document-requests', [DocumentRequestController::class, 'store'])->name('student.submit_document_request');
     Route::put('/account/update-credentials', [StudentController::class, 'updateCredentials'])->name('account.update_credentials');
+    Route::post('/student/profile/picture', [StudentController::class, 'updateProfilePicture'])->name('student.profile.picture.update');
 
 // FORGOT PASSWORD ROUTES
 Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
