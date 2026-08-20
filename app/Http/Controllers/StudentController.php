@@ -832,6 +832,42 @@ class StudentController extends Controller
         return $nearestTerm ?? $termPeriods->keys()->last() ?? 'prelim';
     }
 
+    public function updateProfilePicture(Request $request)
+    {
+        $request->validate([
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
+        ]);
+
+        // Kunin ang Student Number mula sa session (halimbawa: '26-00063')
+        $studentNumber = session('student_id');
+
+        if ($request->hasFile('profile_picture')) {
+            // Filter gamit ang 'student_id' column
+            $student = DB::table('students')->where('student_id', $studentNumber)->first();
+
+            if (!$student) {
+                return redirect()->back()->withErrors(['profile_picture' => 'Student record not found.']);
+            }
+
+            // 1. Burahin ang lumang larawan kung mayroon
+            if (!empty($student->profile_picture) && Storage::disk('public')->exists($student->profile_picture)) {
+                Storage::disk('public')->delete($student->profile_picture);
+            }
+
+            // 2. I-save ang bagong larawan sa storage/app/public/profile_pictures
+            $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+
+            // 3. I-update ang RECORD NI AMBER SANTIAGO sa database (gagamitin ang student_id)
+            DB::table('students')->where('student_id', $studentNumber)->update([
+                'profile_picture' => $path
+            ]);
+
+            return redirect()->back()->with('success', 'Profile picture updated successfully!');
+        }
+
+        return redirect()->back()->withErrors(['profile_picture' => 'Failed to upload image.']);
+    }
+
     public function downloadTaskFile($id)
     {
         $studentNumber = session('student_id');

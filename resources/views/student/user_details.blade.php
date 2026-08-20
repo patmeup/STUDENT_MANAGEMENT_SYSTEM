@@ -35,38 +35,67 @@
             </button>
         </div>
 
-        <div class="card-body grid-layout">
-            <div>
-                <label class="info-label">Student Number</label>
-                <p class="info-value-mono">{{ $user->student_id }}</p>
+        <div class="card-body">
+            <!-- PROFILE PICTURE UPLOAD AVATAR -->
+            <div class="avatar-upload-wrapper">
+                <form action="{{ route('student.profile.picture.update') }}" method="POST" enctype="multipart/form-data" id="avatarForm">
+                    @csrf
+                    <div class="avatar-container">
+                        @if(!empty($user->profile_picture))
+                            <img src="{{ asset('storage/' . $user->profile_picture) }}" 
+                                alt="Profile Picture" 
+                                class="rounded-circle" 
+                                style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%;">
+                        @else
+                            {{-- DiceBear Initials Avatar kung walang pfp --}}
+                            <img src="https://api.dicebear.com/7.x/initials/svg?seed={{ $user->first_name }}+{{ $user->last_name }}&backgroundType=solid&backgroundColor=cbd5e1" 
+                                alt="Default Profile Picture" 
+                                class="rounded-circle" 
+                                style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%;">
+                        @endif
+
+                        <label for="profile_picture" class="avatar-edit-btn" title="Change Profile Picture">
+                            <i class="fa-solid fa-camera"></i>
+                        </label>
+                        <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/*" onchange="document.getElementById('avatarForm').submit();">
+                    </div>
+                </form>
             </div>
 
-            <div>
-                <label class="info-label">Course / Program</label>
-                <p class="info-value">{{ $user->course }}</p>
-            </div>
-
-            <div>
-                <label class="info-label">Year Level</label>
-                <p class="info-value">{{ $user->year_level }}</p>
-            </div>
-
-            <div>
-                <label class="info-label">Semester</label>
-                <p class="info-value">{{ $user->semester }}</p>
-            </div>
-
-            <div>
-                <label class="info-label">Section</label>
-                <p class="info-value">{{ $user->section ?? 'N/A' }}</p>
-            </div>
-
-            <div class="border-top-section col-span-2" style="border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 0;">
+            <!-- DETAILS GRID -->
+            <div class="grid-layout">
                 <div>
-                    <label class="info-label">Full Name</label>
-                    <p class="info-value" style="font-size: 1.25rem; font-weight: 700;">
-                        {{ $user->last_name }}, {{ $user->first_name }} {{ $user->middle_name ?? '' }}
-                    </p>
+                    <label class="info-label">Student Number</label>
+                    <p class="info-value-mono">{{ $user->student_id }}</p>
+                </div>
+
+                <div>
+                    <label class="info-label">Course / Program</label>
+                    <p class="info-value">{{ $user->course }}</p>
+                </div>
+
+                <div>
+                    <label class="info-label">Year Level</label>
+                    <p class="info-value">{{ $user->year_level }}</p>
+                </div>
+
+                <div>
+                    <label class="info-label">Semester</label>
+                    <p class="info-value">{{ $user->semester }}</p>
+                </div>
+
+                <div>
+                    <label class="info-label">Section</label>
+                    <p class="info-value">{{ $user->section ?? 'N/A' }}</p>
+                </div>
+
+                <div class="border-top-section col-span-2" style="border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 0;">
+                    <div>
+                        <label class="info-label">Full Name</label>
+                        <p class="info-value" style="font-size: 1.25rem; font-weight: 700;">
+                            {{ $user->last_name }}, {{ $user->first_name }} {{ $user->middle_name ?? '' }}
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -117,6 +146,7 @@
     </div>
 </div>
 
+<!-- EDIT CREDENTIALS MODAL -->
 <div class="modal-overlay" id="editCredentialsModal">
     <div class="modal-container">
         <div class="modal-header">
@@ -207,6 +237,64 @@
 </div>
 
 <style>
+    .avatar-upload-wrapper {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+    .avatar-container {
+        position: relative;
+        width: 110px;
+        height: 110px;
+    }
+    .avatar-img {
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #ffffff;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .avatar-placeholder {
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        background-color: #2563eb;
+        color: #ffffff;
+        font-size: 2.2rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 3px solid #ffffff;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .avatar-edit-btn {
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        background-color: #0f172a;
+        color: #ffffff;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 0.9rem;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        transition: all 0.2s ease;
+    }
+    .avatar-edit-btn:hover {
+        background-color: #2563eb;
+        transform: scale(1.08);
+    }
+    .d-none {
+        display: none !important;
+    }
+
+    /* EXISTING STYLES */
     .profile-container {
         max-width: 700px;
         width: 100%;
