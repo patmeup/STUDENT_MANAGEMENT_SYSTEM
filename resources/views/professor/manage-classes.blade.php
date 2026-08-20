@@ -38,6 +38,9 @@
                     <div class="google-connection-info">
                         <span class="connected-label">Google Classroom Connected</span>
                         <span class="connected-email">{{ $gConnection->google_email }}</span>
+                        <span class="connected-synced" style="font-size: 15px; color: #374151; font-weight: 500; margin-top: 3px; display: block;">
+                            Last synced: {{ $gConnection->last_synced_at ? \Carbon\Carbon::parse($gConnection->last_synced_at)->diffForHumans() : 'Never' }}
+                        </span>
                     </div>
                     <div class="pill-divider"></div>
                     <form action="{{ route('professor.google-classroom.sync') }}" method="POST" class="m-0">
@@ -250,8 +253,8 @@
     }
     .google-connected-pill > i { font-size: 18px; color: #15803d; }
     .google-connection-info { display: flex; flex-direction: column; line-height: 1.2; }
-    .connected-label { font-weight: 700; color: #166534; font-size: 12px; }
-    .connected-email { font-size: 11px; color: #64748b; }
+    .connected-label { font-weight: 700; color: #166534; font-size: 15px; }
+    .connected-email { font-size: 13px; color: #64748b; }
 
     .pill-divider { width: 1px; height: 26px; background: #bbf7d0; }
 

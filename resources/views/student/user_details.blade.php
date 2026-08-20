@@ -26,6 +26,7 @@
         </div>
     @endif
 
+    <!-- PERSONAL CREDENTIALS CARD -->
     <div class="profile-card">
         <div class="card-header d-flex-between">
             <h2 class="card-title">Personal Credentials</h2>
@@ -55,6 +56,11 @@
                 <p class="info-value">{{ $user->semester }}</p>
             </div>
 
+            <div>
+                <label class="info-label">Section</label>
+                <p class="info-value">{{ $user->section ?? 'N/A' }}</p>
+            </div>
+
             <div class="border-top-section col-span-2" style="border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 0;">
                 <div>
                     <label class="info-label">Full Name</label>
@@ -66,12 +72,13 @@
         </div>
     </div>
 
+    <!-- UPDATE SECURITY PASSWORD CARD -->
     <div class="profile-card">
         <div class="card-header">
             <h3 class="card-title">Update Security Password</h3>
         </div>
 
-        <form action="{{ route('account.update_password') }}" method="POST" class="card-body">
+        <form action="{{ route('account.update_password') }}" method="POST" class="card-body" onsubmit="return validatePasswordForm(event)">
             @csrf
 
             <div class="form-group">
@@ -85,29 +92,29 @@
             <div class="form-group">
                 <label class="form-label">New Password</label>
                 <div class="password-wrapper">
-                    <input type="password" name="new_password" required class="form-control" id="new_password">
+                    <input type="password" name="new_password" id="new_password" required minlength="8" class="form-control">
                     <span class="toggle-password-text" onclick="togglePasswordVisibility('new_password', this)">Show</span>
                 </div>
-                <p class="input-hint">Characters must be at least 8 characters long.</p>
+                <p class="input-hint">Must be at least 8 characters long. (Any combination of characters allowed)</p>
             </div>
 
             <div class="form-group">
                 <label class="form-label">Confirm New Password</label>
                 <div class="password-wrapper">
-                    <input type="password" name="new_password_confirmation" required class="form-control" id="new_password_confirmation">
+                    <input type="password" name="new_password_confirmation" id="new_password_confirmation" required minlength="8" class="form-control">
                     <span class="toggle-password-text" onclick="togglePasswordVisibility('new_password_confirmation', this)">Show</span>
                 </div>
             </div>
+
+            <div id="passwordError" style="display: none; width: 80%; margin: 8px auto 0 auto; color: #ef4444; font-size: 0.85rem; font-weight: 600;"></div>
 
             <div class="btn-centered-container">
                 <button type="submit" class="btn-submit">
                     Confirm
                 </button>
             </div>
-
         </form>
     </div>
-
 </div>
 
 <div class="modal-overlay" id="editCredentialsModal">
@@ -140,6 +147,10 @@
                     <div class="form-group-modal">
                         <label class="modal-label">Semester</label>
                         <input type="text" class="form-control-modal disabled-input" value="{{ $user->semester }}" disabled readonly>
+                    </div>
+                    <div class="form-group-modal">
+                        <label class="modal-label">Section</label>
+                        <input type="text" class="form-control-modal disabled-input" value="{{ $user->section ?? 'N/A' }}" disabled readonly>
                     </div>
                 </div>
 
@@ -503,6 +514,29 @@
     function closeEditModal() {
         document.getElementById('editCredentialsModal').classList.remove('active');
         document.body.style.overflow = '';
+    }
+
+    function validatePasswordForm(event) {
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('new_password_confirmation').value;
+        const errorDiv = document.getElementById('passwordError');
+
+        if (newPassword.length < 8) {
+            event.preventDefault();
+            errorDiv.textContent = 'Password must be at least 8 characters long.';
+            errorDiv.style.display = 'block';
+            return false;
+        }
+
+        if (newPassword !== confirmPassword) {
+            event.preventDefault();
+            errorDiv.textContent = 'New password and confirmation password do not match.';
+            errorDiv.style.display = 'block';
+            return false;
+        }
+
+        errorDiv.style.display = 'none';
+        return true;
     }
 
     window.onclick = function(event) {
