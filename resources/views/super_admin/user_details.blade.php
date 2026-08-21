@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <div class="profile-container">
 
     @if($isLocked)
@@ -13,7 +14,7 @@
         <div class="alert-banner alert-success">
             {{ session('success') }}
         </div>
-    @endif
+    @endif 
 
     @if($errors->any())
         <div class="alert-banner alert-danger">
@@ -28,7 +29,32 @@
             <h2 class="card-title">Personal Credentials</h2>
         </div>
 
-        <div class="card-body grid-layout">
+        <div class="card-body">
+            <div class="avatar-upload-wrapper">
+                <form action="{{ route('super_admin.profile.picture.update') }}" method="POST" enctype="multipart/form-data" id="avatarForm">
+                    @csrf
+                    <div class="avatar-container">
+                        @if(!empty($user->profile_picture))
+                            <img src="{{ asset('storage/' . $user->profile_picture) }}"
+                                alt="Profile Picture"
+                                class="rounded-circle"
+                                style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%;">
+                        @else
+                            <img src="https://api.dicebear.com/7.x/initials/svg?seed={{ $user->first_name }}+{{ $user->last_name }}&backgroundType=solid&backgroundColor=cbd5e1"
+                                alt="Default Profile Picture"
+                                class="rounded-circle"
+                                style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%;">
+                        @endif
+
+                        <label for="profile_picture" class="avatar-edit-btn" title="Change Profile Picture">
+                            <i class="fa-solid fa-camera"></i>
+                        </label>
+                        <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/*" onchange="document.getElementById('avatarForm').submit();">
+                    </div>
+                </form>
+            </div>
+
+            <div class="grid-layout">
             <div>
                 <label class="info-label">Employee ID</label>
                 <p class="info-value-mono">{{ $user->employee_id }}</p>
@@ -53,6 +79,7 @@
                         ● {{ $user->status }}
                     </span>
                 </div>
+            </div>
             </div>
         </div>
     </div>
@@ -291,6 +318,21 @@
     .alert-warning { background-color: #fffbeb; border-left: 4px solid #f59e0b; color: #78350f; }
     .alert-success { background-color: #f0fdf4; border-left: 4px solid #22c55e; color: #166534; font-weight: 600; }
     .alert-danger { background-color: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; }
+
+    .avatar-upload-wrapper { display: flex; justify-content: center; margin-bottom: 20px; }
+    .avatar-container { position: relative; width: 110px; height: 110px; }
+    .avatar-edit-btn {
+        position: absolute; bottom: 2px; right: 2px;
+        background-color: #0f172a; color: #ffffff;
+        width: 34px; height: 34px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; font-size: 0.9rem;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        transition: all 0.2s ease;
+    }
+    .avatar-edit-btn:hover { background-color: #2563eb; transform: scale(1.08); }
+    .d-none { display: none !important; }
+
 </style>
 
 <script>

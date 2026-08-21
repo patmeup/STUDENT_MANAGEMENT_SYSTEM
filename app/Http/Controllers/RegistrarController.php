@@ -447,4 +447,22 @@ class RegistrarController extends Controller
 
         return view('registrar.user_details', compact('user', 'isLocked'));
     }
+
+    public function updateProfilePicture(Request $request)
+    {
+        $request->validate([
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+        $user = \App\Models\User::find(session('user_id'));
+        if (!$user) {
+            return redirect()->back()->with('error', 'User not found.');
+        }
+        if ($user->profile_picture && Storage::disk('public')->exists($user->profile_picture)) {
+            Storage::disk('public')->delete($user->profile_picture);
+        }
+        $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+        $user->profile_picture = $path;
+        $user->save();
+        return redirect()->back()->with('success', 'Profile picture updated successfully!');
+    }
 }

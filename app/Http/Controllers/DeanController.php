@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 
 class DeanController extends Controller
@@ -15,8 +16,8 @@ class DeanController extends Controller
 
         $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
 
-        $allowedCourses = ['BSIT']; 
-        $dbDepartmentSearch = $dept; 
+        $allowedCourses = ['BSIT'];
+        $dbDepartmentSearch = $dept;
 
         if (str_contains(strtolower($dept), 'computer studies') || str_contains(strtolower($dept), 'ccs')) {
             $allowedCourses = ['BSIT', 'BSCS'];
@@ -62,9 +63,9 @@ class DeanController extends Controller
         return view('dean.dashboard', compact(
             'dept',
             'announcements',
-            'trackedSubjectsCount', 
-            'totalStudentsCount', 
-            'activeBlocksCount', 
+            'trackedSubjectsCount',
+            'totalStudentsCount',
+            'activeBlocksCount',
             'deployedSlotsCount',
             'totalFacultyCount'
         ));
@@ -83,7 +84,7 @@ class DeanController extends Controller
         } elseif (str_contains(strtolower($dept), 'hospitality') || str_contains(strtolower($dept), 'chm')) {
             $allowedCourses = ['BSHM', 'BSTM'];
         } else {
-            $allowedCourses = ['BSIT']; 
+            $allowedCourses = ['BSIT'];
         }
 
         $students = DB::table('students')
@@ -134,7 +135,7 @@ class DeanController extends Controller
 
         return view('dean.masterlist', compact('students', 'sections', 'dept'));
     }
-    
+
     public function viewSectionRoster($section_name)
     {
 
@@ -165,7 +166,7 @@ class DeanController extends Controller
         $schedules = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->join('curricula', 'subjects.id', '=', 'curricula.subject_id')
-            ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id') 
+            ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id')
             ->select(
                 'class_schedules.id',
                 'class_schedules.subject_id',
@@ -237,7 +238,7 @@ class DeanController extends Controller
                 break;
             }
         }
-        
+
         $termFilter = $request->input('term', $defaultTerm);
 
         $classesQuery = DB::table('class_schedules')
@@ -333,13 +334,28 @@ class DeanController extends Controller
     {
         $userId = session('user_id');
         $user = User::find($userId);
-
         if (!$user) {
             return redirect('/')->withErrors(['error' => 'Session expired. Please login again.']);
         }
-
         $isLocked = !Str::startsWith($user->password, '$2y$');
-
         return view('dean.user_details', compact('user', 'isLocked'));
-    }  
+    }
+
+    public function updateProfilePicture(Request $request)
+    {
+        $request->validate([
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+        $user = User::find(session('user_id'));
+        if (!$user) {
+            return redirect()->back()->with('error', 'User not found.');
+        }
+        if ($user->profile_picture && Storage::disk('public')->exists($user->profile_picture)) {
+            Storage::disk('public')->delete($user->profile_picture);
+        }
+        $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+        $user->profile_picture = $path;
+        $user->save();
+        return redirect()->back()->with('success', 'Profile picture updated successfully!');
+    }
 }
