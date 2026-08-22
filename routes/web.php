@@ -29,6 +29,12 @@ Route::get('/account/security', [AuthController::class, 'showSecurityPage'])->na
 Route::post('/account/security/update-password', [AuthController::class, 'updatePassword'])->name('account.update_password');
 Route::post('/account/security/update', [SuperAdminController::class, 'updatePassword'])->name('password.update');
 
+// FORGOT PASSWORD ROUTES
+Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
+Route::get('/reset-password/{token}', [ForgotPasswordController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('password.update');
+
 // SUPER ADMIN ROUTES
 Route::middleware(['role:super_admin'])->group(function () {
     Route::get('/super_admin/dashboard', [SuperAdminController::class, 'dashboard'])->name('super_admin.dashboard');
@@ -44,6 +50,7 @@ Route::middleware(['role:super_admin'])->group(function () {
     Route::post('/super-admin/ml-train', [SuperAdminController::class, 'trainMlModel'])->name('super_admin.ml.train');
     Route::get('/super_admin/user_details', [SuperAdminController::class, 'profileView'])->name('super_admin.user_details');
     Route::post('/super_admin/profile/picture', [SuperAdminController::class, 'updateProfilePicture'])->name('super_admin.profile.picture.update');
+    Route::post('/super_admin/announcements/reorder', [AnnouncementController::class, 'reorder'])->name('super_admin.announcements.reorder');
     });
 
 // SYSTEM ADMIN ROUTES
@@ -179,10 +186,4 @@ Route::middleware(['role:student'])->group(function () {
     Route::post('/student/document-requests', [DocumentRequestController::class, 'store'])->name('student.submit_document_request');
     Route::put('/account/update-credentials', [StudentController::class, 'updateCredentials'])->name('account.update_credentials');
     Route::post('/student/profile/picture', [StudentController::class, 'updateProfilePicture'])->name('student.profile.picture.update');
-
-// FORGOT PASSWORD ROUTES
-Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
-Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
-Route::get('/reset-password/{token}', [ForgotPasswordController::class, 'showResetForm'])->name('password.reset');
-Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('password.update');
 });

@@ -31,7 +31,11 @@ class SuperAdminController extends Controller
 
     public function dashboard()
     {
-        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+
+        $announcements = DB::table('announcements')
+            ->orderBy('display_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
 
         $totalStudents = DB::table('students')->count();
         $totalEmployees = DB::table('employees')->count();

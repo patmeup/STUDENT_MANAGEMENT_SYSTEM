@@ -59,7 +59,7 @@
                         </label>
                         <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/*" onchange="document.getElementById('avatarForm').submit();">
                     </div>
-                </form>
+                </form> 
             </div>
 
             <!-- DETAILS GRID -->
