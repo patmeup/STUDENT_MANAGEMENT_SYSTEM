@@ -373,6 +373,6 @@ class DeptSecController extends Controller
 
         $isLocked = !Str::startsWith($user->password, '$2y$');
 
-        return view('system_admin.user_details', compact('user', 'isLocked'));
+        return view('department-secretary.user_details', compact('user', 'isLocked'));
     } 
 }
