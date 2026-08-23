@@ -5,7 +5,7 @@
     
     <div class="sa-header">
         <div class="header-titles">
-            <h2>Class Schedule Matrix</h2>
+            <h2>Class Schedule Overview</h2>
             <p>Department Secretary Panel — Section & Room Deployment Center</p>
         </div>
         <div class="header-badge" style="background-color: #0284c7; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;">Secretary Mode</div>

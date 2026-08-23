@@ -990,7 +990,7 @@ class StudentController extends Controller
         }
 
         if ($task->due_date && \Carbon\Carbon::parse($task->due_date)->endOfDay()->isPast()) {
-            return redirect()->back()->with('error', 'Submission closed. The deadline for this task has already passed.');
+            return redirect()->back()->with('error', 'Submission closed. The deadline for this task has passed.');
         }
 
         $request->validate([
@@ -1081,7 +1081,7 @@ class StudentController extends Controller
         }
 
         if ($task->due_date && \Carbon\Carbon::parse($task->due_date)->endOfDay()->isPast()) {
-            return redirect()->back()->with('error', 'Submission closed. The deadline for this task has already passed.');
+            return redirect()->back()->with('error', 'Submission closed. The deadline for this task has passed.');
         }
 
         $request->validate([

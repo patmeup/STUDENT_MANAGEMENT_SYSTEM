@@ -265,6 +265,6 @@ class SuperAdminController extends Controller
         $user->password = Hash::make($request->password);
         $user->save();
 
-        return redirect()->back()->with('Success', 'Password successfully updated security requirements!');
+        return redirect()->back()->with('Success', 'Password successfully updated. Security requirements met!');
     }
 }

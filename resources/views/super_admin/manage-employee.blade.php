@@ -8,7 +8,7 @@
             <h2>Root Personnel Infrastructure</h2>
             <p>Super Admin Console — System Identity & Access Management (SIAM)</p>
         </div>
-        <div class="header-badge root-level">Root Authorization</div>
+        <div class="header-badge root-level">System Access</div>
     </div>
 
     @if(session('success'))
