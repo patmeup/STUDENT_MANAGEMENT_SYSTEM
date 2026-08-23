@@ -6,12 +6,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\Students;
 use App\Models\StudentTermGrade;
 use App\Support\TermHelper;
 use App\Support\GradeHelper;
 use App\Support\GoogleClassroomService;
+use App\Support\PredictiveGradeHelper;
 
 class ProfessorController extends Controller
 {
@@ -231,7 +233,7 @@ class ProfessorController extends Controller
                     ->where('academic_period_id', $academicPeriodId)
                     ->get();
 
-                $gCourseWork = collect(); 
+                $gCourseWork = collect();
 
                 $gMaterials = DB::table('google_classroom_materials')
                     ->where('course_id', $gLinkedCourse->id)
@@ -571,7 +573,7 @@ class ProfessorController extends Controller
 
         if (!$task) {
             $gcWork = DB::table('google_classroom_coursework')->where('id', $id)->first();
-            
+
             if ($gcWork) {
                 $task = DB::table('student_tasks')->where('google_coursework_id', $gcWork->google_coursework_id)->first();
             }
@@ -597,7 +599,7 @@ class ProfessorController extends Controller
                 $join->on('students.student_id', '=', 'task_submissions.student_id')
                     ->where(function($q) use ($task, $googleCourseworkLocalId) {
                         $q->where('task_submissions.task_id', '=', $task->id);
-                        
+
                         if ($googleCourseworkLocalId) {
                             $q->orWhere('task_submissions.google_coursework_id', '=', $googleCourseworkLocalId);
                         }
@@ -698,11 +700,11 @@ class ProfessorController extends Controller
                 'task_id'              => $task_id,
                 'google_coursework_id' => $googleCourseworkLocalId,
                 'student_id'           => $student_id,
-                'file_path'            => '',     
-                'original_filename'    => '',     
-                'grade'                => null,   
-                'feedback'             => null,   
-                'submitted_at'         => now(),  
+                'file_path'            => '',
+                'original_filename'    => '',
+                'grade'                => null,
+                'feedback'             => null,
+                'submitted_at'         => now(),
                 'created_at'           => now(),
                 'updated_at'           => now(),
             ]);
@@ -964,7 +966,7 @@ class ProfessorController extends Controller
 
             if ($term === 'final') {
                 $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
-                
+
                 if ($activePeriod) {
                     try {
                         \App\Support\PredictiveGradeHelper::trainModels($activePeriod->id);
@@ -982,10 +984,10 @@ class ProfessorController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Error submitting grades to registrar: ' . $e->getMessage());
+            Log::error('Error submitting grades to registrar: ' . $e->getMessage());
 
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'An error occurred while submitting grades: ' . $e->getMessage()
             ], 500);
         }
@@ -1004,6 +1006,30 @@ class ProfessorController extends Controller
             ->first();
 
         return view('professor.user_details', compact('user', 'isLocked', 'gConnection'));
+    }
+
+        public function updateProfilePicture(Request $request)
+    {
+        $request->validate([
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        $user = User::find(session('user_id'));
+
+        if (!$user) {
+            return redirect()->back()->with('error', 'User not found.');
+        }
+
+        if ($user->profile_picture && Storage::disk('public')->exists($user->profile_picture)) {
+            Storage::disk('public')->delete($user->profile_picture);
+        }
+
+        $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+
+        $user->profile_picture = $path;
+        $user->save();
+
+        return redirect()->back()->with('success', 'Profile picture updated successfully!');
     }
 
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Models\Subject;
 use App\Models\Student;
@@ -13,13 +14,13 @@ use App\Models\ClassSchedule;
 
 class DeptSecController extends Controller
 {
-    public function dashboard() 
+    public function dashboard()
     {
         $dept = session('user_department');
 
         $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
 
-        $allowedCourses = ['BSIT']; 
+        $allowedCourses = ['BSIT'];
         if (str_contains(strtolower($dept), 'computer studies') || str_contains(strtolower($dept), 'ccs')) {
             $allowedCourses = ['BSIT', 'BSCS'];
         } elseif (str_contains(strtolower($dept), 'business') || str_contains(strtolower($dept), 'cba')) {
@@ -56,9 +57,9 @@ class DeptSecController extends Controller
         return view('department_secretary.dashboard', compact(
             'dept',
             'announcements',
-            'trackedSubjectsCount', 
-            'totalStudentsCount', 
-            'activeBlocksCount', 
+            'trackedSubjectsCount',
+            'totalStudentsCount',
+            'activeBlocksCount',
             'deployedSlotsCount'
         ));
     }
@@ -66,16 +67,16 @@ class DeptSecController extends Controller
     public function subjectCatalog(Request $request)
     {
         $dept = session('user_department');
-        
+
         $yearFilter = $request->get('year_level');
 
         $query = DB::table('curricula')
             ->join('subjects', 'curricula.subject_id', '=', 'subjects.id')
             ->select(
-                'curricula.*', 
-                'subjects.subject_code', 
-                'subjects.subject_title', 
-                'subjects.lecture_units', 
+                'curricula.*',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'subjects.lecture_units',
                 'subjects.lab_units'
             )
             ->where('curricula.course', 'BSIT');
@@ -95,11 +96,11 @@ class DeptSecController extends Controller
     {
         $dept = session('user_department');
         $allowedCourses = [];
-        
+
         if (str_contains(strtolower($dept), 'computer studies') || str_contains(strtolower($dept), 'ccs')) {
             $allowedCourses = ['BSIT', 'BSCS'];
         } else {
-            $allowedCourses = ['BSIT']; 
+            $allowedCourses = ['BSIT'];
         }
 
         $students = DB::table('students')
@@ -182,7 +183,7 @@ class DeptSecController extends Controller
         $dept = session('user_department');
 
         $student = DB::table('students')->where('student_id', $student_id)->first();
-        
+
         if (!$student) {
             return redirect()->back()->with('error', 'Student record not found.');
         }
@@ -190,10 +191,10 @@ class DeptSecController extends Controller
         $curriculumSubjects = DB::table('curricula')
             ->join('subjects', 'curricula.subject_id', '=', 'subjects.id')
             ->select(
-                'curricula.*', 
-                'subjects.subject_code', 
-                'subjects.subject_title', 
-                'subjects.lecture_units', 
+                'curricula.*',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'subjects.lecture_units',
                 'subjects.lab_units'
             )
             ->where('curricula.course', $student->course)
@@ -210,9 +211,9 @@ class DeptSecController extends Controller
             ->toArray();
 
         return view('department_secretary.plot_subjects', compact(
-            'student', 
-            'curriculumSubjects', 
-            'dept', 
+            'student',
+            'curriculumSubjects',
+            'dept',
             'classSchedules',
             'enrolledSections'
         ));
@@ -335,8 +336,8 @@ class DeptSecController extends Controller
                 foreach ($matchingSchedules as $sched) {
                     DB::table('student_subjects')->insert([
                         'student_number' => $studentNumber,
-                        'subject_id'     => $subjectId,  
-                        'schedule_id'    => $sched->id,  
+                        'subject_id'     => $subjectId,
+                        'schedule_id'    => $sched->id,
                         'status'         => 'Enrolled',
                         'created_at'     => now(),
                         'updated_at'     => now()
@@ -361,18 +362,33 @@ class DeptSecController extends Controller
                             ->with('error', 'An error occurred while saving: ' . $e->getMessage());
         }
     }
-    
+
     public function profileView()
     {
         $userId = session('user_id');
         $user = User::find($userId);
-
         if (!$user) {
             return redirect('/')->withErrors(['error' => 'Session expired. Please login again.']);
         }
-
         $isLocked = !Str::startsWith($user->password, '$2y$');
+        return view('department_secretary.user_details', compact('user', 'isLocked'));
+    }
 
-        return view('department-secretary.user_details', compact('user', 'isLocked'));
-    } 
+    public function updateProfilePicture(Request $request)
+    {
+        $request->validate([
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+        $user = User::find(session('user_id'));
+        if (!$user) {
+            return redirect()->back()->with('error', 'User not found.');
+        }
+        if ($user->profile_picture && Storage::disk('public')->exists($user->profile_picture)) {
+            Storage::disk('public')->delete($user->profile_picture);
+        }
+        $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+        $user->profile_picture = $path;
+        $user->save();
+        return redirect()->back()->with('success', 'Profile picture updated successfully!');
+    }
 }

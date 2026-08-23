@@ -29,6 +29,12 @@ Route::get('/account/security', [AuthController::class, 'showSecurityPage'])->na
 Route::post('/account/security/update-password', [AuthController::class, 'updatePassword'])->name('account.update_password');
 Route::post('/account/security/update', [SuperAdminController::class, 'updatePassword'])->name('password.update');
 
+// FORGOT PASSWORD ROUTES
+Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
+Route::get('/reset-password/{token}', [ForgotPasswordController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('password.update');
+
 // SUPER ADMIN ROUTES
 Route::middleware(['role:super_admin'])->group(function () {
     Route::get('/super_admin/dashboard', [SuperAdminController::class, 'dashboard'])->name('super_admin.dashboard');
@@ -43,7 +49,9 @@ Route::middleware(['role:super_admin'])->group(function () {
     Route::get('/super-admin/manage-ml', [SuperAdminController::class, 'manageMlModels'])->name('super_admin.manage-ml');
     Route::post('/super-admin/ml-train', [SuperAdminController::class, 'trainMlModel'])->name('super_admin.ml.train');
     Route::get('/super_admin/user_details', [SuperAdminController::class, 'profileView'])->name('super_admin.user_details');
-});
+    Route::post('/super_admin/profile/picture', [SuperAdminController::class, 'updateProfilePicture'])->name('super_admin.profile.picture.update');
+    Route::post('/super_admin/announcements/reorder', [AnnouncementController::class, 'reorder'])->name('super_admin.announcements.reorder');
+    });
 
 // SYSTEM ADMIN ROUTES
 Route::middleware(['role:system_admin'])->group(function () {
@@ -73,7 +81,8 @@ Route::middleware(['role:system_admin'])->group(function () {
     Route::post('/system-admin/term-periods', [SystemAdminController::class, 'storeTermPeriod'])->name('system_admin.store_term_period');
     Route::delete('/system-admin/academic_periods/{id}', [SystemAdminController::class, 'deleteAcademicPeriod'])->name('system_admin.delete_academic_period');
     Route::get('/system_admin/user_details', [SystemAdminController::class, 'profileView'])->name('system_admin.user_details');
-});
+    Route::post('/system_admin/profile/picture', [SystemAdminController::class, 'updateProfilePicture'])->name('system_admin.profile.picture.update');
+    });
 
 // REGISTRAR ROUTES
 Route::middleware(['role:registrar'])->group(function () {
@@ -95,6 +104,7 @@ Route::middleware(['role:registrar'])->group(function () {
     Route::post('/registrar/document-requests/{id}/update-status', [DocumentRequestController::class, 'updateStatus'])->name('registrar.update_document_status');
     Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
     Route::delete('/registrar/manage-students/{student_id}', [RegistrarController::class, 'destroyStudent'])->name('registrar.students.destroy');
+    Route::post('/registrar/profile/picture', [RegistrarController::class, 'updateProfilePicture'])->name('registrar.profile.picture.update');
 });
 
 // DEAN ROUTES
@@ -107,7 +117,8 @@ Route::middleware(['role:dean'])->group(function () {
     Route::get('/dean/faculty-grade-status', [DeanController::class, 'facultyGradeStatus'])->name('dean.faculty-grade-status');
     Route::get('/dean/grade-breakdown/{scheduleId}', [DeanController::class, 'getGradeBreakdown'])->name('dean.grade-breakdown');
     Route::get('/dean/user_details', [DeanController::class, 'profileView'])->name('dean.user_details');
-});
+    Route::post('/dean/profile/picture', [DeanController::class, 'updateProfilePicture'])->name('dean.profile.picture.update');
+    });
 
 // DEPARTMENT SECRETARY ROUTES
 Route::middleware(['role:dept_sec'])->group(function () {
@@ -124,7 +135,8 @@ Route::middleware(['role:dept_sec'])->group(function () {
     Route::put('/department-secretary/manage-schedules/update/{id}', [ScheduleController::class, 'update'])->name('department_secretary.schedules.update');
     Route::delete('/department-secretary/manage-schedules/delete/{id}', [ScheduleController::class, 'delete'])->name('department_secretary.schedules.delete');
     Route::get('/department-secretary/user_details', [DeptSecController::class, 'profileView'])->name('department_secretary.user_details');
-});
+    Route::post('/department-secretary/profile/picture', [DeptSecController::class, 'updateProfilePicture'])->name('department_secretary.profile.picture.update');
+    });
 
 // PROFESSOR ROUTE
 Route::middleware(['role:professor'])->group(function () {
@@ -153,7 +165,8 @@ Route::middleware(['role:professor'])->group(function () {
     Route::post('/professor/submit-to-registrar', [ProfessorController::class, 'submitToRegistrar'])->name('professor.submit-registrar');
     Route::get('/professor/user_details', [ProfessorController::class, 'profileView'])->name('professor.user_details');
     Route::post('/professor/google-classroom/disconnect', [GoogleClassroomController::class, 'disconnect'])->name('professor.google-classroom.disconnect');
-});
+    Route::post('/professor/profile/picture', [ProfessorController::class, 'updateProfilePicture'])->name('professor.profile.picture.update');
+    });
 
 // STUDENT ROUTES
 Route::middleware(['role:student'])->group(function () {
@@ -172,10 +185,5 @@ Route::middleware(['role:student'])->group(function () {
     Route::get('/student/document-requests', [DocumentRequestController::class, 'showDocumentReqList'])->name('student.document_request');
     Route::post('/student/document-requests', [DocumentRequestController::class, 'store'])->name('student.submit_document_request');
     Route::put('/account/update-credentials', [StudentController::class, 'updateCredentials'])->name('account.update_credentials');
-
-// FORGOT PASSWORD ROUTES
-Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
-Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
-Route::get('/reset-password/{token}', [ForgotPasswordController::class, 'showResetForm'])->name('password.reset');
-Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('password.update');
+    Route::post('/student/profile/picture', [StudentController::class, 'updateProfilePicture'])->name('student.profile.picture.update');
 });

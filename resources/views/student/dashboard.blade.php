@@ -3,7 +3,6 @@
 @section('content')
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-
 <div class="dashboard-wrapper py-4 px-3">
     
     @if(session('success'))
@@ -42,7 +41,7 @@
         @endif
     </div>
 
-    <div class="stats-dashboard-grid mb-5">
+    <div class="stats-dashboard-grid">
         
         <a href="{{ route('student.my_classes') }}" class="stat-premium-card" style="text-decoration: none; cursor: pointer;">
             <div class="stat-number-side text-blue">
@@ -70,6 +69,115 @@
             </div>
         </div>
     </div>
+
+    <!-- INSTITUTIONAL VISION, MISSION & CORE VALUES SECTION -->
+    <div class="institutional-section">
+        <div class="section-title-wrapper">
+            <div class="section-title">
+                <i class="fa-solid fa-graduation-cap text-blue-icon"></i> ABOUT ARELLANO UNIVERSITY
+            </div>
+            <!-- TAB TOGGLE BUTTONS -->
+            <div class="tab-toggle-container">
+                <button class="tab-btn active" onclick="switchInstitutionalTab('au', this)">
+                    <i class="fa-solid fa-university"></i> Arellano University (AU)
+                </button>
+                <button class="tab-btn" onclick="switchInstitutionalTab('scs', this)">
+                    <i class="fa-solid fa-laptop-code"></i> School of Computer Studies (SCS)
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB 1: ARELLANO UNIVERSITY MAIN -->
+        <div id="tab-au" class="institutional-tab-content active">
+            <div class="institutional-grid">
+                <!-- VISION CARD -->
+                <div class="inst-card">
+                    <div class="inst-card-header">
+                        <i class="fa-solid fa-eye text-blue-icon"></i>
+                        <h3>AU Vision</h3>
+                    </div>
+                    <div class="inst-card-body">
+                        <p>To be a model institution of learning where relevant knowledge is acquired and skills are developed in response to the needs of the global community.</p>
+                    </div>
+                </div>
+
+                <!-- MISSION CARD -->
+                <div class="inst-card">
+                    <div class="inst-card-header">
+                        <i class="fa-solid fa-compass text-orange-icon"></i>
+                        <h3>AU Mission</h3>
+                    </div>
+                    <div class="inst-card-body">
+                        <p>To provide equitable access to learning through relevant, innovative, industry-sensitive and environment-conscious academic program and services.</p>
+                    </div>
+                </div>
+
+                <!-- CORE VALUES CARD -->
+                <div class="inst-card">
+                    <div class="inst-card-header">
+                        <i class="fa-solid fa-shield-halved text-blue-icon"></i>
+                        <h3>Core Values (CHIEFS)</h3>
+                    </div>
+                    <div class="inst-card-body">
+                        <ul class="values-list">
+                            <li><strong class="val-letter">C</strong> — Competence</li>
+                            <li><strong class="val-letter">H</strong> — Humility</li>
+                            <li><strong class="val-letter">I</strong> — Integrity</li>
+                            <li><strong class="val-letter">E</strong> — Equity</li>
+                            <li><strong class="val-letter">F</strong> — Fortitude</li>
+                            <li><strong class="val-letter">S</strong> — Stewardships</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: SCHOOL OF COMPUTER STUDIES (SCS) -->
+        <div id="tab-scs" class="institutional-tab-content">
+            <div class="institutional-grid">
+                <!-- SCS VISION CARD -->
+                <div class="inst-card">
+                    <div class="inst-card-header">
+                        <i class="fa-solid fa-eye text-blue-icon"></i>
+                        <h3>SCS Vision</h3>
+                    </div>
+                    <div class="inst-card-body">
+                        <p>Implementing active learning strategies and methods in the teaching and learning process, SCS mentors students to apply practical wisdom in life and to focus on reaching a goal.</p>
+                    </div>
+                </div>
+
+                <!-- SCS MISSION CARD -->
+                <div class="inst-card">
+                    <div class="inst-card-header">
+                        <i class="fa-solid fa-compass text-orange-icon"></i>
+                        <h3>SCS Mission</h3>
+                    </div>
+                    <div class="inst-card-body">
+                        <p>School of Computer Studies at Arellano University, Pasig Campus advocating progressive education will produce graduates who are leaders in their chosen professions and are preferred by any industry for their employer-desired work values.</p>
+                    </div>
+                </div>
+
+                <!-- SCS DEPT CORE VALUES CARD -->
+                <div class="inst-card">
+                    <div class="inst-card-header">
+                        <i class="fa-solid fa-shield-halved text-blue-icon"></i>
+                        <h3>Core Values (CHIEFS)</h3>
+                    </div>
+                    <div class="inst-card-body">
+                        <ul class="values-list">
+                            <li><strong class="val-letter">C</strong> — Competence</li>
+                            <li><strong class="val-letter">H</strong> — Humility</li>
+                            <li><strong class="val-letter">I</strong> — Integrity</li>
+                            <li><strong class="val-letter">E</strong> — Equity</li>
+                            <li><strong class="val-letter">F</strong> — Fortitude</li>
+                            <li><strong class="val-letter">S</strong> — Stewardships</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -99,6 +207,14 @@
             slideIndex++;
             showSlides(slideIndex);
         }, 6000);
+    }
+
+    function switchInstitutionalTab(tabName, btnElement) {
+        document.querySelectorAll('.institutional-tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+        document.getElementById('tab-' + tabName).classList.add('active');
+        btnElement.classList.add('active');
     }
 </script>
 
@@ -175,6 +291,7 @@
         gap: 20px; 
         width: 100%;
         margin-top: 25px;
+        margin-bottom: 35px !important;
     }
 
     .stat-premium-card {
@@ -232,18 +349,147 @@
         justify-content: center;
     }
 
+    /* INSTITUTIONAL SECTION & TAB STYLES */
+    .institutional-section {
+        margin-top: 20px !important;
+        margin-bottom: 40px !important;
+    }
+
+    .section-title-wrapper {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 18px !important;
+    }
+
+    .section-title {
+        font-size: 14px;
+        font-weight: 800;
+        color: #1e293b;
+        letter-spacing: 0.8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* TAB TOGGLE STYLES */
+    .tab-toggle-container {
+        display: flex;
+        background: #e2e8f0;
+        border: 2px solid #1e293b;
+        border-radius: 30px;
+        padding: 3px;
+        gap: 4px;
+    }
+
+    .tab-btn {
+        border: none;
+        background: transparent;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 14px;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .tab-btn.active {
+        background: #1e293b;
+        color: #ffffff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .tab-btn.active i {
+        color: #f59e0b;
+    }
+
+    /* TAB CONTENT TOGGLING */
+    .institutional-tab-content {
+        display: none;
+    }
+
+    .institutional-tab-content.active {
+        display: block;
+    }
+
+    .institutional-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+    }
+
+    .inst-card {
+        background: #ffffff;
+        border: 3px solid #1e293b;
+        border-radius: 16px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+
+    .inst-card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 10px;
+        margin-bottom: 12px;
+    }
+
+    .inst-card-header i {
+        font-size: 18px;
+    }
+
+    .inst-card-header h3 {
+        font-size: 15px;
+        font-weight: 800;
+        color: #1e293b;
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .inst-card-body p {
+        font-size: 13px;
+        color: #475569;
+        line-height: 1.6;
+        margin: 0;
+        font-weight: 500;
+    }
+
+    .values-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px 12px;
+    }
+
+    .values-list li {
+        font-size: 13px;
+        color: #475569;
+        font-weight: 600;
+    }
+
+    .val-letter {
+        color: #1e3a8a;
+        font-weight: 900;
+        font-size: 14px;
+    }
+
     .text-blue { color: #1e3a8a; }
     .text-orange { color: #c2410c; }
 
     .text-blue-icon { color: #2563eb; }
     .text-orange-icon { color: #ea580c; }
-
-    .text-green { color: #15803d; }
-    .text-red { color: #b91c1c; }
-    .text-prediction-icon { color: #0d9488; opacity: 0.15; }
-    .card-prediction-highlight {
-        border-left: 6px solid #0d9488 !important;
-    }
 
     .alert-banner { 
         padding: 14px 18px; 
@@ -256,6 +502,11 @@
     }
     .alert-success { background: #dcfce7; color: #14532d; }
     .alert-danger { background: #fee2e2; color: #991b1b; }
+
+    @media (max-width: 900px) {
+        .institutional-grid { grid-template-columns: 1fr; }
+        .section-title-wrapper { flex-direction: column; align-items: flex-start; }
+    }
 
     @media (max-width: 640px) {
         .stats-dashboard-grid { grid-template-columns: 1fr; }
