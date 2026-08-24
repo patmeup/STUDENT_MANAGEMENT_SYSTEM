@@ -92,10 +92,9 @@ Route::middleware(['role:registrar'])->group(function () {
     Route::delete('/registrar/announcements/delete/{id}', [RegistrarController::class, 'destroyAnnouncement'])->name('registrar.announcements.destroy');
     Route::get('/registrar/manage-enrollment', [RegistrarController::class, 'manageEnrollment'])->name('registrar.manage-enrollment');
     Route::post('/registrar/manage-enrollment', [StudentController::class, 'store'])->name('registrar.enroll.store');
-    Route::get('/registrar/manage-students', [StudentController::class, 'index'])->name('registrar.manage-students');
-    Route::get('/registrar/manage-students-alias', [StudentController::class, 'index'])->name('registrar.manage-students-alias');
-    Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
+    Route::get('/registrar/manage-students', [RegistrarController::class, 'manageStudents'])->name('registrar.manage-students');
     Route::get('/registrar/students/{student_id}/profile', [RegistrarController::class, 'viewStudentProfile'])->name('registrar.students.profile');
+    Route::put('/registrar/students/{id}/update-info', [RegistrarController::class, 'updateStudentInfo'])->name('registrar.update-info');
     Route::put('/registrar/students/{id}/documents', [RegistrarController::class, 'updateStudentDocuments'])->name('registrar.update-documents');
     Route::get('/registrar/students/{student_id}/file/{filename}', [RegistrarController::class, 'secureViewFile'])->name('registrar.secure-view');
     Route::get('/registrar/manage-grades', [RegistrarController::class, 'manageGrades'])->name('registrar.manage-grades');
@@ -103,10 +102,10 @@ Route::middleware(['role:registrar'])->group(function () {
     Route::get('/registrar/student-grades-json/{student_id}', [RegistrarController::class, 'getStudentTermGradesJson'])->name('registrar.student-grades-json');
     Route::get('/registrar/document-requests', [DocumentRequestController::class, 'manageDocumentRequests'])->name('registrar.document.requests');
     Route::post('/registrar/document-requests/{id}/update-status', [DocumentRequestController::class, 'updateStatus'])->name('registrar.update_document_status');
-    Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
     Route::delete('/registrar/manage-students/{student_id}', [RegistrarController::class, 'destroyStudent'])->name('registrar.students.destroy');
     Route::post('/registrar/profile/picture', [RegistrarController::class, 'updateProfilePicture'])->name('registrar.profile.picture.update');
     Route::post('/registrar/announcements/reorder', [AnnouncementController::class, 'reorder'])->name('registrar.announcements.reorder');
+    Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
 });
 
 // DEAN ROUTES

@@ -511,21 +511,6 @@ class StudentController extends Controller
         ]);
     }
 
-    public function index(Request $request)
-    {
-        $search = $request->input('search');
-
-        $students = Student::when($search, function ($query, $search) {
-                return $query->where('last_name', 'like', "%{$search}%")
-                            ->orWhere('first_name', 'like', "%{$search}%")
-                            ->orWhere('student_id', 'like', "%{$search}%");
-            })
-            ->orderBy('last_name', 'asc')
-            ->paginate(15);
-
-        return view('registrar.manage-students', compact('students', 'search'));
-    }
-
     public function store(Request $request)
     {
         $request->validate([

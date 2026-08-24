@@ -53,12 +53,12 @@
             <table class="docreq-table">
                 <thead>
                     <tr>
-                        <th style="width: 14%;">Date Requested</th>
-                        <th style="width: 11%;">Student ID</th>
-                        <th style="width: 18%;">Student Name</th>
-                        <th style="width: 20%;">Requested Document</th>
+                        <th style="width: 12%;">Date Requested</th>
+                        <th style="width: 10%;">Student ID</th>
+                        <th style="width: 16%;">Student Name</th>
+                        <th style="width: 18%;">Requested Document</th>
                         <th style="width: 12%;">Purpose</th>
-                        <th style="width: 25%;" class="text-center">Update Status &amp; Action</th>
+                        <th style="width: 32%;" class="text-center">Update Status &amp; Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -125,15 +125,15 @@
 <style>
     .docreq-container { max-width: 1280px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
-    .docreq-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
+    .docreq-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
     .docreq-title { font-size: 24px; font-weight: 800; color: #1e2a5a; margin: 0 0 4px; }
     .docreq-subtitle { font-size: 13.5px; color: #64748b; margin: 0; }
 
-    .docreq-search { position: relative; width: 300px; max-width: 100%; }
+    .docreq-search { position: relative; width: 320px; max-width: 100%; }
     .docreq-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px; }
     .docreq-search input {
-        width: 100%; padding: 9px 14px 9px 36px; border-radius: 8px; border: 1px solid #cbd5e1;
-        font-size: 13.5px; outline: none; transition: 0.2s;
+        width: 100%; padding: 10px 14px 10px 36px; border-radius: 8px; border: 1px solid #cbd5e1;
+        font-size: 13.5px; outline: none; transition: 0.2s; box-sizing: border-box;
     }
     .docreq-search input:focus { border-color: #1e2a5a; box-shadow: 0 0 0 3px rgba(30,42,90,0.08); }
 
@@ -182,11 +182,11 @@
 
     .docreq-purpose-text { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #475569; }
 
-    .docreq-inline-form { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: nowrap; }
+    .docreq-inline-form { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: nowrap; min-width: max-content; }
     
     .docreq-status-select-sm {
         border-radius: 20px; font-size: 12.5px; font-weight: 600; padding: 6px 12px; border: 1px solid #cbd5e1;
-        outline: none; color: #1e293b; background: white; cursor: pointer; transition: 0.2s;
+        outline: none; color: #1e293b; background: white; cursor: pointer; transition: 0.2s; min-width: 135px;
     }
     .docreq-status-select-sm:focus { border-color: #1e2a5a; }
 

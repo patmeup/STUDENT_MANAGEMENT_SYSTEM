@@ -5,8 +5,8 @@
 
     <div class="masterlist-header">
         <div class="header-titles">
-            <h2>Student Masterlist</h2>
-            <p>Arellano University — Andres Bonifacio Campus (Active Academic Registry)</p>
+            <h2>Enrolled Student List</h2>
+            <p>View, search, and manage all active student records.</p>
         </div>
     </div>
 
@@ -56,7 +56,7 @@
 
     <div class="masterlist-card">
         <div class="card-top-bar">
-            <span><i class="fas fa-list-ul"></i> Enrolled Student Roster</span>
+            <span><i class="fas fa-list-ul"></i> Student Roster</span>
         </div>
 
         <div class="table-responsive">
@@ -120,8 +120,8 @@
                         <tr>
                             <td colspan="6" class="empty-table-state">
                                 <div class="empty-msg">
-                                    <p>No student records captured yet inside the database.</p>
-                                    <small>Go to "Manage Enrollment" to register your first student folder entry.</small>
+                                    <p>No student records found in the database.</p>
+                                    <small>Go to "Manage Enrollment" to register a new student.</small>
                                 </div>
                             </td>
                         </tr>
@@ -323,14 +323,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.getElementById('searchInput');
     const selectDropdowns = document.querySelectorAll('.auto-submit-select');
 
-    // 1. Instantly trigger submission when selection changes
     selectDropdowns.forEach(dropdown => {
         dropdown.addEventListener('change', () => {
             filterForm.submit();
         });
     });
 
-    // 2. Debounce typing event: triggers 500ms after user pauses typing
     let typingDebounceTimer;
     searchInput.addEventListener('input', () => {
         clearTimeout(typingDebounceTimer);
@@ -339,7 +337,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 500);
     });
 
-    // 3. Keep the input focus clean upon asynchronous interface refresh
     if (searchInput.value !== '') {
         const textVal = searchInput.value;
         searchInput.value = '';

@@ -5,10 +5,9 @@
     
     <div class="subj-header">
         <div class="header-titles">
-            <h2>Institutional Degree Registry</h2>
-            <p>Super Admin Master Control — University Programs Management</p>
+            <h2>Course Programs</h2>
+            <p>Register and manage college degree programs and their assigned departments.</p>
         </div>
-        <div class="header-badge" style="background-color: #000000;">Super Admin</div>
     </div>
 
     @if(session('success'))
@@ -23,19 +22,36 @@
         </div>
     @endif
 
-    {{-- REGISTER COURSE CARD --}}
+    @if($errors->any())
+        <div class="alert-error-custom" style="background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; display: flex; align-items: flex-start; gap: 10px;">
+            <i class="fas fa-exclamation-circle" style="font-size: 16px; margin-top: 2px;"></i>
+            <div>
+                <strong>Unable to process request:</strong>
+                <ul style="margin: 4px 0 0 0; padding-left: 20px;">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        </div>
+    @endif
+
+    <div id="js-alert-error" class="alert-error-custom" style="display: none; background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; align-items: center; gap: 10px;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span id="js-alert-message">Please fill out all required fields before submitting.</span>
+    </div>
+
     <div class="subj-card">
         <div class="card-bar">
-            <span><i class="fas fa-plus-circle"></i> Register New College Course Program</span>
+            <span><i class="fas fa-plus-circle"></i> Add New Course Program</span>
         </div>
         
-        <form action="{{ route('super_admin.courses.store') }}" method="POST" autocomplete="off" class="pure-form">
+        <form action="{{ route('super_admin.courses.store') }}" method="POST" id="course-form" autocomplete="off" class="pure-form" novalidate>
             @csrf
             
             <div class="form-grid-2">
-                {{-- 1. DROPDOWN PARA SA COURSE CODE --}}
                 <div class="form-group">
-                    <label>Course / Program Acronym Code</label>
+                    <label>Course / Program Acronym Code <span class="required-star" style="color: #dc2626;">*</span></label>
                     <div class="custom-select-wrapper">
                         <select name="course_code" id="course-code-select" class="custom-select-dropdown" required>
                             <option value="" disabled selected hidden>Select Program</option>
@@ -43,12 +59,10 @@
                             <option value="BSCS">BSCS</option>
                         </select>
                     </div>
-                    <small class="field-help">Capstone Scope: Limited to IT Department baseline.</small>
                 </div>
 
-                {{-- 2. AUTOMATED DEPARTMENT FIELD --}}
                 <div class="form-group">
-                    <label>Assigned College Department</label>
+                    <label>Assigned Department <span class="required-star" style="color: #dc2626;">*</span></label>
                     <div class="custom-select-wrapper">
                         <select name="department" id="course-department-select" class="custom-select-dropdown" required>
                             <option value="COLLEGE OF COMPUTER STUDIES" selected>College of Computer Studies</option>
@@ -57,10 +71,9 @@
                 </div>
             </div>
 
-            {{-- 3. FULL TITLE FIELD (AUTOFILLED) --}}
             <div class="form-group">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <label>Full Descriptive Degree Title</label>
+                    <label>Full Degree Title <span class="required-star" style="color: #dc2626;">*</span></label>
                     <small style="color: #10b981; font-weight: 600;"><i class="fas fa-magic"></i> Auto-generated</small>
                 </div>
                 <input type="text" name="course_title" id="course-title-input" placeholder="Select a program above to auto-populate" readonly required style="background-color: #f8fafc; cursor: not-allowed; font-weight: 600; color: #1e293b;">
@@ -68,21 +81,20 @@
 
             <div class="form-actions-bar">
                 <button type="reset" class="btn-clear" id="btn-reset-form">Clear Form</button>
-                <button type="submit" class="btn-submit-subj" style="background-color: #000000;">Authorize & Save Course</button>
+                <button type="submit" class="btn-submit-subj" style="background-color: #000000;">Save Course</button>
             </div>
         </form>
     </div>
 
-    {{-- REGISTRY ACTIVE LISTING CARD --}}
     <div class="subject-list-card">
         <div class="card-header-flex">
-            <h3 class="card-title-list">University Active Program Registry</h3>
+            <h3 class="card-title-list">Active Course Programs</h3>
             <div style="display: flex; align-items: center; gap: 15px;">
                 <div class="search-input-box-wrapper" style="position: relative; display: flex; align-items: center;">
                     <i class="fas fa-search" style="position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none;"></i>
                     <input type="text" id="course-live-search" placeholder="Search program code or title..." style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px 6px 34px; font-size: 12.5px; outline: none; width: 220px; transition: all 0.2s ease;">
                 </div>
-                <span class="badge-count">{{ count($courses) }} Registered</span>
+                <span class="badge-count">Total: {{ count($courses) }}</span>
             </div>
         </div>
 
@@ -125,11 +137,10 @@
     </div>
 </div>
 
-{{-- POPUP DYNAMIC MODAL BOX FOR EDITING --}}
 <div id="editCourseModal" class="custom-modal-overlay" style="display: none;">
     <div class="custom-modal-content">
         <div class="modal-header-bar">
-            <h3><i class="fas fa-edit"></i> Modify Registered Access Program</h3>
+            <h3><i class="fas fa-edit"></i> Edit Course Program</h3>
             <button type="button" class="close-modal-btn" onclick="closeEditCourseModal()">&times;</button>
         </div>
         
@@ -148,7 +159,7 @@
             </div>
 
             <div class="form-group" style="margin-top: 15px;">
-                <label>Assigned College Department</label>
+                <label>Assigned Department</label>
                 <div class="custom-select-wrapper">
                     <select name="department" id="modal-course-department" class="custom-select-dropdown" required>
                         <option value="COLLEGE OF COMPUTER STUDIES">College of Computer Studies</option>
@@ -157,19 +168,18 @@
             </div>
 
             <div class="form-group" style="margin-top: 15px;">
-                <label>Full Descriptive Degree Title</label>
+                <label>Full Degree Title</label>
                 <input type="text" name="course_title" id="modal-course-title" readonly required style="background-color: #f8fafc; cursor: not-allowed; font-weight: 600; color: #1e293b;">
             </div>
 
             <div class="form-actions-bar" style="margin-top: 20px; padding-top: 15px;">
-                <button type="button" class="btn-clear" onclick="closeEditCourseModal()">Cancel Modification</button>
-                <button type="submit" id="modal-submit-btn" disabled class="btn-submit-subj" style="background-color: #10b981;">Apply & Commit Changes</button>
+                <button type="button" class="btn-clear" onclick="closeEditCourseModal()">Cancel</button>
+                <button type="submit" id="modal-submit-btn" disabled class="btn-submit-subj" style="background-color: #10b981;">Save Changes</button>
             </div>
         </form>
     </div>
 </div>
 
-{{-- JAVASCRIPT LOGIC --}}
 <script>
     const existingCourses = @json($courses->pluck('course_code')->toArray());
 
@@ -182,8 +192,10 @@
         const courseSelect = document.getElementById('course-code-select');
         const titleInput = document.getElementById('course-title-input');
         const resetBtn = document.getElementById('btn-reset-form');
+        const courseForm = document.getElementById('course-form');
+        const jsAlertError = document.getElementById('js-alert-error');
+        const jsAlertMessage = document.getElementById('js-alert-message');
 
-        // REAL-TIME AUTO POPULATE FOR REGISTRATION FORM
         courseSelect.addEventListener('change', function() {
             titleInput.value = programTitles[this.value] || '';
         });
@@ -192,7 +204,20 @@
             setTimeout(() => { titleInput.value = ''; }, 10);
         });
 
-        // SEARCH FILTER LOGIC
+        if (courseForm) {
+            courseForm.addEventListener('submit', function(e) {
+                const codeValue = courseSelect.value;
+                jsAlertError.style.display = 'none';
+
+                if (!codeValue) {
+                    e.preventDefault();
+                    jsAlertMessage.textContent = 'Please select a Course / Program Acronym Code.';
+                    jsAlertError.style.display = 'flex';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            });
+        }
+
         const searchInput = document.getElementById('course-live-search');
         const courseRows = document.querySelectorAll('.course-table-row-item');
         const emptyRow = document.getElementById('empty-search-fallback-row');
@@ -218,7 +243,6 @@
         });
     });
 
-    // MODAL LOGIC FOR EDITING
     function openEditCourseModal(course) {
         const modal = document.getElementById('editCourseModal');
         const form = document.getElementById('editCourseForm');
@@ -256,7 +280,6 @@
             }
         }
 
-        // AUTO POPULATE FULL TITLE UPON CHANGING CODE IN MODAL
         codeSelect.onchange = function() {
             titleInput.value = programTitles[this.value] || '';
             checkFormState();
@@ -278,6 +301,7 @@
     .header-titles h2 { margin: 0 0 5px 0; font-size: 26px; font-weight: 700; color: #0f172a; }
     .header-titles p { margin: 0; font-size: 14px; color: #64748b; }
     .header-badge { color: white; padding: 6px 14px; border-radius: 20px; font-weight: 600; font-size: 12px; }
+    
     .subj-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); overflow: hidden; margin-bottom: 30px; }
     .card-bar { background: #ffffff; padding: 18px 24px; font-weight: 700; font-size: 15px; color: #0f172a; border-bottom: 1px solid #f1f5f9; }
     .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
@@ -291,11 +315,14 @@
     .btn-submit-subj { color: white; border: none; padding: 12px 24px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
     .btn-submit-subj:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-clear { background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 12px 20px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; }
+    
     .alert-success-custom { background: #d1e7dd; color: #0f5132; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #0f5132; font-size: 14px; }
+    
     .subject-list-card { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02); overflow: hidden; }
     .card-header-flex { background-color: #f8fafc; padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
     .card-title-list { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0; }
     .badge-count { background-color: #e2e8f0; color: #334155; font-size: 0.75rem; font-weight: 700; padding: 4px 12px; border-radius: 9999px; }
+    
     .table-responsive { width: 100%; overflow-x: auto; }
     .minimal-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
     .minimal-table th { background-color: #f8fafc; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; padding: 14px 24px; border-bottom: 1px solid #e2e8f0; text-align: left; }

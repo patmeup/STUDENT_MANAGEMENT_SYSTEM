@@ -230,11 +230,63 @@ class RegistrarController extends Controller
         return Storage::disk('local')->response($fullStoragePath);
     }
 
+    public function manageStudents(Request $request)
+    {
+        $search = $request->input('search');
+        $course = $request->input('course');
+        $studentType = $request->input('student_type');
+
+        $students = Student::when($search, function ($query, $search) {
+                return $query->where(function ($q) use ($search) {
+                    $q->where('student_id', 'like', "%{$search}%")
+                      ->orWhere('first_name', 'like', "%{$search}%")
+                      ->orWhere('last_name', 'like', "%{$search}%");
+                });
+            })
+            ->when($course, function ($query, $course) {
+                return $query->where('course', $course);
+            })
+            ->when($studentType, function ($query, $studentType) {
+                return $query->where('student_type', $studentType);
+            })
+            ->orderBy('last_name', 'asc')
+            ->get();
+
+        return view('registrar.manage-students', compact('students'));
+    }
+
     public function viewStudentProfile($student_id)
     {
         $student = Student::where('student_id', $student_id)->firstOrFail();
 
         return view('registrar.student_profile', compact('student'));
+    }
+
+    public function updateStudentInfo(Request $request, $id)
+    {
+        $student = Student::findOrFail($id);
+
+        $request->validate([
+            'course' => 'required|string',
+            'year_level' => 'required|string',
+            'semester' => 'required|string',
+            'section' => 'nullable|string',
+            'contact_no' => 'required|string',
+            'email' => 'required|email',
+            'city_address' => 'required|string',
+        ]);
+
+        $student->course = $request->course;
+        $student->year_level = $request->year_level;
+        $student->semester = $request->semester;
+        $student->section = $request->section;
+        $student->contact_no = $request->contact_no;
+        $student->email = $request->email;
+        $student->city_address = $request->city_address;
+        
+        $student->save();
+
+        return redirect()->back()->with('Success', "Student information updated successfully for ID: {$student->student_id}");
     }
 
     public function updateStudentDocuments(Request $request, $id)

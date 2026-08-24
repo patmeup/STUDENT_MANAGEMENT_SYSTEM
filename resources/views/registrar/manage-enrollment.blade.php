@@ -5,11 +5,8 @@
 
     <div class="sis-header">
         <div class="header-titles">
-            <h2>Enrollment Processing Portal</h2>
-            <p>Arellano University — Andres Bonifacio Campus (Digital SIS Registry)</p>
-        </div>
-        <div class="header-badge">
-            Registrar Admission Section
+            <h2>Student Enrollment Form</h2>
+            <p>Please fill out the student's information and requirements completely.</p>
         </div>
     </div>
 
@@ -69,13 +66,12 @@
 
     <div class="sis-card">
         <div class="card-title-bar">
-            Student Information Sheet (SIS) Digital Capture
+            Student Information Sheet (SIS) Entry Form
         </div>
 
         <form action="{{ route('registrar.enroll.store') }}" method="POST" autocomplete="off" class="pure-form" enctype="multipart/form-data" novalidate>
             @csrf
 
-            <!-- COMBINED TAB: Admission Info + Personal Profile -->
             <div id="tab-admission" class="sis-tab-content active">                
                 
                 <!-- ADMISSION INFO SECTION -->
@@ -137,8 +133,7 @@
                     </div>
                 </div>
 
-                <!-- PERSONAL PROFILE SECTION -->
-                <h3 class="section-divider">Demographic & Contact Coordinates</h3>
+                <h3 class="section-divider">Personal Information & Contact Details</h3>
                 <div class="form-grid-4">
                     <div class="form-group">
                         <label>Sex</label>
@@ -206,7 +201,7 @@
                     </div>
                 </div>
 
-                <h3 class="section-divider">Parental Reference Matrix</h3>
+                <h3 class="section-divider">Parent Information</h3>
                 <div class="form-grid-2">
                     <div class="form-group">
                         <label>Father's Full Name</label>
@@ -227,11 +222,9 @@
                 </div>
             </div>
 
-            <!-- TAB 2: Educational Background -->
             <div id="tab-education" class="sis-tab-content">
-                <h3 class="section-divider">Academic Institutional History</h3>
+                <h3 class="section-divider">Educational History</h3>
                 
-                <!-- PRIMARY SCHOOL SECTION -->
                 <div class="school-section-header">
                     <div class="section-header-title">Primary School</div>
                     <button type="button" class="btn-add-school" onclick="addPrimarySchool()">
@@ -259,7 +252,6 @@
                     </div>
                 </div>
 
-                <!-- SECONDARY SCHOOL SECTION -->
                 <div class="school-section-header" style="margin-top: 25px;">
                     <div class="section-header-title">Secondary School</div>
                     <button type="button" class="btn-add-school" onclick="addSecondarySchool()">
@@ -286,7 +278,6 @@
                     </div>
                 </div>
 
-                <!-- COLLEGE (TRANSFEREE) SECTION - HIDDEN BY DEFAULT -->
                 <div id="transferee-section" style="display: none;">
                     <div class="school-section-header" style="margin-top: 25px;">
                         <div class="section-header-title">College (Transferee)</div>
@@ -306,10 +297,9 @@
                 </div>
             </div>
 
-            <!-- TAB 3: Credentials Checklist -->
             <div id="tab-credentials" class="sis-tab-content">
-                <h3 class="section-divider">Mandatory Enrollment Credentials Digital Capture</h3>
-                <p style="color: #64748b; font-size: 13px; margin-bottom: 20px;">
+                <h3 class="section-divider">Required Enrollment Credentials</h3>
+                <p class="credentials-instruction">
                     Please check and upload or drag-and-drop the scanned documents submitted by the applicant for <strong id="selected-type-label" style="color: #0033A0;">Freshman (New Student)</strong>:
                 </p>
 
@@ -425,7 +415,7 @@
 
                 <div class="form-actions-bar">
                     <button type="reset" class="btn-secondary" onclick="resetDropZones()">Clear Entry Sheet</button>
-                    <button type="submit" class="btn-primary">Compile & Secure ID Allocation</button>
+                    <button type="submit" class="btn-primary">Submit & Generate Student ID</button>
                 </div>
             </div>
         </form>
@@ -540,7 +530,6 @@
         }
     }
 
-    /* Primary School Dynamic Functions */
     function addPrimarySchool() {
         var container = document.getElementById('primary-schools-container');
         var newRow = document.createElement('div');
@@ -553,6 +542,7 @@
                     name="primary_school_year[]"
                     placeholder="Year Graduated (YYYY-YYYY)"
                     inputmode="text"
+                    pattern="[0-9]{4}-[0-9]{4}"
                     maxlength="9"
                     oninput="this.value = this.value.replace(/[^0-9-]/g, '');"
                     required>
@@ -585,7 +575,6 @@
         });
     }
 
-    /* Secondary School Dynamic Functions */
     function addSecondarySchool() {
         var container = document.getElementById('secondary-schools-container');
         var newRow = document.createElement('div');
@@ -694,7 +683,6 @@
             if (firstInvalidField) {
                 e.preventDefault();
 
-                // Switch Tab
                 for (var j = 0; j < tabContents.length; j++) {
                     tabContents[j].classList.remove('active');
                 }
@@ -706,7 +694,6 @@
                     tabBtns[invalidTabIndex].classList.add('active');
                 }
 
-                // Identify missing field name
                 var fieldLabel = '';
                 if (firstInvalidField.classList.contains('credential-checkbox')) {
                     var headerLabel = firstInvalidField.closest('.credential-header');
@@ -742,13 +729,11 @@
 
                 errorBox.style.display = 'flex';
 
-                // Scroll to view
                 setTimeout(function () {
                     firstInvalidField.focus();
                     firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 100);
 
-                // Add live event listener to clear highlight on user input
                 firstInvalidField.addEventListener('input', function clearErr() {
                     firstInvalidField.classList.remove('input-field-error');
                     var parentCard = firstInvalidField.closest('.file-upload-card');
@@ -1026,25 +1011,27 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 12px;
+        margin-bottom: 15px;
     }
     .section-header-title {
-        font-size: 13px;
+        font-size: 13.5px;
         font-weight: 700;
-        color: #475569;
+        color: #334155;
         text-transform: uppercase;
+        letter-spacing: 0.3px;
     }
 
-    /* Clean Horizontal Flex Alignment for School Rows */
+    /* Clean Horizontal Flex Alignment for School Rows with improved spacing */
     .school-row {
         background-color: #f8fafc;
         border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 12px 15px;
-        margin-bottom: 12px;
+        border-radius: 10px;
+        padding: 18px 20px;
+        margin-bottom: 20px;
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.01);
     }
 
     .transferee-row {
@@ -1055,25 +1042,28 @@
         flex: 1;
         display: grid;
         grid-template-columns: 2fr 2fr 1.2fr;
-        gap: 12px;
+        gap: 16px;
     }
     .school-inputs input {
         border: 1px solid #cbd5e1;
         border-radius: 6px;
-        padding: 8px 12px;
+        padding: 10px 14px;
         font-size: 13.5px;
         outline: none;
+        background-color: #fff;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
     .school-inputs input:focus {
         border-color: #0033A0;
+        box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.1);
     }
 
     .btn-add-school {
         background-color: #0033A0;
         color: white;
         border: none;
-        padding: 6px 14px;
-        font-size: 12px;
+        padding: 8px 16px;
+        font-size: 12.5px;
         font-weight: 600;
         border-radius: 6px;
         cursor: pointer;
@@ -1087,8 +1077,8 @@
         background-color: #ef4444;
         color: white;
         border: none;
-        padding: 8px 14px;
-        font-size: 12px;
+        padding: 10px 16px;
+        font-size: 12.5px;
         font-weight: 600;
         border-radius: 6px;
         cursor: pointer;
@@ -1097,7 +1087,7 @@
         align-items: center;
         gap: 6px;
         white-space: nowrap;
-        height: 38px;
+        height: 40px;
     }
 
     .btn-add-school:hover {
@@ -1107,10 +1097,22 @@
         background-color: #dc2626;
     }
 
+    /* Improved spacing for credentials checklist grid */
     .checkbox-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 15px;
+        gap: 20px;
+    }
+
+    .credentials-instruction {
+        color: #475569;
+        font-size: 14px;
+        margin-bottom: 25px;
+        line-height: 1.5;
+        background-color: #f8fafc;
+        padding: 12px 18px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
     }
 
     .form-actions-bar {
@@ -1154,17 +1156,21 @@
     .file-upload-card {
         background: #ffffff;
         border: 1px solid #e2e8f0;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.01);
+        padding: 18px;
+        border-radius: 12px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.02);
         transition: all 0.2s ease;
+    }
+    .file-upload-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
     }
 
     .credential-header {
         display: flex;
         align-items: center;
         gap: 10px;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         cursor: pointer;
     }
 
@@ -1186,7 +1192,7 @@
         border: 2px dashed #cbd5e1;
         background-color: #f8fafc;
         border-radius: 8px;
-        padding: 20px 10px;
+        padding: 22px 12px;
         text-align: center;
         cursor: pointer;
         display: flex;
