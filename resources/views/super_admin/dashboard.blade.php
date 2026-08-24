@@ -119,7 +119,7 @@
     <hr class="my-5">
 
     <div class="management-panel">
-        <h3 class="panel-title"><i class="fa-solid fa-sliders"></i> Carousel Image Management Panel</h3>
+        <h3 class="panel-title"><i class="fa-solid fa-sliders"></i> Announcement Banner Management</h3>
         
         <form action="{{ route('super_admin.announcements.store') }}" method="POST" enctype="multipart/form-data" class="upload-inline-form mb-4">
             @csrf
@@ -132,7 +132,7 @@
 
         <div class="uploaded-banners-table">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h4>Current Active Banners (Drag handle to reorder priority)</h4>
+                <h4>Current Active Banners (Drag to reorder)</h4>
                 <span id="reorder-status" class="text-success font-weight-bold" style="display:none; font-size: 13px;"><i class="fa-solid fa-check"></i> Order Saved! Refreshing...</span>
             </div>
 

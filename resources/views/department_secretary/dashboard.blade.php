@@ -19,15 +19,18 @@
             <span class="announcement-tag">ANNOUNCEMENT:</span>
             
             <div class="carousel-track" id="carouselTrack">
-                @forelse($announcements as $index =>$item)
+                @forelse($announcements as $index => $item)
                     <div class="carousel-slide {{ $index === 0 ? 'active' : '' }}">
-                        <img src="{{ asset('storage/' . $item->image_path) }}" alt="{{ $item->title ?? 'Announcement Banner' }}">
+                        <!-- Blurred Background Image -->
+                        <img src="{{ asset('storage/' . $item->image_path) }}" class="slide-bg-blur" alt="Background Blur">
+                        <!-- Main Centered Image -->
+                        <img src="{{ asset('storage/' . $item->image_path) }}" class="slide-main-img" alt="{{ $item->title ?? 'Announcement Banner' }}">
                     </div>
                 @empty
                     <div class="carousel-slide active">
                         <div class="no-banner-placeholder">
                             <i class="fa-regular fa-image fa-3x"></i>
-                            <p>No active announcements.</p>
+                            <p style="margin-top: 8px; font-size: 14px;">No active announcements.</p>
                         </div>
                     </div>
                 @endforelse
@@ -36,7 +39,7 @@
 
         @if($announcements->count() > 0)
             <div class="carousel-dots">
-                @foreach($announcements as $index =>$item)
+                @foreach($announcements as $index => $item)
                     <span class="dot {{ $index === 0 ? 'active' : '' }}" onclick="currentSlide({{ $index }})"></span>
                 @endforeach
             </div>
@@ -138,40 +141,47 @@
         font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; 
     }
 
+    .announcement-carousel-wrapper {
+        width: 100%;
+        margin: 0 auto 24px auto;
+    }
+
+    /* OUTER BOX CONTAINER */
     .announcement-box {
-        background: #e2e8f0; 
+        background: #f1f5f9; 
         border: 3px solid #1e293b;
         border-radius: 16px;
-        padding: 12px;
+        padding: 10px;
         position: relative; 
-        height: 340px; 
+        height: 280px; 
         display: flex;
         flex-direction: column;
     }
 
     .announcement-tag {
         position: absolute; 
-        top: 22px; 
-        left: 26px; 
+        top: 20px; 
+        left: 24px; 
         font-weight: 800;
-        font-size: 12px; 
+        font-size: 11px; 
         color: #1e293b; 
         z-index: 10; 
         letter-spacing: 1px;
         text-transform: uppercase;
-        background: rgba(255, 255, 255, 0.85);
+        background: rgba(255, 255, 255, 0.95);
         padding: 3px 8px;
         border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
 
     .carousel-track { 
         width: 100%; 
         height: 100%; 
         position: relative; 
-        border: 3px solid #1e293b; 
-        border-radius: 12px;
+        border: 2px solid #1e293b; 
+        border-radius: 10px;
         overflow: hidden;
-        background: #ffffff;
+        background: #000000;
     }
     
     .carousel-slide { 
@@ -182,22 +192,53 @@
         height: 100%; 
         opacity: 0; 
         transition: opacity 0.6s ease-in-out; 
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
     }
     
     .carousel-slide.active { opacity: 1; }
 
-    .carousel-slide img { 
-        width: 100%; 
-        height: 100%; 
-        object-fit: fill; 
+    /* BLURRED BACKGROUND IMAGE EFFECT */
+    .slide-bg-blur {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: blur(12px) brightness(0.65);
+        transform: scale(1.1);
+        z-index: 1;
     }
-    
-    .no-banner-placeholder { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #64748b; }
 
-    .carousel-dots { text-align: center; margin-top: 14px; }
-    .dot { cursor: pointer; height: 14px; width: 14px; margin: 0 6px; background-color: #ffffff; border: 3px solid #1e293b; border-radius: 50%; display: inline-block; transition: 0.2s; }
+    /* CENTERED MAIN BANNER IMAGE */
+    .slide-main-img { 
+        position: relative;
+        z-index: 2;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .no-banner-placeholder { 
+        height: 100%; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center; 
+        color: #64748b; 
+        background: #ffffff;
+        width: 100%;
+    }
+
+    .carousel-dots { text-align: center; margin-top: 10px; }
+    .dot { cursor: pointer; height: 12px; width: 12px; margin: 0 5px; background-color: #ffffff; border: 2px solid #1e293b; border-radius: 50%; display: inline-block; transition: 0.2s; }
     .dot.active { background-color: #f59e0b; }
 
+    /* STATS GRID - 4 COLUMNS */
     .stats-dashboard-grid { 
         display: grid; 
         grid-template-columns: repeat(4, 1fr); 
@@ -287,6 +328,7 @@
         .stats-dashboard-grid { grid-template-columns: repeat(2, 1fr); }
     }
     @media (max-width: 640px) {
+        .announcement-box { height: 200px; }
         .stats-dashboard-grid { grid-template-columns: 1fr; }
     }
 </style>

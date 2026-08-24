@@ -13,13 +13,22 @@ class RegistrarController extends Controller
 {
     public function dashboard()
     {
-        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+        $announcements = DB::table('announcements')
+            ->orderBy('display_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+            
         $totalStudents = DB::table('students')->count();
 
         $pendingApprovals = DB::table('document_requests')->where('status', 'Pending')->count();
         $academicRecords = DB::table('student_subjects')->count();
 
         return view('registrar.dashboard', compact('announcements', 'totalStudents', 'pendingApprovals', 'academicRecords'));
+    }
+
+    public function manageEnrollment()
+    {
+        return view('registrar.manage-enrollment');
     }
 
     public function storeAnnouncement(Request $request)

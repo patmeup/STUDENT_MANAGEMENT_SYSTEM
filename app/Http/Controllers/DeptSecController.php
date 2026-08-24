@@ -18,7 +18,10 @@ class DeptSecController extends Controller
     {
         $dept = session('user_department');
 
-        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+        $announcements = DB::table('announcements')
+            ->orderBy('display_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
 
         $allowedCourses = ['BSIT'];
         if (str_contains(strtolower($dept), 'computer studies') || str_contains(strtolower($dept), 'ccs')) {

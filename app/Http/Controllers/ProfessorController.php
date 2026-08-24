@@ -21,8 +21,11 @@ class ProfessorController extends Controller
     {
         $professor_id = session('user_id');
 
-        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
-
+        $announcements = DB::table('announcements')
+            ->orderBy('display_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+            
         $totalClasses = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->where('subjects.professor_id', $professor_id)

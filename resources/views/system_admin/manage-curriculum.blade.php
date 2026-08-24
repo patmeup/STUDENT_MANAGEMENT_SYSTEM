@@ -5,8 +5,8 @@
 
     <div class="subj-header">
         <div class="header-titles">
-            <h2>Curriculum Subject Mapping</h2>
-            <p>Admin Control Panel — Course Curriculum Core Management</p>
+            <h2>Curriculum Management & Checklist</h2>
+            <p>System Admin Console — Assign Subjects to Curriculum</p>
         </div>
         <div class="header-badge">Admin Mode</div>
     </div>
@@ -28,7 +28,7 @@
         {{-- FORM PANEL (LEFT) --}}
         <div class="subj-card form-panel">
             <div class="card-bar">
-                <span><i class="fas fa-network-wired"></i> Map Subject Link Structure</span>
+                <span><i class="fas fa-network-wired"></i> Assign Subject to Curriculum</span>
             </div>
             <form
             id="curriculumForm"
@@ -87,7 +87,7 @@
                     <label>Select Subject to Bind</label>
                     <div class="custom-select-wrapper">
                         <select name="subject_id" id="subjectSelect" required disabled class="form-select-custom">
-                            <option value="" disabled selected hidden>-- Select Cataloged Subject --</option>
+                            <option value="" disabled selected hidden>-- Select Subject --</option>
                             @if(isset($subjects) && $subjects->count() > 0)
                                 @foreach($subjects as $subj)
                                     <option value="{{ $subj->id }}">
@@ -104,7 +104,7 @@
                             id="submitButton"
                             type="submit"
                             class="btn-submit-subj">
-                            Establish Curriculum
+                            Save to Curriculum
                         </button>
 
                         <button
@@ -123,7 +123,7 @@
         <div class="subject-list-card table-panel">
             <div class="card-header-flex">
                 <div class="card-title-container">
-                    <h3 class="card-title-list">Active Curriculum Structures</h3>
+                    <h3 class="card-title-list">Curriculum Masterlist</h3>
                     <span class="badge-count">{{ count($mappings ?? []) }} Links Active</span>
                 </div>
 
@@ -177,7 +177,7 @@
                                             '{{ $map->course }}',
                                             '{{ $map->subject->subject_code ?? 'N/A' }}'
                                             )">
-                                            Remove
+                                            Delete
                                         </button>
                                         </div>
                                     </td>

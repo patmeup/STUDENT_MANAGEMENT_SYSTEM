@@ -67,6 +67,7 @@ Route::middleware(['role:system_admin'])->group(function () {
     Route::get('/system-admin/curriculum/get-subjects-by-course', [CurriculumController::class, 'getSubjectsByCourse'])->name('system_admin.curriculum.get_subjects');
     Route::get('/system_admin/manage-curriculum', [CurriculumController::class, 'index'])->name('system_admin.manage-curriculum');
     Route::post('/system_admin/manage-curriculum', [CurriculumController::class, 'store'])->name('system_admin.curriculum.store');
+    Route::post('/system_admin/announcements/reorder', [AnnouncementController::class, 'reorder'])->name('system_admin.announcements.reorder');
 
     // FACULTY , SUBJECTS, CURRICULUM— Edit & Delete
     Route::patch('/system_admin/manage-faculty/{id}', [FacultyController::class, 'update'])->name('system_admin.manage-faculty.update');
@@ -94,7 +95,7 @@ Route::middleware(['role:registrar'])->group(function () {
     Route::get('/registrar/manage-students', [StudentController::class, 'index'])->name('registrar.manage-students');
     Route::get('/registrar/manage-students-alias', [StudentController::class, 'index'])->name('registrar.manage-students-alias');
     Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
-    Route::get('/registrar/students/{student_id}/profile', [StudentController::class, 'viewStudentProfile'])->name('registrar.students.profile');
+    Route::get('/registrar/students/{student_id}/profile', [RegistrarController::class, 'viewStudentProfile'])->name('registrar.students.profile');
     Route::put('/registrar/students/{id}/documents', [RegistrarController::class, 'updateStudentDocuments'])->name('registrar.update-documents');
     Route::get('/registrar/students/{student_id}/file/{filename}', [RegistrarController::class, 'secureViewFile'])->name('registrar.secure-view');
     Route::get('/registrar/manage-grades', [RegistrarController::class, 'manageGrades'])->name('registrar.manage-grades');
@@ -105,6 +106,7 @@ Route::middleware(['role:registrar'])->group(function () {
     Route::get('/registrar/user_details', [RegistrarController::class, 'profileView'])->name('registrar.user_details');
     Route::delete('/registrar/manage-students/{student_id}', [RegistrarController::class, 'destroyStudent'])->name('registrar.students.destroy');
     Route::post('/registrar/profile/picture', [RegistrarController::class, 'updateProfilePicture'])->name('registrar.profile.picture.update');
+    Route::post('/registrar/announcements/reorder', [AnnouncementController::class, 'reorder'])->name('registrar.announcements.reorder');
 });
 
 // DEAN ROUTES

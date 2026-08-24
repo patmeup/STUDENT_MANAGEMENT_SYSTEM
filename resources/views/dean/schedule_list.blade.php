@@ -5,7 +5,7 @@
     
     <div class="sa-header">
         <div class="header-titles">
-            <h2>Class Schedule Matrix</h2>
+            <h2>Class Schedules</h2>
             <p>College Dean Panel — Academic Oversight & Monitoring Center</p>
         </div>
         <div class="header-badge" style="background-color: #6366f1; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;">Dean Mode</div>
@@ -16,7 +16,7 @@
         <div class="sa-card table-panel">
             <div class="card-header-flex" style="display: flex; flex-direction: column; gap: 12px; align-items: stretch;">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <h3 class="card-title-list"><i class="fas fa-list-alt" style="margin-right: 6px; color: #6366f1;"></i> Master Deployment Matrix</h3>
+                    <h3 class="card-title-list"><i class="fas fa-list-alt" style="margin-right: 6px; color: #6366f1;"></i> Class Schedule List</h3>
                     <span class="badge-count" id="visibleClassesCount">{{ isset($schedules) ? $schedules->count() : 0 }} Active Classes</span>
                 </div>
                 

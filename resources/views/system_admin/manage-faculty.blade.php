@@ -4,8 +4,8 @@
 <div class="admin-container">
     <div class="admin-header">
         <div class="header-titles">
-            <h2>Personnel Infrastructure Registry</h2>
-            <p>System Admin Control Panel — Faculty Recruitment & Roster Infrastructure</p>
+            <h2>Faculty Directory & Management</h2>
+            <p>System Admin Control Panel — Manage Faculty Accounts & Roster</p>
         </div>
         <div class="header-badge faculty-level">System Admin</div>
     </div>
@@ -25,7 +25,7 @@
     <div class="admin-workspace">
         <div class="admin-card form-panel">
             <div class="card-bar">
-                <span><i class="fas fa-user-plus"></i> Onboard New Faculty Member</span>
+                <span><i class="fas fa-user-plus"></i> Manage Faculty Accounts & Roster</span>
             </div>
 
             <form action="{{ route('system_admin.manage-faculty.store') }}" method="POST" autocomplete="off" class="pure-form">
@@ -63,7 +63,7 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Faculty Designation / Job Title</label>
+                    <label>Faculty Role / Academic Position</label>
                     <div class="custom-select-wrapper">
                         <select name="role" class="custom-select-dropdown" required>
                             <option value="dean">Dean</option>
@@ -77,14 +77,14 @@
                     <input type="email" name="email" placeholder="Please put the personal email" required>
                     <small class="field-help">A temporary default credential (Welcome@AU2026) will be generated automatically.</small>
                 </div>
-                <button type="submit" class="btn-deploy-faculty">Authorize & Deploy Faculty</button>
+                <button type="submit" class="btn-deploy-faculty">Save Faculty Member</button>
             </form>
         </div>
 
         <div class="admin-card table-panel">
             <div class="card-header-flex">
                 <div class="card-title-container">
-                    <h3 class="card-title-list">Active Institutional Faculty Roster</h3>
+                    <h3 class="card-title-list">Faculty Members Directory</h3>
                     <span class="badge-count"> {{ $faculties->count() }} Faculty Members </span>
                 </div>
                 <div class="header-controls-flex">
@@ -107,9 +107,9 @@
                 <table class="minimal-table" id="facultyTable">
                     <thead>
                         <tr>
-                            <th>Faculty Identity & Credentials</th>
-                            <th style="text-align: center;">Designation / Title</th>
-                            <th style="text-align: center;">Network Status</th>
+                            <th>Faculty Identity Details</th>
+                            <th style="text-align: center;">Position / Role</th>
+                            <th style="text-align: center;">Status</th>
                             <th style="text-align: center;">Actions</th>
                         </tr>
                     </thead>

@@ -15,7 +15,10 @@ class SystemAdminController extends Controller
 
     public function dashboard()
     {
-        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+        $announcements = DB::table('announcements')
+            ->orderBy('display_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
 
         $totalEmployees = User::whereIn('role', ['professor', 'dept_sec', 'dean'])->count();
         $totalStudents = DB::table('students')->count();

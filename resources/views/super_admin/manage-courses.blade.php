@@ -47,21 +47,23 @@
                 </div>
 
                 {{-- 2. AUTOMATED DEPARTMENT FIELD --}}
-                
                 <div class="form-group">
                     <label>Assigned College Department</label>
                     <div class="custom-select-wrapper">
-                        <select name="department" id="modal-course-department" class="custom-select-dropdown" required>
+                        <select name="department" id="course-department-select" class="custom-select-dropdown" required>
                             <option value="COLLEGE OF COMPUTER STUDIES" selected>College of Computer Studies</option>
                         </select>
                     </div>
                 </div>
             </div>
 
-            {{-- 3. FULL TITLE FIELD --}}
+            {{-- 3. FULL TITLE FIELD (AUTOFILLED) --}}
             <div class="form-group">
-                <label>Full Descriptive Degree Title</label>
-                <input type="text" name="course_title" id="course-title-input" placeholder="Select a program above to auto-populate" readonly required style="background-color: #f8fafc; cursor: not-allowed;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label>Full Descriptive Degree Title</label>
+                    <small style="color: #10b981; font-weight: 600;"><i class="fas fa-magic"></i> Auto-generated</small>
+                </div>
+                <input type="text" name="course_title" id="course-title-input" placeholder="Select a program above to auto-populate" readonly required style="background-color: #f8fafc; cursor: not-allowed; font-weight: 600; color: #1e293b;">
             </div>
 
             <div class="form-actions-bar">
@@ -71,12 +73,11 @@
         </form>
     </div>
 
-    {{-- REGISTRY ACTIVE LISTING CARD WITH LIVE SEARCH BAR --}}
+    {{-- REGISTRY ACTIVE LISTING CARD --}}
     <div class="subject-list-card">
         <div class="card-header-flex">
             <h3 class="card-title-list">University Active Program Registry</h3>
             <div style="display: flex; align-items: center; gap: 15px;">
-                {{-- Real-time Engine Input Field --}}
                 <div class="search-input-box-wrapper" style="position: relative; display: flex; align-items: center;">
                     <i class="fas fa-search" style="position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none;"></i>
                     <input type="text" id="course-live-search" placeholder="Search program code or title..." style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px 6px 34px; font-size: 12.5px; outline: none; width: 220px; transition: all 0.2s ease;">
@@ -113,7 +114,6 @@
                         </tr>
                     @endforelse
                     
-                    {{-- No Results row indicator --}}
                     <tr id="empty-search-fallback-row" style="display: none;">
                         <td colspan="4" class="empty-table-state" style="text-align: center; color: #64748b; padding: 30px !important;">
                             No matching curriculum modules found for your criteria.
@@ -125,7 +125,7 @@
     </div>
 </div>
 
-{{-- POPUP DYNAMIC MODAL BOX COMPONENT FOR EDITING --}}
+{{-- POPUP DYNAMIC MODAL BOX FOR EDITING --}}
 <div id="editCourseModal" class="custom-modal-overlay" style="display: none;">
     <div class="custom-modal-content">
         <div class="modal-header-bar">
@@ -151,14 +151,14 @@
                 <label>Assigned College Department</label>
                 <div class="custom-select-wrapper">
                     <select name="department" id="modal-course-department" class="custom-select-dropdown" required>
-                        <option value="College of Computer Studies">College of Computer Studies</option>
+                        <option value="COLLEGE OF COMPUTER STUDIES">College of Computer Studies</option>
                     </select>
                 </div>
             </div>
 
             <div class="form-group" style="margin-top: 15px;">
                 <label>Full Descriptive Degree Title</label>
-                <input type="text" name="course_title" id="modal-course-title" readonly required style="background-color: #f8fafc; cursor: not-allowed;">
+                <input type="text" name="course_title" id="modal-course-title" readonly required style="background-color: #f8fafc; cursor: not-allowed; font-weight: 600; color: #1e293b;">
             </div>
 
             <div class="form-actions-bar" style="margin-top: 20px; padding-top: 15px;">
@@ -169,32 +169,30 @@
     </div>
 </div>
 
-{{-- JAVASCRIPT LOGIC MECHANICS --}}
+{{-- JAVASCRIPT LOGIC --}}
 <script>
-    // 1. Array ng mga umiiral na Course Codes galing sa database para sa automatic verification
     const existingCourses = @json($courses->pluck('course_code')->toArray());
 
+    const programTitles = {
+        'BSIT': 'Bachelor of Science in Information Technology',
+        'BSCS': 'Bachelor of Science in Computer Science'
+    };
+
     document.addEventListener('DOMContentLoaded', function() {
-        // Elements para sa Main Registration Form
         const courseSelect = document.getElementById('course-code-select');
         const titleInput = document.getElementById('course-title-input');
         const resetBtn = document.getElementById('btn-reset-form');
 
-        const programTitles = {
-            'BSIT': 'Bachelor of Science in Information Technology',
-            'BSCS': 'Bachelor of Science in Computer Science'
-        };
-
-        // Auto-populate logic para sa Creation Form
+        // REAL-TIME AUTO POPULATE FOR REGISTRATION FORM
         courseSelect.addEventListener('change', function() {
             titleInput.value = programTitles[this.value] || '';
         });
 
         resetBtn.addEventListener('click', function() {
-            titleInput.value = '';
+            setTimeout(() => { titleInput.value = ''; }, 10);
         });
 
-        // --- CLIENT REAL-TIME FILTER ENGINE FEATURE ---
+        // SEARCH FILTER LOGIC
         const searchInput = document.getElementById('course-live-search');
         const courseRows = document.querySelectorAll('.course-table-row-item');
         const emptyRow = document.getElementById('empty-search-fallback-row');
@@ -218,69 +216,47 @@
 
             emptyRow.style.display = (matchesFound === 0 && courseRows.length > 0) ? '' : 'none';
         });
-
-        searchInput.addEventListener('focus', function() {
-            this.style.borderColor = '#000000';
-            this.style.width = '260px';
-        });
-        searchInput.addEventListener('blur', function() {
-            this.style.borderColor = '#cbd5e1';
-            this.style.width = '220px';
-        });
     });
-<<<<<<< HEAD
 
-    // --- MODAL WINDOW TRIGGERS AT SUBMIT LOCKFlow ENGINE ---
+    // MODAL LOGIC FOR EDITING
     function openEditCourseModal(course) {
         const modal = document.getElementById('editCourseModal');
         const form = document.getElementById('editCourseForm');
         const submitBtn = document.getElementById('modal-submit-btn');
         
-        // I-save ang orihinal na estado para sa checking engine
         const originalCode = course.course_code;
         const originalDept = course.department;
-
-        const programTitles = {
-            'BSIT': 'Bachelor of Science in Information Technology',
-            'BSCS': 'Bachelor of Science in Computer Science'
-        };
 
         const codeSelect = document.getElementById('modal-course-code');
         const deptSelect = document.getElementById('modal-course-department');
         const titleInput = document.getElementById('modal-course-title');
 
-        // I-set ang paunang halaga mula sa database row
         codeSelect.value = originalCode;
         deptSelect.value = originalDept;
         titleInput.value = programTitles[originalCode] || course.course_title;
 
-        // Dynamic URL generator via Laravel config path inject
         let updateUrl = "{{ route('super_admin.courses.update', ':id') }}";
         form.action = updateUrl.replace(':id', course.id); 
 
-        // Unang lock sa loading state ng button
         submitBtn.disabled = true;
 
         function checkFormState() {
             const currentCode = codeSelect.value;
             const currentDept = deptSelect.value;
 
-            // Suriin kung may pinagkaiba sa orihinal na data block
             const hasChanges = (currentCode !== originalCode) || (currentDept !== originalDept);
-
-            // Suriin kung ang binagong acronym ay umiiral na sa iba pang entry sa listahan
             const isDuplicate = (currentCode !== originalCode) && existingCourses.includes(currentCode);
 
             if (isDuplicate) {
                 submitBtn.disabled = true;
             } else if (hasChanges) {
-                submitBtn.disabled = false; // Buksan ang lock kung ligtas ang pagbabago
+                submitBtn.disabled = false;
             } else {
-                submitBtn.disabled = true; // I-lock ulit kung ibinalik sa dating settings o walang ginalaw
+                submitBtn.disabled = true;
             }
         }
 
-        // Event listener hooks para sa real-time detection sa modal fields
+        // AUTO POPULATE FULL TITLE UPON CHANGING CODE IN MODAL
         codeSelect.onchange = function() {
             titleInput.value = programTitles[this.value] || '';
             checkFormState();
@@ -294,8 +270,6 @@
     function closeEditCourseModal() {
         document.getElementById('editCourseModal').style.display = 'none';
     }
-=======
->>>>>>> 9367affbf85637b7cc10f50b81275dfb8ae4941e
 </script>
 
 <style>
@@ -330,17 +304,14 @@
     .subject-title-text { font-weight: 500; color: #1e293b; }
     .empty-table-state { text-align: center; color: #64748b; padding: 40px !important; font-style: italic; }
     
-    /* Input Dropdown Component Rules */
     .custom-select-wrapper { position: relative; width: 100%; }
     .custom-select-dropdown { width: 100%; padding: 12px 40px 12px 14px; font-size: 14px; color: #0f172a; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; appearance: none; -webkit-appearance: none; cursor: pointer; outline: none; }
     .custom-select-dropdown:focus { border-color: #000000; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05); }
     .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
     
-    /* Interactive Edit Action Button Interface styling */
     .btn-edit-action { background: #ffffff; color: #334155; border: 1px solid #cbd5e1; padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 12.5px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 5px; }
     .btn-edit-action:hover { background: #f8fafc; border-color: #94a3b8; color: #000000; }
 
-    /* Floating Modal Architecture Engine Sheet CSS */
     .custom-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 9999; }
     .custom-modal-content { background: #ffffff; border-radius: 12px; width: 100%; max-width: 480px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); overflow: hidden; animation: modalEntry 0.25s ease-out; }
     .modal-header-bar { background: #f8fafc; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }

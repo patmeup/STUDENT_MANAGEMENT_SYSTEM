@@ -5,7 +5,7 @@
     
     <div class="sa-header">
         <div class="header-titles">
-            <h2>Root Personnel Infrastructure</h2>
+            <h2>Employee Account Management</h2>
             <p>Super Admin Console — System Identity & Access Management (SIAM)</p>
         </div>
         <div class="header-badge root-level">System Access</div>
@@ -27,7 +27,7 @@
         
         {{-- FORM PANEL --}}
         <div class="sa-card form-panel">
-            <div class="card-bar"><i class="fas fa-user-plus"></i> Grant System Access Clearance</div>
+            <div class="card-bar"><i class="fas fa-user-plus"></i> Register New Employee</div>
             
             <form action="{{ route('super_admin.employee.store') }}" method="POST" autocomplete="off" class="pure-form">
                 @csrf
@@ -68,7 +68,7 @@
                     <label>Designated Operational Role</label>
                     <div class="custom-select-wrapper">
                         <select name="role" id="role-select" class="custom-select-dropdown" required>
-                            <option value="" disabled selected hidden>Select System Tier Authorization</option>
+                            <option value="" disabled selected hidden>Select Employee Role</option>
                             <option value="system_admin">System Admin</option>
                             <option value="dean">Dean</option>
                             <option value="registrar">Registrar</option>
@@ -93,7 +93,7 @@
         {{-- TABLE PANEL WITH SEARCH FEATURE --}}
         <div class="sa-card table-panel">
             <div class="card-bar d-flex-jsb table-header-flex">
-                <span>Active Infrastructure Personnel</span>
+                <span>Registered Employees</span>
                 <div class="table-controls" style="display: flex; align-items: center; gap: 12px;">
                     {{-- Embedded Live Search Bar --}}
                     <div class="search-wrapper">
@@ -110,7 +110,7 @@
                         <tr>
                             <th>Identified Personnel</th>
                             <th>Role / Clearance</th>
-                            <th>Network Status</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>

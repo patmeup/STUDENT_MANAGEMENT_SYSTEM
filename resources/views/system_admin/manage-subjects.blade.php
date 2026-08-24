@@ -5,8 +5,8 @@
 
     <div class="sa-header">
         <div class="header-titles">
-            <h2>Global Subject Encoder</h2>
-            <p>Admin Control Panel — Curriculum Core Masterlist</p>
+            <h2>Subject Management & Registry</h2>
+            <p>System Admin Console — Master Course & Subject Directory</p>
         </div>
        <div class="header-badge system-level">Admin Mode</div>
     </div>
@@ -27,10 +27,9 @@
 
         <div class="sa-card form-panel">
             <div class="card-bar">
-                <span><i class="fas fa-book-medical"></i> Subject Specifications Form</span>
+                <span><i class="fas fa-book-medical"></i> Add New Subject</span>
             </div>
 
-            {{-- Binigyan natin ng ID ang form at dynamically babaguhin ang action path kapag Edit mode na --}}
             <form id="subjectForm" action="{{ route('system_admin.subjects.store') }}" method="POST" autocomplete="off" class="pure-form">
                 @csrf
 
@@ -39,11 +38,10 @@
                 name="_method"
                 id="form_method">
 
-                {{-- Mahalagang Hidden Input: Dito itatago ang ID ng isasalbuhang subject kapag mag-aupdate --}}
                 <input type="hidden" name="subject_id" id="form_subject_id">
 
                 <div class="form-group">
-                    <label>Subject Code / Acronym</label>
+                    <label>Subject Code</label>
                     <input type="text" name="subject_code" id="form_subject_code" placeholder="e.g., COPRO1, GEC-RPH, NET101" class="uppercase-input" required>
                     <small class="field-help">This field must be completely unique inside the global database system.</small>
                 </div>
@@ -53,18 +51,18 @@
                 </div>
                 <div class="form-grid-2">
                     <div class="form-group">
-                        <label>Lecture Units Credit</label>
+                        <label>Lecture Units</label>
                         <input type="number" name="lecture_units" id="form_lecture_units" min="0" max="9" value="3" required>
                     </div>
                     <div class="form-group">
-                        <label>Laboratory Units Credit</label>
+                        <label>Laboratory Units</label>
                         <input type="number" name="lab_units" id="form_lab_units" min="0" max="9" value="0" required>
                     </div>
                 </div>
 
                 <div class="form-actions-bar">
                     <button type="button" class="btn-clear" onclick="resetFormState()">Reset Form</button>
-                    <button type="submit" id="btn-submit-action" class="btn-submit-subj">Compile & Save</button>
+                    <button type="submit" id="btn-submit-action" class="btn-submit-subj">Save Subject</button>
                 </div>
             </form>
         </div>
@@ -73,7 +71,7 @@
             <div class="card-header-flex">
 
                 <div class="card-title-container">
-                    <h3 class="card-title-list">Global Subject Catalog</h3>
+                    <h3 class="card-title-list">Subject Directory</h3>
                 </div>
 
                 <div class="header-controls-flex">
@@ -98,9 +96,9 @@
                     <thead>
                         <tr>
                             <th>Subject Code</th>
-                            <th>Descriptive Title</th>
+                            <th>Subject Title</th>
                             <th>Assigned Faculty</th>
-                            <th style="text-align: center;">Lect</th>
+                            <th style="text-align: center;">Lec</th>
                             <th style="text-align: center;">Lab</th>
                             <th style="text-align: center;">Total</th>
                             <th style="text-align: center;">Actions</th>

@@ -5,7 +5,7 @@
 
     <div class="masterlist-header">
         <div class="header-titles">
-            <h2>Student Masterlist Ledger</h2>
+            <h2>Student Masterlist</h2>
             <p>Arellano University — Andres Bonifacio Campus (Active Academic Registry)</p>
         </div>
     </div>
@@ -20,7 +20,7 @@
         <form id="liveFilterForm" action="{{ route('registrar.manage-students') }}" method="GET" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
 
             <div style="flex: 1; min-width: 250px;">
-                <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Search Directory</label>
+                <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Search</label>
                 <input type="text" id="searchInput" name="search" value="{{ request('search') }}" placeholder="Search ID, First Name, or Last Name..."
                        style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; box-sizing: border-box; color: #334155;">
             </div>

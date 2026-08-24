@@ -21,13 +21,16 @@
             <div class="carousel-track" id="carouselTrack">
                 @forelse($announcements as $index => $item)
                     <div class="carousel-slide {{ $index === 0 ? 'active' : '' }}">
-                        <img src="{{ asset('storage/' . $item->image_path) }}" alt="{{ $item->title ?? 'Announcement Banner' }}">
+                        <!-- Blurred background image -->
+                        <img src="{{ asset('storage/' . $item->image_path) }}" class="slide-bg-blur" alt="Background Blur">
+                        <!-- Main centered image -->
+                        <img src="{{ asset('storage/' . $item->image_path) }}" class="slide-main-img" alt="{{ $item->title ?? 'Announcement Banner' }}">
                     </div>
                 @empty
                     <div class="carousel-slide active">
                         <div class="no-banner-placeholder">
-                            <i class="fa-regular fa-image fa-3x"></i>
-                            <p>No active announcements.</p>
+                            <i class="fa-regular fa-image fa-2x"></i>
+                            <p style="margin-top: 6px; font-size: 13px;">No active announcements.</p>
                         </div>
                     </div>
                 @endforelse
@@ -151,40 +154,47 @@
         font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; 
     }
 
+    .announcement-carousel-wrapper {
+        width: 100%;
+        margin: 0 auto 24px auto;
+    }
+
+    /* OUTER BOX CONTAINER */
     .announcement-box {
-        background: #e2e8f0; 
+        background: #f1f5f9; 
         border: 3px solid #1e293b;
         border-radius: 16px;
-        padding: 12px;
+        padding: 10px;
         position: relative; 
-        height: 340px; 
+        height: 280px; 
         display: flex;
         flex-direction: column;
     }
 
     .announcement-tag {
         position: absolute; 
-        top: 22px; 
-        left: 26px; 
+        top: 20px; 
+        left: 24px; 
         font-weight: 800;
-        font-size: 12px; 
+        font-size: 11px; 
         color: #1e293b; 
         z-index: 10; 
         letter-spacing: 1px;
         text-transform: uppercase;
-        background: rgba(255, 255, 255, 0.85);
+        background: rgba(255, 255, 255, 0.95);
         padding: 3px 8px;
         border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
 
     .carousel-track { 
         width: 100%; 
         height: 100%; 
         position: relative; 
-        border: 3px solid #1e293b; 
-        border-radius: 12px;
+        border: 2px solid #1e293b; 
+        border-radius: 10px;
         overflow: hidden;
-        background: #ffffff;
+        background: #000000;
     }
     
     .carousel-slide { 
@@ -195,17 +205,53 @@
         height: 100%; 
         opacity: 0; 
         transition: opacity 0.6s ease-in-out; 
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
     }
     
     .carousel-slide.active { opacity: 1; }
-    .carousel-slide img { width: 100%; height: 100%; object-fit: fill; }
-    .no-banner-placeholder { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #64748b; }
 
-    .carousel-dots { text-align: center; margin-top: 14px; }
-    .dot { cursor: pointer; height: 14px; width: 14px; margin: 0 6px; background-color: #ffffff; border: 3px solid #1e293b; border-radius: 50%; display: inline-block; transition: 0.2s; }
+    /* BLURRED BACKGROUND IMAGE EFFECT */
+    .slide-bg-blur {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: blur(12px) brightness(0.65);
+        transform: scale(1.1);
+        z-index: 1;
+    }
+
+    /* CENTERED MAIN BANNER IMAGE */
+    .slide-main-img { 
+        position: relative;
+        z-index: 2;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .no-banner-placeholder { 
+        height: 100%; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center; 
+        color: #64748b; 
+        background: #ffffff;
+        width: 100%;
+    }
+
+    .carousel-dots { text-align: center; margin-top: 10px; }
+    .dot { cursor: pointer; height: 12px; width: 12px; margin: 0 5px; background-color: #ffffff; border: 2px solid #1e293b; border-radius: 50%; display: inline-block; transition: 0.2s; }
     .dot.active { background-color: #f59e0b; }
 
-    /* 2 COLUMNS GRID FOR 2x2 LAYOUT */
+    /* STATS GRID */
     .stats-dashboard-grid { 
         display: grid; 
         grid-template-columns: repeat(2, 1fr); 
@@ -226,11 +272,10 @@
         overflow: hidden;
     }
 
-    /* CENTER THE 5TH CARD ACROSS 2 COLUMNS */
     .stat-premium-card.card-centered {
         grid-column: 1 / -1;
         justify-self: center;
-        width: calc(50% - 10px); /* Matches exact width of 1 card in 2-col grid */
+        width: calc(50% - 10px);
     }
 
     .stat-number-side {
@@ -301,6 +346,7 @@
     .alert-danger { background: #fee2e2; color: #991b1b; }
 
     @media (max-width: 768px) {
+        .announcement-box { height: 200px; }
         .stats-dashboard-grid { 
             grid-template-columns: 1fr; 
         }

@@ -97,6 +97,7 @@
                         <select name="course" required>
                             <option value="">-- Select Course / Program --</option>
                             <option value="BSIT">BS Information Technology</option>
+                            <option value="BSCS">BS Computer Science</option>
                         </select>
                     </div>
                 </div>

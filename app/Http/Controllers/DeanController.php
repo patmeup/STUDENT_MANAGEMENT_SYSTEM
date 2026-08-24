@@ -14,7 +14,10 @@ class DeanController extends Controller
 
         $dept = session('user_department');
 
-        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+        $announcements = DB::table('announcements')
+            ->orderBy('display_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
 
         $allowedCourses = ['BSIT'];
         $dbDepartmentSearch = $dept;

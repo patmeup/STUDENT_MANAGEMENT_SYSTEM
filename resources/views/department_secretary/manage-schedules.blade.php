@@ -5,8 +5,8 @@
     
     <div class="sa-header">
         <div class="header-titles">
-            <h2>Class Schedule Overview</h2>
-            <p>Department Secretary Panel — Section & Room Deployment Center</p>
+            <h2>Manage Class Schedules</h2>
+            <p>Department Secretary Panel — Schedule Management & Room Assignment</p>
         </div>
         <div class="header-badge" style="background-color: #0284c7; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;">Secretary Mode</div>
     </div>
@@ -27,7 +27,7 @@
 
         <div class="sa-card form-panel">
             <div class="card-bar">
-                <span id="formPanelTitle"><i class="fas fa-calendar-plus"></i> Deployment Specifications Form</span>
+                <span id="formPanelTitle"><i class="fas fa-calendar-plus"></i> Add Class Schedule</span>
             </div>
             
             <form id="scheduleMainForm" action="{{ route('department_secretary.schedules.store') }}" method="POST" autocomplete="off" class="pure-form">
@@ -40,7 +40,7 @@
                 </div>
 
                 <div class="form-group" id="subjectSelectGroup">
-                    <label>Target Course / Subject</label>
+                    <label>Select Subject</label>
                         <select name="subject_id" id="formSubjectId" class="select-input custom-validate">
                             <option value="">-- Select Cataloged Subject --</option>
                             @foreach($subjects as $subj)
@@ -50,7 +50,7 @@
                                 </option>
                             @endforeach
                         </select>
-                    <small class="field-help">Choose the curriculum module to be given an active deployment slot.</small>
+                    <small class="field-help">Choose a subject from the curriculum to create a schedule.</small>
                 </div>
 
                 <div class="form-group" id="subjectReadOnlyGroup" style="display: none;">
@@ -123,7 +123,7 @@
                 <div class="form-actions-bar">
                     <button type="button" id="btnCancelEdit" class="btn-clear" style="display: none; margin-right: auto;">Cancel Edit</button>
                     <button type="reset" id="btnResetForm" class="btn-clear">Reset Form</button>
-                    <button type="submit" id="btnSubmitForm" class="btn-submit-subj">Deploy Class</button>
+                    <button type="submit" id="btnSubmitForm" class="btn-submit-subj">Deploy Schedule</button>
                 </div>
             </form>
         </div>
@@ -131,7 +131,7 @@
         <div class="sa-card table-panel">
             <div class="card-header-flex" style="display: flex; flex-direction: column; gap: 12px; align-items: stretch;">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <h3 class="card-title-list">Active Deployment Matrix</h3>
+                    <h3 class="card-title-list">Created Schedules</h3>
                     <span class="badge-count" id="visibleClassesCount">{{ isset($schedules) ? $schedules->count() : 0 }} Active Classes</span>
                 </div>
                 
