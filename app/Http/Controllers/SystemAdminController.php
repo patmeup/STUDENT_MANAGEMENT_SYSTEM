@@ -37,10 +37,22 @@ class SystemAdminController extends Controller
     public function academicPeriods()
     {
         $periods = DB::table('academic_periods')->orderBy('created_at', 'desc')->get();
-
         $termPeriods = DB::table('term_periods')->get()->groupBy('academic_period_id');
 
-        return view('system_admin.academic_periods', compact('periods', 'termPeriods'));
+        // Inayos ang JOIN at SELECT batay sa totoong schema ng 'curricula' at 'subjects'
+        $curriculumSubjects = DB::table('curricula')
+            ->join('subjects', 'curricula.subject_id', '=', 'subjects.id')
+            ->select(
+                'curricula.semester',
+                'curricula.year_level',
+                'curricula.course as course_code', // Direct column mula sa curricula
+                'subjects.subject_code',
+                'subjects.subject_title'
+            )
+            ->get()
+            ->groupBy('semester');
+
+        return view('system_admin.academic_periods', compact('periods', 'termPeriods', 'curriculumSubjects'));
     }
 
     public function storeAcademicPeriod(Request $request)
