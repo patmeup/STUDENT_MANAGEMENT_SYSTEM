@@ -266,7 +266,12 @@
                             <h4 class="m-0 fw-bold text-dark-blue">Student Masterlist Roster</h4>
                             <p class="small text-muted m-0">Official list of enrolled class members</p>
                         </div>
-                        <span class="students-count-badge">{{ count($students) }} Students Enrolled</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="students-count-badge">{{ count($students) }} Students Enrolled</span>
+                            <button type="button" onclick="window.print()" class="btn-print-attendance">
+                                <i class="fa-solid fa-print me-1"></i> Print / Download PDF
+                            </button>
+                        </div>
                     </div>
 
                     @if($students->isEmpty())
@@ -294,6 +299,40 @@
                                 </tbody>
                             </table>
                         </div>
+
+                        <div id="printable-masterlist-area" class="printable-only">
+                            <div class="print-header text-center">
+                                <h2 class="school-name">ARELLANO UNIVERSITY</h2>
+                                <p class="report-subtitle">OFFICIAL STUDENT MASTERLIST</p>
+                                <table class="meta-info-table">
+                                    <tr>
+                                        <td><strong>Subject:</strong> {{ strtoupper($classDetails->subject_code) }} — {{ $classDetails->subject_title }}</td>
+                                        <td><strong>Section:</strong> {{ strtoupper($classDetails->section_name) }}</td>
+                                        <td><strong>Schedule:</strong> {{ $classDetails->class_days }} ({{ date('h:i A', strtotime($classDetails->start_time)) }} - {{ date('h:i A', strtotime($classDetails->end_time)) }})</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <table class="print-data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 8%;">#</th>
+                                        <th style="width: 27%;">Student Number</th>
+                                        <th style="width: 45%;">Full Name</th>
+                                        <th style="width: 20%;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($students as $index => $student)
+                                        <tr>
+                                            <td class="text-center">#{{ $index + 1 }}</td>
+                                            <td>{{ $student->student_id }}</td>
+                                            <td class="text-uppercase fw-bold">{{ $student->last_name }}, {{ $student->first_name }}</td>
+                                            <td class="text-center">Enrolled</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     @endif
                 </div>
             </div>
@@ -315,6 +354,52 @@
                                     </h4>
                                     <p class="small text-muted m-0 mt-1">Manage, evaluate, and mass-assign student logs efficiently.</p>
                                 </div>
+
+                                <template x-if="hasSaved">
+                                    <button type="button" onclick="window.print()" class="btn-print-attendance">
+                                        <i class="fa-solid fa-print me-1"></i> Print / Download PDF
+                                    </button>
+                                </template>
+                            </div>
+
+                            <div id="printable-attendance-area" class="printable-only">
+                                <div class="print-header text-center">
+                                    <h2 class="school-name">ARELLANO UNIVERSITY</h2>
+                                    <p class="report-subtitle">OFFICIAL CLASS ATTENDANCE REPORT</p>
+                                    <table class="meta-info-table">
+                                        <tr>
+                                            <td><strong>Subject:</strong> {{ strtoupper($classDetails->subject_code) }} — {{ $classDetails->subject_title }}</td>
+                                            <td><strong>Section:</strong> {{ strtoupper($classDetails->section_name) }}</td>
+                                            <td><strong>Date:</strong> <span x-text="selectedDate"></span></td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <table class="print-data-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 6%;">#</th>
+                                            <th style="width: 18%;">Student ID</th>
+                                            <th style="width: 38%;">Full Name</th>
+                                            <th style="width: 18%;">Status</th>
+                                            <th style="width: 20%;">Internal Remarks</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($students as $index => $student)
+                                            <tr>
+                                                <td class="text-center">#{{ $index + 1 }}</td>
+                                                <td>{{ $student->student_id }}</td>
+                                                <td class="text-uppercase fw-bold">{{ $student->last_name }}, {{ $student->first_name }}</td>
+                                                <td class="text-center">
+                                                    <span x-text="attendanceState['{{ $student->student_id }}'] || 'N/A'"></span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span x-text="remarksState['{{ $student->student_id }}'] && remarksState['{{ $student->student_id }}'].trim() !== '' ? remarksState['{{ $student->student_id }}'] : '—'"></span>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
                             </div>
 
                             <hr class="control-panel-dividerMy my-3">
@@ -1635,6 +1720,122 @@
         opacity: 1 !important;
         filter: none !important;
         cursor: not-allowed;
+    }
+
+    /* PRINT BUTTON */
+    .btn-print-attendance {
+        background-color: #ffffff;
+        color: #1e2a5a;
+        border: 1px solid #1e2a5a;
+        font-size: 12.5px;
+        font-weight: 700;
+        padding: 7px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+    }
+    .btn-print-attendance:hover {
+        background-color: #1e2a5a;
+        color: #ffffff;
+    }
+
+    /* SCREEN VIEW: hide the dedicated print containers */
+    .printable-only {
+        display: none !important;
+    }
+
+    /* PRINT / PDF EXPORT */
+    @media print {
+        @page {
+            size: A4 portrait;
+            margin: 12mm 15mm 12mm 15mm;
+        }
+
+        body * {
+            visibility: hidden !important;
+        }
+
+        #printable-masterlist-area,
+        #printable-masterlist-area *,
+        #printable-attendance-area,
+        #printable-attendance-area * {
+            visibility: visible !important;
+        }
+
+        #printable-masterlist-area,
+        #printable-attendance-area {
+            display: block !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+        }
+
+        .school-name {
+            margin: 0 !important;
+            font-size: 20px !important;
+            font-weight: 800 !important;
+            color: #1e2a5a !important;
+            text-align: center !important;
+        }
+
+        .report-subtitle {
+            margin: 2px 0 14px 0 !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            color: #475569 !important;
+            text-align: center !important;
+            letter-spacing: 0.5px !important;
+        }
+
+        .meta-info-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-bottom: 16px !important;
+            font-size: 11px !important;
+            background: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+        }
+
+        .meta-info-table td {
+            padding: 8px 10px !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #1e293b !important;
+        }
+
+        .print-data-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            table-layout: fixed !important;
+        }
+
+        .print-data-table th {
+            background-color: #f1f5f9 !important;
+            color: #0f172a !important;
+            border: 1px solid #94a3b8 !important;
+            padding: 8px 10px !important;
+            font-size: 11px !important;
+            text-transform: uppercase !important;
+            text-align: center !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .print-data-table td {
+            border: 1px solid #cbd5e1 !important;
+            padding: 8px 10px !important;
+            font-size: 12px !important;
+            color: #0f172a !important;
+        }
+
+        .text-center { text-align: center !important; }
+        .text-uppercase { text-transform: uppercase !important; }
+        .fw-bold { font-weight: 700 !important; }
     }
 </style>
 @endsection
