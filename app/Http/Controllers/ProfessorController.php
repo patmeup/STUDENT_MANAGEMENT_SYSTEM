@@ -103,6 +103,7 @@ class ProfessorController extends Controller
 
         $classDetails = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id')
             ->where('class_schedules.id', $schedule_id)
             ->where('subjects.professor_id', $professorId)
             ->select(
@@ -116,7 +117,9 @@ class ProfessorController extends Controller
                 'subjects.subject_code',
                 'subjects.subject_title',
                 'subjects.lecture_units',
-                'subjects.lab_units'
+                'subjects.lab_units',
+                'employees.first_name as prof_first', 
+                'employees.last_name as prof_last'    
             )
             ->first();
 
@@ -244,6 +247,10 @@ class ProfessorController extends Controller
             }
         }
 
+        $studentSubmissions = DB::table('task_submissions')
+            ->whereIn('student_id', collect($students)->pluck('student_id'))
+            ->get();
+
         return view('professor.class_details', compact(
             'classDetails',
             'students',
@@ -257,7 +264,8 @@ class ProfessorController extends Controller
             'gAvailableCourses',
             'gAnnouncements',
             'gCourseWork',
-            'gMaterials'
+            'gMaterials',
+            'studentSubmissions'
         ));
     }
 
@@ -408,10 +416,10 @@ class ProfessorController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'type' => 'required|string',
-            'max_score' => 'nullable|integer|min:1|required_unless:type,module',
+            'max_score' => 'nullable',
             'term' => 'required|string',
             'schedule_id' => 'required|integer',
-            'due_date' => 'nullable|date',
+            'due_date' => 'nullable',
             'attachment' => 'nullable|file|max:25600|mimes:pdf,doc,docx,ppt,pptx,zip,jpg,png',
         ]);
 
@@ -447,14 +455,20 @@ class ProfessorController extends Controller
                 $filePath = "{$folderPath}/{$finalName}";
             }
 
-            $formattedDueDate = $request->due_date ? date('Y-m-d H:i:s', strtotime($request->due_date)) : null;
+            $isNonGradable = in_array(strtolower($request->type), ['module', 'material']);
+                        
+            $formattedDueDate = (!$isNonGradable && !empty($request->due_date)) 
+                ? date('Y-m-d H:i:s', strtotime($request->due_date)) 
+                : null;
+
+            $maxScore = ($isNonGradable || empty($request->max_score)) ? null : (int)$request->max_score;
 
             $taskId = DB::table('student_tasks')->insertGetId([
                 'class_schedule_id' => $request->schedule_id,
                 'term' => $request->term,
                 'activity_name' => $request->title,
                 'activity_type' => $request->type,
-                'max_score' => $request->type === 'module' ? null : $request->max_score,
+                'max_score' => $maxScore,
                 'due_date' => $formattedDueDate,
                 'file_path' => $filePath,
                 'original_filename' => $originalName,
@@ -467,7 +481,7 @@ class ProfessorController extends Controller
                 'activity' => [
                     'title' => $request->title,
                     'type' => $request->type,
-                    'max_score' => $request->max_score,
+                    'max_score' => $maxScore,
                     'due_date' => $formattedDueDate,
                 ]
             ]);
@@ -482,8 +496,8 @@ class ProfessorController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'type' => 'required|string',
-            'max_score' => 'nullable|integer|min:1|required_unless:type,module',
-            'due_date' => 'nullable|date',
+            'max_score' => 'nullable',
+            'due_date' => 'nullable',
             'attachment' => 'nullable|file|max:10240|mimes:pdf,doc,docx,ppt,pptx,zip,jpg,png',
         ]);
 
@@ -494,18 +508,23 @@ class ProfessorController extends Controller
                 return response()->json(['success' => false, 'message' => 'Task not found.'], 404);
             }
 
-            $formattedDueDate = $request->due_date ? date('Y-m-d H:i:s', strtotime($request->due_date)) : null;
+            $isNonGradable = in_array(strtolower($request->type), ['module', 'material']);
+
+            $formattedDueDate = (!$isNonGradable && !empty($request->due_date)) 
+                ? date('Y-m-d H:i:s', strtotime($request->due_date)) 
+                : null;
+
+            $maxScore = ($isNonGradable || empty($request->max_score)) ? null : (int)$request->max_score;
 
             $updateData = [
                 'activity_name' => $request->title,
                 'activity_type' => $request->type,
-                'max_score' => $request->type === 'module' ? null : $request->max_score,
+                'max_score' => $maxScore,
                 'due_date' => $formattedDueDate,
                 'updated_at' => now(),
             ];
 
             if ($request->hasFile('attachment')) {
-
                 if ($task->file_path) {
                     Storage::disk('local')->delete($task->file_path);
                 }
@@ -540,7 +559,7 @@ class ProfessorController extends Controller
 
             DB::table('student_tasks')->where('id', $id)->update($updateData);
 
-            return response()->json(['success' => true]);
+            return response()->json(['success`' => true]);
 
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);

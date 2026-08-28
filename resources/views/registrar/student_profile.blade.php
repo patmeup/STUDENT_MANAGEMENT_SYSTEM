@@ -91,8 +91,8 @@
                         <select name="status" style="width: 100%; max-width: 400px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; font-weight: 600; background-color: #fff; color: #0f172a;">
                             <option value="Enrolled" {{ ($student->status ?? 'Enrolled') == 'Enrolled' ? 'selected' : '' }}>Enrolled</option>
                             <option value="On-Hold" {{ ($student->status ?? '') == 'On-Hold' ? 'selected' : '' }}>On-Hold</option>
-                            <option value="Purged" {{ ($student->status ?? '') == 'Purged' ? 'selected' : '' }}>Purged</option>
                             <option value="Dropped" {{ ($student->status ?? '') == 'Dropped' ? 'selected' : '' }}>Dropped</option>
+                            <option value="Purged" {{ ($student->status ?? '') == 'Purged' ? 'selected' : '' }}>Purged</option>
                         </select>
                     </td>
                 </tr>

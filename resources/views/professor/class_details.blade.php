@@ -7,6 +7,7 @@
 <div class="prof-container py-4" x-data="{
         currentTab: new URLSearchParams(window.location.search).get('tab') || 'masterlist',
         hasUnsavedChanges: false,
+        landscapePrint: false,
 
         switchTab(tabName) {
             if (this.hasUnsavedChanges) {
@@ -194,6 +195,13 @@
 
     x-init="initAttendance()">
 
+    <template x-if="landscapePrint">
+        <style>@media print { @page { size: A4 landscape; margin: 10mm 12mm; } }</style>
+    </template>
+    <template x-if="!landscapePrint">
+        <style>@media print { @page { size: A4 portrait; margin: 14mm 16mm; } }</style>
+    </template>
+
     <div class="page-header-row">
         <a href="{{ route('professor.manage-classes') }}" class="btn-back-link">
             <i class="fa-solid fa-arrow-left-long"></i> Back to My Classes List
@@ -268,7 +276,7 @@
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             <span class="students-count-badge">{{ count($students) }} Students Enrolled</span>
-                            <button type="button" onclick="window.print()" class="btn-print-attendance">
+                            <button type="button" @click="landscapePrint = false; setTimeout(() => window.print(), 150);" class="btn-print-attendance">
                                 <i class="fa-solid fa-print me-1"></i> Print / Download PDF
                             </button>
                         </div>
@@ -339,8 +347,11 @@
                                     <td><span class="meta-label">Section</span>{{ strtoupper($classDetails->section_name) }}</td>
                                 </tr>
                                 <tr>
-                                    <td><span class="meta-label">Schedule</span>{{ $classDetails->class_days }}, {{ date('h:i A', strtotime($classDetails->start_time)) }} - {{ date('h:i A', strtotime($classDetails->end_time)) }}</td>
+                                    <td><span class="meta-label">Professor</span>{{ strtoupper(($classDetails->prof_last ?? '') . ', ' . ($classDetails->prof_first ?? '')) }}</td>
                                     <td><span class="meta-label">Room</span>{{ strtoupper($classDetails->room_assignment) }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2"><span class="meta-label">Schedule</span>{{ $classDetails->class_days }}, {{ date('h:i A', strtotime($classDetails->start_time)) }} - {{ date('h:i A', strtotime($classDetails->end_time)) }}</td>
                                 </tr>
                             </table>
 
@@ -396,7 +407,7 @@
                                 </div>
 
                                 <template x-if="hasSaved">
-                                    <button type="button" onclick="window.print()" class="btn-print-attendance">
+                                    <button type="button" @click="landscapePrint = false; setTimeout(() => window.print(), 150);" class="btn-print-attendance">
                                         <i class="fa-solid fa-print me-1"></i> Print / Download PDF
                                     </button>
                                 </template>
@@ -417,11 +428,15 @@
                                         <td><span class="meta-label">Section</span>{{ strtoupper($classDetails->section_name) }}</td>
                                     </tr>
                                     <tr>
+                                        <td><span class="meta-label">Professor</span>{{ strtoupper(($classDetails->prof_last ?? '') . ', ' . ($classDetails->prof_first ?? '')) }}</td>
+                                        <td><span class="meta-label">Room</span>{{ strtoupper($classDetails->room_assignment) }}</td>
+                                    </tr>
+                                    <tr>
                                         <td class="print-date-highlight">
                                             <span class="meta-label">Attendance Record Date</span>
                                             <span x-text="new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })"></span>
                                         </td>
-                                        <td><span class="meta-label">Room</span>{{ strtoupper($classDetails->room_assignment) }}</td>
+                                        <td><span class="meta-label">Schedule</span>{{ $classDetails->class_days }}, {{ date('h:i A', strtotime($classDetails->start_time)) }} - {{ date('h:i A', strtotime($classDetails->end_time)) }}</td>
                                     </tr>
                                 </table>
 
@@ -585,7 +600,81 @@
 
             @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key => $termLabel)
                 @php
-                    $termCourseWork = $gCourseWork->where('term', $key);
+                    $mergedDeliverables = collect();
+                    $currentTermTasks = collect($termTasks->get($key, []));
+                    $systemTaskTitles = $currentTermTasks->pluck('activity_name')->map(fn($t) => strtolower(trim($t)))->toArray();
+
+                    foreach ($currentTermTasks as $task) {
+                        if (strtolower($task->activity_type) === 'module') {
+                            continue;
+                        }
+
+                        $isGoogleTask = !empty($task->google_coursework_id);
+                        $gLink = null;
+                        if ($isGoogleTask) {
+                            $gLink = DB::table('google_classroom_coursework')
+                                ->where('google_coursework_id', $task->google_coursework_id)
+                                ->value('alternate_link');
+                        }
+
+                        $mergedDeliverables->push((object)[
+                            'source'     => $isGoogleTask ? 'gclass_coursework' : 'system',
+                            'id'         => $task->id,
+                            'title'      => $task->activity_name,
+                            'type'       => $task->activity_type,
+                            'max_score'  => $task->max_score,
+                            'due_date'   => $task->due_date,
+                            'link'       => $gLink ?? null,
+                            'sort_date'  => $task->due_date ?? '1970-01-01',
+                        ]);
+                    }
+
+                    if (isset($gConnection) && $gConnection && isset($gLinkedCourse) && $gLinkedCourse) {
+                        if (isset($gCourseWork)) {
+                            $filteredGCourseWork = $gCourseWork->where('term', $key);
+                            foreach ($filteredGCourseWork as $cw) {
+                                $existsInDb = DB::table('student_tasks')->where('google_coursework_id', $cw->google_coursework_id)->exists();
+                                $titleMatches = in_array(strtolower(trim($cw->title)), $systemTaskTitles);
+
+                                if (!$existsInDb && !$titleMatches) {
+                                    $mergedDeliverables->push((object)[
+                                        'source'     => 'gclass_coursework',
+                                        'id'         => $cw->id,
+                                        'title'      => $cw->title,
+                                        'type'       => 'coursework',
+                                        'max_score'  => $cw->max_points ?? null,
+                                        'due_date'   => $cw->due_date,
+                                        'link'       => $cw->alternate_link ?? null,
+                                        'sort_date'  => $cw->due_date ?? '1970-01-01',
+                                    ]);
+                                }
+                            }
+                        }
+
+                        if (isset($gMaterials)) {
+                            $termMaterials = DB::table('google_classroom_materials')
+                                ->where('course_id', $gLinkedCourse->id)
+                                ->where('term', $key)
+                                ->orderBy('created_at', 'desc')
+                                ->get();
+
+                            foreach ($termMaterials as $mat) {
+                                $mergedDeliverables->push((object)[
+                                    'source'     => 'gclass_material',
+                                    'id'         => $mat->id,
+                                    'title'      => $mat->title,
+                                    'type'       => 'material',
+                                    'max_score'  => null,
+                                    'due_date'   => null,
+                                    'posted_at'  => $mat->created_at ?? null,
+                                    'link'       => $mat->alternate_link ?? null,
+                                    'sort_date'  => $mat->created_at ?? '1970-01-01',
+                                ]);
+                            }
+                        }
+                    }
+
+                    $mergedDeliverables = $mergedDeliverables->sortByDesc('sort_date')->values();
                 @endphp
                 <div x-show="currentTab === '{{ $key }}'" x-transition style="display: none;"
                     x-data="{
@@ -623,44 +712,33 @@
                         <div x-show="termSubTab === 'deliverables'">
 
                             @php
-                                $mergedDeliverables = collect();$currentTermTasks = collect($termTasks->get($key, []));
+                                $mergedDeliverables = collect();
+                                $currentTermTasks = collect($termTasks->get($key, []));
+                                $systemTaskTitles = $currentTermTasks->pluck('activity_name')->map(fn($t) => strtolower(trim($t)))->toArray();
 
-                                $systemTaskTitles =$currentTermTasks->pluck('activity_name')->map(fn($t) => strtolower(trim($t)))->toArray();
-
-                                foreach ($currentTermTasks as$task) {
-                                    $isGoogleTask = !empty($task->google_coursework_id);
-
-                                    $gLink = null;
-                                    if ($isGoogleTask) {$gLink = DB::table('google_classroom_coursework')
-                                            ->where('google_coursework_id', $task->google_coursework_id)
-                                            ->value('alternate_link');
-                                    }
-
+                                foreach ($currentTermTasks as $task) {
                                     $mergedDeliverables->push((object)[
-                                        'source'     => $isGoogleTask ? 'gclass_coursework' : 'system',
+                                        'source'     => !empty($task->google_coursework_id) ? 'gclass_coursework' : 'system',
                                         'id'         => $task->id,
                                         'title'      => $task->activity_name,
                                         'type'       => $task->activity_type,
                                         'max_score'  => $task->max_score,
                                         'due_date'   => $task->due_date,
-                                        'link'       => $gLink,
                                         'sort_date'  => $task->due_date ?? '1970-01-01',
                                     ]);
                                 }
 
-                                if (isset($gConnection) &&$gConnection && isset($gLinkedCourse) &&$gLinkedCourse) {
-                                    if (isset($gCourseWork)) {$filteredGCourseWork = $gCourseWork->where('term',$key);
-                                        foreach ($filteredGCourseWork as$cw) {
-                                            $existsInDb = DB::table('student_tasks')->where('google_coursework_id', $cw->google_coursework_id)->exists();$titleMatches = in_array(strtolower(trim($cw->title)),$systemTaskTitles);
-
-                                            if (!$existsInDb && !$titleMatches) {$mergedDeliverables->push((object)[
+                                if (isset($gConnection) && $gConnection && isset($gLinkedCourse) && $gLinkedCourse) {
+                                    if (isset($gCourseWork)) {
+                                        foreach ($gCourseWork->where('term', $key) as $cw) {
+                                            if (!DB::table('student_tasks')->where('google_coursework_id', $cw->google_coursework_id)->exists() && !in_array(strtolower(trim($cw->title)), $systemTaskTitles)) {
+                                                $mergedDeliverables->push((object)[
                                                     'source'     => 'gclass_coursework',
                                                     'id'         => $cw->id,
                                                     'title'      => $cw->title,
                                                     'type'       => 'coursework',
                                                     'max_score'  => $cw->max_points ?? null,
                                                     'due_date'   => $cw->due_date,
-                                                    'link'       => $cw->alternate_link,
                                                     'sort_date'  => $cw->due_date ?? '1970-01-01',
                                                 ]);
                                             }
@@ -668,15 +746,13 @@
                                     }
 
                                     if (isset($gMaterials)) {
-                                        $termMaterials =$gMaterials->filter(function($mat) use ($key, $termPeriods) {$postDate = $mat->posted_at ? date('Y-m-d', strtotime($mat->posted_at)) : null;
-                                            if (!$postDate) return false;
-                                            if (isset($termPeriods) && count($termPeriods) > 0) {$matched = $termPeriods->first(fn($p) => $postDate >=$p->start_date && $postDate <=$p->end_date);
-                                                return $matched && $matched->term ===$key;
-                                            }
-                                            return isset($mat->term) && $mat->term ===$key;
-                                        });
+                                        $termMaterials = DB::table('google_classroom_materials')
+                                            ->where('course_id', $gLinkedCourse->id)
+                                            ->where('term', $key)
+                                            ->get();
 
-                                        foreach ($termMaterials as $mat) {$mergedDeliverables->push((object)[
+                                        foreach ($termMaterials as $mat) {
+                                            $mergedDeliverables->push((object)[
                                                 'source'     => 'gclass_material',
                                                 'id'         => $mat->id,
                                                 'title'      => $mat->title,
@@ -690,8 +766,8 @@
                                         }
                                     }
                                 }
-
-                                $mergedDeliverables =$mergedDeliverables->sortByDesc('sort_date')->values();
+                                
+                                $mergedDeliverables = $mergedDeliverables->sortByDesc('sort_date')->values();
                             @endphp
 
                             @if($gConnection && !$gLinkedCourse)
@@ -799,19 +875,23 @@
                                                             @if($item->source === 'system')
                                                                 <div class="action-btn-group">
                                                                     <button type="button" class="btn-sm-outline btn-edit"
-                                                                        @click="openEditModal({ id: {{ $item->id }}, term: '{{ $key }}', activity_name: @js($item->title), activity_type: '{{ $item->type }}', max_score: {{ $item->max_score }}, due_date: '{{ $item->due_date }}' })">
+                                                                        @click="openEditModal({ id: {{ $item->id }}, term: '{{ $key }}', activity_name: @js($item->title), activity_type: '{{ $item->type }}', max_score: {{ $item->max_score ?? 'null' }}, due_date: '{{ $item->due_date }}' })">
                                                                         <i class="fa-solid fa-pen"></i>
                                                                     </button>
-                                                                    <a href="{{ route('professor.task-submissions', $item->id) }}" class="btn-sm-outline btn-grade">
-                                                                        <i class="fa fa-star"></i> Grade
-                                                                    </a>
+
+                                                                    @if(strtolower($item->type) !== 'module')
+                                                                        <a href="{{ route('professor.task-submissions', $item->id) }}" class="btn-sm-outline btn-grade">
+                                                                            <i class="fa fa-star"></i> Grade
+                                                                        </a>
+                                                                    @endif
+
                                                                     <button type="button" class="btn-sm-outline btn-delete" @click="deleteTask({{ $item->id }}, '{{ $key }}')">
                                                                         <i class="fa-solid fa-trash"></i>
                                                                     </button>
                                                                 </div>
                                                             @elseif($item->source === 'gclass_coursework')
                                                                 <div class="action-btn-group">
-                                                                    @if($item->link)
+                                                                    @if(!empty($item->link))
                                                                         <a href="{{ $item->link }}" target="_blank" class="btn-sm-outline" title="Open in Google Classroom">
                                                                             <i class="fa-solid fa-arrow-up-right-from-square"></i> Open
                                                                         </a>
@@ -821,7 +901,7 @@
                                                                     </a>
                                                                 </div>
                                                             @elseif($item->source === 'gclass_material')
-                                                                @if($item->link)
+                                                                @if(!empty($item->link))
                                                                     <div class="action-btn-group">
                                                                         <a href="{{ $item->link }}" target="_blank" class="btn-sm-outline">
                                                                             <i class="fa-solid fa-arrow-up-right-from-square"></i> Open
@@ -1024,9 +1104,15 @@
                                 </template>
 
                                 <template x-if="isSubmitted">
-                                    <div class="submitted-status-pill">
-                                        <i class="fa-solid fa-circle-check"></i>
-                                        <span>Grades Submitted to Registrar</span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="submitted-status-pill m-0">
+                                            <i class="fa-solid fa-circle-check"></i>
+                                            <span>Grades Submitted to Registrar</span>
+                                        </div>
+                                        
+                                        <button type="button" class="btn-print-attendance bg-white text-dark-blue ms-2" @click="landscapePrint = true; setTimeout(() => window.print(), 150);" title="Download PDF Evaluation Report">
+                                            <i class="fa-solid fa-file-pdf me-1"></i> Print Evaluation
+                                        </button>
                                     </div>
                                 </template>
                             </div>
@@ -1156,6 +1242,89 @@
                                         </tbody>
                                     </table>
                                 </div>
+
+                                <template x-if="isSubmitted">
+                                    <div class="printable-evaluation-area printable-only">
+                                        <div class="print-letterhead">
+                                            <div class="print-letterhead-crest">AU</div>
+                                            <div class="print-letterhead-text">
+                                                <h2 class="school-name">Arellano University</h2>
+                                                <p class="report-subtitle">Official Class Grading Matrix — {{ $termLabel }} Term</p>
+                                            </div>
+                                        </div>
+
+                                        <table class="meta-info-table">
+                                            <tr>
+                                                <td><span class="meta-label">Subject</span>{{ strtoupper($classDetails->subject_code) }} — {{ $classDetails->subject_title }}</td>
+                                                <td><span class="meta-label">Section</span>{{ strtoupper($classDetails->section_name) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><span class="meta-label">Professor</span>{{ strtoupper(($classDetails->prof_last ?? '') . ', ' . ($classDetails->prof_first ?? '')) }}</td>
+                                                <td><span class="meta-label">Schedule</span>{{ $classDetails->class_days }}, {{ date('h:i A', strtotime($classDetails->start_time)) }} - {{ date('h:i A', strtotime($classDetails->end_time)) }}</td>
+                                            </tr>
+                                        </table>
+
+                                        <table class="print-data-table">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 20px;">#</th>
+                                                    <th style="width: 70px;">ID NUMBER</th>
+                                                    <th style="width: 150px;">STUDENT NAME</th>
+                                                    
+                                                    @foreach($mergedDeliverables as $task)
+                                                        @if(strtolower($task->type) !== 'material' && $task->source !== 'gclass_material')
+                                                            <th style="width: 60px;">
+                                                                <div style="font-size: 8px; font-weight: 800; color: #93c5fd;">{{ strtoupper($task->type) }}</div>
+                                                                <div style="font-size: 9.5px; margin: 3px 0; line-height: 1.1; color: white;">{{ Str::limit($task->title, 18) }}</div>
+                                                                <div style="font-size: 8px; color: #cbd5e1; font-weight: normal;">({{ $task->max_score ?? '?' }} pts)</div>
+                                                            </th>
+                                                        @endif
+                                                    @endforeach
+                                                    
+                                                    <th style="width: 50px;">GWA</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($students as $index => $student)
+                                                    @php $sid = $student->student_id; @endphp
+                                                    <tr>
+                                                        <td class="text-center">{{ $index + 1 }}</td>
+                                                        <td>{{ $sid }}</td>
+                                                        <td class="text-uppercase fw-bold">{{ $student->last_name }}, {{ $student->first_name }}</td>
+                                                        
+                                                        @foreach($mergedDeliverables as $task)
+                                                            @if(strtolower($task->type) !== 'material' && $task->source !== 'gclass_material')
+                                                                @php
+                                                                    if ($task->source === 'system') {
+                                                                        $sub = $studentSubmissions->where('student_id', $sid)->where('task_id', $task->id)->first();
+                                                                    } else {
+                                                                        $sub = $studentSubmissions->where('student_id', $sid)->where('google_coursework_id', $task->id)->first();
+                                                                    }
+                                                                @endphp
+                                                                <td class="text-center" style="font-size: 11px;">{{ $sub->grade ?? '—' }}</td>
+                                                            @endif
+                                                        @endforeach
+
+                                                        <td class="text-center fw-bold" style="background-color: #f1f5f9;" x-text="manualGrades['{{ $sid }}'].equivalent || '—'"></td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+
+                                        <div class="print-footer" style="margin-top: 30px;">
+                                            <div class="print-footer-count">Total Students Evaluated: {{ count($students) }}</div>
+                                            
+                                            <div style="display: flex; gap: 60px;">
+                                                <div class="print-signature-block">
+                                                    <div class="print-signature-line">Professor's Signature</div>
+                                                </div>
+                                                <div class="print-signature-block">
+                                                    <div class="print-signature-line">Department Head / Dean</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
                             @endif
                         </div>
                     </div>
@@ -1175,37 +1344,57 @@
                 <button type="button" class="close-modal-btn" @click="showModal = false">&times;</button>
             </div>
 
-            <form id="addActivityForm" @submit.prevent="
-                publishing = true;
-                let formData = new FormData($el);
-                formData.append('term', modalTerm);
-                formData.append('schedule_id', '{{ $classDetails->schedule_id }}');
-                if (selectedFile) formData.append('attachment', selectedFile);
+                <form id="addActivityForm" @submit.prevent="
+                    publishing = true;
+                    let formData = new FormData($el);
+                    formData.append('term', modalTerm);
+                    formData.append('schedule_id', '{{ $classDetails->schedule_id }}');
+                    if (selectedFile) formData.append('attachment', selectedFile);
 
-                let url = editingTaskId
-                    ? `/professor/update-activity/${editingTaskId}`
-                    : '{{ route('professor.save-activity') }}';
+                    let url = editingTaskId
+                        ? `/professor/update-activity/${editingTaskId}`
+                        : '{{ route('professor.save-activity') }}';
 
-                fetch(url, {
-                    method: 'POST',
-                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    body: formData
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if(data.success) {
-                        window.location.reload();
-                    } else {
-                        alert(data.message || 'Error saving data');
+                    fetch(url, {
+                        method: 'POST',
+                        headers: { 
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: formData
+                    })
+                    .then(async res => {
+                        let data;
+                        try {
+                            data = await res.json();
+                        } catch (e) {
+                            throw new Error('Server returned an invalid JSON response. Status: ' + res.status);
+                        }
+
+                        if (!res.ok) {
+                            let errorMsg = data.message || 'Server error occurred.';
+                            if (data.errors) {
+                                errorMsg += '\n' + Object.values(data.errors).flat().join('\n');
+                            }
+                            throw new Error(errorMsg);
+                        }
+
+                        return data;
+                    })
+                    .then(data => {
+                        if(data.success) {
+                            window.location.reload();
+                        } else {
+                            alert(data.message || 'Error saving data');
+                            publishing = false;
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert(' ERROR:\n' + err.message);
                         publishing = false;
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert('Something went wrong. Please try again.');
-                    publishing = false;
-                });
-            ">
+                    });
+                ">
 
                 <div class="modal-card-body">
                     <div class="field-group">
@@ -1216,7 +1405,7 @@
                     <div class="field-row">
                         <div class="field-group">
                             <label class="field-label">Type</label>
-                            <select name="type" class="field-input" x-model="formType" required>
+                            <select name="type" class="field-input" x-model="formType" @change="if(formType === 'module') formMaxScore = '';" required>
                                 <option value="quiz">Quiz</option>
                                 <option value="assignment">Assignment</option>
                                 <option value="project">Project / Laboratory</option>
@@ -1231,7 +1420,7 @@
                         </div>
                     </div>
 
-                    <div class="field-group">
+                    <div class="field-group" x-show="formType !== 'module' && formType !== 'material'">
                         <label class="field-label">Due Date <span class="field-optional">(Optional)</span></label>
                         <input type="datetime-local" name="due_date" class="field-input" x-model="formDueDate">
                         
@@ -1806,18 +1995,11 @@
         color: #ffffff;
     }
 
-    /* SCREEN VIEW: hide the dedicated print containers */
     .printable-only {
         display: none !important;
     }
 
-    /* PRINT / PDF EXPORT */
     @media print {
-        @page {
-            size: A4 portrait;
-            margin: 14mm 16mm 14mm 16mm;
-        }
-
         body * {
             visibility: hidden !important;
         }
@@ -1825,12 +2007,15 @@
         #printable-masterlist-area,
         #printable-masterlist-area *,
         #printable-attendance-area,
-        #printable-attendance-area * {
+        #printable-attendance-area *,
+        .printable-evaluation-area,
+        .printable-evaluation-area * {
             visibility: visible !important;
         }
 
         #printable-masterlist-area,
-        #printable-attendance-area {
+        #printable-attendance-area,
+        .printable-evaluation-area {
             display: block !important;
             position: absolute !important;
             left: 0 !important;
@@ -1840,6 +2025,17 @@
             padding: 0 !important;
             background: #ffffff !important;
             font-family: 'Segoe UI', Arial, sans-serif !important;
+        }
+
+        .page-header-row,
+        .unified-sidebar,
+        .card-workspace-header,
+        .table-responsive,
+        .term-subtab-bar,
+        .grade-top-row,
+        .attendance-control-panel-wrapper,
+        .custom-modal-backdrop {
+            display: none !important;
         }
 
         .print-letterhead {
@@ -1948,6 +2144,12 @@
             width: 100% !important;
             border-collapse: collapse !important;
             table-layout: fixed !important;
+            page-break-inside: auto;
+        }
+
+        .print-data-table tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
         }
 
         .print-data-table th {
@@ -2010,6 +2212,16 @@
         .text-center { text-align: center !important; }
         .text-uppercase { text-transform: uppercase !important; }
         .fw-bold { font-weight: 700 !important; }
+
+        .prof-container,
+        .dashboard-grid-wrapper,
+        .unified-workspace,
+        .workspace-card {
+            min-height: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+        }
     }
 </style>
 @endsection
