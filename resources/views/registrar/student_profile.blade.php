@@ -86,6 +86,17 @@
                     </td>
                 </tr>
                 <tr>
+                    <td style="padding: 14px 12px; font-weight: 700; color: #475569; vertical-align: middle; border-bottom: 1px solid #f1f5f9;">Academic Standing Status:</td>
+                    <td style="padding: 14px 12px; border-bottom: 1px solid #f1f5f9;">
+                        <select name="status" style="width: 100%; max-width: 400px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; font-weight: 600; background-color: #fff; color: #0f172a;">
+                            <option value="Enrolled" {{ ($student->status ?? 'Enrolled') == 'Enrolled' ? 'selected' : '' }}>Enrolled</option>
+                            <option value="On-Hold" {{ ($student->status ?? '') == 'On-Hold' ? 'selected' : '' }}>On-Hold</option>
+                            <option value="Purged" {{ ($student->status ?? '') == 'Purged' ? 'selected' : '' }}>Purged</option>
+                            <option value="Dropped" {{ ($student->status ?? '') == 'Dropped' ? 'selected' : '' }}>Dropped</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
                     <td style="padding: 14px 12px; font-weight: 700; color: #475569; vertical-align: middle; border-bottom: 1px solid #f1f5f9;">Contact Number:</td>
                     <td style="padding: 14px 12px; border-bottom: 1px solid #f1f5f9;">
                         <input type="text" name="contact_no" value="{{ $student->contact_no }}" placeholder="09xxxxxxxxx" style="width: 100%; max-width: 400px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;">

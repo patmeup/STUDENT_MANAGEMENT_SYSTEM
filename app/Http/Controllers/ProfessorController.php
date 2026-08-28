@@ -127,14 +127,13 @@ class ProfessorController extends Controller
         $students = DB::table('student_subjects')
             ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
             ->where('student_subjects.schedule_id', $schedule_id)
-            ->where('student_subjects.status', 'Enrolled')
             ->select(
                 'students.id as internal_db_id',
                 'students.student_id',
                 'students.last_name',
                 'students.first_name',
                 'students.middle_name',
-                'student_subjects.status'
+                'students.status'
             )
             ->orderBy('students.last_name', 'asc')
             ->get();

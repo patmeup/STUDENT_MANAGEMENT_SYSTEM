@@ -4,6 +4,49 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <div class="dashboard-wrapper py-4 px-3">
+
+    {{-- Dynamic Academic Standing Alert Banner --}}
+    @if(isset($student) && trim($student->status ?? 'Enrolled') !== 'Enrolled')
+        @php
+            $status = trim($student->status);
+        @endphp
+
+        <div style="margin-bottom: 25px; border-radius: 12px; padding: 18px 24px; display: flex; align-items: flex-start; gap: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            @if($status === 'On-Hold' || $status === 'On Hold') background: #fffbeb; border: 1.5px solid #fde68a; color: #92400e;
+            @elseif($status === 'Purged') background: #faf5ff; border: 1.5px solid #e9d5ff; color: #6b21a8;
+            @elseif($status === 'Dropped') background: #fef2f2; border: 1.5px solid #fca5a5; color: #991b1b;
+            @else background: #f8fafc; border: 1.5px solid #cbd5e1; color: #334155;
+            @endif">
+            
+            <div style="font-size: 22px; margin-top: 2px;">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+
+            <div style="flex: 1;">
+                <div style="font-size: 15px; font-weight: 800; letter-spacing: -0.2px; text-transform: uppercase; margin-bottom: 4px;">
+                    @if($status === 'On-Hold' || $status === 'On Hold')
+                        ACADEMIC ACCOUNT STATUS: ON-HOLD
+                    @elseif($status === 'Purged')
+                        ACADEMIC ACCOUNT STATUS: PURGED
+                    @elseif($status === 'Dropped')
+                        ACADEMIC ACCOUNT STATUS: DROPPED
+                    @else
+                        ACADEMIC ACCOUNT STATUS: {{ strtoupper($status) }}
+                    @endif
+                </div>
+
+                <div style="font-size: 13.5px; line-height: 1.5; font-weight: 500; opacity: 0.95;">
+                    @if($status === 'On-Hold' || $status === 'On Hold')
+                        Your student record is currently marked as <strong>On-Hold</strong> due to pending document requirements or payment. Activity submissions and enrollment privileges are temporarily restricted. Please proceed to the Registrar's Office for resolution.
+                    @elseif($status === 'Purged')
+                        Your enrollment status for this academic term has been marked as <strong>Purged</strong>. Your access to active coursework is currently restricted. Please visit the Registrar's Office immediately.
+                    @elseif($status === 'Dropped')
+                        You have been officially <strong>Dropped</strong> from your subject assignments for this term. You are restricted from turning in new tasks or activities.
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
     
     @if(session('success'))
         <div class="alert-banner alert-success"><i class="fa-solid fa-circle-check"></i> {{ session('success') }}</div>
@@ -19,7 +62,10 @@
             <div class="carousel-track" id="carouselTrack">
                 @forelse($announcements as $index => $item)
                     <div class="carousel-slide {{ $index === 0 ? 'active' : '' }}">
-                        <img src="{{ asset('storage/' . $item->image_path) }}" alt="{{ $item->title ?? 'Announcement Banner' }}">
+                        <!-- Blurred Background Layer -->
+                        <div class="slide-bg-blur" style="background-image: url('{{ asset('storage/' . $item->image_path) }}');"></div>
+                        <!-- Main Crisp Center Image -->
+                        <img src="{{ asset('storage/' . $item->image_path) }}" alt="{{ $item->title ?? 'Announcement Banner' }}" class="slide-main-img">
                     </div>
                 @empty
                     <div class="carousel-slide active">
@@ -226,7 +272,7 @@
     }
 
     .announcement-box {
-        background: #e2e8f0; 
+        background: #ffffff; 
         border: 3px solid #1e293b;
         border-radius: 16px;
         padding: 12px;
@@ -246,16 +292,17 @@
         z-index: 10; 
         letter-spacing: 1px;
         text-transform: uppercase;
-        background: rgba(255, 255, 255, 0.85);
-        padding: 3px 8px;
-        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.92);
+        padding: 4px 10px;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
     .carousel-track { 
         width: 100%; 
         height: 100%; 
         position: relative; 
-        border: 3px solid #1e293b; 
+        border: 2px solid #1e293b; 
         border-radius: 12px;
         overflow: hidden;
         background: #ffffff;
@@ -269,14 +316,36 @@
         height: 100%; 
         opacity: 0; 
         transition: opacity 0.6s ease-in-out; 
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
     }
     
     .carousel-slide.active { opacity: 1; }
 
-    .carousel-slide img { 
-        width: 100%; 
-        height: 100%; 
-        object-fit: fill; 
+    /* Blurred Backdrop Effect */
+    .slide-bg-blur {
+        position: absolute;
+        top: -10%;
+        left: -10%;
+        width: 120%;
+        height: 120%;
+        background-size: cover;
+        background-position: center;
+        filter: blur(14px) brightness(0.75);
+        transform: scale(1.1);
+        z-index: 1;
+    }
+
+    /* Main Crisp Banner Image */
+    .slide-main-img { 
+        position: relative;
+        z-index: 2;
+        max-width: 100%; 
+        max-height: 100%; 
+        object-fit: contain; 
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
     }
     
     .no-banner-placeholder { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #64748b; }

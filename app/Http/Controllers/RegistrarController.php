@@ -271,6 +271,7 @@ class RegistrarController extends Controller
             'year_level' => 'required|string',
             'semester' => 'required|string',
             'section' => 'nullable|string',
+            'status' => 'required|string|in:Enrolled,On-Hold,Purged,Dropped', // Added validation
             'contact_no' => 'required|string',
             'email' => 'required|email',
             'city_address' => 'required|string',
@@ -280,6 +281,7 @@ class RegistrarController extends Controller
         $student->year_level = $request->year_level;
         $student->semester = $request->semester;
         $student->section = $request->section;
+        $student->status = $request->status; // Save student status
         $student->contact_no = $request->contact_no;
         $student->email = $request->email;
         $student->city_address = $request->city_address;

@@ -10,8 +10,8 @@ class Student extends Model
     use HasFactory;
 
     protected $fillable = [
-        'student_id', 'email', 'registration_date', 'student_type', 'course', // 👈 Idinagdag ang 'email' dito
-        'year_level', 'semester', 'last_name', 'first_name', 'middle_name', 'sex', 
+        'student_id', 'email', 'registration_date', 'student_type', 'course', 
+        'year_level', 'semester', 'section', 'status', 'last_name', 'first_name', 'middle_name', 'sex', 
         'civil_status', 'date_of_birth', 'nationality', 'place_of_birth', 
         'city_address', 'zip_code', 'contact_no', 'fathers_name', 
         'fathers_occupation', 'mothers_name', 'mothers_occupation', 

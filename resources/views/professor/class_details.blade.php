@@ -293,7 +293,31 @@
                                             <td><strong>{{ $loop->iteration }}</strong></td>
                                             <td class="fw-semibold text-secondary">{{ $student->student_id }}</td>
                                             <td class="text-uppercase fw-bold text-dark-slate">{{ $student->last_name }}, {{ $student->first_name }}</td>
-                                            <td class="text-center"><span class="badge-enrolled-status">Enrolled</span></td>
+                                            <td class="text-center">
+                                                @php
+                                                    $status = trim($student->status ?? 'Enrolled');
+                                                @endphp
+
+                                                @if($status === 'Enrolled')
+                                                    <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-1 font-semibold" style="font-size: 12px; background-color: #dcfce7; color: #15803d; border-color: #bbf7d0;">
+                                                        Enrolled
+                                                    </span>
+                                                @elseif($status === 'On-Hold' || $status === 'On Hold')
+                                                    <span class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle px-3 py-1 font-semibold" style="font-size: 12px; background-color: #fef3c7; color: #b45309; border-color: #fde68a;">
+                                                        On-Hold
+                                                    </span>
+                                                @elseif($status === 'Purged')
+                                                    <span class="badge rounded-pill bg-purple-subtle text-purple border border-purple-subtle px-3 py-1 font-semibold" style="font-size: 12px; background-color: #f3e8ff; color: #6b21a8; border-color: #e9d5ff;">
+                                                        Purged
+                                                    </span>
+                                                @elseif($status === 'Dropped')
+                                                    <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-3 py-1 font-semibold" style="font-size: 12px; background-color: #fee2e2; color: #b91c1c; border-color: #fca5a5;">
+                                                        Dropped
+                                                    </span>
+                                                @else
+                                                    <span class="badge bg-secondary" style="font-size: 12px; padding: 4px 10px;">{{ $status }}</span>
+                                                @endif
+                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -301,37 +325,53 @@
                         </div>
 
                         <div id="printable-masterlist-area" class="printable-only">
-                            <div class="print-header text-center">
-                                <h2 class="school-name">ARELLANO UNIVERSITY</h2>
-                                <p class="report-subtitle">OFFICIAL STUDENT MASTERLIST</p>
-                                <table class="meta-info-table">
-                                    <tr>
-                                        <td><strong>Subject:</strong> {{ strtoupper($classDetails->subject_code) }} — {{ $classDetails->subject_title }}</td>
-                                        <td><strong>Section:</strong> {{ strtoupper($classDetails->section_name) }}</td>
-                                        <td><strong>Schedule:</strong> {{ $classDetails->class_days }} ({{ date('h:i A', strtotime($classDetails->start_time)) }} - {{ date('h:i A', strtotime($classDetails->end_time)) }})</td>
-                                    </tr>
-                                </table>
+                            <div class="print-letterhead">
+                                <div class="print-letterhead-crest">AU</div>
+                                <div class="print-letterhead-text">
+                                    <h2 class="school-name">Arellano University</h2>
+                                    <p class="report-subtitle">Official Student Masterlist</p>
+                                </div>
                             </div>
+
+                            <table class="meta-info-table">
+                                <tr>
+                                    <td><span class="meta-label">Subject</span>{{ strtoupper($classDetails->subject_code) }} — {{ $classDetails->subject_title }}</td>
+                                    <td><span class="meta-label">Section</span>{{ strtoupper($classDetails->section_name) }}</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="meta-label">Schedule</span>{{ $classDetails->class_days }}, {{ date('h:i A', strtotime($classDetails->start_time)) }} - {{ date('h:i A', strtotime($classDetails->end_time)) }}</td>
+                                    <td><span class="meta-label">Room</span>{{ strtoupper($classDetails->room_assignment) }}</td>
+                                </tr>
+                            </table>
+
                             <table class="print-data-table">
                                 <thead>
                                     <tr>
                                         <th style="width: 8%;">#</th>
-                                        <th style="width: 27%;">Student Number</th>
-                                        <th style="width: 45%;">Full Name</th>
+                                        <th style="width: 25%;">Student Number</th>
+                                        <th style="width: 47%;">Full Name</th>
                                         <th style="width: 20%;">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($students as $index => $student)
                                         <tr>
-                                            <td class="text-center">#{{ $index + 1 }}</td>
+                                            <td class="text-center">{{ $index + 1 }}</td>
                                             <td>{{ $student->student_id }}</td>
                                             <td class="text-uppercase fw-bold">{{ $student->last_name }}, {{ $student->first_name }}</td>
-                                            <td class="text-center">Enrolled</td>
+                                            <td class="text-center">{{ $student->status ?? 'Enrolled' }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
                             </table>
+
+                            <div class="print-footer">
+                                <div class="print-footer-count">Total Enrolled: {{ count($students) }}</div>
+                                <div class="print-signature-block">
+                                    <div class="print-signature-line">Prepared by</div>
+                                </div>
+                                <div class="print-footer-timestamp">Generated on {{ now()->setTimezone('Asia/Manila')->format('F d, Y \a\t h:i A') }}</div>
+                            </div>
                         </div>
                     @endif
                 </div>
@@ -363,17 +403,34 @@
                             </div>
 
                             <div id="printable-attendance-area" class="printable-only">
-                                <div class="print-header text-center">
-                                    <h2 class="school-name">ARELLANO UNIVERSITY</h2>
-                                    <p class="report-subtitle">OFFICIAL CLASS ATTENDANCE REPORT</p>
-                                    <table class="meta-info-table">
-                                        <tr>
-                                            <td><strong>Subject:</strong> {{ strtoupper($classDetails->subject_code) }} — {{ $classDetails->subject_title }}</td>
-                                            <td><strong>Section:</strong> {{ strtoupper($classDetails->section_name) }}</td>
-                                            <td><strong>Date:</strong> <span x-text="selectedDate"></span></td>
-                                        </tr>
-                                    </table>
+                                <div class="print-letterhead">
+                                    <div class="print-letterhead-crest">AU</div>
+                                    <div class="print-letterhead-text">
+                                        <h2 class="school-name">Arellano University</h2>
+                                        <p class="report-subtitle">Official Class Attendance Report</p>
+                                    </div>
                                 </div>
+
+                                <table class="meta-info-table">
+                                    <tr>
+                                        <td><span class="meta-label">Subject</span>{{ strtoupper($classDetails->subject_code) }} — {{ $classDetails->subject_title }}</td>
+                                        <td><span class="meta-label">Section</span>{{ strtoupper($classDetails->section_name) }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="print-date-highlight">
+                                            <span class="meta-label">Attendance Record Date</span>
+                                            <span x-text="new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })"></span>
+                                        </td>
+                                        <td><span class="meta-label">Room</span>{{ strtoupper($classDetails->room_assignment) }}</td>
+                                    </tr>
+                                </table>
+
+                                <div class="print-summary-bar">
+                                    <span class="print-summary-chip chip-present">Present: <span x-text="Object.values(attendanceState).filter(s => s === 'Present').length"></span></span>
+                                    <span class="print-summary-chip chip-late">Late: <span x-text="Object.values(attendanceState).filter(s => s === 'Late').length"></span></span>
+                                    <span class="print-summary-chip chip-absent">Absent: <span x-text="Object.values(attendanceState).filter(s => s === 'Absent').length"></span></span>
+                                </div>
+
                                 <table class="print-data-table">
                                     <thead>
                                         <tr>
@@ -387,7 +444,7 @@
                                     <tbody>
                                         @foreach($students as $index => $student)
                                             <tr>
-                                                <td class="text-center">#{{ $index + 1 }}</td>
+                                                <td class="text-center">{{ $index + 1 }}</td>
                                                 <td>{{ $student->student_id }}</td>
                                                 <td class="text-uppercase fw-bold">{{ $student->last_name }}, {{ $student->first_name }}</td>
                                                 <td class="text-center">
@@ -400,6 +457,14 @@
                                         @endforeach
                                     </tbody>
                                 </table>
+
+                                <div class="print-footer">
+                                    <div class="print-footer-count">Total Students: {{ count($students) }}</div>
+                                    <div class="print-signature-block">
+                                        <div class="print-signature-line">Prepared by</div>
+                                    </div>
+                                    <div class="print-footer-timestamp">Generated on {{ now()->setTimezone('Asia/Manila')->format('F d, Y \a\t h:i A') }}</div>
+                                </div>
                             </div>
 
                             <hr class="control-panel-dividerMy my-3">
@@ -1750,7 +1815,7 @@
     @media print {
         @page {
             size: A4 portrait;
-            margin: 12mm 15mm 12mm 15mm;
+            margin: 14mm 16mm 14mm 16mm;
         }
 
         body * {
@@ -1774,39 +1839,110 @@
             margin: 0 !important;
             padding: 0 !important;
             background: #ffffff !important;
+            font-family: 'Segoe UI', Arial, sans-serif !important;
         }
+
+        .print-letterhead {
+            display: flex !important;
+            align-items: center !important;
+            gap: 14px !important;
+            padding-bottom: 12px !important;
+            margin-bottom: 14px !important;
+            border-bottom: 3px solid #1e2a5a !important;
+        }
+
+        .print-letterhead-crest {
+            width: 48px !important;
+            height: 48px !important;
+            border-radius: 50% !important;
+            background: #1e2a5a !important;
+            color: #facc15 !important;
+            font-weight: 800 !important;
+            font-size: 16px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex-shrink: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .print-letterhead-text { text-align: left !important; }
 
         .school-name {
             margin: 0 !important;
-            font-size: 20px !important;
+            font-size: 19px !important;
             font-weight: 800 !important;
             color: #1e2a5a !important;
-            text-align: center !important;
+            letter-spacing: 0.3px !important;
         }
 
         .report-subtitle {
-            margin: 2px 0 14px 0 !important;
+            margin: 2px 0 0 0 !important;
             font-size: 11px !important;
             font-weight: 700 !important;
-            color: #475569 !important;
-            text-align: center !important;
-            letter-spacing: 0.5px !important;
+            color: #64748b !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.6px !important;
         }
 
         .meta-info-table {
             width: 100% !important;
             border-collapse: collapse !important;
-            margin-bottom: 16px !important;
-            font-size: 11px !important;
+            margin-bottom: 14px !important;
+            font-size: 11.5px !important;
             background: #f8fafc !important;
             border: 1px solid #cbd5e1 !important;
         }
 
         .meta-info-table td {
-            padding: 8px 10px !important;
-            border: 1px solid #cbd5e1 !important;
+            padding: 8px 12px !important;
+            border: 1px solid #e2e8f0 !important;
             color: #1e293b !important;
+            width: 50% !important;
         }
+
+        .meta-label {
+            display: block !important;
+            font-size: 9px !important;
+            font-weight: 800 !important;
+            color: #94a3b8 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+            margin-bottom: 2px !important;
+        }
+
+        .print-date-highlight {
+            background: #eef1fb !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .print-date-highlight span:last-child {
+            font-weight: 800 !important;
+            color: #1e2a5a !important;
+            font-size: 13px !important;
+        }
+
+        .print-summary-bar {
+            display: flex !important;
+            gap: 10px !important;
+            margin-bottom: 14px !important;
+        }
+
+        .print-summary-chip {
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            padding: 5px 12px !important;
+            border-radius: 20px !important;
+            border: 1px solid !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .chip-present { background: #dcfce7 !important; color: #15803d !important; border-color: #bbf7d0 !important; }
+        .chip-late { background: #fef3c7 !important; color: #b45309 !important; border-color: #fde68a !important; }
+        .chip-absent { background: #fee2e2 !important; color: #b91c1c !important; border-color: #fca5a5 !important; }
 
         .print-data-table {
             width: 100% !important;
@@ -1815,12 +1951,13 @@
         }
 
         .print-data-table th {
-            background-color: #f1f5f9 !important;
-            color: #0f172a !important;
-            border: 1px solid #94a3b8 !important;
+            background-color: #1e2a5a !important;
+            color: #ffffff !important;
+            border: 1px solid #1e2a5a !important;
             padding: 8px 10px !important;
-            font-size: 11px !important;
+            font-size: 10.5px !important;
             text-transform: uppercase !important;
+            letter-spacing: 0.3px !important;
             text-align: center !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -1828,9 +1965,46 @@
 
         .print-data-table td {
             border: 1px solid #cbd5e1 !important;
-            padding: 8px 10px !important;
-            font-size: 12px !important;
+            padding: 7px 10px !important;
+            font-size: 11.5px !important;
             color: #0f172a !important;
+        }
+
+        .print-data-table tbody tr:nth-child(even) td {
+            background-color: #f8fafc !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .print-footer {
+            margin-top: 26px !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: flex-end !important;
+        }
+
+        .print-footer-count {
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            color: #334155 !important;
+        }
+
+        .print-signature-block {
+            text-align: center !important;
+        }
+
+        .print-signature-line {
+            border-top: 1px solid #334155 !important;
+            padding-top: 4px !important;
+            font-size: 10px !important;
+            color: #64748b !important;
+            min-width: 160px !important;
+        }
+
+        .print-footer-timestamp {
+            font-size: 9.5px !important;
+            color: #94a3b8 !important;
+            font-style: italic !important;
         }
 
         .text-center { text-align: center !important; }
