@@ -57,7 +57,7 @@
 
             <div class="grid-layout">
             <div>
-                <label class="info-label">Employee ID</label>>
+                <label class="info-label">Employee ID</label>
                 <p class="info-value-mono">{{ $user->employee_id }}</p>
             </div>
 
