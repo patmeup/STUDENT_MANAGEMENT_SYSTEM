@@ -15,10 +15,14 @@ class Student extends Model
         'civil_status', 'date_of_birth', 'nationality', 'place_of_birth', 
         'city_address', 'zip_code', 'contact_no', 'fathers_name', 
         'fathers_occupation', 'mothers_name', 'mothers_occupation', 
-        'primary_school_name', 'primary_school_address', 'primary_school_year', 
-        'secondary_school_name', 'secondary_school_address', 'secondary_school_year', 
-        'college_school_name', 'college_school_address', 'college_school_year', 'credentials',
-        'password'
+        
+        'elementary_school_name', 'elementary_school_address', 'elementary_school_year', 
+        'junior_hs_school_name', 'junior_hs_school_address', 'junior_hs_school_year', 
+        'senior_hs_school_name', 'senior_hs_school_address', 'senior_hs_school_year', 
+        'vocational_school_name', 'vocational_school_address', 'vocational_school_year', 
+        'college_school_name', 'college_school_address', 'college_school_year', 
+        
+        'credentials', 'password'
     ];
 
     protected $hidden = [
@@ -31,11 +35,17 @@ class Student extends Model
         'date_of_birth' => 'date',
         'password' => 'hashed',
         
-        'primary_school_name'    => 'array',
-        'primary_school_address' => 'array',
-        'primary_school_year'    => 'array',
-        'secondary_school_name'    => 'array',
-        'secondary_school_address' => 'array',
-        'secondary_school_year'    => 'array',
+        'elementary_school_name'    => 'array',
+        'elementary_school_address' => 'array',
+        'elementary_school_year'    => 'array',
+        'junior_hs_school_name'     => 'array',
+        'junior_hs_school_address'  => 'array',
+        'junior_hs_school_year'     => 'array',
+        'senior_hs_school_name'     => 'array',
+        'senior_hs_school_address'  => 'array',
+        'senior_hs_school_year'     => 'array',
+        'vocational_school_name'    => 'array',
+        'vocational_school_address' => 'array',
+        'vocational_school_year'    => 'array',
     ];
 }
