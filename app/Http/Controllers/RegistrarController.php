@@ -79,155 +79,96 @@ class RegistrarController extends Controller
             'first_name' => 'required|string',
             'contact_no' => 'required|string',
             'email' => 'required|email',
-
-            'doc_psa' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_2x2' => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
-            'doc_f138' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_good_moral_new' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_diploma' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_tor' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_dismissal' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_good_moral_trans' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_permit' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ];
-
-        $studentType = $request->input('student_type');
-
-        if ($studentType === 'New') {
-            $rules['doc_psa'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
-            $rules['doc_2x2'] = 'required|file|mimes:jpg,jpeg,png|max:5120';
-            $rules['doc_f138'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
-            $rules['doc_good_moral_new'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
-            $rules['doc_diploma'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
-        } elseif ($studentType === 'Transferee') {
-            $rules['doc_psa'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
-            $rules['doc_2x2'] = 'required|file|mimes:jpg,jpeg,png|max:5120';
-            $rules['doc_tor'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
-            $rules['doc_dismissal'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
-            $rules['doc_good_moral_trans'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
-        } elseif ($studentType === 'Cross-Enrollee') {
-            $rules['doc_psa'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
-            $rules['doc_2x2'] = 'required|file|mimes:jpg,jpeg,png|max:5120';
-            $rules['doc_permit'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
-        }
 
         $request->validate($rules);
 
-        $currentYear = date('Y');
+        try {
+            $currentYear = date('Y');
 
-        $lastStudent = DB::table('students')
-            ->where('student_id', 'LIKE', $currentYear . '-%')
-            ->orderBy('student_id', 'desc')
-            ->first();
+            $lastStudent = DB::table('students')
+                ->where('student_id', 'LIKE', $currentYear . '-%')
+                ->orderBy('student_id', 'desc')
+                ->first();
 
-        if ($lastStudent) {
-            $lastSequence = intval(explode('-', $lastStudent->student_id)[1]);
-            $nextSequence = str_pad($lastSequence + 1, 4, '0', STR_PAD_LEFT);
-        } else {
-            $nextSequence = '0001';
-        }
-
-        $generatedStudentId = $currentYear . '-' . $nextSequence;
-
-        $filePaths = [];
-
-        $fileFields = [
-            'doc_psa'              => 'psa_birth_certificate',
-            'doc_2x2'              => '2x2_id_picture',
-            'doc_f138'             => 'form_138_report_card',
-            'doc_good_moral_new'   => 'good_moral_freshman',
-            'doc_diploma'          => 'high_school_diploma',
-            'doc_tor'              => 'transcript_of_records',
-            'doc_dismissal'        => 'honorable_dismissal',
-            'doc_good_moral_trans' => 'good_moral_transferee',
-            'doc_permit'           => 'cross_enroll_permit'
-        ];
-
-        $folderPath = "student_records/{$generatedStudentId}";
-        if (!Storage::disk('local')->exists($folderPath)) {
-            Storage::disk('local')->makeDirectory($folderPath);
-        }
-
-        foreach ($fileFields as $inputName => $cleanFileName) {
-            if ($request->hasFile($inputName)) {
-                $file = $request->file($inputName);
-
-                if ($file->isValid()) {
-                    $extension = $file->getClientOriginalExtension();
-                    $finalName = "{$cleanFileName}.{$extension}";
-
-                    $file->storeAs($folderPath, $finalName, 'local');
-
-                    $filePaths[$inputName] = $finalName;
-                }
+            if ($lastStudent) {
+                $lastSequence = intval(explode('-', $lastStudent->student_id)[1]);
+                $nextSequence = str_pad($lastSequence + 1, 4, '0', STR_PAD_LEFT);
+            } else {
+                $nextSequence = '0001';
             }
+
+            $generatedStudentId = $currentYear . '-' . $nextSequence;
+
+            $student = new Student();
+            $student->student_id = $generatedStudentId;
+            $student->registration_date = $request->registration_date;
+            $student->student_type = $request->student_type;
+            $student->course = $request->course;
+            $student->year_level = $request->year_level;
+            $student->semester = $request->semester;
+            $student->last_name = strtoupper($request->last_name);
+            $student->first_name = strtoupper($request->first_name);
+            $student->middle_name = $request->middle_name ? strtoupper($request->middle_name) : null;
+
+            $student->sex = $request->sex;
+            $student->civil_status = $request->civil_status;
+            $student->date_of_birth = $request->date_of_birth;
+            $student->nationality = strtoupper($request->nationality);
+            $student->city_address = $request->city_address;
+            $student->zip_code = $request->zip_code;
+            $student->place_of_birth = $request->place_of_birth;
+            $student->contact_no = $request->contact_no;
+            $student->email = $request->email;
+
+            $student->fathers_name = $request->fathers_name;
+            $student->fathers_occupation = $request->fathers_occupation;
+            $student->mothers_name = $request->mothers_name;
+            $student->mothers_occupation = $request->mothers_occupation;
+
+            $student->elementary_school_name    = array_values(array_filter($request->input('elem_school_name', [])));
+            $student->elementary_school_address = array_values(array_filter($request->input('elem_school_address', [])));
+            $student->elementary_school_year    = array_values(array_filter($request->input('elem_school_year', [])));
+
+            $student->junior_hs_school_name    = array_values(array_filter($request->input('jhs_school_name', [])));
+            $student->junior_hs_school_address = array_values(array_filter($request->input('jhs_school_address', [])));
+            $student->junior_hs_school_year    = array_values(array_filter($request->input('jhs_school_year', [])));
+
+            $student->senior_hs_school_name    = array_values(array_filter($request->input('shs_school_name', [])));
+            $student->senior_hs_school_address = array_values(array_filter($request->input('shs_school_address', [])));
+            $student->senior_hs_school_year    = array_values(array_filter($request->input('shs_school_year', [])));
+
+            $student->vocational_school_name    = array_values(array_filter($request->input('vocational_school_name', [])));
+            $student->vocational_school_address = array_values(array_filter($request->input('vocational_school_address', [])));
+            $student->vocational_school_year    = array_values(array_filter($request->input('vocational_school_year', [])));
+            
+            $student->college_school_name    = $request->college_school_name;
+            $student->college_school_address = $request->college_school_address;
+            $student->college_school_year    = $request->college_school_year;
+
+            $student->credentials = [
+                'psa_birth_certificate'      => $request->has('check_psa'),
+                'id_picture_2x2'             => $request->has('check_2x2'),
+                'form_138'                   => $request->has('check_f138'),
+                'good_moral_new'             => $request->has('check_good_moral_new'),
+                'diploma'                    => $request->has('check_diploma'),
+                'transcript_of_records'      => $request->has('check_tor'),
+                'honorable_dismissal'        => $request->has('check_dismissal'),
+                'good_moral_transferee'      => $request->has('check_good_moral_trans'),
+                'old_curriculum'             => $request->has('check_curriculum'),
+                'cross_enroll_permit'        => $request->has('check_permit')
+            ];
+
+            $student->save();
+
+            return redirect()->back()->with([
+                'success' => 'Student registration successful!',
+                'student_id' => $student->student_id
+            ]);
+
+        } catch (\Exception $e) {
+            return redirect()->back()->withInput()->with('error', 'Database Error: ' . $e->getMessage());
         }
-
-        $student = new Student();
-        $student->student_id = $generatedStudentId;
-        $student->registration_date = $request->registration_date;
-        $student->student_type = $request->student_type;
-        $student->course = $request->course;
-        $student->year_level = $request->year_level;
-        $student->semester = $request->semester;
-        $student->last_name = strtoupper($request->last_name);
-        $student->first_name = strtoupper($request->first_name);
-        $student->middle_name = $request->middle_name ? strtoupper($request->middle_name) : null;
-
-        $student->sex = $request->sex;
-        $student->civil_status = $request->civil_status;
-        $student->date_of_birth = $request->date_of_birth;
-        $student->nationality = strtoupper($request->nationality);
-        $student->city_address = $request->city_address;
-        $student->zip_code = $request->zip_code;
-        $student->place_of_birth = $request->place_of_birth;
-        $student->contact_no = $request->contact_no;
-        $student->email = $request->email;
-
-        $student->fathers_name = $request->fathers_name;
-        $student->fathers_occupation = $request->fathers_occupation;
-        $student->mothers_name = $request->mothers_name;
-        $student->mothers_occupation = $request->mothers_occupation;
-
-        $student->primary_school_name    = array_values(array_filter($request->input('primary_school_name', [])));
-        $student->primary_school_address = array_values(array_filter($request->input('primary_school_address', [])));
-        $student->primary_school_year    = array_values(array_filter($request->input('primary_school_year', [])));
-
-        $student->secondary_school_name    = array_values(array_filter($request->input('secondary_school_name', [])));
-        $student->secondary_school_address = array_values(array_filter($request->input('secondary_school_address', [])));
-        $student->secondary_school_year    = array_values(array_filter($request->input('secondary_school_year', [])));
-
-        $student->college_school_name    = $request->college_school_name;
-        $student->college_school_address = $request->college_school_address;
-        $student->college_school_year    = $request->college_school_year;
-
-        $student->path_psa = $filePaths['doc_psa'] ?? null;
-        $student->path_2x2 = $filePaths['doc_2x2'] ?? null;
-        $student->path_f138 = $filePaths['doc_f138'] ?? null;
-        $student->path_good_moral_new = $filePaths['doc_good_moral_new'] ?? null;
-        $student->path_diploma = $filePaths['doc_diploma'] ?? null;
-        $student->path_tor = $filePaths['doc_tor'] ?? null;
-        $student->path_dismissal = $filePaths['doc_dismissal'] ?? null;
-        $student->path_good_moral_trans = $filePaths['doc_good_moral_trans'] ?? null;
-        $student->path_permit = $filePaths['doc_permit'] ?? null;
-
-        $student->save();
-
-        return redirect()->back()->with([
-            'success' => 'Student registration successful!',
-            'student_id' => $student->student_id
-        ]);
-    }
-
-    public function secureViewFile($student_id, $filename)
-    {
-        $fullStoragePath = "student_records/{$student_id}/{$filename}";
-
-        if (!Storage::disk('local')->exists($fullStoragePath)) {
-            abort(404, 'The requested credential file was not found.');
-        }
-
-        return Storage::disk('local')->response($fullStoragePath);
     }
 
     public function manageStudents(Request $request)
@@ -258,7 +199,6 @@ class RegistrarController extends Controller
     public function viewStudentProfile($student_id)
     {
         $student = Student::where('student_id', $student_id)->firstOrFail();
-
         return view('registrar.student_profile', compact('student'));
     }
 
@@ -271,6 +211,7 @@ class RegistrarController extends Controller
             'year_level' => 'required|string',
             'semester' => 'required|string',
             'section' => 'nullable|string',
+            'status' => 'required|string|in:Enrolled,On-Hold,Purged,Dropped',
             'contact_no' => 'required|string',
             'email' => 'required|email',
             'city_address' => 'required|string',
@@ -280,6 +221,7 @@ class RegistrarController extends Controller
         $student->year_level = $request->year_level;
         $student->semester = $request->semester;
         $student->section = $request->section;
+        $student->status = $request->status;
         $student->contact_no = $request->contact_no;
         $student->email = $request->email;
         $student->city_address = $request->city_address;
@@ -302,6 +244,7 @@ class RegistrarController extends Controller
             'doc_tor'              => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'doc_dismissal'        => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'doc_good_moral_trans' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_curriculum'       => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'doc_permit'           => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
@@ -319,6 +262,7 @@ class RegistrarController extends Controller
             'doc_tor'              => ['column' => 'path_tor', 'name' => 'transcript_of_records'],
             'doc_dismissal'        => ['column' => 'path_dismissal', 'name' => 'honorable_dismissal'],
             'doc_good_moral_trans' => ['column' => 'path_good_moral_trans', 'name' => 'good_moral_transferee'],
+            'doc_curriculum'       => ['column' => 'path_curriculum', 'name' => 'old_curriculum'],
             'doc_permit'           => ['column' => 'path_permit', 'name' => 'cross_enroll_permit']
         ];
 
@@ -356,11 +300,6 @@ class RegistrarController extends Controller
 
         $sid = $student->student_id;
         $fullName = strtoupper($student->last_name . ', ' . $student->first_name);
-
-        $folderPath = "student_records/{$sid}";
-        if (Storage::disk('local')->exists($folderPath)) {
-            Storage::disk('local')->deleteDirectory($folderPath);
-        }
 
         DB::table('document_requests')->where('student_id', $sid)->delete();
         DB::table('student_subjects')->where('student_number', $sid)->delete();

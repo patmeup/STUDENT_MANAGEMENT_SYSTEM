@@ -157,6 +157,7 @@
                             <option value="">-- All Semesters --</option>
                             <option value="1st Semester">1st Semester</option>
                             <option value="2nd Semester">2nd Semester</option>
+                            <option value="Summer" id="optSummer" style="display: none;">Summer</option>
                         </select>
                     </div>
                 </div>
@@ -313,8 +314,24 @@
         const searchInput = document.getElementById('scheduleSearchInput');
         const filterYearLevel = document.getElementById('filterYearLevel');
         const filterSemester = document.getElementById('filterSemester');
+        const optSummer = document.getElementById('optSummer');
         const tableRows = document.querySelectorAll('#scheduleTable tbody tr');
         const visibleClassesCount = document.getElementById('visibleClassesCount');
+
+        function updateSemesterOptions() {
+            if (!filterYearLevel || !optSummer || !filterSemester) return;
+
+            const isThirdYear = filterYearLevel.value === '3rd Year';
+
+            if (isThirdYear) {
+                optSummer.style.display = '';
+            } else {
+                optSummer.style.display = 'none';
+                if (filterSemester.value === 'Summer') {
+                    filterSemester.value = '';
+                }
+            }
+        }
 
         function filterScheduleMatrixTable() {
             const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
@@ -347,9 +364,17 @@
         }
 
         if (searchInput) searchInput.addEventListener('input', filterScheduleMatrixTable);
-        if (filterYearLevel) filterYearLevel.addEventListener('change', filterScheduleMatrixTable);
+
+        if (filterYearLevel) {
+            filterYearLevel.addEventListener('change', function () {
+                updateSemesterOptions();
+                filterScheduleMatrixTable();
+            });
+        }
+
         if (filterSemester) filterSemester.addEventListener('change', filterScheduleMatrixTable);
 
+        updateSemesterOptions();
         filterScheduleMatrixTable();
 
         const formPanelTitle = document.querySelector('.form-panel .card-bar span');
@@ -451,7 +476,6 @@
         function revertToCreateMode() {
             if (!mainForm) return;
 
-            // Clear validation errors pag nag-reset
             if (validationAlert) validationAlert.style.display = 'none';
             validateFields.forEach(f => f.classList.remove('input-error'));
 
@@ -460,7 +484,7 @@
             if (methodInput) methodInput.value = ''; 
 
             if (subjectSelectGroup) subjectSelectGroup.style.display = 'block';
-            if (subjectSelect) subjectSelect.classList.add('custom-validate'); // Ibalik validation
+            if (subjectSelect) subjectSelect.classList.add('custom-validate');
             if (subjectReadOnlyGroup) subjectReadOnlyGroup.style.display = 'none';
 
             if (formPanelTitle) formPanelTitle.innerHTML = '<i class="fas fa-calendar-plus"></i> Deployment Specifications Form';
@@ -494,11 +518,9 @@
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group label { font-size: 12px; font-weight: 600; color: #475569; }
     
-    /* Input Styling */
     .form-group input, .select-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 14px; color: #0f172a; outline: none; background: #ffffff; box-sizing: border-box; width: 100%; transition: all 0.2s; }
     .form-group input:focus, .select-input:focus { border-color: #0033A0; box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.15); }
     
-    /* Error Validation UI */
     .input-error { border-color: #ef4444 !important; background-color: #fef2f2 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important; }
     .sa-alert-error { background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; }
     

@@ -92,7 +92,7 @@
                                 <option value="" disabled selected hidden>Choose Semester</option>
                                 <option value="1st Semester">1st Semester</option>
                                 <option value="2nd Semester">2nd Semester</option>
-                                <option value="Summer">Summer</option>
+                                <option value="Summer" id="summerOption" style="display: none;">Summer</option>
                             </select>
                         </div>
                     </div>
@@ -296,14 +296,37 @@
         const courseSelect   = document.getElementById('courseSelect');
         const yearSelect     = document.getElementById('yearSelect');
         const semesterSelect = document.getElementById('semesterSelect');
+        const summerOption   = document.getElementById('summerOption');
         const subjectSelect  = document.getElementById('subjectSelect');
         const curriculumForm = document.getElementById('curriculumForm');
         const jsAlertError = document.getElementById('js-alert-error');
         const jsAlertList = document.getElementById('js-alert-list');
 
+        function toggleSummerOption() {
+            if (!yearSelect || !summerOption || !semesterSelect) return;
+
+            if (yearSelect.value === '3rd Year') {
+                summerOption.style.display = '';
+            } else {
+                summerOption.style.display = 'none';
+                if (semesterSelect.value === 'Summer') {
+                    semesterSelect.value = '';
+                }
+            }
+        }
+
+        if (yearSelect) {
+            yearSelect.addEventListener('change', function () {
+                toggleSummerOption();
+                fetchFilteredSubjects();
+            });
+        }
+
         if (courseSelect) courseSelect.addEventListener('change', fetchFilteredSubjects);
-        if (yearSelect) yearSelect.addEventListener('change', fetchFilteredSubjects);
         if (semesterSelect) semesterSelect.addEventListener('change', fetchFilteredSubjects);
+
+        // Initial check on load
+        toggleSummerOption();
 
         if (curriculumForm) {
             curriculumForm.addEventListener('submit', function (e) {
@@ -434,6 +457,13 @@
         document.getElementById('curriculumId').value = id;
         document.getElementById('courseSelect').value = course;
         document.getElementById('yearSelect').value = year;
+
+        // Ensure Summer option visibility is updated before setting semester value
+        const summerOption = document.getElementById('summerOption');
+        if (summerOption) {
+            summerOption.style.display = (year === '3rd Year') ? '' : 'none';
+        }
+
         document.getElementById('semesterSelect').value = semester;
 
         fetchFilteredSubjects();
@@ -462,6 +492,11 @@
     function cancelEdit() {
         const form = document.getElementById('curriculumForm');
         form.reset();
+
+        const summerOption = document.getElementById('summerOption');
+        if (summerOption) {
+            summerOption.style.display = 'none';
+        }
 
         document.getElementById('curriculumId').value = "";
         document.getElementById('subjectSelect').innerHTML = '<option value="" disabled selected hidden>Please fill out Course, Year, and Semester first...</option>';

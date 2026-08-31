@@ -117,12 +117,23 @@
 
                     <div class="term-dates-grid">
                         @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key => $label)
-                            @php $existingTerm = $terms->firstWhere('term', $key); @endphp
+                            @php 
+                                $existingTerm = $terms->firstWhere('term', $key); 
+                                // Map Term to Semester
+                                $mappedSemester = in_array($key, ['prelim', 'midterm']) ? '1st Semester' : '2nd Semester';
+                                $subjectsForTerm = $curriculumSubjects[$mappedSemester] ?? collect();
+                            @endphp
                             <form action="{{ route('system_admin.store_term_period') }}" method="POST" class="term-date-card term-form" novalidate>
                                 @csrf
                                 <input type="hidden" name="academic_period_id" value="{{ $period->id }}">
                                 <input type="hidden" name="term" value="{{ $key }}">
-                                <span class="term-date-label">{{ $label }}</span>
+                                
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span class="term-date-label">{{ $label }}</span>
+                                    <button type="button" class="btn-view-subjects" onclick="openTermSubjectsModal('{{ $label }}', '{{ $mappedSemester }}', {{ json_encode($subjectsForTerm) }})">
+                                        <i class="fas fa-book"></i> View Subjects
+                                    </button>
+                                </div>
                                 
                                 <div class="term-inputs-group">
                                     <div class="term-field-single">
@@ -144,6 +155,35 @@
                 </div>
             @endforeach
         @endif
+    </div>
+</div>
+
+<!-- MODAL FOR VIEWING SUBJECTS PER TERM -->
+<div id="termSubjectsModal" class="custom-modal-overlay" style="display: none;">
+    <div class="custom-modal-content" style="max-width: 650px;">
+        <div class="modal-header-bar">
+            <div>
+                <h3 id="modal-term-title" style="margin: 0; font-size: 16px; font-weight: 700;"><i class="fas fa-book-open"></i> Term Curriculum Subjects</h3>
+                <span id="modal-term-subtitle" style="font-size: 12px; color: #64748b; font-weight: 600;"></span>
+            </div>
+            <button type="button" class="close-modal-btn" onclick="closeTermSubjectsModal()">&times;</button>
+        </div>
+        
+        <div style="padding: 20px; max-height: 420px; overflow-y: auto;">
+            <table class="minimal-table" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>Course</th>
+                        <th>Year Level</th>
+                        <th>Code</th>
+                        <th>Subject Title</th>
+                    </tr>
+                </thead>
+                <tbody id="modal-subjects-list">
+                    <!-- Populated via JavaScript -->
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -269,6 +309,45 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 });
+
+// MODAL FUNCTIONALITY FOR VIEWING SUBJECTS
+function openTermSubjectsModal(termLabel, mappedSemester, subjects) {
+    const modal = document.getElementById('termSubjectsModal');
+    const title = document.getElementById('modal-term-title');
+    const subtitle = document.getElementById('modal-term-subtitle');
+    const listContainer = document.getElementById('modal-subjects-list');
+
+    title.innerHTML = `<i class="fas fa-book-open"></i> ${termLabel} Period Subjects`;
+    subtitle.textContent = `Curriculum Mapped Semester: ${mappedSemester}`;
+
+    listContainer.innerHTML = '';
+
+    if (!subjects || subjects.length === 0) {
+        listContainer.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align: center; color: #94a3b8; padding: 25px !important; font-style: italic;">
+                    No subjects registered for ${mappedSemester} in the curriculum masterlist.
+                </td>
+            </tr>`;
+    } else {
+        subjects.forEach(sub => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><span class="subject-code-tag" style="background:#f1f5f9; color:#475569;">${sub.course_code}</span></td>
+                <td style="font-size: 13px; font-weight: 600;">${sub.year_level}</td>
+                <td><span class="subject-code-tag" style="background:#ecfdf5; color:#059669;">${sub.subject_code}</span></td>
+                <td style="font-size: 13px; font-weight: 600; color:#1e293b;">${sub.subject_title}</td>
+            `;
+            listContainer.appendChild(tr);
+        });
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closeTermSubjectsModal() {
+    document.getElementById('termSubjectsModal').style.display = 'none';
+}
 </script>
 
 <style>
@@ -317,8 +396,7 @@ document.addEventListener('DOMContentLoaded', function () {
     .term-date-inputs { display: flex; align-items: center; gap: 6px; }
     .term-date-input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12.5px; color: #0f172a; outline: none; background: #ffffff; }
     .term-date-input:focus { border-color: #000000; box-shadow: 0 0 0 2px rgba(0,0,0,0.05); }
-    .term-date-sep { font-size: 12px; color: #64748b; font-weight: 500; }
-    
+
     .term-inputs-group { display: flex; gap: 8px; }
     .term-field-single { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
     .term-sub-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; }
@@ -332,7 +410,21 @@ document.addEventListener('DOMContentLoaded', function () {
     .btn-action-delete { background-color: transparent; border: 1px solid #fecaca; color: #dc2626; padding: 7px 14px; font-size: 12.5px; font-weight: 600; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
     .btn-action-delete:hover { background-color: #fef2f2; color: #991b1b; border-color: #f87171; }
 
+    .btn-view-subjects { background: transparent; border: none; color: #2563eb; font-size: 11.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 0; }
+    .btn-view-subjects:hover { text-decoration: underline; color: #1d4ed8; }
+
     .sa-alert-success { background: #ecfdf5; color: #065f46; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #059669; font-size: 14px; display: flex; align-items: center; gap: 10px; }
     .sa-alert-danger { background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; display: flex; align-items: flex-start; gap: 10px; }
+
+    .minimal-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .minimal-table th { background-color: #f8fafc; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.72rem; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+    .minimal-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
+    .subject-code-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; padding: 3px 6px; border-radius: 4px; font-size: 0.8rem; }
+
+    .custom-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+    .custom-modal-content { background: #ffffff; border-radius: 12px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; }
+    .modal-header-bar { background: #f8fafc; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
+    .close-modal-btn { background: transparent; border: none; font-size: 24px; color: #94a3b8; cursor: pointer; line-height: 1; padding: 0; }
+    .close-modal-btn:hover { color: #475569; }
 </style>
 @endsection

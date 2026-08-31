@@ -150,13 +150,21 @@ class SuperAdminController extends Controller
 
     public function storeCourse(Request $request)
     {
+        $isCustom = $request->input('is_custom_mode') == '1';
+
+        // Kunin ang course code depende sa mode
+        $courseCode = $isCustom 
+            ? strtoupper(trim($request->input('course_code_custom')))
+            : strtoupper(trim($request->input('course_code_select')));
+
+        $request->merge(['course_code' => $courseCode]);
+
         $validated = $request->validate([
             'course_code'  => 'required|string|unique:courses,course_code|max:50',
             'course_title' => 'required|string|max:255',
             'department'   => 'required|string|max:100',
         ]);
 
-        $validated['course_code'] = strtoupper($request->course_code);
         $validated['department'] = strtoupper($request->department);
 
         Course::create($validated);

@@ -206,6 +206,17 @@ class GoogleClassroomService
         $materials = $service->courses_courseWorkMaterials->listCoursesCourseWorkMaterials($googleCourseId);
         $seenIds = [];
 
+        $localCourse = DB::table('google_classroom_courses')->where('id', $localCourseId)->first();
+        $scheduleId = $localCourse ? $localCourse->linked_class_schedule_id : null;
+
+        $termPeriods = collect();
+        if ($scheduleId) {
+            $academicPeriodId = DB::table('term_periods')->max('academic_period_id') ?? 1;
+            $termPeriods = DB::table('term_periods')
+                ->where('academic_period_id', $academicPeriodId)
+                ->get();
+        }
+
         foreach ($materials->getCourseWorkMaterial() ?? [] as $mat) {
             $seenIds[] = $mat->getId();
 
@@ -225,12 +236,29 @@ class GoogleClassroomService
                 ? Carbon::parse($mat->getCreationTime())->format('Y-m-d H:i:s') 
                 : null;
 
+            $postDateOnly = $postedAt ? date('Y-m-d', strtotime($postedAt)) : null;
+            $matchedTerm = null;
+
+            if ($postDateOnly && $termPeriods->count() > 0) {
+                $matched = $termPeriods->first(function($period) use ($postDateOnly) {
+                    return $postDateOnly >= $period->start_date && $postDateOnly <= $period->end_date;
+                });
+                if ($matched) {
+                    $matchedTerm = $matched->term;
+                }
+            }
+
+            if (!$matchedTerm) {
+                throw new \Exception("Google Classroom Material '{$mat->getTitle()}' posted on {$postDateOnly} does not fall under any defined term period.");
+            }
+
             DB::table('google_classroom_materials')->updateOrInsert(
                 ['google_material_id' => $mat->getId()],
                 [
                     'course_id' => $localCourseId,
                     'title' => $mat->getTitle(),
                     'description' => $mat->getDescription(),
+                    'term' => $matchedTerm,
                     'posted_at' => $postedAt,
                     'alternate_link' => $mat->getAlternateLink(),
                     'drive_file_id' => $driveFileId,

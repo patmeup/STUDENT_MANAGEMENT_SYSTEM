@@ -42,6 +42,7 @@
                             <option value="">-- All Semesters --</option>
                             <option value="1st Semester">1st Semester</option>
                             <option value="2nd Semester">2nd Semester</option>
+                            <option value="Summer" id="summerOption" style="display: none;">Summer</option>
                         </select>
                     </div>
                 </div>
@@ -119,12 +120,26 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         
-        // --- Multi-Criteria Search & Filter Dropdown Engine ---
+        // --- Dynamic Summer Option & Multi-Criteria Search Filter Engine ---
         const searchInput = document.getElementById('scheduleSearchInput');
         const filterYearLevel = document.getElementById('filterYearLevel');
         const filterSemester = document.getElementById('filterSemester');
+        const summerOption = document.getElementById('summerOption');
         const tableRows = document.querySelectorAll('#scheduleTable tbody tr');
         const visibleClassesCount = document.getElementById('visibleClassesCount');
+
+        function toggleSummerOption() {
+            if (!filterYearLevel || !summerOption || !filterSemester) return;
+
+            if (filterYearLevel.value === '3rd Year') {
+                summerOption.style.display = '';
+            } else {
+                summerOption.style.display = 'none';
+                if (filterSemester.value === 'Summer') {
+                    filterSemester.value = '';
+                }
+            }
+        }
 
         function filterScheduleMatrixTable() {
             const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
@@ -156,10 +171,18 @@
             }
         }
 
+        if (filterYearLevel) {
+            filterYearLevel.addEventListener('change', function () {
+                toggleSummerOption();
+                filterScheduleMatrixTable();
+            });
+        }
+
         if (searchInput) searchInput.addEventListener('input', filterScheduleMatrixTable);
-        if (filterYearLevel) filterYearLevel.addEventListener('change', filterScheduleMatrixTable);
         if (filterSemester) filterSemester.addEventListener('change', filterScheduleMatrixTable);
 
+        // Run initial setup on page load
+        toggleSummerOption();
         filterScheduleMatrixTable();
     });
 </script>

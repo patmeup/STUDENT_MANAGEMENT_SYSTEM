@@ -102,7 +102,6 @@
         <div class="sa-card">
             <div class="card-header-flex">
                 <h3 class="card-title-list">Active Dynamic Block Sections</h3>
-                {{-- INAYOS: Binibilang na ang unique grouped blocks sa halip na raw un-grouped count --}}
                 <span class="badge-count" style="background: #16a34a;">
                     {{ $sections->groupBy('section_name')->count() }} Active Blocks
                 </span>
@@ -141,7 +140,6 @@
                                 </td>
 
                                 <td>
-                                    {{-- DYNAMIC STUDENT ENROLLED COUNT --}}
                                     <span class="enrolled-count-badge">
                                         <i class="fas fa-users"></i> {{ $records->first()->enrolled_count ?? 0 }} Students
                                     </span>
@@ -178,6 +176,7 @@
                                         <select name="target_semester" class="select-input-helper sem-selector-js" data-target="{{ $slug }}" style="width: 115px; padding: 4px 6px; font-size: 12px;" required>
                                             <option value="1st Semester" selected>1st Sem</option>
                                             <option value="2nd Semester">2nd Sem</option>
+                                            <option value="Summer" class="opt-summer-js" style="display: none;">Summer</option>
                                         </select>
 
                                         <button type="submit" class="btn-helper" style="background: #16a34a; padding: 5px 10px; font-size: 12px;" onclick="return confirm('Do you want to bulk enroll this entire block into the selected Year and Semester?')">
@@ -212,7 +211,6 @@
         buttonElement.classList.add('active');
     }
 
-    // Client-Side Searching Feature Engine
     document.addEventListener('DOMContentLoaded', function () {
         // --- 1. Student Masterlist Filter Engine ---
         const studentSearch = document.getElementById('studentSearchInput');
@@ -255,40 +253,74 @@
                 }
             });
         }
-    });
 
-    function updateSubjectCounter(slug, rowElement) {
-        const selectedYear = rowElement.querySelector('.year-selector-js').value;
-        const selectedSem = rowElement.querySelector('.sem-selector-js').value;
-        
-        const datasetSpans = rowElement.querySelectorAll('.block-meta-dataset span');
-        let matchedCount = 0;
+        // --- 3. Dynamic Semester Options & Subject Counter Engine ---
+        function updateRowSemesterOptions(row) {
+            const yearSelect = row.querySelector('.year-selector-js');
+            const semSelect = row.querySelector('.sem-selector-js');
+            const optSummer = row.querySelector('.opt-summer-js');
 
-        datasetSpans.forEach(span => {
-            const itemYear = span.getAttribute('data-year');
-            const itemSem = span.getAttribute('data-sem');
+            if (!yearSelect || !semSelect || !optSummer) return;
 
-            if (itemYear === selectedYear && itemSem === selectedSem) {
-                matchedCount = parseInt(span.getAttribute('data-count')) || 0;
+            if (yearSelect.value === '3rd Year') {
+                optSummer.style.display = '';
+            } else {
+                optSummer.style.display = 'none';
+                if (semSelect.value === 'Summer') {
+                    semSelect.value = '1st Semester';
+                }
             }
-        });
-
-        const targetDisplay = document.getElementById(`display-count-${slug}`);
-        if (targetDisplay) {
-            targetDisplay.innerHTML = `<strong>${matchedCount}</strong> Active Subjects`;
         }
-    }
 
-    document.querySelectorAll('.year-selector-js, .sem-selector-js').forEach(dropdown => {
-        const row = dropdown.closest('tr');
-        const targetSlug = dropdown.getAttribute('data-target');
+        function updateSubjectCounter(slug, rowElement) {
+            const yearSelect = rowElement.querySelector('.year-selector-js');
+            const semSelect = rowElement.querySelector('.sem-selector-js');
+            
+            if (!yearSelect || !semSelect) return;
 
-        dropdown.addEventListener('change', function() {
+            const selectedYear = yearSelect.value;
+            const selectedSem = semSelect.value;
+            
+            const datasetSpans = rowElement.querySelectorAll('.block-meta-dataset span');
+            let matchedCount = 0;
+
+            datasetSpans.forEach(span => {
+                const itemYear = span.getAttribute('data-year');
+                const itemSem = span.getAttribute('data-sem');
+
+                if (itemYear === selectedYear && itemSem === selectedSem) {
+                    matchedCount = parseInt(span.getAttribute('data-count')) || 0;
+                }
+            });
+
+            const targetDisplay = document.getElementById(`display-count-${slug}`);
+            if (targetDisplay) {
+                targetDisplay.innerHTML = `<strong>${matchedCount}</strong> Active Subjects`;
+            }
+        }
+
+        document.querySelectorAll('.block-row').forEach(row => {
+            const yearSelect = row.querySelector('.year-selector-js');
+            const semSelect = row.querySelector('.sem-selector-js');
+            const targetSlug = yearSelect ? yearSelect.getAttribute('data-target') : null;
+
+            if (yearSelect) {
+                yearSelect.addEventListener('change', function() {
+                    updateRowSemesterOptions(row);
+                    updateSubjectCounter(targetSlug, row);
+                });
+            }
+
+            if (semSelect) {
+                semSelect.addEventListener('change', function() {
+                    updateSubjectCounter(targetSlug, row);
+                });
+            }
+
+            // Run initial checks on page load
+            updateRowSemesterOptions(row);
             updateSubjectCounter(targetSlug, row);
         });
-
-        // Patakbuhin agad para makuha ang default active subjects pagkaload ng page
-        updateSubjectCounter(targetSlug, row);
     });
 </script>
 

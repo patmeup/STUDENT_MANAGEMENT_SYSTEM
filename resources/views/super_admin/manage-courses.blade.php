@@ -41,6 +41,7 @@
         <span id="js-alert-message">Please fill out all required fields before submitting.</span>
     </div>
 
+    <!-- ADD NEW COURSE CARD -->
     <div class="subj-card">
         <div class="card-bar">
             <span><i class="fas fa-plus-circle"></i> Add New Course Program</span>
@@ -50,42 +51,45 @@
             @csrf
             
             <div class="form-grid-2">
+                <!-- DYNAMIC COURSE CODE INPUT -->
                 <div class="form-group">
                     <label>Course / Program Acronym Code <span class="required-star" style="color: #dc2626;">*</span></label>
-                    <div class="custom-select-wrapper">
-                        <select name="course_code" id="course-code-select" class="custom-select-dropdown" required>
-                            <option value="" disabled selected hidden>Select Program</option>
-                            <option value="BSIT">BSIT</option>
-                            <option value="BSCS">BSCS</option>
-                        </select>
-                    </div>
+                    <input type="text" name="course_code" id="course-code-input" placeholder="E.g., BSIT, BSCS, BSIS, BSCPE" style="text-transform: uppercase; font-weight: 700;" required>
+                    <small id="course-code-error" style="display: none; color: #dc2626; font-weight: 600; font-size: 12px; margin-top: 4px;">
+                        <i class="fas fa-exclamation-circle"></i> This course code already exists in the system!
+                    </small>
                 </div>
 
+                <!-- ASSIGNED DEPARTMENT SELECT -->
                 <div class="form-group">
                     <label>Assigned Department <span class="required-star" style="color: #dc2626;">*</span></label>
                     <div class="custom-select-wrapper">
                         <select name="department" id="course-department-select" class="custom-select-dropdown" required>
                             <option value="COLLEGE OF COMPUTER STUDIES" selected>College of Computer Studies</option>
+                            <option value="COLLEGE OF BUSINESS ADMINISTRATION">College of Business Administration</option>
+                            <option value="COLLEGE OF HOSPITALITY MANAGEMENT">College of Hospitality Management</option>
+                            <option value="COLLEGE OF ARTS AND SCIENCES">College of Arts and Sciences</option>
+                            <option value="COLLEGE OF EDUCATION">College of Education</option>
+                            <option value="COLLEGE OF NURSING">College of Nursing</option>
                         </select>
                     </div>
                 </div>
             </div>
 
+            <!-- DYNAMIC FULL DEGREE TITLE INPUT -->
             <div class="form-group">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <label>Full Degree Title <span class="required-star" style="color: #dc2626;">*</span></label>
-                    <small style="color: #10b981; font-weight: 600;"><i class="fas fa-magic"></i> Auto-generated</small>
-                </div>
-                <input type="text" name="course_title" id="course-title-input" placeholder="Select a program above to auto-populate" readonly required style="background-color: #f8fafc; cursor: not-allowed; font-weight: 600; color: #1e293b;">
+                <label>Full Degree Title <span class="required-star" style="color: #dc2626;">*</span></label>
+                <input type="text" name="course_title" id="course-title-input" placeholder="E.g., Bachelor of Science in Information Technology" required style="font-weight: 600; color: #1e293b;">
             </div>
 
             <div class="form-actions-bar">
                 <button type="reset" class="btn-clear" id="btn-reset-form">Clear Form</button>
-                <button type="submit" class="btn-submit-subj" style="background-color: #000000;">Save Course</button>
+                <button type="submit" id="btn-save-course" class="btn-submit-subj" style="background-color: #000000;">Save Course</button>
             </div>
         </form>
     </div>
 
+    <!-- TABLE LIST CARD -->
     <div class="subject-list-card">
         <div class="card-header-flex">
             <h3 class="card-title-list">Active Course Programs</h3>
@@ -137,6 +141,7 @@
     </div>
 </div>
 
+<!-- EDIT MODAL -->
 <div id="editCourseModal" class="custom-modal-overlay" style="display: none;">
     <div class="custom-modal-content">
         <div class="modal-header-bar">
@@ -150,12 +155,10 @@
             
             <div class="form-group">
                 <label>Course / Program Acronym Code</label>
-                <div class="custom-select-wrapper">
-                    <select name="course_code" id="modal-course-code" class="custom-select-dropdown" required>
-                        <option value="BSIT">BSIT</option>
-                        <option value="BSCS">BSCS</option>
-                    </select>
-                </div>
+                <input type="text" name="course_code" id="modal-course-code" required style="text-transform: uppercase; font-weight: 700;">
+                <small id="modal-course-code-error" style="display: none; color: #dc2626; font-weight: 600; font-size: 12px; margin-top: 4px;">
+                    <i class="fas fa-exclamation-circle"></i> This course code already exists in another record!
+                </small>
             </div>
 
             <div class="form-group" style="margin-top: 15px;">
@@ -163,61 +166,94 @@
                 <div class="custom-select-wrapper">
                     <select name="department" id="modal-course-department" class="custom-select-dropdown" required>
                         <option value="COLLEGE OF COMPUTER STUDIES">College of Computer Studies</option>
+                        <option value="COLLEGE OF BUSINESS ADMINISTRATION">College of Business Administration</option>
+                        <option value="COLLEGE OF HOSPITALITY MANAGEMENT">College of Hospitality Management</option>
+                        <option value="COLLEGE OF ARTS AND SCIENCES">College of Arts and Sciences</option>
+                        <option value="COLLEGE OF EDUCATION">College of Education</option>
+                        <option value="COLLEGE OF NURSING">College of Nursing</option>
                     </select>
                 </div>
             </div>
 
             <div class="form-group" style="margin-top: 15px;">
                 <label>Full Degree Title</label>
-                <input type="text" name="course_title" id="modal-course-title" readonly required style="background-color: #f8fafc; cursor: not-allowed; font-weight: 600; color: #1e293b;">
+                <input type="text" name="course_title" id="modal-course-title" required style="font-weight: 600; color: #1e293b;">
             </div>
 
             <div class="form-actions-bar" style="margin-top: 20px; padding-top: 15px;">
                 <button type="button" class="btn-clear" onclick="closeEditCourseModal()">Cancel</button>
-                <button type="submit" id="modal-submit-btn" disabled class="btn-submit-subj" style="background-color: #10b981;">Save Changes</button>
+                <button type="submit" id="modal-submit-btn" class="btn-submit-subj" style="background-color: #10b981;">Save Changes</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-    const existingCourses = @json($courses->pluck('course_code')->toArray());
-
-    const programTitles = {
-        'BSIT': 'Bachelor of Science in Information Technology',
-        'BSCS': 'Bachelor of Science in Computer Science'
-    };
+    // List ng lahat ng existing course code sa database (case-insensitive check)
+    const existingCourses = @json($courses->pluck('course_code')->map(fn($item) => strtoupper($item))->toArray());
 
     document.addEventListener('DOMContentLoaded', function() {
-        const courseSelect = document.getElementById('course-code-select');
-        const titleInput = document.getElementById('course-title-input');
+        const courseCodeInput = document.getElementById('course-code-input');
+        const courseCodeError = document.getElementById('course-code-error');
+        const saveBtn = document.getElementById('btn-save-course');
         const resetBtn = document.getElementById('btn-reset-form');
         const courseForm = document.getElementById('course-form');
         const jsAlertError = document.getElementById('js-alert-error');
         const jsAlertMessage = document.getElementById('js-alert-message');
 
-        courseSelect.addEventListener('change', function() {
-            titleInput.value = programTitles[this.value] || '';
+        // Real-Time Duplicate Validation sa Input Box
+        courseCodeInput.addEventListener('input', function() {
+            const enteredCode = this.value.trim().toUpperCase();
+
+            if (enteredCode !== "" && existingCourses.includes(enteredCode)) {
+                // KAPAG EXISTING NA: Disable Save Button + Show Red Warning
+                courseCodeError.style.display = 'block';
+                this.style.borderColor = '#dc2626';
+                this.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.1)';
+                saveBtn.disabled = true;
+                saveBtn.style.opacity = '0.5';
+                saveBtn.style.cursor = 'not-allowed';
+            } else {
+                // KAPAG VALID/AVAILABLE: Enable Button + Clear Error
+                courseCodeError.style.display = 'none';
+                this.style.borderColor = '#cbd5e1';
+                this.style.boxShadow = 'none';
+                saveBtn.disabled = false;
+                saveBtn.style.opacity = '1';
+                saveBtn.style.cursor = 'pointer';
+            }
         });
 
         resetBtn.addEventListener('click', function() {
-            setTimeout(() => { titleInput.value = ''; }, 10);
+            courseCodeError.style.display = 'none';
+            courseCodeInput.style.borderColor = '#cbd5e1';
+            courseCodeInput.style.boxShadow = 'none';
+            saveBtn.disabled = false;
+            saveBtn.style.opacity = '1';
+            saveBtn.style.cursor = 'pointer';
         });
 
         if (courseForm) {
             courseForm.addEventListener('submit', function(e) {
-                const codeValue = courseSelect.value;
                 jsAlertError.style.display = 'none';
+                const codeValue = courseCodeInput.value.trim().toUpperCase();
+                const titleValue = document.getElementById('course-title-input').value.trim();
 
-                if (!codeValue) {
+                if (!codeValue || !titleValue) {
                     e.preventDefault();
-                    jsAlertMessage.textContent = 'Please select a Course / Program Acronym Code.';
+                    jsAlertMessage.textContent = 'Please fill out both the Course Code and Full Degree Title.';
+                    jsAlertError.style.display = 'flex';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else if (existingCourses.includes(codeValue)) {
+                    e.preventDefault();
+                    jsAlertMessage.textContent = 'Cannot submit: This course acronym code already exists!';
                     jsAlertError.style.display = 'flex';
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }
             });
         }
 
+        // Live Table Search
         const searchInput = document.getElementById('course-live-search');
         const courseRows = document.querySelectorAll('.course-table-row-item');
         const emptyRow = document.getElementById('empty-search-fallback-row');
@@ -243,49 +279,53 @@
         });
     });
 
+    // EDIT MODAL VALIDATION
+    let currentModalOriginalCode = "";
+
     function openEditCourseModal(course) {
         const modal = document.getElementById('editCourseModal');
         const form = document.getElementById('editCourseForm');
-        const submitBtn = document.getElementById('modal-submit-btn');
         
-        const originalCode = course.course_code;
-        const originalDept = course.department;
-
-        const codeSelect = document.getElementById('modal-course-code');
+        const codeInput = document.getElementById('modal-course-code');
+        const modalCodeError = document.getElementById('modal-course-code-error');
+        const modalSubmitBtn = document.getElementById('modal-submit-btn');
         const deptSelect = document.getElementById('modal-course-department');
         const titleInput = document.getElementById('modal-course-title');
 
-        codeSelect.value = originalCode;
-        deptSelect.value = originalDept;
-        titleInput.value = programTitles[originalCode] || course.course_title;
+        currentModalOriginalCode = course.course_code.toUpperCase();
+
+        codeInput.value = course.course_code;
+        deptSelect.value = course.department;
+        titleInput.value = course.course_title;
+
+        modalCodeError.style.display = 'none';
+        codeInput.style.borderColor = '#cbd5e1';
+        modalSubmitBtn.disabled = false;
+        modalSubmitBtn.style.opacity = '1';
+        modalSubmitBtn.style.cursor = 'pointer';
 
         let updateUrl = "{{ route('super_admin.courses.update', ':id') }}";
         form.action = updateUrl.replace(':id', course.id); 
 
-        submitBtn.disabled = true;
-
-        function checkFormState() {
-            const currentCode = codeSelect.value;
-            const currentDept = deptSelect.value;
-
-            const hasChanges = (currentCode !== originalCode) || (currentDept !== originalDept);
-            const isDuplicate = (currentCode !== originalCode) && existingCourses.includes(currentCode);
+        // Real-Time Duplicate Validation for Modal Editing
+        codeInput.oninput = function() {
+            const val = this.value.trim().toUpperCase();
+            const isDuplicate = (val !== currentModalOriginalCode) && existingCourses.includes(val);
 
             if (isDuplicate) {
-                submitBtn.disabled = true;
-            } else if (hasChanges) {
-                submitBtn.disabled = false;
+                modalCodeError.style.display = 'block';
+                this.style.borderColor = '#dc2626';
+                modalSubmitBtn.disabled = true;
+                modalSubmitBtn.style.opacity = '0.5';
+                modalSubmitBtn.style.cursor = 'not-allowed';
             } else {
-                submitBtn.disabled = true;
+                modalCodeError.style.display = 'none';
+                this.style.borderColor = '#cbd5e1';
+                modalSubmitBtn.disabled = false;
+                modalSubmitBtn.style.opacity = '1';
+                modalSubmitBtn.style.cursor = 'pointer';
             }
-        }
-
-        codeSelect.onchange = function() {
-            titleInput.value = programTitles[this.value] || '';
-            checkFormState();
         };
-
-        deptSelect.onchange = checkFormState;
 
         modal.style.display = 'flex';
     }
@@ -300,20 +340,17 @@
     .subj-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; }
     .header-titles h2 { margin: 0 0 5px 0; font-size: 26px; font-weight: 700; color: #0f172a; }
     .header-titles p { margin: 0; font-size: 14px; color: #64748b; }
-    .header-badge { color: white; padding: 6px 14px; border-radius: 20px; font-weight: 600; font-size: 12px; }
     
     .subj-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); overflow: hidden; margin-bottom: 30px; }
     .card-bar { background: #ffffff; padding: 18px 24px; font-weight: 700; font-size: 15px; color: #0f172a; border-bottom: 1px solid #f1f5f9; }
     .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group label { font-size: 13px; font-weight: 600; color: #475569; }
-    .form-group input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; font-size: 14px; outline: none; box-sizing: border-box; width: 100%; color: #0f172a; }
+    .form-group input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; font-size: 14px; outline: none; box-sizing: border-box; width: 100%; color: #0f172a; transition: all 0.2s ease; }
     .form-group input:focus { border-color: #000000; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05); }
     .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .field-help { font-size: 11px; color: #94a3b8; margin-top: 2px; }
     .form-actions-bar { display: flex; justify-content: flex-end; gap: 12px; margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 20px; }
     .btn-submit-subj { color: white; border: none; padding: 12px 24px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
-    .btn-submit-subj:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-clear { background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 12px 20px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; }
     
     .alert-success-custom { background: #d1e7dd; color: #0f5132; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #0f5132; font-size: 14px; }

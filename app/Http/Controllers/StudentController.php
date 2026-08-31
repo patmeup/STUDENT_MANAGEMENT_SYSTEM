@@ -17,6 +17,10 @@ class StudentController extends Controller
     {
         $studentNumber = session('student_id');
 
+        $student = DB::table('students')
+            ->where('student_id', $studentNumber)
+            ->first();
+
         $announcements = DB::table('announcements')
             ->orderBy('display_order', 'asc')
             ->orderBy('id', 'asc')
@@ -147,6 +151,7 @@ class StudentController extends Controller
         $pendingTasksCount = $totalLocalPending + $googlePendingCount;
 
         return view('student.dashboard', compact(
+            'student',
             'announcements',
             'totalEnrolledClasses',
             'pendingTasksCount',
@@ -961,6 +966,16 @@ class StudentController extends Controller
 
     public function submitTask(Request $request, $id)
     {
+        $studentId = session('student_id');
+
+        $student = DB::table('students')
+            ->where('student_id', $studentId)
+            ->first();
+
+        if ($student && in_array(trim($student->status ?? ''), ['On-Hold', 'On Hold', 'Purged', 'Dropped'])) {
+            return redirect()->back()->with('error', "You cannot submit activities because your account status is currently '{$student->status}'. Please contact the Registrar.");
+        }
+
         if (str_starts_with($id, 'gclass_')) {
             return $this->submitGoogleTask($request, (int) str_replace('gclass_', '', $id));
         }
