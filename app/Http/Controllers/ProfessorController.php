@@ -6,12 +6,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\Students;
 use App\Models\StudentTermGrade;
 use App\Support\TermHelper;
 use App\Support\GradeHelper;
 use App\Support\GoogleClassroomService;
+use App\Support\PredictiveGradeHelper;
 
 class ProfessorController extends Controller
 {
@@ -19,8 +21,11 @@ class ProfessorController extends Controller
     {
         $professor_id = session('user_id');
 
-        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
-
+        $announcements = DB::table('announcements')
+            ->orderBy('display_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+            
         $totalClasses = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->where('subjects.professor_id', $professor_id)
@@ -98,6 +103,7 @@ class ProfessorController extends Controller
 
         $classDetails = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id')
             ->where('class_schedules.id', $schedule_id)
             ->where('subjects.professor_id', $professorId)
             ->select(
@@ -111,7 +117,9 @@ class ProfessorController extends Controller
                 'subjects.subject_code',
                 'subjects.subject_title',
                 'subjects.lecture_units',
-                'subjects.lab_units'
+                'subjects.lab_units',
+                'employees.first_name as prof_first', 
+                'employees.last_name as prof_last'    
             )
             ->first();
 
@@ -122,14 +130,13 @@ class ProfessorController extends Controller
         $students = DB::table('student_subjects')
             ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
             ->where('student_subjects.schedule_id', $schedule_id)
-            ->where('student_subjects.status', 'Enrolled')
             ->select(
                 'students.id as internal_db_id',
                 'students.student_id',
                 'students.last_name',
                 'students.first_name',
                 'students.middle_name',
-                'student_subjects.status'
+                'students.status'
             )
             ->orderBy('students.last_name', 'asc')
             ->get();
@@ -231,7 +238,7 @@ class ProfessorController extends Controller
                     ->where('academic_period_id', $academicPeriodId)
                     ->get();
 
-                $gCourseWork = collect(); 
+                $gCourseWork = collect();
 
                 $gMaterials = DB::table('google_classroom_materials')
                     ->where('course_id', $gLinkedCourse->id)
@@ -239,6 +246,10 @@ class ProfessorController extends Controller
                     ->get();
             }
         }
+
+        $studentSubmissions = DB::table('task_submissions')
+            ->whereIn('student_id', collect($students)->pluck('student_id'))
+            ->get();
 
         return view('professor.class_details', compact(
             'classDetails',
@@ -253,7 +264,8 @@ class ProfessorController extends Controller
             'gAvailableCourses',
             'gAnnouncements',
             'gCourseWork',
-            'gMaterials'
+            'gMaterials',
+            'studentSubmissions'
         ));
     }
 
@@ -404,10 +416,10 @@ class ProfessorController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'type' => 'required|string',
-            'max_score' => 'nullable|integer|min:1|required_unless:type,module',
+            'max_score' => 'nullable',
             'term' => 'required|string',
             'schedule_id' => 'required|integer',
-            'due_date' => 'nullable|date',
+            'due_date' => 'nullable',
             'attachment' => 'nullable|file|max:25600|mimes:pdf,doc,docx,ppt,pptx,zip,jpg,png',
         ]);
 
@@ -443,14 +455,20 @@ class ProfessorController extends Controller
                 $filePath = "{$folderPath}/{$finalName}";
             }
 
-            $formattedDueDate = $request->due_date ? date('Y-m-d H:i:s', strtotime($request->due_date)) : null;
+            $isNonGradable = in_array(strtolower($request->type), ['module', 'material']);
+                        
+            $formattedDueDate = (!$isNonGradable && !empty($request->due_date)) 
+                ? date('Y-m-d H:i:s', strtotime($request->due_date)) 
+                : null;
+
+            $maxScore = ($isNonGradable || empty($request->max_score)) ? null : (int)$request->max_score;
 
             $taskId = DB::table('student_tasks')->insertGetId([
                 'class_schedule_id' => $request->schedule_id,
                 'term' => $request->term,
                 'activity_name' => $request->title,
                 'activity_type' => $request->type,
-                'max_score' => $request->type === 'module' ? null : $request->max_score,
+                'max_score' => $maxScore,
                 'due_date' => $formattedDueDate,
                 'file_path' => $filePath,
                 'original_filename' => $originalName,
@@ -463,7 +481,7 @@ class ProfessorController extends Controller
                 'activity' => [
                     'title' => $request->title,
                     'type' => $request->type,
-                    'max_score' => $request->max_score,
+                    'max_score' => $maxScore,
                     'due_date' => $formattedDueDate,
                 ]
             ]);
@@ -478,8 +496,8 @@ class ProfessorController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'type' => 'required|string',
-            'max_score' => 'nullable|integer|min:1|required_unless:type,module',
-            'due_date' => 'nullable|date',
+            'max_score' => 'nullable',
+            'due_date' => 'nullable',
             'attachment' => 'nullable|file|max:10240|mimes:pdf,doc,docx,ppt,pptx,zip,jpg,png',
         ]);
 
@@ -490,18 +508,23 @@ class ProfessorController extends Controller
                 return response()->json(['success' => false, 'message' => 'Task not found.'], 404);
             }
 
-            $formattedDueDate = $request->due_date ? date('Y-m-d H:i:s', strtotime($request->due_date)) : null;
+            $isNonGradable = in_array(strtolower($request->type), ['module', 'material']);
+
+            $formattedDueDate = (!$isNonGradable && !empty($request->due_date)) 
+                ? date('Y-m-d H:i:s', strtotime($request->due_date)) 
+                : null;
+
+            $maxScore = ($isNonGradable || empty($request->max_score)) ? null : (int)$request->max_score;
 
             $updateData = [
                 'activity_name' => $request->title,
                 'activity_type' => $request->type,
-                'max_score' => $request->type === 'module' ? null : $request->max_score,
+                'max_score' => $maxScore,
                 'due_date' => $formattedDueDate,
                 'updated_at' => now(),
             ];
 
             if ($request->hasFile('attachment')) {
-
                 if ($task->file_path) {
                     Storage::disk('local')->delete($task->file_path);
                 }
@@ -536,7 +559,7 @@ class ProfessorController extends Controller
 
             DB::table('student_tasks')->where('id', $id)->update($updateData);
 
-            return response()->json(['success' => true]);
+            return response()->json(['success`' => true]);
 
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
@@ -571,7 +594,7 @@ class ProfessorController extends Controller
 
         if (!$task) {
             $gcWork = DB::table('google_classroom_coursework')->where('id', $id)->first();
-            
+
             if ($gcWork) {
                 $task = DB::table('student_tasks')->where('google_coursework_id', $gcWork->google_coursework_id)->first();
             }
@@ -597,7 +620,7 @@ class ProfessorController extends Controller
                 $join->on('students.student_id', '=', 'task_submissions.student_id')
                     ->where(function($q) use ($task, $googleCourseworkLocalId) {
                         $q->where('task_submissions.task_id', '=', $task->id);
-                        
+
                         if ($googleCourseworkLocalId) {
                             $q->orWhere('task_submissions.google_coursework_id', '=', $googleCourseworkLocalId);
                         }
@@ -698,11 +721,11 @@ class ProfessorController extends Controller
                 'task_id'              => $task_id,
                 'google_coursework_id' => $googleCourseworkLocalId,
                 'student_id'           => $student_id,
-                'file_path'            => '',     
-                'original_filename'    => '',     
-                'grade'                => null,   
-                'feedback'             => null,   
-                'submitted_at'         => now(),  
+                'file_path'            => '',
+                'original_filename'    => '',
+                'grade'                => null,
+                'feedback'             => null,
+                'submitted_at'         => now(),
                 'created_at'           => now(),
                 'updated_at'           => now(),
             ]);
@@ -964,7 +987,7 @@ class ProfessorController extends Controller
 
             if ($term === 'final') {
                 $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
-                
+
                 if ($activePeriod) {
                     try {
                         \App\Support\PredictiveGradeHelper::trainModels($activePeriod->id);
@@ -982,10 +1005,10 @@ class ProfessorController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Error submitting grades to registrar: ' . $e->getMessage());
+            Log::error('Error submitting grades to registrar: ' . $e->getMessage());
 
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'An error occurred while submitting grades: ' . $e->getMessage()
             ], 500);
         }
@@ -1004,6 +1027,30 @@ class ProfessorController extends Controller
             ->first();
 
         return view('professor.user_details', compact('user', 'isLocked', 'gConnection'));
+    }
+
+        public function updateProfilePicture(Request $request)
+    {
+        $request->validate([
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        $user = User::find(session('user_id'));
+
+        if (!$user) {
+            return redirect()->back()->with('error', 'User not found.');
+        }
+
+        if ($user->profile_picture && Storage::disk('public')->exists($user->profile_picture)) {
+            Storage::disk('public')->delete($user->profile_picture);
+        }
+
+        $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+
+        $user->profile_picture = $path;
+        $user->save();
+
+        return redirect()->back()->with('success', 'Profile picture updated successfully!');
     }
 
 }

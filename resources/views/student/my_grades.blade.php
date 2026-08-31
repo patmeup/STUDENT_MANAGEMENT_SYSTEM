@@ -38,11 +38,11 @@
                         <th colspan="2" class="term-header term-header-finals">FINALS</th>
                     </tr>
                     <tr>
-                        <th class="sub-col">Average</th>
+                        <th class="sub-col">Percentage</th>
                         <th class="sub-col">Equivalent</th>
-                        <th class="sub-col">Average</th>
+                        <th class="sub-col">Percentage</th>
                         <th class="sub-col">Equivalent</th>
-                        <th class="sub-col">Average</th>
+                        <th class="sub-col">Percentage</th>
                         <th class="sub-col">Equivalent</th>
                     </tr>
                 </thead>

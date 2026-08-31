@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Storage;
 
 class SuperAdminController extends Controller
 {
@@ -30,7 +31,11 @@ class SuperAdminController extends Controller
 
     public function dashboard()
     {
-        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+
+        $announcements = DB::table('announcements')
+            ->orderBy('display_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
 
         $totalStudents = DB::table('students')->count();
         $totalEmployees = DB::table('employees')->count();
@@ -145,13 +150,21 @@ class SuperAdminController extends Controller
 
     public function storeCourse(Request $request)
     {
+        $isCustom = $request->input('is_custom_mode') == '1';
+
+        // Kunin ang course code depende sa mode
+        $courseCode = $isCustom 
+            ? strtoupper(trim($request->input('course_code_custom')))
+            : strtoupper(trim($request->input('course_code_select')));
+
+        $request->merge(['course_code' => $courseCode]);
+
         $validated = $request->validate([
             'course_code'  => 'required|string|unique:courses,course_code|max:50',
             'course_title' => 'required|string|max:255',
             'department'   => 'required|string|max:100',
         ]);
 
-        $validated['course_code'] = strtoupper($request->course_code);
         $validated['department'] = strtoupper($request->department);
 
         Course::create($validated);
@@ -212,6 +225,24 @@ class SuperAdminController extends Controller
         return view('super_admin.user_details', compact('user', 'isLocked'));
     }    
 
+    public function updateProfilePicture(Request $request)
+    {
+        $request->validate([
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+        $user = User::find(session('user_id'));
+        if (!$user) {
+            return redirect()->back()->with('error', 'User not found.');
+        }
+        if ($user->profile_picture && Storage::disk('public')->exists($user->profile_picture)) {
+            Storage::disk('public')->delete($user->profile_picture);
+        }
+        $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+        $user->profile_picture = $path;
+        $user->save();
+        return redirect()->back()->with('success', 'Profile picture updated successfully!');
+    }
+
     public function updatePassword(Request $request)
     {
         $userId = session('user_id');
@@ -242,6 +273,6 @@ class SuperAdminController extends Controller
         $user->password = Hash::make($request->password);
         $user->save();
 
-        return redirect()->back()->with('Success', 'Password successfully updated security requirements!');
+        return redirect()->back()->with('Success', 'Password successfully updated. Security requirements met!');
     }
 }

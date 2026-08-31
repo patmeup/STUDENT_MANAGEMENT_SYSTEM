@@ -5,7 +5,7 @@
     
     <div class="sa-header">
         <div class="header-titles">
-            <h2>Class Schedule Matrix</h2>
+            <h2>Class Schedules</h2>
             <p>College Dean Panel — Academic Oversight & Monitoring Center</p>
         </div>
         <div class="header-badge" style="background-color: #6366f1; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;">Dean Mode</div>
@@ -16,7 +16,7 @@
         <div class="sa-card table-panel">
             <div class="card-header-flex" style="display: flex; flex-direction: column; gap: 12px; align-items: stretch;">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <h3 class="card-title-list"><i class="fas fa-list-alt" style="margin-right: 6px; color: #6366f1;"></i> Master Deployment Matrix</h3>
+                    <h3 class="card-title-list"><i class="fas fa-list-alt" style="margin-right: 6px; color: #6366f1;"></i> Class Schedule List</h3>
                     <span class="badge-count" id="visibleClassesCount">{{ isset($schedules) ? $schedules->count() : 0 }} Active Classes</span>
                 </div>
                 
@@ -42,6 +42,7 @@
                             <option value="">-- All Semesters --</option>
                             <option value="1st Semester">1st Semester</option>
                             <option value="2nd Semester">2nd Semester</option>
+                            <option value="Summer" id="summerOption" style="display: none;">Summer</option>
                         </select>
                     </div>
                 </div>
@@ -119,12 +120,26 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         
-        // --- Multi-Criteria Search & Filter Dropdown Engine ---
+        // --- Dynamic Summer Option & Multi-Criteria Search Filter Engine ---
         const searchInput = document.getElementById('scheduleSearchInput');
         const filterYearLevel = document.getElementById('filterYearLevel');
         const filterSemester = document.getElementById('filterSemester');
+        const summerOption = document.getElementById('summerOption');
         const tableRows = document.querySelectorAll('#scheduleTable tbody tr');
         const visibleClassesCount = document.getElementById('visibleClassesCount');
+
+        function toggleSummerOption() {
+            if (!filterYearLevel || !summerOption || !filterSemester) return;
+
+            if (filterYearLevel.value === '3rd Year') {
+                summerOption.style.display = '';
+            } else {
+                summerOption.style.display = 'none';
+                if (filterSemester.value === 'Summer') {
+                    filterSemester.value = '';
+                }
+            }
+        }
 
         function filterScheduleMatrixTable() {
             const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
@@ -156,10 +171,18 @@
             }
         }
 
+        if (filterYearLevel) {
+            filterYearLevel.addEventListener('change', function () {
+                toggleSummerOption();
+                filterScheduleMatrixTable();
+            });
+        }
+
         if (searchInput) searchInput.addEventListener('input', filterScheduleMatrixTable);
-        if (filterYearLevel) filterYearLevel.addEventListener('change', filterScheduleMatrixTable);
         if (filterSemester) filterSemester.addEventListener('change', filterScheduleMatrixTable);
 
+        // Run initial setup on page load
+        toggleSummerOption();
         filterScheduleMatrixTable();
     });
 </script>

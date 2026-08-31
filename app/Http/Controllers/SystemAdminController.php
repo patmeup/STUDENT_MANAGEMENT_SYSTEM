@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Models\Subject;
 use App\Models\Course;
@@ -14,7 +15,10 @@ class SystemAdminController extends Controller
 
     public function dashboard()
     {
-        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+        $announcements = DB::table('announcements')
+            ->orderBy('display_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
 
         $totalEmployees = User::whereIn('role', ['professor', 'dept_sec', 'dean'])->count();
         $totalStudents = DB::table('students')->count();
@@ -33,10 +37,22 @@ class SystemAdminController extends Controller
     public function academicPeriods()
     {
         $periods = DB::table('academic_periods')->orderBy('created_at', 'desc')->get();
-
         $termPeriods = DB::table('term_periods')->get()->groupBy('academic_period_id');
 
-        return view('system_admin.academic_periods', compact('periods', 'termPeriods'));
+        // Inayos ang JOIN at SELECT batay sa totoong schema ng 'curricula' at 'subjects'
+        $curriculumSubjects = DB::table('curricula')
+            ->join('subjects', 'curricula.subject_id', '=', 'subjects.id')
+            ->select(
+                'curricula.semester',
+                'curricula.year_level',
+                'curricula.course as course_code', // Direct column mula sa curricula
+                'subjects.subject_code',
+                'subjects.subject_title'
+            )
+            ->get()
+            ->groupBy('semester');
+
+        return view('system_admin.academic_periods', compact('periods', 'termPeriods', 'curriculumSubjects'));
     }
 
     public function storeAcademicPeriod(Request $request)
@@ -119,4 +135,29 @@ class SystemAdminController extends Controller
 
         return view('system_admin.user_details', compact('user', 'isLocked'));
     }   
+
+    public function updateProfilePicture(Request $request)
+    {
+        $request->validate([
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        $user = User::find(session('user_id'));
+
+        if (!$user) {
+            return redirect()->back()->with('error', 'User not found.');
+        }
+
+        if ($user->profile_picture && Storage::disk('public')->exists($user->profile_picture)) {
+            Storage::disk('public')->delete($user->profile_picture);
+        }
+
+        $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+
+        $user->profile_picture = $path;
+        $user->save();
+
+        return redirect()->back()->with('success', 'Profile picture updated successfully!');
+    }
+    
 }

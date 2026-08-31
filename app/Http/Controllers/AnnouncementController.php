@@ -51,4 +51,20 @@ class AnnouncementController extends Controller
 
         return redirect()->back()->with('error', 'Announcement record not found.');
     }
+
+    public function reorder(Request $request)
+    {
+        $order = $request->input('order');
+
+        if (is_array($order)) {
+            foreach ($order as $index => $id) {
+                DB::table('announcements')->where('id', $id)->update([
+                    'display_order' => $index + 1
+                ]);
+            }
+            return response()->json(['status' => 'success', 'message' => 'Order updated!']);
+        }
+
+        return response()->json(['status' => 'error'], 400);
+    }
 }

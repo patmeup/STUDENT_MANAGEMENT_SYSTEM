@@ -2,22 +2,25 @@
 
 @section('content')
 <div class="sa-container">
-    <div class="sa-header">
+    
+    <div class="sa-header" style="display: flex; gap: 15px; align-items: flex-start; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px;">
+        <div style="font-size: 32px; color: #1e2a5a; margin-top: 2px;">
+            <i class="fas fa-graduation-cap"></i>
+        </div>
         <div class="header-titles">
-            <h2><i class="fas fa-graduation-cap"></i> Manage Student Grades</h2>
-            <p>
+            <h2 style="margin: 0; font-size: 24px; color: #0f172a; font-weight: 800; line-height: 1.2;">Manage Student Grades</h2>
+            <p style="margin: 6px 0 0 0; font-size: 14px; color: #64748b;">
                 Monitor and view student grade submission statuses
                 @if(isset($activeAcademicPeriod))
-                    for <strong>{{ $activeAcademicPeriod->school_year }} ({{ $activeAcademicPeriod->semester }})</strong>
+                    for <strong style="color: #1e293b;">{{ $activeAcademicPeriod->school_year }} ({{ $activeAcademicPeriod->semester }})</strong>
                 @endif
             </p>
         </div>
     </div>
 
     <form id="filterForm" method="GET" action="{{ route('registrar.manage-grades') }}" class="filter-bar-card">
-        <div class="term-select-wrapper">
-            <i class="fa-regular fa-calendar-days"></i>
-            <select id="termSelect" name="term" class="term-select" onchange="document.getElementById('filterForm').submit();">
+        <div style="flex: 0 0 auto;">
+            <select id="termSelect" name="term" class="custom-solid-select" onchange="document.getElementById('filterForm').submit();">
                 @foreach($termPeriods->sortBy('start_date') as $tp)
                     <option value="{{ strtolower($tp->term) }}" {{ strtolower($termFilter) == strtolower($tp->term) ? 'selected' : '' }}>
                         {{ ucfirst($tp->term) }} Term ({{ \Carbon\Carbon::parse($tp->start_date)->format('M d') }} - {{ \Carbon\Carbon::parse($tp->end_date)->format('M d, Y') }})
@@ -40,12 +43,12 @@
                 <table class="minimal-table">
                     <thead>
                         <tr>
-                            <th>Student ID</th>
-                            <th>Full Name</th>
-                            <th>Course / Year</th>
-                            <th class="text-center">Term Average (GWA)</th>
-                            <th class="text-center">Status</th>
-                            <th class="text-center">Action</th>
+                            <th style="width: 14%;">Student ID</th>
+                            <th style="width: 26%;">Full Name</th>
+                            <th style="width: 16%;">Course / Year</th>
+                            <th class="text-center" style="width: 14%;">Term Average</th>
+                            <th class="text-center" style="width: 15%;">Status</th>
+                            <th class="text-center" style="width: 15%;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -54,8 +57,10 @@
                                 <td><strong class="code-highlight">{{ $student->student_id }}</strong></td>
                                 <td><strong>{{ strtoupper($student->last_name) }}</strong>, {{ $student->first_name }}</td>
                                 <td>
-                                    <span class="sem-tag">{{ $student->course }}</span>
-                                    <span class="year-tag">Yr {{ $student->year_level }}</span>
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <span class="sem-tag">{{ $student->course }}</span>
+                                        <span class="year-tag">Yr {{ $student->year_level }}</span>
+                                    </div>
                                 </td>
 
                                 <td class="text-center">
@@ -72,7 +77,7 @@
                                             <i class="fa-solid fa-circle-check"></i> Complete ({{ $student->total_submitted }}/{{ $student->total_enrolled }})
                                         </span>
                                     @elseif($student->grade_status == 'Partial')
-                                        <span class="status-pill status-partial" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">
+                                        <span class="status-pill status-partial">
                                             <i class="fa-solid fa-spinner"></i> Partial ({{ $student->total_submitted }}/{{ $student->total_enrolled }})
                                         </span>
                                     @else
@@ -90,7 +95,7 @@
 
                                         @if($student->grade_status == 'Complete')
                                             @if($student->is_fully_sent)
-                                                <span class="status-pill status-submitted" style="padding: 5px 10px; font-size: 11px;">
+                                                <span class="status-pill status-submitted" style="padding: 6px 12px; font-size: 11px;">
                                                     <i class="fa-solid fa-check-double"></i> Released
                                                 </span>
                                             @else
@@ -98,12 +103,12 @@
                                                     @csrf
                                                     <input type="hidden" name="term" value="{{ $termFilter }}">
                                                     <button type="submit" class="btn-action btn-release" title="Release {{ $termFilter }} grades to student portal">
-                                                        <i class="fa-solid fa-share"></i> Release {{ ucfirst($termFilter) }}
+                                                        <i class="fa-solid fa-share"></i> Release
                                                     </button>
                                                 </form>
                                             @endif
                                         @else
-                                            <button type="button" class="btn-action" style="background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; cursor: not-allowed;" title="Waiting for all enrolled subjects to be submitted for {{ $termFilter }} term">
+                                            <button type="button" class="btn-action btn-locked" disabled title="Waiting for all enrolled subjects to be submitted for {{ $termFilter }} term">
                                                 <i class="fa-solid fa-lock"></i> Locked
                                             </button>
                                         @endif
@@ -165,7 +170,6 @@
         const filterForm = document.getElementById('filterForm');
         let debounceTimer;
 
-        // Auto-submit pag nag-type sa Search bar pagkatapos ng 500ms
         if (searchInput && filterForm) {
             searchInput.addEventListener('input', function() {
                 clearTimeout(debounceTimer);
@@ -181,7 +185,7 @@
         document.getElementById('modalTermLabel').innerText = term;
         
         const tbody = document.getElementById('modalGradesTableBody');
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading grades...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 25px;"><i class="fa-solid fa-spinner fa-spin" style="color: #1e2a5a; font-size: 18px;"></i><div style="margin-top: 8px; color: #64748b; font-size: 13px;">Loading grades...</div></td></tr>';
         
         document.getElementById('gradesModal').style.display = 'flex';
 
@@ -228,104 +232,93 @@
 </script>
 
 <style>
-    .sa-container { font-family: 'Segoe UI', sans-serif; padding: 20px; max-width: 1300px; margin: 0 auto; }
-    .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
-    .header-titles h2 { margin: 0; font-size: 24px; color: #0f172a; font-weight: 800; display: flex; align-items: center; gap: 10px; }
-    .header-titles p { margin: 6px 0 0 0; font-size: 14px; color: #64748b; }
-    .header-titles p strong { color: #1e293b; }
+    .sa-container { font-family: 'Segoe UI', sans-serif; padding: 20px 0; max-width: 1300px; margin: 0 auto; }
 
     .filter-bar-card {
-        display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+        display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
         background: white; border: 1px solid #e2e8f0; border-radius: 12px;
         padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
     }
-    .term-select-wrapper {
-        display: flex; align-items: center; gap: 10px;
-        border: 1px solid #cbd5e1; border-radius: 50px; padding: 8px 18px;
-        background: #f8fafc; color: #64748b;
-    }
-    .term-select { border: none; background: transparent; font-weight: 600; color: #334155; font-size: 13.5px; outline: none; cursor: pointer; }
 
-    .search-input-wrapper { position: relative; flex: 1; }
-    .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px; }
-    .search-input {
-        width: 100%; box-sizing: border-box; padding: 9px 12px 9px 36px;
-        border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13.5px; color: #334155; outline: none;
+    .custom-solid-select {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 100%;
+        min-width: 320px;
+        height: 42px;
+        padding: 0 40px 0 16px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background-color: #f8fafc;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+        background-size: 16px;
+        font-size: 13.5px;
+        font-weight: 600;
+        color: #334155;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .search-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+    .custom-solid-select:focus {
+        border-color: #1e2a5a;
+        box-shadow: 0 0 0 3px rgba(30,42,90,0.1);
+        background-color: #ffffff;
+    }
+
+    .search-input-wrapper { position: relative; flex: 1; height: 42px; display: flex; align-items: center; }
+    .search-icon { position: absolute; left: 16px; color: #94a3b8; font-size: 14px; }
+    .search-input {
+        width: 100%; height: 100%; box-sizing: border-box; padding: 0 16px 0 42px;
+        border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13.5px; color: #334155; outline: none; background: #fff;
+    }
+    .search-input:focus { border-color: #1e2a5a; box-shadow: 0 0 0 3px rgba(30,42,90,0.08); }
 
     .sa-card { border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
 
     .minimal-table { width: 100%; border-collapse: collapse; font-size: 14px; }
     .minimal-table th { background: #f8fafc; padding: 14px 20px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; text-align: left; }
-    .minimal-table td { padding: 14px 20px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
+    .minimal-table td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
     .minimal-table tbody tr:hover { background-color: #f8fafc; }
 
-    .code-highlight { color: #2563eb; font-family: monospace; font-size: 13.5px; }
-    .year-tag { font-weight: 700; color: #0369a1; background: #e0f2fe; padding: 4px 8px; border-radius: 6px; font-size: 11px; border: 1px solid #bae6fd; margin-left: 6px; }
+    .code-highlight { color: #1e2a5a; font-family: monospace; font-size: 13.5px; }
+    .year-tag { font-weight: 700; color: #0369a1; background: #e0f2fe; padding: 4px 8px; border-radius: 6px; font-size: 11px; border: 1px solid #bae6fd; }
     .sem-tag { font-weight: 600; color: #475569; background: #f8fafc; padding: 4px 8px; border-radius: 6px; font-size: 11px; border: 1px solid #e2e8f0; }
     .text-muted-cell { color: #94a3b8; }
 
     .equivalent-badge {
         font-weight: 800; color: #1e2a5a; background: #eef1fb;
         padding: 5px 14px; border-radius: 20px; font-size: 13px;
-        border: 1px solid #c7d2fe;
+        border: 1px solid #c7d2fe; display: inline-block;
     }
 
     .status-pill {
         display: inline-flex; align-items: center; gap: 6px;
-        font-size: 11.5px; font-weight: 700; padding: 6px 14px; border-radius: 20px;
+        font-size: 11.5px; font-weight: 700; padding: 5px 12px; border-radius: 20px;
+        white-space: nowrap;
     }
-
     .status-submitted { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .status-partial { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
     .status-pending { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
 
-    .action-buttons-wrapper {
-        display: flex;
-        gap: 6px;
-        justify-content: center;
-        align-items: center;
-    }
-
+    .action-buttons-wrapper { display: flex; gap: 8px; justify-content: center; align-items: center; }
     .btn-action {
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 11.5px;
-        font-weight: 600;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        border: 1px solid transparent;
-        transition: background 0.15s ease;
-        text-decoration: none;
+        padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+        cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+        border: 1px solid transparent; transition: all 0.15s ease; white-space: nowrap;
     }
-
-    .btn-view {
-        background: #f1f5f9;
-        color: #334155;
-        border-color: #cbd5e1;
-    }
-    .btn-view:hover {
-        background: #e2e8f0;
-        color: #0f172a;
-    }
-
-    .btn-release {
-        background: #1e2a5a;
-        color: white;
-        border-color: #1e2a5a;
-    }
-    .btn-release:hover {
-        background: #141d40;
-    }
+    .btn-view { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
+    .btn-view:hover { background: #e2e8f0; color: #0f172a; }
+    .btn-release { background: #1e2a5a; color: white; border-color: #1e2a5a; }
+    .btn-release:hover { background: #141d40; }
+    .btn-locked { background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; cursor: not-allowed; }
 
     .custom-modal-overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0, 0, 0, 0.5); z-index: 1000;
         display: flex; justify-content: center; align-items: center;
     }
-
     .custom-modal-card {
         background: white; width: 95%; max-width: 850px; border-radius: 12px;
         box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden; animation: fadeIn 0.2s ease-in-out;
@@ -337,78 +330,81 @@
     .custom-modal-header h3 { margin: 0; font-size: 16px; font-weight: 700; }
     .modal-close-btn { background: transparent; border: none; color: white; font-size: 22px; cursor: pointer; }
     .custom-modal-body { padding: 20px; max-height: 75vh; overflow-y: auto; }
-
-    .custom-modal-body .minimal-table th, 
-    .custom-modal-body .minimal-table td {
-        padding: 12px 16px;
-    }
-
-    .custom-modal-body .sem-tag {
-        white-space: nowrap;
-        display: inline-block;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
     .pagination-footer {
-        display: flex;
-        justify-content: flex-end;
-        padding: 16px 20px;
-        border-top: 1px solid #f1f5f9;
-        background: white;
-    }
-    .pagination-footer nav {
-        display: flex;
-        align-items: center;
-    }
-    .pagination-footer svg {
-        width: 16px;
-        height: 16px;
-    }
-    .pagination-footer nav div:first-child {
-        display: none;
-    }
-    .pagination-footer nav ul {
-        display: flex;
-        gap: 4px;
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        align-items: center;
-    }
-    .pagination-footer nav ul li a, 
-    .pagination-footer nav ul li span {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 32px;
-        height: 32px;
-        padding: 0 10px;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        color: #475569;
-        font-size: 13px;
-        text-decoration: none;
-        transition: 0.15s;
+        padding: 24px;
+        border-top: 1px solid #e2e8f0;
         background: #ffffff;
     }
-    .pagination-footer nav ul li a:hover {
-        background: #f8fafc;
-        border-color: #cbd5e1;
-        color: #1e2a5a;
+
+    .pagination-footer nav > div:first-of-type {
+        display: none !important;
     }
-    .pagination-footer nav ul li.active span {
-        background: #1e2a5a;
-        color: white;
-        border-color: #1e2a5a;
+
+    .pagination-footer nav > div:last-of-type {
+        display: flex !important;
+        width: 100% !important;
+        justify-content: space-between !important;
+        align-items: center !important;
     }
-    .pagination-footer nav ul li.disabled span {
-        color: #94a3b8;
-        background: #f8fafc;
-        border-color: #e2e8f0;
+
+    .pagination-footer p {
+        font-size: 15px !important;
+        color: #64748b !important;
+        margin: 0 !important;
+    }
+
+    .pagination-footer span.relative.z-0.inline-flex {
+        display: flex !important;
+        gap: 8px !important;
+        box-shadow: none !important;
+        align-items: center !important;
+    }
+
+    .pagination-footer span.relative.z-0.inline-flex > a,
+    .pagination-footer span.relative.z-0.inline-flex > span {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 45px !important;
+        height: 45px !important;
+        border: 2px solid #cbd5e1 !important;
+        border-radius: 8px !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        color: #1e293b !important;
+        background: #ffffff !important;
+        text-decoration: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .pagination-footer span.relative.z-0.inline-flex > a:hover {
+        background: #f1f5f9 !important;
+        border-color: #1e2a5a !important;
+        color: #1e2a5a !important;
+    }
+
+    .pagination-footer span.relative.z-0.inline-flex > span[aria-current="page"] > span {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: #1e2a5a !important;
+        color: #ffffff !important;
+        border-radius: 5px !important; 
+    }
+
+    .pagination-footer span.relative.z-0.inline-flex > span[aria-current="page"] {
+        border-color: #1e2a5a !important;
+        padding: 0 !important;
+    }
+
+    .pagination-footer svg {
+        width: 22px !important;
+        height: 22px !important;
     }
 </style>
 @endsection

@@ -5,8 +5,8 @@
     
     <div class="sa-header">
         <div class="header-titles">
-            <h2>Class Schedule Matrix</h2>
-            <p>Department Secretary Panel — Section & Room Deployment Center</p>
+            <h2>Manage Class Schedules</h2>
+            <p>Department Secretary Panel — Schedule Management & Room Assignment</p>
         </div>
         <div class="header-badge" style="background-color: #0284c7; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;">Secretary Mode</div>
     </div>
@@ -27,7 +27,7 @@
 
         <div class="sa-card form-panel">
             <div class="card-bar">
-                <span id="formPanelTitle"><i class="fas fa-calendar-plus"></i> Deployment Specifications Form</span>
+                <span id="formPanelTitle"><i class="fas fa-calendar-plus"></i> Add Class Schedule</span>
             </div>
             
             <form id="scheduleMainForm" action="{{ route('department_secretary.schedules.store') }}" method="POST" autocomplete="off" class="pure-form">
@@ -40,7 +40,7 @@
                 </div>
 
                 <div class="form-group" id="subjectSelectGroup">
-                    <label>Target Course / Subject</label>
+                    <label>Select Subject</label>
                         <select name="subject_id" id="formSubjectId" class="select-input custom-validate">
                             <option value="">-- Select Cataloged Subject --</option>
                             @foreach($subjects as $subj)
@@ -50,7 +50,7 @@
                                 </option>
                             @endforeach
                         </select>
-                    <small class="field-help">Choose the curriculum module to be given an active deployment slot.</small>
+                    <small class="field-help">Choose a subject from the curriculum to create a schedule.</small>
                 </div>
 
                 <div class="form-group" id="subjectReadOnlyGroup" style="display: none;">
@@ -123,7 +123,7 @@
                 <div class="form-actions-bar">
                     <button type="button" id="btnCancelEdit" class="btn-clear" style="display: none; margin-right: auto;">Cancel Edit</button>
                     <button type="reset" id="btnResetForm" class="btn-clear">Reset Form</button>
-                    <button type="submit" id="btnSubmitForm" class="btn-submit-subj">Deploy Class</button>
+                    <button type="submit" id="btnSubmitForm" class="btn-submit-subj">Deploy Schedule</button>
                 </div>
             </form>
         </div>
@@ -131,7 +131,7 @@
         <div class="sa-card table-panel">
             <div class="card-header-flex" style="display: flex; flex-direction: column; gap: 12px; align-items: stretch;">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <h3 class="card-title-list">Active Deployment Matrix</h3>
+                    <h3 class="card-title-list">Created Schedules</h3>
                     <span class="badge-count" id="visibleClassesCount">{{ isset($schedules) ? $schedules->count() : 0 }} Active Classes</span>
                 </div>
                 
@@ -157,6 +157,7 @@
                             <option value="">-- All Semesters --</option>
                             <option value="1st Semester">1st Semester</option>
                             <option value="2nd Semester">2nd Semester</option>
+                            <option value="Summer" id="optSummer" style="display: none;">Summer</option>
                         </select>
                     </div>
                 </div>
@@ -313,8 +314,24 @@
         const searchInput = document.getElementById('scheduleSearchInput');
         const filterYearLevel = document.getElementById('filterYearLevel');
         const filterSemester = document.getElementById('filterSemester');
+        const optSummer = document.getElementById('optSummer');
         const tableRows = document.querySelectorAll('#scheduleTable tbody tr');
         const visibleClassesCount = document.getElementById('visibleClassesCount');
+
+        function updateSemesterOptions() {
+            if (!filterYearLevel || !optSummer || !filterSemester) return;
+
+            const isThirdYear = filterYearLevel.value === '3rd Year';
+
+            if (isThirdYear) {
+                optSummer.style.display = '';
+            } else {
+                optSummer.style.display = 'none';
+                if (filterSemester.value === 'Summer') {
+                    filterSemester.value = '';
+                }
+            }
+        }
 
         function filterScheduleMatrixTable() {
             const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
@@ -347,9 +364,17 @@
         }
 
         if (searchInput) searchInput.addEventListener('input', filterScheduleMatrixTable);
-        if (filterYearLevel) filterYearLevel.addEventListener('change', filterScheduleMatrixTable);
+
+        if (filterYearLevel) {
+            filterYearLevel.addEventListener('change', function () {
+                updateSemesterOptions();
+                filterScheduleMatrixTable();
+            });
+        }
+
         if (filterSemester) filterSemester.addEventListener('change', filterScheduleMatrixTable);
 
+        updateSemesterOptions();
         filterScheduleMatrixTable();
 
         const formPanelTitle = document.querySelector('.form-panel .card-bar span');
@@ -451,7 +476,6 @@
         function revertToCreateMode() {
             if (!mainForm) return;
 
-            // Clear validation errors pag nag-reset
             if (validationAlert) validationAlert.style.display = 'none';
             validateFields.forEach(f => f.classList.remove('input-error'));
 
@@ -460,7 +484,7 @@
             if (methodInput) methodInput.value = ''; 
 
             if (subjectSelectGroup) subjectSelectGroup.style.display = 'block';
-            if (subjectSelect) subjectSelect.classList.add('custom-validate'); // Ibalik validation
+            if (subjectSelect) subjectSelect.classList.add('custom-validate');
             if (subjectReadOnlyGroup) subjectReadOnlyGroup.style.display = 'none';
 
             if (formPanelTitle) formPanelTitle.innerHTML = '<i class="fas fa-calendar-plus"></i> Deployment Specifications Form';
@@ -494,11 +518,9 @@
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group label { font-size: 12px; font-weight: 600; color: #475569; }
     
-    /* Input Styling */
     .form-group input, .select-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 14px; color: #0f172a; outline: none; background: #ffffff; box-sizing: border-box; width: 100%; transition: all 0.2s; }
     .form-group input:focus, .select-input:focus { border-color: #0033A0; box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.15); }
     
-    /* Error Validation UI */
     .input-error { border-color: #ef4444 !important; background-color: #fef2f2 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important; }
     .sa-alert-error { background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; }
     

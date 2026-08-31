@@ -5,102 +5,118 @@
     
     <div class="sa-header">
         <div class="header-titles">
-            <h2>Root Personnel Infrastructure</h2>
-            <p>Super Admin Console — System Identity & Access Management (SIAM)</p>
+            <h2>Employee Accounts</h2>
+            <p>Create new staff accounts, assign system roles, and manage their access.</p>
         </div>
-        <div class="header-badge root-level">Root Authorization</div>
     </div>
 
     @if(session('success'))
         <div class="sa-alert-success">
-            <i class="fas fa-shield-check"></i> {{ session('success') }}
+            <i class="fas fa-check-circle"></i> {{ session('success') }}
         </div>
     @endif
 
     @if(session('error'))
-        <div class="sa-alert-error" style="background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px;">
+        <div class="sa-alert-error">
             <i class="fas fa-exclamation-triangle"></i> {{ session('error') }}
         </div>
     @endif
 
+    @if($errors->any())
+        <div class="sa-alert-error">
+            <i class="fas fa-exclamation-circle" style="font-size: 16px;"></i>
+            <div>
+                <strong>Unable to process request:</strong>
+                <ul style="margin: 4px 0 0 0; padding-left: 20px;">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        </div>
+    @endif
+
+    <div id="js-alert-error" class="sa-alert-error" style="display: none;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span id="js-alert-message">Please fill out all required fields before submitting.</span>
+    </div>
+
     <div class="sa-workspace">
         
-        {{-- FORM PANEL --}}
         <div class="sa-card form-panel">
-            <div class="card-bar"><i class="fas fa-user-plus"></i> Grant System Access Clearance</div>
+            <div class="card-bar"><i class="fas fa-user-plus"></i> Add New Employee</div>
             
-            <form action="{{ route('super_admin.employee.store') }}" method="POST" autocomplete="off" class="pure-form">
+            <form action="{{ route('super_admin.employee.store') }}" method="POST" id="employee-form" autocomplete="off" class="pure-form" novalidate>
                 @csrf
                 
                 <div class="form-group">
-                    <label>First Name</label>
-                    <input type="text" name="first_name" placeholder="e.g., JUAN" required>
+                    <label>First Name <span class="required-star">*</span></label>
+                    <input type="text" name="first_name" id="first_name" placeholder="e.g., JUAN" value="{{ old('first_name') }}" required>
                 </div>
 
                 <div class="form-group">
-                    <label>Last Name</label>
-                    <input type="text" name="last_name" placeholder="e.g., DELA CRUZ" required>
+                    <label>Last Name <span class="required-star">*</span></label>
+                    <input type="text" name="last_name" id="last_name" placeholder="e.g., DELA CRUZ" value="{{ old('last_name') }}" required>
                 </div>
 
                 <div class="form-grid-2">
                     <div class="form-group">
                         <label>Middle Name (Optional)</label>
-                        <input type="text" name="middle_name" placeholder="e.g., REYES">
+                        <input type="text" name="middle_name" id="middle_name" placeholder="e.g., REYES" value="{{ old('middle_name') }}">
                     </div>
                     <div class="form-group">
-                        <label>Sex</label>
+                        <label>Sex <span class="required-star">*</span></label>
                         <div class="custom-select-wrapper">
-                            <select name="sex" class="custom-select-dropdown" required>
-                                <option value="" disabled selected hidden>Select Sex</option>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
+                            <select name="sex" id="sex" class="custom-select-dropdown" required>
+                                <option value="" disabled {{ old('sex') ? '' : 'selected' }} hidden>Select Sex</option>
+                                <option value="Male" {{ old('sex') == 'Male' ? 'selected' : '' }}>Male</option>
+                                <option value="Female" {{ old('sex') == 'Female' ? 'selected' : '' }}>Female</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Official Institutional Email</label>
-                    <input type="email" name="email" placeholder="username@arellano.edu.ph" required>
+                    <label>Email Address <span class="required-star">*</span></label>
+                    <input type="email" name="email" id="email" placeholder="username@arellano.edu.ph" value="{{ old('email') }}" required>
                 </div>
 
                 <div class="form-group">
-                    <label>Designated Operational Role</label>
+                    <label>Role <span class="required-star">*</span></label>
                     <div class="custom-select-wrapper">
                         <select name="role" id="role-select" class="custom-select-dropdown" required>
-                            <option value="" disabled selected hidden>Select System Tier Authorization</option>
-                            <option value="system_admin">System Admin</option>
-                            <option value="dean">Dean</option>
-                            <option value="registrar">Registrar</option>
+                            <option value="" disabled {{ old('role') ? '' : 'selected' }} hidden>Select Role</option>
+                            <option value="system_admin" {{ old('role') == 'system_admin' ? 'selected' : '' }}>System Admin</option>
+                            <option value="dean" {{ old('role') == 'dean' ? 'selected' : '' }}>Dean</option>
+                            <option value="registrar" {{ old('role') == 'registrar' ? 'selected' : '' }}>Registrar</option>
                         </select>
                     </div>
                 </div>
 
-                <div class="form-group" id="department-group" style="display: none;">
-                    <label>Assigned Academic Department</label>
+                <div class="form-group" id="department-group" style="{{ old('role') == 'dean' ? 'display: flex;' : 'display: none;' }}">
+                    <label>Department <span class="required-star">*</span></label>
                     <div class="custom-select-wrapper">
                         <select name="department" id="department-select" class="custom-select-dropdown">
-                            <option value="" disabled selected hidden>Select College Department</option>
-                            <option value="College of Computer Studies">College of Computer Studies</option>
+                            <option value="" disabled {{ old('department') ? '' : 'selected' }} hidden>Select Department</option>
+                            <option value="College of Computer Studies" {{ old('department') == 'College of Computer Studies' ? 'selected' : '' }}>College of Computer Studies</option>
                         </select>
                     </div>
                 </div>
 
-                <button type="submit" class="btn-generate-account">Deploy Personnel Account</button>
+                <button type="submit" class="btn-generate-account">Create Account</button>
             </form>
         </div>
 
         {{-- TABLE PANEL WITH SEARCH FEATURE --}}
         <div class="sa-card table-panel">
             <div class="card-bar d-flex-jsb table-header-flex">
-                <span>Active Infrastructure Personnel</span>
+                <span>Employee List</span>
                 <div class="table-controls" style="display: flex; align-items: center; gap: 12px;">
-                    {{-- Embedded Live Search Bar --}}
                     <div class="search-wrapper">
                         <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="personnel-search" placeholder="Query ID, name, email or role...">
+                        <input type="text" id="personnel-search" placeholder="Search ID, name, email or role...">
                     </div>
-                    <span class="count-tag">Total Provisioned: {{ $employees->count() }}</span>
+                    <span class="count-tag">Total: {{ $employees->count() }}</span>
                 </div>
             </div>
             
@@ -108,9 +124,9 @@
                 <table class="sa-table" id="personnel-table">
                     <thead>
                         <tr>
-                            <th>Identified Personnel</th>
-                            <th>Role / Clearance</th>
-                            <th>Network Status</th>
+                            <th>Employee Details</th>
+                            <th>Role</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -145,17 +161,17 @@
                                                 @method('PATCH')
                                                 
                                                 @if(ucfirst($emp->status ?? 'Active') === 'Active')
-                                                    <button type="submit" class="btn-action-restrict" onclick="return confirm('Are you sure you want to restrict this employee system access?')" title="Lock Account">
+                                                    <button type="submit" class="btn-action-restrict" onclick="return confirm('Are you sure you want to restrict this employee?')" title="Lock Account">
                                                         <i class="fas fa-user-slash"></i> Restrict
                                                     </button>
                                                 @else
-                                                    <button type="submit" class="btn-action-restore" onclick="return confirm('Are you sure you want to restore this employee operational access?')" title="Unlock Account">
+                                                    <button type="submit" class="btn-action-restore" onclick="return confirm('Are you sure you want to restore this employee?')" title="Unlock Account">
                                                         <i class="fas fa-user-check"></i> Restore
                                                     </button>
                                                 @endif
                                             </form>
                                         @else
-                                            <span class="badge-root-immunity">Root Immunity</span>
+                                            <span class="badge-root-immunity">Protected</span>
                                         @endif
 
                                     </div>
@@ -164,15 +180,14 @@
                         @empty
                             <tr class="static-empty-row">
                                 <td colspan="3" class="empty-message-state">
-                                    No custom system roles provisioned yet. Use the control form to deploy accounts.
+                                    No employees added yet. Use the form to create an account.
                                 </td>
                             </tr>
                         @endforelse
-                        {{-- Custom row generated via JS if matching record drops to zero --}}
                         <tr id="no-search-results-row" style="display: none;">
                             <td colspan="3" class="empty-message-state" style="text-align: center; color: #94a3b8; padding: 40px 0;">
                                 <i class="fas fa-database" style="font-size: 20px; display: block; margin-bottom: 8px;"></i>
-                                No matching clearance profiles found for your search query.
+                                No matching records found.
                             </td>
                         </tr>
                     </tbody>
@@ -185,10 +200,12 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // --- DEPLOYMENT ROLE LOGIC ---
+        const employeeForm = document.getElementById('employee-form');
         const roleSelect = document.getElementById('role-select');
         const departmentGroup = document.getElementById('department-group');
         const departmentSelect = document.getElementById('department-select');
+        const jsAlertError = document.getElementById('js-alert-error');
+        const jsAlertMessage = document.getElementById('js-alert-message');
 
         roleSelect.addEventListener('change', function () {
             if (this.value === 'dean') {
@@ -201,7 +218,42 @@
             }
         });
 
-        // --- REAL-TIME DATA ARCHITECTURE SEARCH ENGINE ---
+        employeeForm.addEventListener('submit', function (e) {
+            const firstName = document.getElementById('first_name').value.trim();
+            const lastName = document.getElementById('last_name').value.trim();
+            const sex = document.getElementById('sex').value;
+            const email = document.getElementById('email').value.trim();
+            const role = roleSelect.value;
+            const department = departmentSelect.value;
+
+            jsAlertError.style.display = 'none';
+
+            if (!firstName || !lastName || !sex || !email || !role) {
+                e.preventDefault();
+                showJsError('Please fill out all required fields before submitting.');
+                return false;
+            }
+
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailPattern.test(email)) {
+                e.preventDefault();
+                showJsError('Please enter a valid email address.');
+                return false;
+            }
+
+            if (role === 'dean' && !department) {
+                e.preventDefault();
+                showJsError('Please select a department for the Dean role.');
+                return false;
+            }
+        });
+
+        function showJsError(message) {
+            jsAlertMessage.textContent = message;
+            jsAlertError.style.display = 'flex';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
         const searchInput = document.getElementById('personnel-search');
         const tableRows = document.querySelectorAll('.personnel-row');
         const noResultsRow = document.getElementById('no-search-results-row');
@@ -211,22 +263,19 @@
             let visibleRecordsCount = 0;
 
             tableRows.forEach(row => {
-                // Kunin ang mga text indicators sa loob ng kasalukuyang row
                 const empId = row.querySelector('.search-target-id').textContent.toLowerCase();
                 const name = row.querySelector('.search-target-name').textContent.toLowerCase();
                 const email = row.querySelector('.search-target-email').textContent.toLowerCase();
                 const role = row.querySelector('.search-target-role').textContent.toLowerCase();
 
-                // Itugma ang query sa kahit alin sa mga fields
                 if (empId.includes(query) || name.includes(query) || email.includes(query) || role.includes(query)) {
-                    row.style.display = ''; // Ipakita ang row kung tugma
+                    row.style.display = ''; 
                     visibleRecordsCount++;
                 } else {
-                    row.style.display = 'none'; // Itago kung hindi tugma
+                    row.style.display = 'none'; 
                 }
             });
 
-            // Ipakita ang custom alert message kapag walang nakitang match
             if (visibleRecordsCount === 0 && tableRows.length > 0) {
                 noResultsRow.style.display = '';
             } else {
@@ -239,10 +288,11 @@
 <style>
     .sa-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #0f172a; max-width: 1300px; margin: 0 auto; padding: 20px; }
     
-    .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; }
+    .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; }
     .header-titles h2 { margin: 0 0 4px 0; font-size: 28px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
     .header-titles p { margin: 0; font-size: 14.5px; color: #64748b; }
-    .root-level { background-color: #475569; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .required-star { color: #dc2626; font-weight: 700; }
 
     .sa-workspace { display: flex; flex-direction: row; gap: 28px; align-items: flex-start; justify-content: space-between; width: 100%; }
     .form-panel { flex: 1; min-width: 380px; background: #ffffff; }
@@ -280,7 +330,9 @@
     .pulse-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
     .status-label { font-size: 13px; color: #334155; font-weight: 500; }
 
-    .sa-alert-success { background: #ecfdf5; color: #065f46; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #059669; font-size: 14px; }
+    .sa-alert-success { background: #ecfdf5; color: #065f46; padding: 14px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #059669; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+    .sa-alert-error { background: #fef2f2; color: #991b1b; padding: 14px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; display: flex; align-items: flex-start; gap: 10px; }
+
     .d-flex-jsb { display: flex; justify-content: space-between; align-items: center; }
     .count-tag { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 4px 10px; border-radius: 5px; font-weight: 700; white-space: nowrap; }
     .empty-message-state { text-align: center; color: #94a3b8; padding: 50px 0; font-style: italic; font-size: 13.5px; }
@@ -291,7 +343,6 @@
     .custom-select-dropdown:focus { border-color: #475569; box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.15); }
     .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 
-    /* Status Engine & Button Controls Styling */
     .pulse-dot.active { background: #22c55e; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); animation: pulseGreen 2s infinite; }
     .pulse-dot.disabled { background: #dc2626; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); animation: pulseRed 2s infinite; }
 
@@ -303,7 +354,6 @@
 
     .badge-root-immunity { font-size: 11px; color: #64748b; font-style: italic; font-weight: 700; background: #f1f5f9; padding: 5px 10px; border-radius: 6px; border: 1px solid #cbd5e1; text-transform: uppercase; letter-spacing: 0.3px; }
 
-    /* Core Search Bar UI Component Alignment */
     .table-header-flex { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 15px; }
     .search-wrapper { position: relative; display: flex; align-items: center; }
     .search-icon { position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none; }

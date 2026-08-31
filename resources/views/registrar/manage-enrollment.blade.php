@@ -5,11 +5,8 @@
 
     <div class="sis-header">
         <div class="header-titles">
-            <h2>Enrollment Processing Portal</h2>
-            <p>Arellano University — Andres Bonifacio Campus (Digital SIS Registry)</p>
-        </div>
-        <div class="header-badge">
-            Registrar Admission Section
+            <h2>Student Enrollment Form</h2>
+            <p>Please fill out the student's information and requirements completely.</p>
         </div>
     </div>
 
@@ -33,29 +30,12 @@
         </div>
     @endif
 
-    @if(session('success'))
-        <div class="sis-alert sis-alert-success">
-            <i class="fas fa-check-circle sis-alert-icon"></i>
-            <div style="flex: 1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-                <div>
-                    <div class="sis-alert-title">ENROLLMENT SUCCESSFUL</div>
-                    <div class="sis-alert-body">
-                        Assigned Student ID: 
-                        <span class="student-id-badge">
-                            {{ session('student_id') ?? '26-00089' }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
-
     <div id="enrollment-validation-error" class="sis-alert sis-alert-error" style="display: none;">
         <i class="fas fa-exclamation-circle sis-alert-icon"></i>
         <div style="width: 100%;">
             <div class="sis-alert-title">ACTION REQUIRED: MISSING OR INVALID INFORMATION</div>
             <div class="sis-alert-body" style="margin-top: 4px;">
-                Please complete all required fields before submitting the enrollment form.
+                Please complete all required fields and check all required credentials before submitting.
             </div>
             <div id="validation-error-field" class="missing-field-container"></div>
         </div>
@@ -69,16 +49,14 @@
 
     <div class="sis-card">
         <div class="card-title-bar">
-            Student Information Sheet (SIS) Digital Capture
+            Student Information Sheet (SIS) Entry Form
         </div>
 
-        <form action="{{ route('registrar.enroll.store') }}" method="POST" autocomplete="off" class="pure-form" enctype="multipart/form-data" novalidate>
+        <form action="{{ route('registrar.enroll.store') }}" method="POST" autocomplete="off" class="pure-form" novalidate>
             @csrf
 
-            <!-- COMBINED TAB: Admission Info + Personal Profile -->
             <div id="tab-admission" class="sis-tab-content active">                
                 
-                <!-- ADMISSION INFO SECTION -->
                 <div class="form-grid-3">
                     <div class="form-group">
                         <label>Registration Date</label>
@@ -97,6 +75,7 @@
                         <select name="course" required>
                             <option value="">-- Select Course / Program --</option>
                             <option value="BSIT">BS Information Technology</option>
+                            <option value="BSCS">BS Computer Science</option>
                         </select>
                     </div>
                 </div>
@@ -136,8 +115,7 @@
                     </div>
                 </div>
 
-                <!-- PERSONAL PROFILE SECTION -->
-                <h3 class="section-divider">Demographic & Contact Coordinates</h3>
+                <h3 class="section-divider">Personal Information & Contact Details</h3>
                 <div class="form-grid-4">
                     <div class="form-group">
                         <label>Sex</label>
@@ -205,7 +183,7 @@
                     </div>
                 </div>
 
-                <h3 class="section-divider">Parental Reference Matrix</h3>
+                <h3 class="section-divider">Parent Information</h3>
                 <div class="form-grid-2">
                     <div class="form-group">
                         <label>Father's Full Name</label>
@@ -226,205 +204,165 @@
                 </div>
             </div>
 
-            <!-- TAB 2: Educational Background -->
             <div id="tab-education" class="sis-tab-content">
-                <h3 class="section-divider">Academic Institutional History</h3>
+                <h3 class="section-divider">Educational History</h3>
                 
-                <!-- PRIMARY SCHOOL SECTION -->
                 <div class="school-section-header">
-                    <div class="section-header-title">Primary School</div>
-                    <button type="button" class="btn-add-school" onclick="addPrimarySchool()">
-                        <i class="fas fa-plus"></i> Add Primary School
+                    <div class="section-header-title">Elementary School</div>
+                    <button type="button" class="btn-add-school" onclick="addElementarySchool()">
+                        <i class="fas fa-plus"></i> Add Elementary
                     </button>
                 </div>
-
-                <div id="primary-schools-container">
-                    <div class="school-row primary-school-row">
+                <div id="elementary-schools-container">
+                    <div class="school-row elementary-school-row">
                         <div class="school-inputs">
-                            <input type="text" name="primary_school_name[]" placeholder="School Name" required>
-                            <input type="text" name="primary_school_address[]" placeholder="School Address" required>
-                            <input type="text"
-                                name="primary_school_year[]"
-                                placeholder="Year Graduated (YYYY-YYYY)"
-                                inputmode="text"
-                                pattern="[0-9]{4}-[0-9]{4}"
-                                maxlength="9"
-                                oninput="this.value = this.value.replace(/[^0-9-]/g, '');"
-                                required>
+                            <input type="text" name="elem_school_name[]" placeholder="School Name" required>
+                            <input type="text" name="elem_school_address[]" placeholder="School Address" required>
+                            <input type="text" name="elem_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');" required>
                         </div>
-                        <button type="button" class="btn-remove-school" onclick="removePrimarySchool(this)" style="display: none;">
-                            <i class="fas fa-times"></i> Remove
-                        </button>
+                        <button type="button" class="btn-remove-school" onclick="removeRow(this, 'elementary-school-row')" style="display: none;"><i class="fas fa-times"></i> Remove</button>
                     </div>
                 </div>
 
-                <!-- SECONDARY SCHOOL SECTION -->
                 <div class="school-section-header" style="margin-top: 25px;">
-                    <div class="section-header-title">Secondary School</div>
-                    <button type="button" class="btn-add-school" onclick="addSecondarySchool()">
-                        <i class="fas fa-plus"></i> Add Secondary School
+                    <div class="section-header-title">Junior High School</div>
+                    <button type="button" class="btn-add-school" onclick="addJuniorHS()">
+                        <i class="fas fa-plus"></i> Add Junior HS
                     </button>
                 </div>
-
-                <div id="secondary-schools-container">
-                    <div class="school-row secondary-school-row">
+                <div id="junior-hs-container">
+                    <div class="school-row junior-hs-row">
                         <div class="school-inputs">
-                            <input type="text" name="secondary_school_name[]" placeholder="School Name" required>
-                            <input type="text" name="secondary_school_address[]" placeholder="School Address" required>
-                            <input type="text" 
-                                name="secondary_school_year[]" 
-                                placeholder="Year Graduated (YYYY-YYYY)" 
-                                inputmode="text"
-                                maxlength="9"
-                                oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
-                                required>
+                            <input type="text" name="jhs_school_name[]" placeholder="School Name" required>
+                            <input type="text" name="jhs_school_address[]" placeholder="School Address" required>
+                            <input type="text" name="jhs_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');" required>
                         </div>
-                        <button type="button" class="btn-remove-school" onclick="removeSecondarySchool(this)" style="display: none;">
-                            <i class="fas fa-times"></i> Remove
-                        </button>
+                        <button type="button" class="btn-remove-school" onclick="removeRow(this, 'junior-hs-row')" style="display: none;"><i class="fas fa-times"></i> Remove</button>
                     </div>
                 </div>
 
-                <!-- COLLEGE (TRANSFEREE) SECTION - HIDDEN BY DEFAULT -->
+                <div class="school-section-header" style="margin-top: 25px;">
+                    <div class="section-header-title">Senior High School</div>
+                    <button type="button" class="btn-add-school" onclick="addSeniorHS()">
+                        <i class="fas fa-plus"></i> Add Senior HS
+                    </button>
+                </div>
+                <div id="senior-hs-container">
+                    <div class="school-row senior-hs-row">
+                        <div class="school-inputs">
+                            <input type="text" name="shs_school_name[]" placeholder="School Name" required>
+                            <input type="text" name="shs_school_address[]" placeholder="School Address" required>
+                            <input type="text" name="shs_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');" required>
+                        </div>
+                        <button type="button" class="btn-remove-school" onclick="removeRow(this, 'senior-hs-row')" style="display: none;"><i class="fas fa-times"></i> Remove</button>
+                    </div>
+                </div>
+
+                <div class="school-section-header" style="margin-top: 25px;">
+                    <div class="section-header-title">Vocational / Trade Course <span style="font-weight: 400; color: #94a3b8;">(Optional)</span></div>
+                    <button type="button" class="btn-add-school" onclick="addVocational()">
+                        <i class="fas fa-plus"></i> Add Vocational
+                    </button>
+                </div>
+                <div id="vocational-container">
+                    <!-- Optional rows added dynamically -->
+                </div>
+
                 <div id="transferee-section" style="display: none;">
                     <div class="school-section-header" style="margin-top: 25px;">
-                        <div class="section-header-title">College (Transferee)</div>
+                        <div class="section-header-title">College (Transferee Institution)</div>
                     </div>
                     <div class="school-row transferee-row" style="margin-bottom: 0;">
                         <div class="school-inputs">
-                            <input type="text" name="college_school_name" placeholder="Previous Institution (If applicable)">
+                            <input type="text" name="college_school_name" placeholder="Previous Institution">
                             <input type="text" name="college_school_address" placeholder="Campus Location Address">
-                            <input type="text" 
-                                name="college_school_year" 
-                                placeholder="Year Attended" 
-                                inputmode="text"
-                                maxlength="9"
-                                oninput="this.value = this.value.replace(/[^0-9-]/g, '');">
+                            <input type="text" name="college_school_year" placeholder="Year Attended" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');">
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- TAB 3: Credentials Checklist -->
             <div id="tab-credentials" class="sis-tab-content">
-                <h3 class="section-divider">Mandatory Enrollment Credentials Digital Capture</h3>
-                <p style="color: #64748b; font-size: 13px; margin-bottom: 20px;">
-                    Please check and upload or drag-and-drop the scanned documents submitted by the applicant for <strong id="selected-type-label" style="color: #0033A0;">Freshman (New Student)</strong>:
+                <h3 class="section-divider">Required Enrollment Credentials</h3>
+                <p class="credentials-instruction">
+                    Please verify the physical submission of the following documents for <strong id="selected-type-label" style="color: #0033A0;">Freshman (New Student)</strong>:
                 </p>
 
-                <div class="checkbox-grid" id="credentials-wrapper">
-                    <div class="file-upload-card" data-types="New,Transferee,Cross-Enrollee">
-                        <label class="credential-header">
+                <div class="credentials-checklist-container" id="credentials-wrapper">
+                    <div class="credential-item-row" data-types="New,Transferee,Cross-Enrollee">
+                        <label class="credential-checkbox-label">
                             <input type="checkbox" name="check_psa" class="credential-checkbox" required>
-                            <span class="file-label-text">PSA Birth Certificate</span>
+                            <span class="credential-text">PSA Birth Certificate</span>
                         </label>
-                        <div class="drop-zone" onclick="triggerFileInput('file_psa')">
-                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
-                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
-                            <input type="file" name="doc_psa" id="file_psa" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
-                        </div>
                     </div>
 
-                    <div class="file-upload-card" data-types="New,Transferee,Cross-Enrollee">
-                        <label class="credential-header">
+                    <div class="credential-item-row" data-types="New,Transferee,Cross-Enrollee">
+                        <label class="credential-checkbox-label">
                             <input type="checkbox" name="check_2x2" class="credential-checkbox" required>
-                            <span class="file-label-text">2x2 ID Picture w/ Name Tag</span>
+                            <span class="credential-text">2x2 ID Picture w/ Name Tag</span>
                         </label>
-                        <div class="drop-zone" onclick="triggerFileInput('file_2x2')">
-                            <i class="fas fa-image upload-icon"></i>
-                            <span class="drop-zone-text">Click or Drag Image here</span>
-                            <input type="file" name="doc_2x2" id="file_2x2" class="hidden-file-input" accept=".jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
-                        </div>
                     </div>
 
-                    <div class="file-upload-card" data-types="New">
-                        <label class="credential-header">
+                    <div class="credential-item-row" data-types="New">
+                        <label class="credential-checkbox-label">
                             <input type="checkbox" name="check_f138" class="credential-checkbox" required>
-                            <span class="file-label-text">Form 138 / SF9 (Report Card)</span>
+                            <span class="credential-text">Form 138 / SF9 (Report Card)</span>
                         </label>
-                        <div class="drop-zone" tabindex="0" onclick="triggerFileInput('file_f138')">
-                            <i class="fas fa-file-invoice upload-icon"></i>
-                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
-                            <input type="file" name="doc_f138" id="file_f138" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
-                        </div>
                     </div>
 
-                    <div class="file-upload-card" data-types="New">
-                        <label class="credential-header">
+                    <div class="credential-item-row" data-types="New">
+                        <label class="credential-checkbox-label">
                             <input type="checkbox" name="check_good_moral_new" class="credential-checkbox" required>
-                            <span class="file-label-text">Good Moral Character Certificate</span>
+                            <span class="credential-text">Good Moral Character Certificate</span>
                         </label>
-                        <div class="drop-zone" tabindex="0" onclick="triggerFileInput('file_good_moral_new')">
-                            <i class="fas fa-certificate upload-icon"></i>
-                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
-                            <input type="file" name="doc_good_moral_new" id="file_good_moral_new" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
-                        </div>
                     </div>
 
-                    <div class="file-upload-card" data-types="New">
-                        <label class="credential-header">
+                    <div class="credential-item-row" data-types="New">
+                        <label class="credential-checkbox-label">
                             <input type="checkbox" name="check_diploma" class="credential-checkbox" required>
-                            <span class="file-label-text">Certificate of Graduation / Diploma</span>
+                            <span class="credential-text">Certificate of Graduation / Diploma</span>
                         </label>
-                        <div class="drop-zone" onclick="triggerFileInput('file_diploma')">
-                            <i class="fas fa-graduation-cap upload-icon"></i>
-                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
-                            <input type="file" name="doc_diploma" id="file_diploma" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
-                        </div>
                     </div>
 
-                    <div class="file-upload-card" data-types="Transferee">
-                        <label class="credential-header">
+                    <div class="credential-item-row" data-types="Transferee">
+                        <label class="credential-checkbox-label">
                             <input type="checkbox" name="check_tor" class="credential-checkbox" required>
-                            <span class="file-label-text">Transcript of Records (TOR)</span>
+                            <span class="credential-text">Transcript of Records (TOR)</span>
                         </label>
-                        <div class="drop-zone" onclick="triggerFileInput('file_tor')">
-                            <i class="fas fa-file-alt upload-icon"></i>
-                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
-                            <input type="file" name="doc_tor" id="file_tor" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
-                        </div>
                     </div>
 
-                    <div class="file-upload-card" data-types="Transferee">
-                        <label class="credential-header">
+                    <div class="credential-item-row" data-types="Transferee">
+                        <label class="credential-checkbox-label">
                             <input type="checkbox" name="check_dismissal" class="credential-checkbox" required>
-                            <span class="file-label-text">Honorable Dismissal</span>
+                            <span class="credential-text">Honorable Dismissal</span>
                         </label>
-                        <div class="drop-zone" onclick="triggerFileInput('file_dismissal')">
-                            <i class="fas fa-door-open upload-icon"></i>
-                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
-                            <input type="file" name="doc_dismissal" id="file_dismissal" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
-                        </div>
                     </div>
 
-                    <div class="file-upload-card" data-types="Transferee">
-                        <label class="credential-header">
+                    <div class="credential-item-row" data-types="Transferee">
+                        <label class="credential-checkbox-label">
                             <input type="checkbox" name="check_good_moral_trans" class="credential-checkbox" required>
-                            <span class="file-label-text">Certificate of Good Moral</span>
+                            <span class="credential-text">Certificate of Good Moral (Transferee)</span>
                         </label>
-                        <div class="drop-zone" onclick="triggerFileInput('file_good_moral_trans')">
-                            <i class="fas fa-user-shield upload-icon"></i>
-                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
-                            <input type="file" name="doc_good_moral_trans" id="file_good_moral_trans" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
-                        </div>
                     </div>
 
-                    <div class="file-upload-card" data-types="Cross-Enrollee">
-                        <label class="credential-header">
-                            <input type="checkbox" name="check_permit" class="credential-checkbox" required>
-                            <span class="file-label-text">Cross Enroll Permit</span>
+                    <div class="credential-item-row" data-types="Transferee">
+                        <label class="credential-checkbox-label">
+                            <input type="checkbox" name="check_curriculum" class="credential-checkbox" required>
+                            <span class="credential-text">Old Curriculum / Prospectus</span>
                         </label>
-                        <div class="drop-zone" onclick="triggerFileInput('file_permit')">
-                            <i class="fas fa-clipboard-check upload-icon"></i>
-                            <span class="drop-zone-text">Click or Drag PDF/Image here</span>
-                            <input type="file" name="doc_permit" id="file_permit" class="hidden-file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDropZoneStatus(this)">
-                        </div>
+                    </div>
+
+                    <div class="credential-item-row" data-types="Cross-Enrollee">
+                        <label class="credential-checkbox-label">
+                            <input type="checkbox" name="check_permit" class="credential-checkbox" required>
+                            <span class="credential-text">Cross Enroll Permit</span>
+                        </label>
                     </div>
                 </div>
 
                 <div class="form-actions-bar">
-                    <button type="reset" class="btn-secondary" onclick="resetDropZones()">Clear Entry Sheet</button>
-                    <button type="submit" class="btn-primary">Compile & Secure ID Allocation</button>
+                    <button type="reset" class="btn-secondary" onclick="resetCheckboxes()">Clear Checklist</button>
+                    <button type="submit" class="btn-primary">Submit & Generate Student ID</button>
                 </div>
             </div>
         </form>
@@ -449,40 +387,11 @@
         evt.currentTarget.classList.add("active");
     }
 
-    function triggerFileInput(inputId) {
-        document.getElementById(inputId).click();
-    }
-
-    function updateDropZoneStatus(input) {
-        var dropZone = input.parentElement;
-        var zoneText = dropZone.querySelector('.drop-zone-text');
-        var icon = dropZone.querySelector('.upload-icon');
-
-        if (input.files && input.files.length > 0) {
-            var fileName = input.files[0].name;
-            dropZone.classList.add('has-file');
-            zoneText.innerText = "Selected: " + fileName;
-            icon.style.color = "#10b981"; 
-        } else {
-            dropZone.classList.remove('has-file');
-            zoneText.innerText = "Click or Drag PDF/Image here";
-            icon.style.color = "#0033A0";
-        }
-    }
-
-    function resetDropZones() {
-        var dropZones = document.querySelectorAll('.drop-zone');
-        dropZones.forEach(zone => {
-            zone.classList.remove('has-file');
-            zone.querySelector('.drop-zone-text').innerText = "Click or Drag PDF/Image here";
-            zone.querySelector('.upload-icon').style.color = "#0033A0";
-        });
-
+    function resetCheckboxes() {
         var checkboxes = document.querySelectorAll('.credential-checkbox');
         checkboxes.forEach(chk => {
             chk.checked = false;
         });
-
         clearInputHighlights();
     }
 
@@ -498,27 +407,22 @@
         
         document.getElementById("selected-type-label").innerText = selectedText;
 
-        var cards = document.getElementById("credentials-wrapper").getElementsByClassName("file-upload-card");
-        for (var i = 0; i < cards.length; i++) {
-            var allowedTypes = cards[i].getAttribute("data-types").split(",");
-            var fileInput = cards[i].querySelector('input[type="file"]');
-            var chkInput = cards[i].querySelector('.credential-checkbox');
+        var rows = document.querySelectorAll(".credential-item-row");
+        rows.forEach(row => {
+            var allowedTypes = row.getAttribute("data-types").split(",");
+            var chkInput = row.querySelector('.credential-checkbox');
             
             if (allowedTypes.includes(selectedType)) {
-                cards[i].style.display = "block"; 
+                row.style.display = "flex"; 
                 if (chkInput) chkInput.required = true;
             } else {
-                cards[i].style.display = "none";  
-                if (fileInput) {
-                    fileInput.value = "";
-                    updateDropZoneStatus(fileInput);
-                }
+                row.style.display = "none";  
                 if (chkInput) {
                     chkInput.checked = false;
                     chkInput.required = false;
                 }
             }
-        }
+        });
 
         var transfereeSection = document.getElementById('transferee-section');
         var collegeInputs = transfereeSection.querySelectorAll('input');
@@ -539,91 +443,73 @@
         }
     }
 
-    /* Primary School Dynamic Functions */
-    function addPrimarySchool() {
-        var container = document.getElementById('primary-schools-container');
-        var newRow = document.createElement('div');
-        newRow.className = 'school-row primary-school-row';
-        newRow.innerHTML = `
-            <div class="school-inputs">
-                <input type="text" name="primary_school_name[]" placeholder="School Name" required>
-                <input type="text" name="primary_school_address[]" placeholder="School Address" required>
-                <input type="text"
-                    name="primary_school_year[]"
-                    placeholder="Year Graduated (YYYY-YYYY)"
-                    inputmode="text"
-                    maxlength="9"
-                    oninput="this.value = this.value.replace(/[^0-9-]/g, '');"
-                    required>
-            </div>
-            <button type="button" class="btn-remove-school" onclick="removePrimarySchool(this)">
-                <i class="fas fa-times"></i> Remove
-            </button>
-        `;
-        container.appendChild(newRow);
-        updatePrimaryRemoveButtons();
+    function addElementarySchool() {
+        let container = document.getElementById('elementary-schools-container');
+        let div = document.createElement('div');
+        div.className = 'school-row elementary-school-row';
+        div.innerHTML = `<div class="school-inputs">
+            <input type="text" name="elem_school_name[]" placeholder="School Name" required>
+            <input type="text" name="elem_school_address[]" placeholder="School Address" required>
+            <input type="text" name="elem_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');" required>
+        </div><button type="button" class="btn-remove-school" onclick="removeRow(this, 'elementary-school-row')"><i class="fas fa-times"></i> Remove</button>`;
+        container.appendChild(div);
+        updateRemoveButtons('elementary-school-row');
     }
 
-    function removePrimarySchool(button) {
-        var schoolRow = button.closest('.school-row');
-        schoolRow.remove();
-        updatePrimaryRemoveButtons();
+    function addJuniorHS() {
+        let container = document.getElementById('junior-hs-container');
+        let div = document.createElement('div');
+        div.className = 'school-row junior-hs-row';
+        div.innerHTML = `<div class="school-inputs">
+            <input type="text" name="jhs_school_name[]" placeholder="School Name" required>
+            <input type="text" name="jhs_school_address[]" placeholder="School Address" required>
+            <input type="text" name="jhs_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');" required>
+        </div><button type="button" class="btn-remove-school" onclick="removeRow(this, 'junior-hs-row')"><i class="fas fa-times"></i> Remove</button>`;
+        container.appendChild(div);
+        updateRemoveButtons('junior-hs-row');
     }
 
-    function updatePrimaryRemoveButtons() {
-        var schoolRows = document.querySelectorAll('.primary-school-row');
-        schoolRows.forEach((row, index) => {
-            var removeBtn = row.querySelector('.btn-remove-school');
-            if (removeBtn) {
-                if (index === 0) {
-                    removeBtn.style.display = 'none';
+    function addSeniorHS() {
+        let container = document.getElementById('senior-hs-container');
+        let div = document.createElement('div');
+        div.className = 'school-row senior-hs-row';
+        div.innerHTML = `<div class="school-inputs">
+            <input type="text" name="shs_school_name[]" placeholder="School Name" required>
+            <input type="text" name="shs_school_address[]" placeholder="School Address" required>
+            <input type="text" name="shs_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');" required>
+        </div><button type="button" class="btn-remove-school" onclick="removeRow(this, 'senior-hs-row')"><i class="fas fa-times"></i> Remove</button>`;
+        container.appendChild(div);
+        updateRemoveButtons('senior-hs-row');
+    }
+
+    function addVocational() {
+        let container = document.getElementById('vocational-container');
+        let div = document.createElement('div');
+        div.className = 'school-row vocational-row';
+        div.innerHTML = `<div class="school-inputs">
+            <input type="text" name="vocational_school_name[]" placeholder="Vocational / Trade School Name">
+            <input type="text" name="vocational_school_address[]" placeholder="School Address">
+            <input type="text" name="vocational_school_year[]" placeholder="Year Attended" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');">
+        </div><button type="button" class="btn-remove-school" onclick="removeRow(this, 'vocational-row')"><i class="fas fa-times"></i> Remove</button>`;
+        container.appendChild(div);
+        updateRemoveButtons('vocational-row');
+    }
+
+    function removeRow(btn, rowClass) {
+        let row = btn.closest('.school-row');
+        row.remove();
+        updateRemoveButtons(rowClass);
+    }
+
+    function updateRemoveButtons(rowClass) {
+        let rows = document.querySelectorAll('.' + rowClass);
+        rows.forEach((row, index) => {
+            let btn = row.querySelector('.btn-remove-school');
+            if (btn) {
+                if (index === 0 && rowClass !== 'vocational-row') {
+                    btn.style.display = 'none';
                 } else {
-                    removeBtn.style.display = 'inline-flex';
-                }
-            }
-        });
-    }
-
-    /* Secondary School Dynamic Functions */
-    function addSecondarySchool() {
-        var container = document.getElementById('secondary-schools-container');
-        var newRow = document.createElement('div');
-        newRow.className = 'school-row secondary-school-row';
-        newRow.innerHTML = `
-            <div class="school-inputs">
-                <input type="text" name="secondary_school_name[]" placeholder="School Name" required>
-                <input type="text" name="secondary_school_address[]" placeholder="School Address" required>
-                <input type="text" 
-                    name="secondary_school_year[]" 
-                    placeholder="Year Graduated (YYYY-YYYY)" 
-                    inputmode="text"
-                    maxlength="9"
-                    oninput="this.value = this.value.replace(/[^0-9-]/g, '');" 
-                    required>
-            </div>
-            <button type="button" class="btn-remove-school" onclick="removeSecondarySchool(this)">
-                <i class="fas fa-times"></i> Remove
-            </button>
-        `;
-        container.appendChild(newRow);
-        updateSecondaryRemoveButtons();
-    }
-
-    function removeSecondarySchool(button) {
-        var schoolRow = button.closest('.school-row');
-        schoolRow.remove();
-        updateSecondaryRemoveButtons();
-    }
-
-    function updateSecondaryRemoveButtons() {
-        var schoolRows = document.querySelectorAll('.secondary-school-row');
-        schoolRows.forEach((row, index) => {
-            var removeBtn = row.querySelector('.btn-remove-school');
-            if (removeBtn) {
-                if (index === 0) {
-                    removeBtn.style.display = 'none';
-                } else {
-                    removeBtn.style.display = 'inline-flex';
+                    btn.style.display = 'inline-flex';
                 }
             }
         });
@@ -631,39 +517,9 @@
 
     document.addEventListener("DOMContentLoaded", function() {
         filterCredentials();
-        updatePrimaryRemoveButtons();
-        updateSecondaryRemoveButtons();
-
-        var dropZones = document.querySelectorAll('.drop-zone');
-
-        dropZones.forEach(zone => {
-            var input = zone.querySelector('input[type="file"]');
-
-            zone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                zone.style.borderColor = "#10b981";
-                zone.style.background = "#f0fdf4";
-            });
-
-            zone.addEventListener('dragleave', () => {
-                zone.style.borderColor = "#cbd5e1";
-                zone.style.background = "#f8fafc";
-            });
-
-            zone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                zone.style.borderColor = "#cbd5e1";
-                zone.style.background = "#f8fafc";
-
-                if (e.dataTransfer.files.length > 0) {
-                    var dt = new DataTransfer();
-                    dt.items.add(e.dataTransfer.files[0]);
-                    input.files = dt.files;
-                    
-                    updateDropZoneStatus(input);
-                }
-            });
-        });
+        updateRemoveButtons('elementary-school-row');
+        updateRemoveButtons('junior-hs-row');
+        updateRemoveButtons('senior-hs-row');
 
         var enrollmentForm = document.querySelector('.pure-form');
         enrollmentForm.addEventListener('submit', function (e) {
@@ -693,7 +549,6 @@
             if (firstInvalidField) {
                 e.preventDefault();
 
-                // Switch Tab
                 for (var j = 0; j < tabContents.length; j++) {
                     tabContents[j].classList.remove('active');
                 }
@@ -705,21 +560,20 @@
                     tabBtns[invalidTabIndex].classList.add('active');
                 }
 
-                // Identify missing field name
                 var fieldLabel = '';
                 if (firstInvalidField.classList.contains('credential-checkbox')) {
-                    var headerLabel = firstInvalidField.closest('.credential-header');
-                    if (headerLabel) fieldLabel = headerLabel.innerText.trim();
+                    var itemRow = firstInvalidField.closest('.credential-item-row');
+                    var textSpan = itemRow ? itemRow.querySelector('.credential-text') : null;
+                    fieldLabel = textSpan ? textSpan.innerText.trim() : 'Credential Checkbox';
                     
                     errorFieldContainer.innerHTML = `
                         <div class="missing-field-badge-row">
-                            <span>Missing Requirement:</span>
-                            <span class="missing-field-badge">${fieldLabel || 'Credential Verification Checkbox'}</span>
+                            <span>Unchecked Requirement:</span>
+                            <span class="missing-field-badge">${fieldLabel}</span>
                         </div>
                     `;
 
-                    var card = firstInvalidField.closest('.file-upload-card');
-                    if (card) card.classList.add('input-field-error');
+                    if (itemRow) itemRow.classList.add('input-field-error');
                 } else {
                     var parentGroup = firstInvalidField.closest('.form-group');
                     if (parentGroup) {
@@ -741,19 +595,20 @@
 
                 errorBox.style.display = 'flex';
 
-                // Scroll to view
                 setTimeout(function () {
                     firstInvalidField.focus();
                     firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 100);
 
-                // Add live event listener to clear highlight on user input
-                firstInvalidField.addEventListener('input', function clearErr() {
+                var clearErr = function() {
                     firstInvalidField.classList.remove('input-field-error');
-                    var parentCard = firstInvalidField.closest('.file-upload-card');
-                    if(parentCard) parentCard.classList.remove('input-field-error');
+                    var parentRow = firstInvalidField.closest('.credential-item-row');
+                    if(parentRow) parentRow.classList.remove('input-field-error');
                     firstInvalidField.removeEventListener('input', clearErr);
-                });
+                    firstInvalidField.removeEventListener('change', clearErr);
+                };
+                firstInvalidField.addEventListener('input', clearErr);
+                firstInvalidField.addEventListener('change', clearErr);
             }
         });
 
@@ -813,27 +668,6 @@
         margin-top: 2px;
     }
 
-    .sis-alert-list {
-        margin: 8px 0 0 0;
-        padding-left: 20px;
-        font-size: 14px;
-        font-weight: 600;
-    }
-
-    .student-id-badge {
-        background-color: #16a34a;
-        color: #ffffff;
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 16px;
-        font-weight: 800;
-        padding: 4px 12px;
-        border-radius: 6px;
-        margin-left: 6px;
-        letter-spacing: 0.5px;
-        box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);
-        display: inline-block;
-    }
-
     .missing-field-container {
         margin-top: 10px;
     }
@@ -862,7 +696,6 @@
         box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
     }
 
-    /* RED HIGHLIGHT ON INVALID FIELDS */
     .input-field-error {
         border: 2px solid #dc2626 !important;
         background-color: #fff5f5 !important;
@@ -908,15 +741,6 @@
         margin: 0;
         font-size: 14px;
         color: #64748b;
-    }
-    .header-badge {
-        background-color: #0033A0;
-        color: white;
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-weight: 600;
-        font-size: 13px;
-        box-shadow: 0 2px 5px rgba(0,51,160,0.2);
     }
 
     .sis-tabs-nav {
@@ -1020,30 +844,30 @@
         text-transform: uppercase;
     }
 
-    /* Section Headers with Inline Action Buttons */
     .school-section-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 12px;
+        margin-bottom: 15px;
     }
     .section-header-title {
-        font-size: 13px;
+        font-size: 13.5px;
         font-weight: 700;
-        color: #475569;
+        color: #334155;
         text-transform: uppercase;
+        letter-spacing: 0.3px;
     }
 
-    /* Clean Horizontal Flex Alignment for School Rows */
     .school-row {
         background-color: #f8fafc;
         border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 12px 15px;
-        margin-bottom: 12px;
+        border-radius: 10px;
+        padding: 18px 20px;
+        margin-bottom: 20px;
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.01);
     }
 
     .transferee-row {
@@ -1054,25 +878,24 @@
         flex: 1;
         display: grid;
         grid-template-columns: 2fr 2fr 1.2fr;
-        gap: 12px;
+        gap: 16px;
     }
     .school-inputs input {
         border: 1px solid #cbd5e1;
         border-radius: 6px;
-        padding: 8px 12px;
+        padding: 10px 14px;
         font-size: 13.5px;
         outline: none;
-    }
-    .school-inputs input:focus {
-        border-color: #0033A0;
+        background-color: #fff;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
     .btn-add-school {
         background-color: #0033A0;
         color: white;
         border: none;
-        padding: 6px 14px;
-        font-size: 12px;
+        padding: 8px 16px;
+        font-size: 12.5px;
         font-weight: 600;
         border-radius: 6px;
         cursor: pointer;
@@ -1086,8 +909,8 @@
         background-color: #ef4444;
         color: white;
         border: none;
-        padding: 8px 14px;
-        font-size: 12px;
+        padding: 10px 16px;
+        font-size: 12.5px;
         font-weight: 600;
         border-radius: 6px;
         cursor: pointer;
@@ -1096,20 +919,21 @@
         align-items: center;
         gap: 6px;
         white-space: nowrap;
-        height: 38px;
+        height: 40px;
     }
 
-    .btn-add-school:hover {
-        background-color: #002270;
-    }
-    .btn-remove-school:hover {
-        background-color: #dc2626;
-    }
+    .btn-add-school:hover { background-color: #002270; }
+    .btn-remove-school:hover { background-color: #dc2626; }
 
-    .checkbox-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 15px;
+    .credentials-instruction {
+        color: #475569;
+        font-size: 14px;
+        margin-bottom: 25px;
+        line-height: 1.5;
+        background-color: #f8fafc;
+        padding: 12px 18px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
     }
 
     .form-actions-bar {
@@ -1131,9 +955,7 @@
         cursor: pointer;
         transition: background-color 0.15s ease;
     }
-    .btn-primary:hover {
-        background-color: #002270;
-    }
+    .btn-primary:hover { background-color: #002270; }
     .btn-secondary {
         background-color: transparent;
         color: #64748b;
@@ -1145,28 +967,39 @@
         cursor: pointer;
         transition: all 0.15s ease;
     }
-    .btn-secondary:hover {
-        background-color: #f8fafc;
-        color: #334155;
+    .btn-secondary:hover { background-color: #f8fafc; color: #334155; }
+
+    .credentials-checklist-container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
     }
 
-    .file-upload-card {
+    .credential-item-row {
         background: #ffffff;
         border: 1px solid #e2e8f0;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.01);
+        padding: 14px 20px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         transition: all 0.2s ease;
     }
 
-    .credential-header {
+    .credential-item-row:hover {
+        border-color: #cbd5e1;
+        background-color: #f8fafc;
+    }
+    
+    .credential-checkbox-label {
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin-bottom: 10px;
+        gap: 12px;
         cursor: pointer;
+        flex: 1;
+        margin: 0;
     }
-
     .credential-checkbox {
         width: 18px;
         height: 18px;
@@ -1174,51 +1007,10 @@
         cursor: pointer;
     }
 
-    .file-label-text {
-        font-size: 13.5px;
-        font-weight: 700;
-        color: #1e293b;
-        margin-bottom: 0;
-    }
-
-    .drop-zone {
-        border: 2px dashed #cbd5e1;
-        background-color: #f8fafc;
-        border-radius: 8px;
-        padding: 20px 10px;
-        text-align: center;
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.2s ease;
-    }
-
-    .drop-zone:hover {
-        border-color: #0033A0;
-        background-color: rgba(0, 51, 160, 0.02);
-    }
-
-    .drop-zone.has-file {
-        border-color: #10b981;
-        background-color: rgba(16, 185, 129, 0.03);
-    }
-
-    .upload-icon {
-        font-size: 24px;
-        color: #0033A0;
-        transition: color 0.2s ease;
-    }
-
-    .drop-zone-text {
-        font-size: 12px;
+    .credential-text {
+        font-size: 14px;
         font-weight: 600;
-        color: #64748b;
-    }
-
-    .hidden-file-input {
-        display: none;
+        color: #1e293b;
     }
 </style>
 @endsection

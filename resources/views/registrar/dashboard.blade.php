@@ -2,6 +2,7 @@
 
 @section('content')
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 
 <div class="dashboard-wrapper py-4 px-3">
     
@@ -14,19 +15,22 @@
         </div>
     @endif
 
-    <div class="announcement-carousel-wrapper">
+    <div class="announcement-carousel-wrapper mb-4">
         <div class="announcement-box">
             <span class="announcement-tag">ANNOUNCEMENT:</span>
             
             <div class="carousel-track" id="carouselTrack">
                 @forelse($announcements as $index => $item)
                     <div class="carousel-slide {{ $index === 0 ? 'active' : '' }}">
-                        <img src="{{ asset('storage/' . $item->image_path) }}" alt="{{ $item->title ?? 'Announcement Banner' }}">
+                        <!-- Blurred background for side fill -->
+                        <div class="slide-blur-bg" style="background-image: url('{{ asset('storage/' . $item->image_path) }}');"></div>
+                        <!-- Main Crisp Image -->
+                        <img src="{{ asset('storage/' . $item->image_path) }}" alt="{{ $item->title ?? 'Announcement Banner' }}" class="main-slide-img">
                     </div>
                 @empty
                     <div class="carousel-slide active">
                         <div class="no-banner-placeholder">
-                            <i class="fa-regular fa-image fa-3x"></i>
+                            <i class="fa-regular fa-image fa-3x mb-2"></i>
                             <p>No active announcements. Upload banners below.</p>
                         </div>
                     </div>
@@ -89,32 +93,38 @@
     <hr class="my-5">
 
     <div class="management-panel">
-        <h3 class="panel-title"><i class="fa-solid fa-sliders"></i> Carousel Image Management Panel</h3>
+        <h3 class="panel-title"><i class="fa-solid fa-sliders"></i> Announcement Banner Management</h3>
         
         <form action="{{ route('registrar.announcements.store') }}" method="POST" enctype="multipart/form-data" class="upload-inline-form mb-4">
             @csrf
             <div class="form-group-custom">
-                <input type="text" name="title" placeholder="Banner Title / Label (Optional)" class="form-control-custom">
+                <input type="text" name="title" placeholder="Banner Title / Description (Optional)" class="form-control-custom">
                 <input type="file" name="banner_image" accept="image/*" required class="form-file-input">
                 <button type="submit" class="btn-upload"><i class="fa-solid fa-plus"></i> Upload Banner</button>
             </div>
         </form>
 
         <div class="uploaded-banners-table">
-            <h4>Current Active Banners (Max Recommended: 5)</h4>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h4 style="font-size: 14px; font-weight: 700; color: #334155;">Active Banners (Drag to reorder priority)</h4>
+                <span id="reorder-status" class="text-success font-weight-bold" style="display:none; font-size: 13px;"><i class="fa-solid fa-check"></i> Order Saved! Refreshing...</span>
+            </div>
+
             @if($announcements->count() > 0)
                 <table class="custom-table">
                     <thead>
                         <tr>
+                            <th style="width: 40px;"></th>
                             <th>Preview</th>
-                            <th>Label/Title</th>
+                            <th>Banner Title</th>
                             <th>Action</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="draggable-banner-list">
                         @foreach($announcements as $item)
-                            <tr>
-                                <td><img src="{{ asset('storage/' . $item->image_path) }}" class="table-preview-img"></td>
+                            <tr draggable="true" data-id="{{ $item->id }}" class="drag-row">
+                                <td class="drag-handle" title="Click and drag to reorder"><i class="fa-solid fa-grip-vertical"></i></td>
+                                <td><img src="{{ asset('storage/' . $item->image_path) }}" class="table-preview-img" alt="Preview"></td>
                                 <td>{{ $item->title ?? 'Untitled Banner' }}</td>
                                 <td>
                                     <form action="{{ route('registrar.announcements.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this banner?');">
@@ -135,6 +145,7 @@
 </div>
 
 <script>
+    // CAROUSEL AUTOMATION
     let slideIndex = 0;
     const slides = document.querySelectorAll('.carousel-slide');
     const dots = document.querySelectorAll('.dot');
@@ -161,6 +172,71 @@
             slideIndex++;
             showSlides(slideIndex);
         }, 6000);
+    }
+
+    // DRAG AND DROP REORDER LOGIC
+    const tbody = document.getElementById('draggable-banner-list');
+    let draggedRow = null;
+
+    if (tbody) {
+        tbody.addEventListener('dragstart', (e) => {
+            draggedRow = e.target.closest('tr');
+            e.target.closest('tr').classList.add('dragging');
+        });
+
+        tbody.addEventListener('dragend', (e) => {
+            e.target.closest('tr').classList.remove('dragging');
+            saveNewOrder();
+        });
+
+        tbody.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const afterElement = getDragAfterElement(tbody, e.clientY);
+            if (afterElement == null) {
+                tbody.appendChild(draggedRow);
+            } else {
+                tbody.insertBefore(draggedRow, afterElement);
+            }
+        });
+    }
+
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.drag-row:not(.dragging)')];
+
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    function saveNewOrder() {
+        const rows = document.querySelectorAll('.drag-row');
+        const order = Array.from(rows).map(row => row.getAttribute('data-id'));
+
+        fetch("{{ route('registrar.announcements.reorder') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ order: order })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const statusEl = document.getElementById('reorder-status');
+                statusEl.style.display = 'inline-block';
+                setTimeout(() => {
+                    location.reload();
+                }, 800);
+            }
+        })
+        .catch(error => console.error('Error reordering:', error));
     }
 </script>
 
@@ -204,7 +280,7 @@
         border: 3px solid #1e293b; 
         border-radius: 12px;
         overflow: hidden;
-        background: #ffffff;
+        background: #0f172a;
     }
     
     .carousel-slide { 
@@ -215,10 +291,39 @@
         height: 100%; 
         opacity: 0; 
         transition: opacity 0.6s ease-in-out; 
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
     }
     
     .carousel-slide.active { opacity: 1; }
-    .carousel-slide img { width: 100%; height: 100%; object-fit: fill; }
+
+    /* Blurred Backdrop Effect sa Gilid */
+    .slide-blur-bg {
+        position: absolute;
+        top: -10%;
+        left: -10%;
+        width: 120%;
+        height: 120%;
+        background-size: cover;
+        background-position: center;
+        filter: blur(20px) brightness(0.4);
+        z-index: 1;
+        transform: scale(1.1);
+    }
+
+    /* Main Poster/Banner Image sa Gitna */
+    .main-slide-img { 
+        position: relative;
+        z-index: 2;
+        max-width: 100%; 
+        max-height: 100%; 
+        width: auto;
+        height: auto;
+        object-fit: contain; 
+        box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+    }
     
     .no-banner-placeholder { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #64748b; }
 
@@ -333,13 +438,6 @@
     }
     .btn-upload:hover { background-color: #059669; }
 
-    .uploaded-banners-table h4 {
-        font-size: 15px;
-        font-weight: 700;
-        color: #334155;
-        margin-bottom: 12px;
-    }
-
     .custom-table {
         width: 100%;
         border-collapse: collapse;
@@ -349,6 +447,7 @@
         border-bottom: 1px solid #e2e8f0;
         text-align: left;
         vertical-align: middle;
+        font-size: 14px;
     }
     .custom-table th {
         background: #f8fafc;
@@ -359,7 +458,7 @@
     }
 
     .table-preview-img {
-        width: 120px;
+        width: 110px;
         height: 50px;
         object-fit: cover;
         border-radius: 6px;
@@ -377,5 +476,23 @@
         cursor: pointer;
     }
     .btn-delete-banner:hover { background-color: #dc2626; }
+
+    /* Drag and Drop CSS */
+    .drag-row { cursor: move; transition: background 0.15s ease; }
+    .drag-row.dragging { opacity: 0.4; background: #f1f5f9; }
+    .drag-handle { color: #94a3b8; cursor: grab; font-size: 16px; text-align: center; }
+    .drag-handle:active { cursor: grabbing; }
+
+    .alert-banner { 
+        padding: 14px 18px; 
+        border-radius: 8px; 
+        margin-bottom: 20px; 
+        font-size: 14px; 
+        font-weight: 600; 
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }
+    .alert-success { background: #dcfce7; color: #14532d; }
+    .alert-danger { background: #fee2e2; color: #991b1b; }
 </style>
 @endsection

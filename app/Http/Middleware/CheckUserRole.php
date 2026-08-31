@@ -10,7 +10,7 @@ class CheckUserRole
     public function handle(Request $request, Closure $next, ...$roles)
     {
         if (!session()->has('user_role') || !in_array(session('user_role'), $roles)) {
-            return redirect('/')->with('error', 'Unauthorized access. Please login with the correct account.');
+            return redirect('/')->with('error', 'Access denied. Please log in using an authorized account.');
         }
 
         return $next($request);

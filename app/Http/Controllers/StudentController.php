@@ -17,7 +17,14 @@ class StudentController extends Controller
     {
         $studentNumber = session('student_id');
 
-        $announcements = DB::table('announcements')->orderBy('created_at', 'desc')->get();
+        $student = DB::table('students')
+            ->where('student_id', $studentNumber)
+            ->first();
+
+        $announcements = DB::table('announcements')
+            ->orderBy('display_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
 
         $enrolledClasses = DB::table('student_subjects')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
@@ -106,8 +113,8 @@ class StudentController extends Controller
         foreach ($terms as $term) {
             $count = DB::table('student_tasks')
                 ->whereIn('class_schedule_id', $enrolledScheduleIds)
-                ->where('term', $term) 
-                ->whereNull('google_coursework_id') 
+                ->where('term', $term)
+                ->whereNull('google_coursework_id')
                 ->whereNotNull('due_date')
                 ->where('due_date', '!=', '')
                 ->whereNotExists(function ($query) use ($studentNumber) {
@@ -144,6 +151,7 @@ class StudentController extends Controller
         $pendingTasksCount = $totalLocalPending + $googlePendingCount;
 
         return view('student.dashboard', compact(
+            'student',
             'announcements',
             'totalEnrolledClasses',
             'pendingTasksCount',
@@ -305,7 +313,7 @@ class StudentController extends Controller
             $periodConfig = $termPeriods->get($termName);
 
             $termTasks = $activities->where('term', $termName);
-            
+
             $gradedSubmissions = $termTasks->whereNotNull('student_grade')->map(function($item) {
                 $item->percentage = ($item->max_score > 0) ? ($item->student_grade / $item->max_score) * 100 : 0;
                 return $item;
@@ -326,7 +334,7 @@ class StudentController extends Controller
             $assignmentAverage = $averages['assignment'] ?? $averages['written'] ?? null;
 
             $taskComponents = array_filter(
-                [$quizAverage, $activityAverage, $assignmentAverage], 
+                [$quizAverage, $activityAverage, $assignmentAverage],
                 fn($val) => !is_null($val)
             );
 
@@ -832,6 +840,42 @@ class StudentController extends Controller
         return $nearestTerm ?? $termPeriods->keys()->last() ?? 'prelim';
     }
 
+    public function updateProfilePicture(Request $request)
+    {
+        $request->validate([
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
+        ]);
+
+        // Kunin ang Student Number mula sa session (halimbawa: '26-00063')
+        $studentNumber = session('student_id');
+
+        if ($request->hasFile('profile_picture')) {
+            // Filter gamit ang 'student_id' column
+            $student = DB::table('students')->where('student_id', $studentNumber)->first();
+
+            if (!$student) {
+                return redirect()->back()->withErrors(['profile_picture' => 'Student record not found.']);
+            }
+
+            // 1. Burahin ang lumang larawan kung mayroon
+            if (!empty($student->profile_picture) && Storage::disk('public')->exists($student->profile_picture)) {
+                Storage::disk('public')->delete($student->profile_picture);
+            }
+
+            // 2. I-save ang bagong larawan sa storage/app/public/profile_pictures
+            $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+
+            // 3. I-update ang RECORD NI AMBER SANTIAGO sa database (gagamitin ang student_id)
+            DB::table('students')->where('student_id', $studentNumber)->update([
+                'profile_picture' => $path
+            ]);
+
+            return redirect()->back()->with('success', 'Profile picture updated successfully!');
+        }
+
+        return redirect()->back()->withErrors(['profile_picture' => 'Failed to upload image.']);
+    }
+
     public function downloadTaskFile($id)
     {
         $studentNumber = session('student_id');
@@ -922,6 +966,16 @@ class StudentController extends Controller
 
     public function submitTask(Request $request, $id)
     {
+        $studentId = session('student_id');
+
+        $student = DB::table('students')
+            ->where('student_id', $studentId)
+            ->first();
+
+        if ($student && in_array(trim($student->status ?? ''), ['On-Hold', 'On Hold', 'Purged', 'Dropped'])) {
+            return redirect()->back()->with('error', "You cannot submit activities because your account status is currently '{$student->status}'. Please contact the Registrar.");
+        }
+
         if (str_starts_with($id, 'gclass_')) {
             return $this->submitGoogleTask($request, (int) str_replace('gclass_', '', $id));
         }
@@ -936,7 +990,7 @@ class StudentController extends Controller
         }
 
         if ($task->due_date && \Carbon\Carbon::parse($task->due_date)->endOfDay()->isPast()) {
-            return redirect()->back()->with('error', 'Submission closed. The deadline for this task has already passed.');
+            return redirect()->back()->with('error', 'Submission closed. The deadline for this task has passed.');
         }
 
         $request->validate([
@@ -1027,7 +1081,7 @@ class StudentController extends Controller
         }
 
         if ($task->due_date && \Carbon\Carbon::parse($task->due_date)->endOfDay()->isPast()) {
-            return redirect()->back()->with('error', 'Submission closed. The deadline for this task has already passed.');
+            return redirect()->back()->with('error', 'Submission closed. The deadline for this task has passed.');
         }
 
         $request->validate([

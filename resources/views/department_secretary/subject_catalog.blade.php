@@ -6,7 +6,7 @@
     <div class="sa-header">
         <div class="header-titles">
             <h2>Subject Catalog</h2>
-            <p>{{ $dept }} — Course Specification Matrix</p>
+            <p>{{ $dept }} — Course Requirements List</p>
         </div>
         <div class="header-badge sec-level">Academic Reference</div>
     </div>

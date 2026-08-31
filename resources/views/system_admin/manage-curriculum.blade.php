@@ -5,10 +5,9 @@
 
     <div class="subj-header">
         <div class="header-titles">
-            <h2>Curriculum Subject Mapping</h2>
-            <p>Admin Control Panel — Course Curriculum Core Management</p>
+            <h2>Curriculum Management</h2>
+            <p>Add and manage subjects assigned to course curriculums.</p>
         </div>
-        <div class="header-badge">Admin Mode</div>
     </div>
 
     @if(session('success'))
@@ -18,24 +17,40 @@
     @endif
 
     @if($errors->any())
-        <div class="alert-danger-custom">
-            <i class="fas fa-exclamation-circle"></i> {{ $errors->first() }}
+        <div class="alert-danger-custom" style="align-items: flex-start;">
+            <i class="fas fa-exclamation-circle" style="margin-top: 3px;"></i>
+            <div>
+                <strong>Unable to process request:</strong>
+                <ul style="margin: 4px 0 0 0; padding-left: 20px;">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
         </div>
     @endif
 
+    <div id="js-alert-error" class="alert-danger-custom" style="display: none; align-items: flex-start; gap: 10px;">
+        <i class="fas fa-exclamation-triangle" style="margin-top: 3px;"></i>
+        <div>
+            <strong>Unable to process request:</strong>
+            <ul id="js-alert-list" style="margin: 4px 0 0 0; padding-left: 20px;"></ul>
+        </div>
+    </div>
+
     <div class="curr-mapping-workspace">
 
-        {{-- FORM PANEL (LEFT) --}}
         <div class="subj-card form-panel">
             <div class="card-bar">
-                <span><i class="fas fa-network-wired"></i> Map Subject Link Structure</span>
+                <span><i class="fas fa-network-wired"></i> Assign Subject to Curriculum</span>
             </div>
             <form
             id="curriculumForm"
             action="{{ route('system_admin.curriculum.store') }}"
             method="POST"
             autocomplete="off"
-            class="pure-form">
+            class="pure-form"
+            novalidate>
 
             @csrf
 
@@ -45,7 +60,7 @@
                 name="curriculum_id">
 
                 <div class="form-group">
-                    <label>Select Course Program</label>
+                    <label>Course Program <span class="required-star">*</span></label>
                     <div class="custom-select-wrapper">
                         <select name="course" id="courseSelect" required class="form-select-custom">
                             <option value="" disabled selected hidden>Choose Course</option>
@@ -58,7 +73,7 @@
 
                 <div class="form-grid-2">
                     <div class="form-group">
-                        <label>Year Level</label>
+                        <label>Year Level <span class="required-star">*</span></label>
                         <div class="custom-select-wrapper">
                             <select name="year_level" id="yearSelect" required class="form-select-custom">
                                 <option value="" disabled selected hidden>Choose Year</option>
@@ -71,23 +86,23 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Semester</label>
+                        <label>Semester <span class="required-star">*</span></label>
                         <div class="custom-select-wrapper">
                             <select name="semester" id="semesterSelect" required class="form-select-custom">
                                 <option value="" disabled selected hidden>Choose Semester</option>
                                 <option value="1st Semester">1st Semester</option>
                                 <option value="2nd Semester">2nd Semester</option>
-                                <option value="Summer">Summer</option>
+                                <option value="Summer" id="summerOption" style="display: none;">Summer</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Select Subject to Bind</label>
+                    <label>Subject <span class="required-star">*</span></label>
                     <div class="custom-select-wrapper">
                         <select name="subject_id" id="subjectSelect" required disabled class="form-select-custom">
-                            <option value="" disabled selected hidden>-- Select Cataloged Subject --</option>
+                            <option value="" disabled selected hidden>-- Select Subject --</option>
                             @if(isset($subjects) && $subjects->count() > 0)
                                 @foreach($subjects as $subj)
                                     <option value="{{ $subj->id }}">
@@ -99,37 +114,38 @@
                     </div>
                 </div>
 
-                    <div class="form-actions-bar">
-                        <button
-                            id="submitButton"
-                            type="submit"
-                            class="btn-submit-subj">
-                            Establish Curriculum
-                        </button>
+                <div class="form-actions-bar">
+                    <button
+                        id="submitButton"
+                        type="submit"
+                        class="btn-submit-subj">
+                        Save to Curriculum
+                    </button>
 
-                        <button
-                            type="button"
-                            id="cancelEditButton"
-                            class="btn-cancel-edit"
-                            style="display:none;"
-                            onclick="cancelEdit()">
-                            Cancel Edit
-                        </button>
-                    </div>
+                    <button
+                        type="button"
+                        id="cancelEditButton"
+                        class="btn-cancel-edit"
+                        style="display:none;"
+                        onclick="cancelEdit()">
+                        Cancel
+                    </button>
+                </div>
             </form>
         </div>
 
-        {{-- TABLE PANEL (RIGHT) --}}
         <div class="subject-list-card table-panel">
             <div class="card-header-flex">
                 <div class="card-title-container">
-                    <h3 class="card-title-list">Active Curriculum Structures</h3>
-                    <span class="badge-count">{{ count($mappings ?? []) }} Links Active</span>
+                    <h3 class="card-title-list">Curriculum Masterlist</h3>
                 </div>
 
-                <div class="table-search-box">
-                    <i class="fas fa-search search-icon"></i>
-                    <input type="text" id="tableSearchInput" placeholder="Search course, year, or subject...">
+                <div class="header-controls-flex">
+                    <div class="table-search-box">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="tableSearchInput" placeholder="Search course, year, or subject...">
+                    </div>
+                    <span class="badge-count" id="curriculumTotalCount">Total: {{ count($mappings ?? []) }}</span>
                 </div>
             </div>
 
@@ -137,25 +153,27 @@
                 <table class="minimal-table" id="curriculumTable">
                     <thead>
                         <tr>
-                            <th>Course</th>
-                            <th>Year Level</th>
-                            <th>Semester</th>
+                            <th style="width: 130px;">Course</th>
+                            <th style="width: 120px;">Year Level</th>
+                            <th style="width: 150px;">Semester</th>
                             <th>Subject</th>
-                            <th style="text-align: center;">Actions</th>
+                            <th style="text-align: center; width: 120px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($mappings ?? [] as $map)
-                            <tr>
-                                <td><span class="course-code-badge">{{ $map->course }}</span></td>
-                                <td><strong>{{ $map->year_level }}</strong></td>
-                                <td><span class="sem-badge">{{ $map->semester }}</span></td>
+                            <tr class="curriculum-row-item">
+                                <td><span class="course-code-badge search-course">{{ $map->course }}</span></td>
+                                <td><strong class="search-year">{{ $map->year_level }}</strong></td>
+                                <td><span class="sem-badge search-sem">{{ $map->semester }}</span></td>
                                 <td>
-                                    <span class="subject-code-tag">{{ $map->subject->subject_code ?? 'N/A' }}</span>
-                                    <div class="table-subtext-title">{{ $map->subject->subject_title ?? 'Deleted Subject' }}</div>
+                                    <div class="subject-inline-flex">
+                                        <span class="subject-code-tag search-subj-code">{{ $map->subject->subject_code ?? 'N/A' }}</span>
+                                        <span class="table-subtext-title search-subj-title">{{ $map->subject->subject_title ?? 'Deleted Subject' }}</span>
+                                    </div>
                                 </td>
-                                    <td>
-                                        <div class="action-buttons">
+                                <td>
+                                    <div class="action-buttons">
                                         <button
                                             type="button"
                                             class="btn-action-edit"
@@ -177,30 +195,32 @@
                                             '{{ $map->course }}',
                                             '{{ $map->subject->subject_code ?? 'N/A' }}'
                                             )">
-                                            Remove
+                                            Delete
                                         </button>
-                                        </div>
-                                    </td>
+                                    </div>
+                                </td>
                             </tr>
                         @empty
-                            <tr>
-                                <td colspan="4" class="empty-table-state">
+                            <tr class="static-empty-row">
+                                <td colspan="5" class="empty-table-state">
                                      There are currently no subject links assigned to the courses.
                                 </td>
                             </tr>
                         @endforelse
+                        <tr id="curriculumNoResults" style="display:none;">
+                            <td colspan="5" class="empty-table-state" style="text-align: center; color: #94a3b8; padding: 40px 0;">
+                                <i class="fas fa-database" style="font-size: 20px; display: block; margin-bottom: 8px;"></i>
+                                No curriculum entries match your search query.
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
-                <div id="curriculumNoResults" style="display:none; text-align:center; color:#94a3b8; padding:40px; font-style:italic; font-size:13.5px;">
-                    No curriculum entries match your search.
-                </div>
             </div>
         </div>
 
     </div>
 </div>
 
-{{-- ===================== DELETE MODAL ===================== --}}
 <div id="deleteCurriculumModal" class="modal-overlay" style="display:none;">
     <div class="modal-box modal-box-sm">
         <div class="modal-header modal-header-danger">
@@ -223,109 +243,195 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const existingMappings = [
+            @if(isset($mappings))
+                @foreach($mappings as $m)
+                    {
+                        id: {{ $m->id }},
+                        course: @js(trim($m->course)),
+                        year_level: @js(trim($m->year_level)),
+                        semester: @js(trim($m->semester)),
+                        subject_id: {{ $m->subject_id }}
+                    },
+                @endforeach
+            @endif
+        ];
+
         const searchInput = document.getElementById('tableSearchInput');
-        const tableRows   = document.querySelectorAll('#curriculumTable tbody tr');
+        const tableRows   = document.querySelectorAll('.curriculum-row-item');
         const noResults   = document.getElementById('curriculumNoResults');
+        const totalCountBadge = document.getElementById('curriculumTotalCount');
+        const initialTotal = tableRows.length;
 
         if (searchInput) {
-            searchInput.addEventListener('keyup', function () {
+            searchInput.addEventListener('input', function () {
                 const term = searchInput.value.toLowerCase().trim();
                 let visibleCount = 0;
 
                 tableRows.forEach(row => {
-                    if (row.querySelector('.empty-table-state')) return;
+                    const course = row.querySelector('.search-course').textContent.toLowerCase();
+                    const year = row.querySelector('.search-year').textContent.toLowerCase();
+                    const sem = row.querySelector('.search-sem').textContent.toLowerCase();
+                    const code = row.querySelector('.search-subj-code').textContent.toLowerCase();
+                    const title = row.querySelector('.search-subj-title').textContent.toLowerCase();
 
-                    const match = row.textContent.toLowerCase().includes(term);
-
-                    row.style.display = match ? '' : 'none';
-
-                    if (match) visibleCount++;
+                    if (course.includes(term) || year.includes(term) || sem.includes(term) || code.includes(term) || title.includes(term)) {
+                        row.style.display = '';
+                        visibleCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
                 });
 
-                noResults.style.display =
-                    visibleCount === 0 && term !== ''
-                        ? 'block'
-                        : 'none';
+                if (totalCountBadge) {
+                    totalCountBadge.textContent = term === '' ? `Total: ${initialTotal}` : `Total: ${visibleCount}`;
+                }
+
+                if (noResults) {
+                    noResults.style.display = (visibleCount === 0 && initialTotal > 0) ? 'table-row' : 'none';
+                }
             });
         }
 
-        courseSelect.addEventListener('change', fetchFilteredSubjects);
-        yearSelect.addEventListener('change', fetchFilteredSubjects);
-        semesterSelect.addEventListener('change', fetchFilteredSubjects);
-    });
-
-            // ======== AJAX SUBJECT FILTER ========
         const courseSelect   = document.getElementById('courseSelect');
         const yearSelect     = document.getElementById('yearSelect');
         const semesterSelect = document.getElementById('semesterSelect');
+        const summerOption   = document.getElementById('summerOption');
         const subjectSelect  = document.getElementById('subjectSelect');
+        const curriculumForm = document.getElementById('curriculumForm');
+        const jsAlertError = document.getElementById('js-alert-error');
+        const jsAlertList = document.getElementById('js-alert-list');
 
-            function fetchFilteredSubjects() {
-                const courseCode = courseSelect.value;
-                const yearLevel = yearSelect.value;
-                const semester = semesterSelect.value;
+        function toggleSummerOption() {
+            if (!yearSelect || !summerOption || !semesterSelect) return;
 
-                if (courseCode && yearLevel && semester) {
-
-                    subjectSelect.disabled = true;
-
-                    subjectSelect.innerHTML =
-                        '<option value="" disabled selected hidden>Loading matched subjects...</option>';
-
-                    const curriculumId = document.getElementById('curriculumId').value;
-
-                    const url =
-                        "{{ route('system_admin.curriculum.get_subjects') }}" +
-                        `?course=${encodeURIComponent(courseCode)}` +
-                        `&year_level=${encodeURIComponent(yearLevel)}` +
-                        `&semester=${encodeURIComponent(semester)}` +
-                        `&curriculum_id=${curriculumId}`;
-
-                    fetch(url)
-                        .then(response => {
-                            if (!response.ok) throw new Error('Network error');
-                            return response.json();
-                        })
-                        .then(subjects => {
-
-                            subjectSelect.innerHTML =
-                                '<option value="" disabled selected hidden>Choose Subject Catalog Entry</option>';
-
-                                if (subjects.length === 0) {
-                                    subjectSelect.innerHTML =
-                                        '<option value="" disabled selected hidden>No subjects available for this setup</option>';
-
-                                    subjectSelect.disabled = true;
-                                    return;
-                                }
-
-                            subjects.forEach(subject => {
-                                const option = document.createElement('option');
-                                option.value = subject.id;
-                                option.textContent =
-                                    `[${subject.subject_code}] — ${subject.subject_title} (Units: ${subject.total_units || 'N/A'})`;
-                                subjectSelect.appendChild(option);
-                            });
-
-                            subjectSelect.disabled = false;
-                        })
-                        .catch(error => {
-                            console.error(error);
-
-                            subjectSelect.innerHTML =
-                                '<option value="" disabled selected hidden>Error loading data.</option>';
-
-                            subjectSelect.disabled = true;
-                        });
-
-                } else {
-
-                    subjectSelect.innerHTML =
-                        '<option value="" disabled selected hidden>Please fill out Course, Year, and Semester first...</option>';
-
-                    subjectSelect.disabled = true;
+            if (yearSelect.value === '3rd Year') {
+                summerOption.style.display = '';
+            } else {
+                summerOption.style.display = 'none';
+                if (semesterSelect.value === 'Summer') {
+                    semesterSelect.value = '';
                 }
             }
+        }
+
+        if (yearSelect) {
+            yearSelect.addEventListener('change', function () {
+                toggleSummerOption();
+                fetchFilteredSubjects();
+            });
+        }
+
+        if (courseSelect) courseSelect.addEventListener('change', fetchFilteredSubjects);
+        if (semesterSelect) semesterSelect.addEventListener('change', fetchFilteredSubjects);
+
+        // Initial check on load
+        toggleSummerOption();
+
+        if (curriculumForm) {
+            curriculumForm.addEventListener('submit', function (e) {
+                const courseVal = courseSelect.value;
+                const yearVal = yearSelect.value;
+                const semVal = semesterSelect.value;
+                const subjVal = subjectSelect.value;
+                const currId = document.getElementById('curriculumId').value;
+
+                if (jsAlertError) jsAlertError.style.display = 'none';
+
+                let errorMessages = [];
+
+                if (!courseVal || !yearVal || !semVal || !subjVal) {
+                    errorMessages.push('Please fill out all required fields before submitting.');
+                } else {
+                    const isDuplicate = existingMappings.some(m => 
+                        m.course === courseVal && 
+                        m.year_level === yearVal && 
+                        m.semester === semVal && 
+                        m.subject_id == subjVal && 
+                        (!currId || m.id != currId)
+                    );
+
+                    if (isDuplicate) {
+                        errorMessages.push('This subject is already added to this course, year level, and semester.');
+                    }
+                }
+
+                if (errorMessages.length > 0) {
+                    e.preventDefault();
+                    showJsErrors(errorMessages);
+                    return false;
+                }
+            });
+        }
+
+        function showJsErrors(messages) {
+            if (jsAlertError && jsAlertList) {
+                jsAlertList.innerHTML = '';
+                messages.forEach(msg => {
+                    const li = document.createElement('li');
+                    li.textContent = msg;
+                    jsAlertList.appendChild(li);
+                });
+                jsAlertError.style.display = 'flex';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+    });
+
+    const courseSelect   = document.getElementById('courseSelect');
+    const yearSelect     = document.getElementById('yearSelect');
+    const semesterSelect = document.getElementById('semesterSelect');
+    const subjectSelect  = document.getElementById('subjectSelect');
+
+    function fetchFilteredSubjects() {
+        const courseCode = courseSelect.value;
+        const yearLevel = yearSelect.value;
+        const semester = semesterSelect.value;
+
+        if (courseCode && yearLevel && semester) {
+            subjectSelect.disabled = true;
+            subjectSelect.innerHTML = '<option value="" disabled selected hidden>Loading matched subjects...</option>';
+            const curriculumId = document.getElementById('curriculumId').value;
+
+            const url = "{{ route('system_admin.curriculum.get_subjects') }}" +
+                `?course=${encodeURIComponent(courseCode)}` +
+                `&year_level=${encodeURIComponent(yearLevel)}` +
+                `&semester=${encodeURIComponent(semester)}` +
+                `&curriculum_id=${curriculumId}`;
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network error');
+                    return response.json();
+                })
+                .then(subjects => {
+                    subjectSelect.innerHTML = '<option value="" disabled selected hidden>Choose Subject Catalog Entry</option>';
+
+                    if (subjects.length === 0) {
+                        subjectSelect.innerHTML = '<option value="" disabled selected hidden>No subjects available for this setup</option>';
+                        subjectSelect.disabled = true;
+                        return;
+                    }
+
+                    subjects.forEach(subject => {
+                        const option = document.createElement('option');
+                        option.value = subject.id;
+                        option.textContent = `[${subject.subject_code}] — ${subject.subject_title} (Units: ${subject.total_units || 'N/A'})`;
+                        subjectSelect.appendChild(option);
+                    });
+
+                    subjectSelect.disabled = false;
+                })
+                .catch(error => {
+                    console.error(error);
+                    subjectSelect.innerHTML = '<option value="" disabled selected hidden>Error loading data.</option>';
+                    subjectSelect.disabled = true;
+                });
+        } else {
+            subjectSelect.innerHTML = '<option value="" disabled selected hidden>Please fill out Course, Year, and Semester first...</option>';
+            subjectSelect.disabled = true;
+        }
+    }
 
     function openDeleteCurriculum(id, course, subjectCode) {
         document.getElementById('deleteCurriculumCourse').textContent  = course;
@@ -348,127 +454,128 @@
     });
 
     function editCurriculum(id, course, year, semester, subjectId) {
-    document.getElementById('curriculumId').value = id;
-    document.getElementById('courseSelect').value = course;
-    document.getElementById('yearSelect').value = year;
-    document.getElementById('semesterSelect').value = semester;
+        document.getElementById('curriculumId').value = id;
+        document.getElementById('courseSelect').value = course;
+        document.getElementById('yearSelect').value = year;
 
-    fetchFilteredSubjects();
+        // Ensure Summer option visibility is updated before setting semester value
+        const summerOption = document.getElementById('summerOption');
+        if (summerOption) {
+            summerOption.style.display = (year === '3rd Year') ? '' : 'none';
+        }
 
-    setTimeout(() => {
-        document.getElementById('subjectSelect').value = subjectId;
-    }, 500);
+        document.getElementById('semesterSelect').value = semester;
 
-    const form = document.getElementById('curriculumForm');
+        fetchFilteredSubjects();
 
-    form.action = "{{ route('system_admin.curriculum.update', ':id') }}"
-        .replace(':id', id);
+        setTimeout(() => {
+            document.getElementById('subjectSelect').value = subjectId;
+        }, 500);
 
-    if (!document.getElementById('_method')) {
+        const form = document.getElementById('curriculumForm');
+        form.action = "{{ route('system_admin.curriculum.update', ':id') }}".replace(':id', id);
 
-        const method = document.createElement('input');
-        method.type = 'hidden';
-        method.name = '_method';
-        method.value = 'PUT';
-        method.id = '_method';
+        if (!document.getElementById('_method')) {
+            const method = document.createElement('input');
+            method.type = 'hidden';
+            method.name = '_method';
+            method.value = 'PUT';
+            method.id = '_method';
+            form.appendChild(method);
+        }
+        document.getElementById('submitButton').textContent = "Update Curriculum";
+        document.getElementById('cancelEditButton').style.display = "inline-block";
 
-        form.appendChild(method);
-    }
-    document.getElementById('submitButton').textContent =
-        "Update Curriculum";
-
-    document.getElementById('cancelEditButton').style.display =
-        "inline-block";
-
-    window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-    });
+        window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     function cancelEdit() {
-    const form = document.getElementById('curriculumForm');
+        const form = document.getElementById('curriculumForm');
+        form.reset();
 
-    form.reset();
+        const summerOption = document.getElementById('summerOption');
+        if (summerOption) {
+            summerOption.style.display = 'none';
+        }
 
-    document.getElementById('curriculumId').value = "";
-    document.getElementById('subjectSelect').innerHTML =
-        '<option value="" disabled selected hidden>Please fill out Course, Year, and Semester first...</option>';
-    document.getElementById('subjectSelect').disabled = true;
+        document.getElementById('curriculumId').value = "";
+        document.getElementById('subjectSelect').innerHTML = '<option value="" disabled selected hidden>Please fill out Course, Year, and Semester first...</option>';
+        document.getElementById('subjectSelect').disabled = true;
 
-    form.action =
-        "{{ route('system_admin.curriculum.store') }}";
-    const method = document.getElementById('_method');
+        form.action = "{{ route('system_admin.curriculum.store') }}";
+        const method = document.getElementById('_method');
 
-    if(method){
-        method.remove();
+        if(method){
+            method.remove();
+        }
+
+        document.getElementById('submitButton').textContent = "Save to Curriculum";
+        document.getElementById('cancelEditButton').style.display = "none";
     }
-
-    document.getElementById('submitButton').textContent =
-        "Establish Curriculum";
-
-    document.getElementById('cancelEditButton').style.display =
-        "none";
-}
-
 </script>
 
 <style>
-    .subj-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; max-width: 1250px; margin: 0 auto; padding-bottom: 50px; }
-    .subj-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; }
-    .header-titles h2 { margin: 0 0 5px 0; font-size: 26px; font-weight: 700; color: #0f172a; }
+    .subj-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #0f172a; max-width: 1650px; margin: 0 auto; padding: 20px 24px; }
+    .subj-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; }
+    .header-titles h2 { margin: 0 0 4px 0; font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
     .header-titles p { margin: 0; font-size: 14px; color: #64748b; }
-    .header-badge { background-color: #0f172a; color: white; padding: 6px 14px; border-radius: 20px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    .curr-mapping-workspace { display: flex; gap: 28px; align-items: flex-start; }
-    .form-panel { flex: 1; min-width: 380px; }
-    .table-panel { flex: 1.8; }
+    .required-star { color: #dc2626; font-weight: 700; }
 
-    .subj-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); overflow: hidden; }
-    .card-bar { background: #ffffff; padding: 18px 24px; font-weight: 700; font-size: 15px; color: #0f172a; border-bottom: 1px solid #f1f5f9; }
-    .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+    .curr-mapping-workspace { display: flex; flex-direction: row; gap: 24px; align-items: flex-start; justify-content: space-between; width: 100%; }
+    .form-panel { flex: 0 0 440px; background: #ffffff; }
+    .table-panel { flex: 1; background: #ffffff; min-width: 0; }
+
+    .subj-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px -2px rgba(0,0,0,0.03); overflow: hidden; }
+    .card-bar { background: #f8fafc; padding: 16px 20px; font-weight: 700; font-size: 14.5px; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
+
+    .card-header-flex { background-color: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .card-title-container { display: flex; align-items: center; gap: 12px; }
+    .card-title-list { font-size: 14.5px; font-weight: 700; color: #1e293b; margin: 0; }
+    .header-controls-flex { display: flex; align-items: center; gap: 15px; }
+
+    .table-search-box { position: relative; display: flex; align-items: center; }
+    .table-search-box input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px 6px 32px; font-size: 12.5px; color: #0f172a; outline: none; background: #ffffff; width: 220px; transition: all 0.2s ease; font-weight: 500; box-sizing: border-box; }
+    .table-search-box input:focus { border-color: #475569; width: 250px; box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.1); }
+    .table-search-box .search-icon { position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none; }
+
+    .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
-    .form-group label { font-size: 13px; font-weight: 600; color: #475569; }
+    .form-group label { font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.3px; }
 
     .custom-select-wrapper { position: relative; width: 100%; }
-    .form-select-custom { width: 100%; padding: 12px 40px 12px 15px; font-size: 14px; color: #0f172a; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; appearance: none; -webkit-appearance: none; cursor: pointer; outline: none; transition: all 0.2s ease; }
+    .form-select-custom { width: 100%; padding: 10px 40px 10px 14px; font-size: 14px; color: #0f172a; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; appearance: none; -webkit-appearance: none; cursor: pointer; outline: none; transition: all 0.2s ease; }
     .form-select-custom:disabled { background-color: #f8fafc; color: #94a3b8; cursor: not-allowed; border-color: #e2e8f0; }
     .form-select-custom:hover:not(:disabled) { border-color: #94a3b8; }
-    .form-select-custom:focus:not(:disabled) { border-color: #0f172a; box-shadow: 0 0 0 3px rgba(15,23,42,0.15); }
-    .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 15px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+    .form-select-custom:focus:not(:disabled) { border-color: #000000; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
+    .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 
-    .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-    .form-actions-bar { display: flex; justify-content: flex-end; margin-top: 5px; }
-    .btn-submit-subj { background: #0f172a; color: white; border: none; padding: 13px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; width: 100%; transition: background 0.2s; }
+    .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    
+    .form-actions-bar { display: flex; gap: 10px; margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 16px; }
+    .btn-submit-subj { background: #000000; color: white; border: none; padding: 12px 20px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; flex: 1; transition: background 0.2s; }
     .btn-submit-subj:hover { background: #1e293b; }
 
-    .alert-success-custom { background: #d1e7dd; color: #0f5132; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #0f5132; font-size: 14px; }
-    .alert-danger-custom { background: #fde8e8; color: #9b1c1c; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #9b1c1c; font-size: 14px; }
+    .alert-success-custom { background: #ecfdf5; color: #065f46; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #059669; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+    .alert-danger-custom { background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; display: flex; align-items: flex-start; gap: 10px; }
 
-    .subject-list-card { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); overflow: hidden; }
-    .card-header-flex { background-color: #f8fafc; padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
-    .card-title-container { display: flex; align-items: center; gap: 12px; }
-    .card-title-list { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0; }
-    .badge-count { background-color: #e2e8f0; color: #334155; font-size: 0.75rem; font-weight: 700; padding: 4px 12px; border-radius: 9999px; }
-
-    .table-search-box { position: relative; max-width: 280px; width: 100%; }
-    .table-search-box input { width: 100%; padding: 8px 12px 8px 36px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; color: #0f172a; box-sizing: border-box; transition: all 0.2s ease; }
-    .table-search-box input:focus { border-color: #0f172a; box-shadow: 0 0 0 3px rgba(15,23,42,0.08); }
-    .table-search-box .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px; pointer-events: none; }
+    .subject-list-card { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 10px -2px rgba(0,0,0,0.03); overflow: hidden; }
+    
+    .badge-count { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 4px 12px; border-radius: 20px; font-weight: 700; white-space: nowrap; }
 
     .table-responsive { width: 100%; overflow-x: auto; }
-    .minimal-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    .minimal-table th { background-color: #f8fafc; color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; padding: 14px 24px; border-bottom: 1px solid #e2e8f0; text-align: left; }
-    .minimal-table td { padding: 14px 24px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
+    .minimal-table { width: 100%; border-collapse: collapse; font-size: 13.5px; table-layout: auto; }
+    .minimal-table th { background-color: #f8fafc; color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 11.5px; padding: 14px 16px; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap; }
+    .minimal-table td { padding: 15px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
     .minimal-table tbody tr:hover { background-color: #f8fafc; }
 
-    .course-code-badge { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; color: #dc2626; background-color: #fef2f2; padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; border: 1px solid #fee2e2; }
-    .subject-code-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; color: #2563eb; background-color: #eff6ff; padding: 3px 6px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #dbeafe; }
-    .table-subtext-title { font-weight: 500; color: #1e293b; margin-top: 5px; font-size: 13.5px; }
-    .sem-badge{ display:inline-block; white-space:nowrap; min-width:115px; text-align:center; font-size:12px; background:#f1f5f9; color:#475569; padding:5px 12px; border-radius:999px; border:1px solid #e2e8f0; font-weight:600; }
-    .empty-table-state { text-align: center; color: #64748b; padding: 40px !important; font-style: italic; }
+    .course-code-badge { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; color: #0f172a; background-color: #f1f5f9; border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 6px; font-size: 12px; display: inline-block; white-space: nowrap; }
+    .subject-inline-flex { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+    .subject-code-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; color: #0f172a; background-color: #f1f5f9; border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 6px; font-size: 12px; display: inline-block; white-space: nowrap; }
+    .table-subtext-title { font-weight: 700; color: #1e293b; font-size: 14px; white-space: nowrap; }
+    .sem-badge{ display:inline-block; white-space:nowrap; font-size:12px; background:#f1f5f9; color:#334155; padding:4px 10px; border-radius:6px; border:1px solid #cbd5e1; font-weight:600; }
+    .empty-table-state { text-align: center; color: #94a3b8; padding: 50px 0 !important; font-style: italic; }
 
-    /* ===== MODAL STYLES ===== */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 9999; display: flex; align-items: center; justify-content: center; }
     .modal-box { background: #ffffff; border-radius: 14px; width: 100%; max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden; }
     .modal-box-sm { max-width: 420px; }
@@ -486,21 +593,17 @@
     .btn-modal-confirm-delete:hover { background: #b91c1c; }
 
     .btn-action-edit,
-    .btn-action-delete{ width: 82px; height: 32px; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; border-radius:6px; cursor:pointer; transition:.2s; }
+    .btn-action-delete{ display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; border-radius:6px; cursor:pointer; transition:.2s; white-space: nowrap; padding: 5px 12px; }
 
-    .btn-action-edit{ background:#eff6ff; border:1px solid #93c5fd; color:#2563eb; margin-right:6px; }
-    .btn-action-edit:hover{ background:#dbeafe; color:#1d4ed8; }
+    .btn-action-edit{ background-color: transparent; border: 1px solid #cbd5e1; color: #475569; }
+    .btn-action-edit:hover{ background-color: #f1f5f9; color: #1e293b; border-color: #94a3b8; }
 
-    .btn-action-delete{ background:#fff; border:1px solid #fecaca; color:#dc2626; }
+    .btn-action-delete{ background-color: transparent; border: 1px solid #fecaca; color: #dc2626; }
+    .btn-action-delete:hover{ background-color: #fef2f2; color: #991b1b; border-color: #f87171; }
 
-    .btn-action-delete:hover{ background:#fef2f2; border-color:#f87171; color:#991b1b; }
+    .btn-cancel-edit{ background:#f8fafc; color:#475569; border:1px solid #cbd5e1; padding:12px 16px; border-radius:6px; cursor:pointer; font-weight:600; transition:.2s; }
+    .btn-cancel-edit:hover{ background:#f1f5f9; color:#1e293b; }
 
-    .form-actions-bar{ display:flex; gap:10px; }
-
-    .btn-submit-subj{ flex:1; }
-    .btn-cancel-edit{ background:#e2e8f0; color:#334155; border:none; padding:13px 18px; border-radius:6px; cursor:pointer; font-weight:600; transition:.2s; }
-    .btn-cancel-edit:hover{ background:#cbd5e1; }
-
-    .action-buttons{ display:flex; justify-content:center; align-items:center; gap:8px; }
+    .action-buttons{ display:flex; justify-content:center; align-items:center; gap:6px; }
 </style>
 @endsection
