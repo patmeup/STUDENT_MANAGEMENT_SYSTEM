@@ -167,6 +167,7 @@ Route::middleware(['role:professor'])->group(function () {
     Route::get('/professor/user_details', [ProfessorController::class, 'profileView'])->name('professor.user_details');
     Route::post('/professor/google-classroom/disconnect', [GoogleClassroomController::class, 'disconnect'])->name('professor.google-classroom.disconnect');
     Route::post('/professor/profile/picture', [ProfessorController::class, 'updateProfilePicture'])->name('professor.profile.picture.update');
+    Route::get('/professor/class/{schedule}/attendance-dates', [AttendanceController::class, 'getRecordedDates']);
     });
 
 // STUDENT ROUTES

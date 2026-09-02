@@ -3,6 +3,8 @@
 @section('content')
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 <div class="prof-container py-4" x-data="{
         currentTab: new URLSearchParams(window.location.search).get('tab') || 'masterlist',
@@ -19,6 +21,12 @@
             const url = new URL(window.location.href);
             url.searchParams.set('tab', tabName);
             window.history.replaceState({}, '', url);
+
+            if (tabName === 'attendance') {
+                this.$nextTick(() => {
+                    this.initAttendance();
+                });
+            }
         },
 
         showModal: false,
@@ -43,9 +51,62 @@
         loadingAttendance: false,
         saveStatus: { show: false, success: true, message: '' },
         hasSaved: false,
+        datePickerInstance: null,
 
         isPastDate() {
             return this.selectedDate < this.currentDate;
+        },
+
+        async loadRecordedDates() {
+            try {
+                const res = await fetch(`/professor/class/{{ $classDetails->schedule_id }}/attendance-dates`);
+                const data = await res.json();
+                window.globalRecordedDates = data.dates || [];
+
+                if (this.datePickerInstance) {
+                    this.datePickerInstance.redraw();
+                }
+            } catch (err) {
+                // Keep whatever we already had (e.g. server-seeded dates) instead of wiping it on failure
+                window.globalRecordedDates = window.globalRecordedDates || [];
+            }
+        },
+
+        initDatePicker() {
+            if (!this.$refs.attendanceDateInput) return;
+
+            if (this.datePickerInstance) {
+                this.datePickerInstance.destroy();
+            }
+
+            const self = this;
+            this.datePickerInstance = flatpickr(this.$refs.attendanceDateInput, {
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altInputClass: 'modern-date-picker',
+                altFormat: 'F j, Y',
+                defaultDate: this.selectedDate,
+                maxDate: this.currentDate,
+                clickOpens: true,
+                allowInput: false,
+                onChange: (selectedDatesArr, dateStr) => {
+                    self.selectedDate = dateStr;
+                    self.loadAttendanceData();
+                },
+                onDayCreate: (dObj, dStr, fp, dayElem) => {
+                    const y = dayElem.dateObj.getFullYear();
+                    const m = String(dayElem.dateObj.getMonth() + 1).padStart(2, '0');
+                    const d = String(dayElem.dateObj.getDate()).padStart(2, '0');
+                    const dateIso = `${y}-${m}-${d}`;
+
+                    // Always read from window.globalRecordedDates so the initial
+                    // server-seeded list AND any later fetch/redraw stay in sync.
+                    const recorded = window.globalRecordedDates || [];
+                    if (recorded.includes(dateIso)) {
+                        dayElem.classList.add('has-attendance-dot');
+                    }
+                }
+            });
         },
 
         openCreateModal(term) {
@@ -126,11 +187,11 @@
                 this.attendanceState = {};
                 this.remarksState = {};
 
-            data.students.forEach(student => {
-                const record = data.existingAttendance[student.student_id] || {};
-                this.attendanceState[student.student_id] = record.status || null;
-                this.remarksState[student.student_id] = record.remarks || '';
-            });
+                data.students.forEach(student => {
+                    const record = data.existingAttendance[student.student_id] || {};
+                    this.attendanceState[student.student_id] = record.status || null;
+                    this.remarksState[student.student_id] = record.remarks || '';
+                });
 
                 this.isInitialized = true;
             })
@@ -169,9 +230,8 @@
             .then(data => {
                 if (data.success) {
                     this.hasSaved = true;
+                    this.loadRecordedDates();
                     this.showToast(true, 'Attendance saved successfully!');
-                } else {
-                    this.showToast(false, 'Error: ' + data.message);
                 }
             })
             .finally(() => { this.loadingAttendance = false; });
@@ -188,12 +248,20 @@
             setTimeout(() => { this.saveStatus.show = false; }, 4000);
         },
 
-        initAttendance() {
+        async initAttendance() {
+            // Seed immediately from the server-rendered list so dots show up
+            // on first paint, without waiting for the fetch below.
+            window.globalRecordedDates = @js($recordedDates ?? []);
+
             this.loadAttendanceData();
+            this.initDatePicker();
+
+            // Then refresh in the background to stay accurate/up to date.
+            await this.loadRecordedDates();
         }
     }",
 
-    x-init="initAttendance()">
+    x-init="if (currentTab === 'attendance') { initAttendance(); }">
 
     <template x-if="landscapePrint">
         <style>@media print { @page { size: A4 landscape; margin: 10mm 12mm; } }</style>
@@ -413,88 +481,19 @@
                                 </template>
                             </div>
 
-                            <div id="printable-attendance-area" class="printable-only">
-                                <div class="print-letterhead">
-                                    <div class="print-letterhead-crest">AU</div>
-                                    <div class="print-letterhead-text">
-                                        <h2 class="school-name">Arellano University</h2>
-                                        <p class="report-subtitle">Official Class Attendance Report</p>
-                                    </div>
-                                </div>
-
-                                <table class="meta-info-table">
-                                    <tr>
-                                        <td><span class="meta-label">Subject</span>{{ strtoupper($classDetails->subject_code) }} — {{ $classDetails->subject_title }}</td>
-                                        <td><span class="meta-label">Section</span>{{ strtoupper($classDetails->section_name) }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><span class="meta-label">Professor</span>{{ strtoupper(($classDetails->prof_last ?? '') . ', ' . ($classDetails->prof_first ?? '')) }}</td>
-                                        <td><span class="meta-label">Room</span>{{ strtoupper($classDetails->room_assignment) }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="print-date-highlight">
-                                            <span class="meta-label">Attendance Record Date</span>
-                                            <span x-text="new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })"></span>
-                                        </td>
-                                        <td><span class="meta-label">Schedule</span>{{ $classDetails->class_days }}, {{ date('h:i A', strtotime($classDetails->start_time)) }} - {{ date('h:i A', strtotime($classDetails->end_time)) }}</td>
-                                    </tr>
-                                </table>
-
-                                <div class="print-summary-bar">
-                                    <span class="print-summary-chip chip-present">Present: <span x-text="Object.values(attendanceState).filter(s => s === 'Present').length"></span></span>
-                                    <span class="print-summary-chip chip-late">Late: <span x-text="Object.values(attendanceState).filter(s => s === 'Late').length"></span></span>
-                                    <span class="print-summary-chip chip-absent">Absent: <span x-text="Object.values(attendanceState).filter(s => s === 'Absent').length"></span></span>
-                                </div>
-
-                                <table class="print-data-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 6%;">#</th>
-                                            <th style="width: 18%;">Student ID</th>
-                                            <th style="width: 38%;">Full Name</th>
-                                            <th style="width: 18%;">Status</th>
-                                            <th style="width: 20%;">Internal Remarks</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($students as $index => $student)
-                                            <tr>
-                                                <td class="text-center">{{ $index + 1 }}</td>
-                                                <td>{{ $student->student_id }}</td>
-                                                <td class="text-uppercase fw-bold">{{ $student->last_name }}, {{ $student->first_name }}</td>
-                                                <td class="text-center">
-                                                    <span x-text="attendanceState['{{ $student->student_id }}'] || 'N/A'"></span>
-                                                </td>
-                                                <td class="text-center">
-                                                    <span x-text="remarksState['{{ $student->student_id }}'] && remarksState['{{ $student->student_id }}'].trim() !== '' ? remarksState['{{ $student->student_id }}'] : '—'"></span>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-
-                                <div class="print-footer">
-                                    <div class="print-footer-count">Total Students: {{ count($students) }}</div>
-                                    <div class="print-signature-block">
-                                        <div class="print-signature-line">Prepared by</div>
-                                    </div>
-                                    <div class="print-footer-timestamp">Generated on {{ now()->setTimezone('Asia/Manila')->format('F d, Y \a\t h:i A') }}</div>
-                                </div>
-                            </div>
-
                             <hr class="control-panel-dividerMy my-3">
 
                             <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-3">
-                                <div class="modern-date-input-box">
-                                    <span class="modern-date-label">LOG DATE:</span>
-                                    <div class="input-date-inner">
-                                        <i class="fa-regular fa-calendar-check text-muted"></i>
-                                        <input type="date"
-                                            name="attendance_date"
-                                            x-model="selectedDate"
-                                            @change="loadAttendanceData()"
-                                            class="modern-date-picker"
-                                            max="{{ now()->setTimezone('Asia/Manila')->format('Y-m-d') }}">
+                                <div>
+                                    <div class="modern-date-input-box" @click="if (datePickerInstance) datePickerInstance.open();" style="cursor: pointer;">
+                                        <span class="modern-date-label">LOG DATE:</span>
+                                        <div class="input-date-inner">
+                                            <i class="fa-regular fa-calendar-check text-muted"></i>
+                                            <input type="text"
+                                                name="attendance_date"
+                                                x-ref="attendanceDateInput"
+                                                class="modern-date-picker">
+                                        </div>
                                     </div>
                                 </div>
 
@@ -506,6 +505,75 @@
                                         <i class="fa-solid fa-square-xmark"></i> Mark All Absent
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div id="printable-attendance-area" class="printable-only">
+                            <div class="print-letterhead">
+                                <div class="print-letterhead-crest">AU</div>
+                                <div class="print-letterhead-text">
+                                    <h2 class="school-name">Arellano University</h2>
+                                    <p class="report-subtitle">Official Class Attendance Report</p>
+                                </div>
+                            </div>
+
+                            <table class="meta-info-table">
+                                <tr>
+                                    <td><span class="meta-label">Subject</span>{{ strtoupper($classDetails->subject_code) }} — {{ $classDetails->subject_title }}</td>
+                                    <td><span class="meta-label">Section</span>{{ strtoupper($classDetails->section_name) }}</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="meta-label">Professor</span>{{ strtoupper(($classDetails->prof_last ?? '') . ', ' . ($classDetails->prof_first ?? '')) }}</td>
+                                    <td><span class="meta-label">Room</span>{{ strtoupper($classDetails->room_assignment) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="print-date-highlight">
+                                        <span class="meta-label">Attendance Record Date</span>
+                                        <span x-text="new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })"></span>
+                                    </td>
+                                    <td><span class="meta-label">Schedule</span>{{ $classDetails->class_days }}, {{ date('h:i A', strtotime($classDetails->start_time)) }} - {{ date('h:i A', strtotime($classDetails->end_time)) }}</td>
+                                </tr>
+                            </table>
+
+                            <div class="print-summary-bar">
+                                <span class="print-summary-chip chip-present">Present: <span x-text="Object.values(attendanceState).filter(s => s === 'Present').length"></span></span>
+                                <span class="print-summary-chip chip-late">Late: <span x-text="Object.values(attendanceState).filter(s => s === 'Late').length"></span></span>
+                                <span class="print-summary-chip chip-absent">Absent: <span x-text="Object.values(attendanceState).filter(s => s === 'Absent').length"></span></span>
+                            </div>
+
+                            <table class="print-data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 6%;">#</th>
+                                        <th style="width: 18%;">Student ID</th>
+                                        <th style="width: 38%;">Full Name</th>
+                                        <th style="width: 18%;">Status</th>
+                                        <th style="width: 20%;">Internal Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($students as $index => $student)
+                                        <tr>
+                                            <td class="text-center">{{ $index + 1 }}</td>
+                                            <td>{{ $student->student_id }}</td>
+                                            <td class="text-uppercase fw-bold">{{ $student->last_name }}, {{ $student->first_name }}</td>
+                                            <td class="text-center">
+                                                <span x-text="attendanceState['{{ $student->student_id }}'] || 'N/A'"></span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span x-text="remarksState['{{ $student->student_id }}'] && remarksState['{{ $student->student_id }}'].trim() !== '' ? remarksState['{{ $student->student_id }}'] : '—'"></span>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+
+                            <div class="print-footer">
+                                <div class="print-footer-count">Total Students: {{ count($students) }}</div>
+                                <div class="print-signature-block">
+                                    <div class="print-signature-line">Prepared by</div>
+                                </div>
+                                <div class="print-footer-timestamp">Generated on {{ now()->setTimezone('Asia/Manila')->format('F d, Y \a\t h:i A') }}</div>
                             </div>
                         </div>
 
@@ -1739,6 +1807,79 @@
     .input-date-inner { display: flex; align-items: center; gap: 6px; }
     .modern-date-picker { border: none; background: transparent; font-weight: 700; color: #1e2a5a; font-size: 13.5px; outline: none; cursor: pointer; padding: 0; }
     .btn-modern-bulk { border: none; outline: none; font-size: 12px; font-weight: 700; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease; }
+
+    .date-picker-legend { font-size: 10.5px; color: #94a3b8; margin: 6px 0 0 2px; display: flex; align-items: center; gap: 5px; }
+    .legend-dot { width: 6px; height: 6px; border-radius: 50%; background: #1e2a5a; display: inline-block; }
+
+    /* Flatpickr day cells indicator dot styling */
+    .flatpickr-day {
+        overflow: visible !important;
+        position: relative !important;
+        color: #334155 !important;
+        font-weight: 600 !important;
+    }
+    .flatpickr-day.has-attendance-dot { 
+        background-color: #dcfce7 !important;
+        color: #15803d !important;
+        font-weight: 800 !important;
+    }
+
+    .flatpickr-day.has-attendance-dot::after {
+        content: '' !important;
+        position: absolute !important;
+        bottom: 2px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: 5px !important;
+        height: 5px !important;
+        border-radius: 50% !important;
+        background-color: #16a34a !important; 
+        display: block !important;
+        z-index: 10 !important;
+    }
+    .flatpickr-day.has-attendance-dot.selected::after,
+    .flatpickr-day.has-attendance-dot.today::after {
+        background-color: #facc15 !important; 
+    }
+    .flatpickr-day.selected, .flatpickr-day.selected:hover {
+        background: #1e2a5a;
+        border-color: #1e2a5a;
+    }
+    .flatpickr-day.today {
+        border: 2px solid #eab308 !important;
+        background-color: #fef9c3 !important;
+        color: #854d0e !important;
+        font-weight: 800 !important;
+    }
+
+    .flatpickr-day.today:hover {
+        background-color: #fde68a !important;
+    }
+
+    /* Kapag "today" din pala yung selected date, prioritize yung selected style (blue bg, white text) */
+    .flatpickr-day.selected, 
+    .flatpickr-day.selected:hover,
+    .flatpickr-day.selected:focus {
+        background: #1e2a5a !important;
+        border-color: #1e2a5a !important;
+        color: #ffffff !important;
+        font-weight: 800 !important;
+        box-shadow: 0 2px 6px rgba(30, 42, 90, 0.35) !important;
+    }
+
+    .flatpickr-day.selected.has-attendance-dot::after,
+    .flatpickr-day.selected.today::after {
+        background-color: #facc15 !important; /* Bright Yellow Dot para kitang-kita sa dark blue */
+    }
+
+    /* Header at Weekdays Styling */
+    .flatpickr-months .flatpickr-month,
+    .flatpickr-current-month .flatpickr-monthDropdown-months,
+    span.flatpickr-weekday {
+        color: #1e2a5a !important;
+        fill: #1e2a5a !important;
+        font-weight: 700 !important;
+    }    
     .status-bulk-present { background-color: #e6f7ed; color: #1e7e34; border: 1px solid #c3e6cb; }
     .status-bulk-absent { background-color: #fde8e8; color: #bd2130; border: 1px solid #f5c6cb; }
     .attendance-remarks-field { font-size: 12.5px !important; padding: 6px 12px !important; border: 1px solid #cbd5e1 !important; border-radius: 6px !important; background-color: white !important; width: 100%; max-width: 200px; margin: 0 auto; display: block; }
