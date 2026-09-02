@@ -522,6 +522,8 @@ class StudentController extends Controller
             'registration_date' => 'required|date',
             'student_type' => 'required|string',
             'course' => 'required|string',
+            'year_level' => 'required|string',
+            'semester' => 'required|string',
             'last_name' => 'required|string',
             'first_name' => 'required|string',
             'contact_no' => 'required|string',
@@ -589,6 +591,9 @@ class StudentController extends Controller
         $student->student_type = $request->student_type;
         $student->course = $request->course;
 
+        $student->year_level = $request->year_level;
+        $student->semester = $request->semester;
+
         $student->last_name = strtoupper($request->last_name);
         $student->first_name = strtoupper($request->first_name);
         $student->middle_name = $request->middle_name ? strtoupper($request->middle_name) : null;
@@ -608,37 +613,28 @@ class StudentController extends Controller
         $student->mothers_name = $request->mothers_name;
         $student->mothers_occupation = $request->mothers_occupation;
 
-        $student->primary_school_name = $request->primary_school_name
-            ? implode('; ', array_filter($request->primary_school_name))
-            : null;
-        $student->primary_school_address = $request->primary_school_address
-            ? implode('; ', array_filter($request->primary_school_address))
-            : null;
-        $student->primary_school_year = $request->primary_school_year
-            ? implode('; ', array_filter($request->primary_school_year))
-            : null;
+        $student->elementary_school_name = $request->elementary_school_name;
+        $student->elementary_school_address = $request->elementary_school_address;
+        $student->elementary_school_year = $request->elementary_school_year;
 
-        $student->secondary_school_name = $request->secondary_school_name;
-        $student->secondary_school_address = $request->secondary_school_address;
-        $student->secondary_school_year = $request->secondary_school_year;
+        $student->junior_hs_school_name = $request->junior_hs_school_name;
+        $student->junior_hs_school_address = $request->junior_hs_school_address;
+        $student->junior_hs_school_year = $request->junior_hs_school_year;
+
+        $student->senior_hs_school_name = $request->senior_hs_school_name;
+        $student->senior_hs_school_address = $request->senior_hs_school_address;
+        $student->senior_hs_school_year = $request->senior_hs_school_year;
+
+        $student->vocational_school_name = $request->vocational_school_name;
+        $student->vocational_school_address = $request->vocational_school_address;
+        $student->vocational_school_year = $request->vocational_school_year;
 
         $student->college_school_name = $request->college_school_name;
         $student->college_school_address = $request->college_school_address;
         $student->college_school_year = $request->college_school_year;
 
-        $student->year_level = ($request->student_type === 'Transferee') ? '1st Year' : '1st Year';
-        $student->semester = '1st Semester';
-
-        $student->path_psa = $filePaths['doc_psa'] ?? null;
-        $student->path_2x2 = $filePaths['doc_2x2'] ?? null;
-        $student->path_f138 = $filePaths['doc_f138'] ?? null;
-        $student->path_good_moral_new = $filePaths['doc_good_moral_new'] ?? null;
-        $student->path_diploma = $filePaths['doc_diploma'] ?? null;
-        $student->path_tor = $filePaths['doc_tor'] ?? null;
-        $student->path_dismissal = $filePaths['doc_dismissal'] ?? null;
-        $student->path_good_moral_trans = $filePaths['doc_good_moral_trans'] ?? null;
-        $student->path_permit = $filePaths['doc_permit'] ?? null;
         $student->credentials = array_values($filePaths);
+
         $defaultPassword = 'Welcome@AU2026';
         $student->password = Hash::make($defaultPassword);
 
@@ -846,26 +842,21 @@ class StudentController extends Controller
             'profile_picture' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
-        // Kunin ang Student Number mula sa session (halimbawa: '26-00063')
         $studentNumber = session('student_id');
 
         if ($request->hasFile('profile_picture')) {
-            // Filter gamit ang 'student_id' column
             $student = DB::table('students')->where('student_id', $studentNumber)->first();
 
             if (!$student) {
                 return redirect()->back()->withErrors(['profile_picture' => 'Student record not found.']);
             }
 
-            // 1. Burahin ang lumang larawan kung mayroon
             if (!empty($student->profile_picture) && Storage::disk('public')->exists($student->profile_picture)) {
                 Storage::disk('public')->delete($student->profile_picture);
             }
 
-            // 2. I-save ang bagong larawan sa storage/app/public/profile_pictures
             $path = $request->file('profile_picture')->store('profile_pictures', 'public');
 
-            // 3. I-update ang RECORD NI AMBER SANTIAGO sa database (gagamitin ang student_id)
             DB::table('students')->where('student_id', $studentNumber)->update([
                 'profile_picture' => $path
             ]);

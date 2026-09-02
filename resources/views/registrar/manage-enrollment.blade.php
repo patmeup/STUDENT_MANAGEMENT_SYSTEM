@@ -11,22 +11,14 @@
     </div>
 
     @if(session('success'))
-        <div class="alert alert-success d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 shadow-sm border-start border-success border-4" role="alert">
-            <div class="d-flex align-items-center gap-3">
-                <i class="bi bi-check-circle-fill fs-2 text-success"></i>
-                <div>
-                    <span class="text-uppercase fw-bold text-success d-block small tracking-wide">
-                        Enrollment Successful
-                    </span>
-                    <div class="fs-5 text-dark mt-1">
-                        Assigned Student ID: 
-                        <span class="badge bg-success fs-6 px-3 py-2 ms-1 font-monospace shadow-sm">
-                            {{ session('student_id') }}
-                        </span>
-                    </div>
+        <div class="sis-alert sis-alert-success">
+            <i class="fas fa-check-circle sis-alert-icon"></i>
+            <div>
+                <div class="sis-alert-title">ENROLLMENT SUCCESSFUL</div>
+                <div class="sis-alert-body" style="margin-top: 4px;">
+                    Assigned Student ID: <strong>{{ session('student_id') }}</strong>
                 </div>
             </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
 
@@ -40,6 +32,32 @@
             <div id="validation-error-field" class="missing-field-container"></div>
         </div>
     </div>
+
+    @if(session('error'))
+        <div class="sis-alert sis-alert-error">
+            <i class="fas fa-exclamation-circle sis-alert-icon"></i>
+            <div>
+                <div class="sis-alert-title">REGISTRATION ERROR</div>
+                <div class="sis-alert-body">{{ session('error') }}</div>
+            </div>
+        </div>
+    @endif
+
+    @if ($errors->any())
+        <div class="sis-alert sis-alert-error">
+            <i class="fas fa-exclamation-circle sis-alert-icon"></i>
+            <div>
+                <div class="sis-alert-title">VALIDATION FAILED (SERVER)</div>
+                <div class="sis-alert-body">
+                    <ul style="margin-top: 5px; margin-left: 18px; padding-left: 0;">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <div class="sis-tabs-nav">
         <button class="tab-btn active" onclick="switchSisTab(event, 'tab-admission')">1. Admission & Personal Info</button>
@@ -55,8 +73,8 @@
         <form action="{{ route('registrar.enroll.store') }}" method="POST" autocomplete="off" class="pure-form" novalidate>
             @csrf
 
-            <div id="tab-admission" class="sis-tab-content active">                
-                
+            <div id="tab-admission" class="sis-tab-content active">
+
                 <div class="form-grid-3">
                     <div class="form-group">
                         <label>Registration Date</label>
@@ -160,7 +178,7 @@
                             required>
                     </div>
                 </div>
-                
+
                 <div class="form-grid-3" style="margin-top: 15px;">
                     <div class="form-group">
                         <label>Place of Birth</label>
@@ -206,7 +224,7 @@
 
             <div id="tab-education" class="sis-tab-content">
                 <h3 class="section-divider">Educational History</h3>
-                
+
                 <div class="school-section-header">
                     <div class="section-header-title">Elementary School</div>
                     <button type="button" class="btn-add-school" onclick="addElementarySchool()">
@@ -216,9 +234,9 @@
                 <div id="elementary-schools-container">
                     <div class="school-row elementary-school-row">
                         <div class="school-inputs">
-                            <input type="text" name="elem_school_name[]" placeholder="School Name" required>
-                            <input type="text" name="elem_school_address[]" placeholder="School Address" required>
-                            <input type="text" name="elem_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');" required>
+                            <input type="text" name="elementary_school_name[]" placeholder="School Name" required>
+                            <input type="text" name="elementary_school_address[]" placeholder="School Address" required>
+                            <input type="text" name="elementary_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="formatSchoolYear(this)" required>
                         </div>
                         <button type="button" class="btn-remove-school" onclick="removeRow(this, 'elementary-school-row')" style="display: none;"><i class="fas fa-times"></i> Remove</button>
                     </div>
@@ -233,9 +251,9 @@
                 <div id="junior-hs-container">
                     <div class="school-row junior-hs-row">
                         <div class="school-inputs">
-                            <input type="text" name="jhs_school_name[]" placeholder="School Name" required>
-                            <input type="text" name="jhs_school_address[]" placeholder="School Address" required>
-                            <input type="text" name="jhs_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');" required>
+                            <input type="text" name="junior_hs_school_name[]" placeholder="School Name" required>
+                            <input type="text" name="junior_hs_school_address[]" placeholder="School Address" required>
+                            <input type="text" name="junior_hs_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="formatSchoolYear(this)" required>
                         </div>
                         <button type="button" class="btn-remove-school" onclick="removeRow(this, 'junior-hs-row')" style="display: none;"><i class="fas fa-times"></i> Remove</button>
                     </div>
@@ -250,9 +268,9 @@
                 <div id="senior-hs-container">
                     <div class="school-row senior-hs-row">
                         <div class="school-inputs">
-                            <input type="text" name="shs_school_name[]" placeholder="School Name" required>
-                            <input type="text" name="shs_school_address[]" placeholder="School Address" required>
-                            <input type="text" name="shs_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');" required>
+                            <input type="text" name="senior_hs_school_name[]" placeholder="School Name" required>
+                            <input type="text" name="senior_hs_school_address[]" placeholder="School Address" required>
+                            <input type="text" name="senior_hs_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="formatSchoolYear(this)" required>
                         </div>
                         <button type="button" class="btn-remove-school" onclick="removeRow(this, 'senior-hs-row')" style="display: none;"><i class="fas fa-times"></i> Remove</button>
                     </div>
@@ -276,7 +294,7 @@
                         <div class="school-inputs">
                             <input type="text" name="college_school_name" placeholder="Previous Institution">
                             <input type="text" name="college_school_address" placeholder="Campus Location Address">
-                            <input type="text" name="college_school_year" placeholder="Year Attended" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');">
+                            <input type="text" name="college_school_year" placeholder="Year Attended" maxlength="9" oninput="formatSchoolYear(this)">
                         </div>
                     </div>
                 </div>
@@ -404,19 +422,19 @@
         var dropdown = document.getElementById("student_type");
         var selectedType = dropdown.value;
         var selectedText = dropdown.options[dropdown.selectedIndex].text;
-        
+
         document.getElementById("selected-type-label").innerText = selectedText;
 
         var rows = document.querySelectorAll(".credential-item-row");
         rows.forEach(row => {
             var allowedTypes = row.getAttribute("data-types").split(",");
             var chkInput = row.querySelector('.credential-checkbox');
-            
+
             if (allowedTypes.includes(selectedType)) {
-                row.style.display = "flex"; 
+                row.style.display = "flex";
                 if (chkInput) chkInput.required = true;
             } else {
-                row.style.display = "none";  
+                row.style.display = "none";
                 if (chkInput) {
                     chkInput.checked = false;
                     chkInput.required = false;
@@ -426,7 +444,7 @@
 
         var transfereeSection = document.getElementById('transferee-section');
         var collegeInputs = transfereeSection.querySelectorAll('input');
-        
+
         if (selectedType === 'Transferee') {
             transfereeSection.style.display = "block";
             collegeInputs.forEach(input => {
@@ -448,9 +466,9 @@
         let div = document.createElement('div');
         div.className = 'school-row elementary-school-row';
         div.innerHTML = `<div class="school-inputs">
-            <input type="text" name="elem_school_name[]" placeholder="School Name" required>
-            <input type="text" name="elem_school_address[]" placeholder="School Address" required>
-            <input type="text" name="elem_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');" required>
+            <input type="text" name="elementary_school_name[]" placeholder="School Name" required>
+            <input type="text" name="elementary_school_address[]" placeholder="School Address" required>
+            <input type="text" name="elementary_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="formatSchoolYear(this)" required>
         </div><button type="button" class="btn-remove-school" onclick="removeRow(this, 'elementary-school-row')"><i class="fas fa-times"></i> Remove</button>`;
         container.appendChild(div);
         updateRemoveButtons('elementary-school-row');
@@ -461,9 +479,9 @@
         let div = document.createElement('div');
         div.className = 'school-row junior-hs-row';
         div.innerHTML = `<div class="school-inputs">
-            <input type="text" name="jhs_school_name[]" placeholder="School Name" required>
-            <input type="text" name="jhs_school_address[]" placeholder="School Address" required>
-            <input type="text" name="jhs_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');" required>
+            <input type="text" name="junior_hs_school_name[]" placeholder="School Name" required>
+            <input type="text" name="junior_hs_school_address[]" placeholder="School Address" required>
+            <input type="text" name="junior_hs_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="formatSchoolYear(this)" required>
         </div><button type="button" class="btn-remove-school" onclick="removeRow(this, 'junior-hs-row')"><i class="fas fa-times"></i> Remove</button>`;
         container.appendChild(div);
         updateRemoveButtons('junior-hs-row');
@@ -474,9 +492,9 @@
         let div = document.createElement('div');
         div.className = 'school-row senior-hs-row';
         div.innerHTML = `<div class="school-inputs">
-            <input type="text" name="shs_school_name[]" placeholder="School Name" required>
-            <input type="text" name="shs_school_address[]" placeholder="School Address" required>
-            <input type="text" name="shs_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');" required>
+            <input type="text" name="senior_hs_school_name[]" placeholder="School Name" required>
+            <input type="text" name="senior_hs_school_address[]" placeholder="School Address" required>
+            <input type="text" name="senior_hs_school_year[]" placeholder="Year Graduated (YYYY-YYYY)" maxlength="9" oninput="formatSchoolYear(this)" required>
         </div><button type="button" class="btn-remove-school" onclick="removeRow(this, 'senior-hs-row')"><i class="fas fa-times"></i> Remove</button>`;
         container.appendChild(div);
         updateRemoveButtons('senior-hs-row');
@@ -489,10 +507,20 @@
         div.innerHTML = `<div class="school-inputs">
             <input type="text" name="vocational_school_name[]" placeholder="Vocational / Trade School Name">
             <input type="text" name="vocational_school_address[]" placeholder="School Address">
-            <input type="text" name="vocational_school_year[]" placeholder="Year Attended" maxlength="9" oninput="this.value = this.value.replace(/[^0-9-]/g, '');">
+            <input type="text" name="vocational_school_year[]" placeholder="Year Attended" maxlength="9" oninput="formatSchoolYear(this)">
         </div><button type="button" class="btn-remove-school" onclick="removeRow(this, 'vocational-row')"><i class="fas fa-times"></i> Remove</button>`;
         container.appendChild(div);
         updateRemoveButtons('vocational-row');
+    }
+
+    function formatSchoolYear(input) {
+        let value = input.value.replace(/\D/g, '');
+
+        if (value.length > 4) {
+            value = value.substring(0, 4) + '-' + value.substring(4, 8);
+        }
+
+        input.value = value;
     }
 
     function removeRow(btn, rowClass) {
@@ -532,7 +560,7 @@
             var firstInvalidField = null;
             var errorBox = document.getElementById('enrollment-validation-error');
             var errorFieldContainer = document.getElementById('validation-error-field');
-            
+
             errorBox.style.display = 'none';
             errorFieldContainer.innerHTML = '';
 
@@ -565,7 +593,7 @@
                     var itemRow = firstInvalidField.closest('.credential-item-row');
                     var textSpan = itemRow ? itemRow.querySelector('.credential-text') : null;
                     fieldLabel = textSpan ? textSpan.innerText.trim() : 'Credential Checkbox';
-                    
+
                     errorFieldContainer.innerHTML = `
                         <div class="missing-field-badge-row">
                             <span>Unchecked Requirement:</span>
@@ -904,7 +932,7 @@
         align-items: center;
         gap: 6px;
     }
-    
+
     .btn-remove-school {
         background-color: #ef4444;
         color: white;
@@ -991,7 +1019,7 @@
         border-color: #cbd5e1;
         background-color: #f8fafc;
     }
-    
+
     .credential-checkbox-label {
         display: flex;
         align-items: center;
