@@ -6,44 +6,40 @@
     <div class="sa-header">
         <div class="header-titles">
             <h2>Class Schedules</h2>
-            <p>College Dean Panel — Academic Oversight & Monitoring Center</p>
+            <p>View and monitor department class schedules and faculty assignments.</p>
         </div>
-        <div class="header-badge" style="background-color: #6366f1; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;">Dean Mode</div>
     </div>
 
     <div class="sa-workspace">
 
         <div class="sa-card table-panel">
-            <div class="card-header-flex" style="display: flex; flex-direction: column; gap: 12px; align-items: stretch;">
+            <div class="card-header-flex" style="display: flex; flex-direction: column; gap: 14px; align-items: stretch;">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <h3 class="card-title-list"><i class="fas fa-list-alt" style="margin-right: 6px; color: #6366f1;"></i> Class Schedule List</h3>
+                    <h3 class="card-title-list">Class Schedule List</h3>
                     <span class="badge-count" id="visibleClassesCount">{{ isset($schedules) ? $schedules->count() : 0 }} Active Classes</span>
                 </div>
-                
-                <div style="display: flex; gap: 12px; flex-wrap: wrap; width: 100%;">
-                    <div style="position: relative; flex: 2; min-width: 250px;">
-                        <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px;"></i>
+
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; width: 100%;">
+                    <div style="flex: 2; min-width: 280px;">
                         <input type="text" id="scheduleSearchInput" placeholder="Search by Subject Code, Title, Section, Room, or Professor..." 
-                            style="width: 100%; padding: 10px 10px 10px 40px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; outline: none; box-sizing: border-box;">
+                            class="custom-search-input">
                     </div>
 
-                    <div style="flex: 1; min-width: 130px;">
-                        <select id="filterYearLevel" class="select-input" style="padding: 9px 12px; font-size: 13px;">
-                            <option value="">-- All Years --</option>
-                            <option value="1st Year">1st Year</option>
-                            <option value="2nd Year">2nd Year</option>
-                            <option value="3rd Year">3rd Year</option>
-                            <option value="4th Year">4th Year</option>
-                        </select>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                        <span style="font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-right: 2px;">Year:</span>
+                        <button type="button" class="filter-pill active" data-filter-type="year" data-filter-value="">All</button>
+                        <button type="button" class="filter-pill" data-filter-type="year" data-filter-value="1st Year">1st</button>
+                        <button type="button" class="filter-pill" data-filter-type="year" data-filter-value="2nd Year">2nd</button>
+                        <button type="button" class="filter-pill" data-filter-type="year" data-filter-value="3rd Year">3rd</button>
+                        <button type="button" class="filter-pill" data-filter-type="year" data-filter-value="4th Year">4th</button>
                     </div>
 
-                    <div style="flex: 1; min-width: 140px;">
-                        <select id="filterSemester" class="select-input" style="padding: 9px 12px; font-size: 13px;">
-                            <option value="">-- All Semesters --</option>
-                            <option value="1st Semester">1st Semester</option>
-                            <option value="2nd Semester">2nd Semester</option>
-                            <option value="Summer" id="summerOption" style="display: none;">Summer</option>
-                        </select>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                        <span style="font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-right: 2px;">Sem:</span>
+                        <button type="button" class="filter-pill active" data-filter-type="sem" data-filter-value="">All</button>
+                        <button type="button" class="filter-pill" data-filter-type="sem" data-filter-value="1st Semester">1st</button>
+                        <button type="button" class="filter-pill" data-filter-type="sem" data-filter-value="2nd Semester">2nd</button>
+                        <button type="button" class="filter-pill" id="summerPillButton" data-filter-type="sem" data-filter-value="Summer" style="display: none;">Summer</button>
                     </div>
                 </div>
             </div>
@@ -102,6 +98,11 @@
                                     </td>
                                 </tr>
                             @endforeach
+                            <tr id="noMatchRow" style="display: none;">
+                                <td colspan="5" class="empty-table-state">
+                                    No class schedules match your search or filter criteria.
+                                </td>
+                            </tr>
                         @else
                             <tr>
                                 <td colspan="5" class="empty-table-state">
@@ -119,44 +120,45 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        
-        // --- Dynamic Summer Option & Multi-Criteria Search Filter Engine ---
         const searchInput = document.getElementById('scheduleSearchInput');
-        const filterYearLevel = document.getElementById('filterYearLevel');
-        const filterSemester = document.getElementById('filterSemester');
-        const summerOption = document.getElementById('summerOption');
-        const tableRows = document.querySelectorAll('#scheduleTable tbody tr');
+        const filterPills = document.querySelectorAll('.filter-pill');
+        const summerPillButton = document.getElementById('summerPillButton');
+        const tableRows = document.querySelectorAll('.schedule-row-item');
+        const noMatchRow = document.getElementById('noMatchRow');
         const visibleClassesCount = document.getElementById('visibleClassesCount');
+        const initialTotal = tableRows.length;
 
-        function toggleSummerOption() {
-            if (!filterYearLevel || !summerOption || !filterSemester) return;
+        let activeYear = '';
+        let activeSem = '';
 
-            if (filterYearLevel.value === '3rd Year') {
-                summerOption.style.display = '';
+        function updateSummerButtonVisibility() {
+            if (!summerPillButton) return;
+            if (activeYear === '3rd Year') {
+                summerPillButton.style.display = '';
             } else {
-                summerOption.style.display = 'none';
-                if (filterSemester.value === 'Summer') {
-                    filterSemester.value = '';
+                summerPillButton.style.display = 'none';
+                if (activeSem === 'Summer') {
+                    activeSem = '';
+                    document.querySelectorAll('[data-filter-type="sem"]').forEach(p => {
+                        p.classList.remove('active');
+                        if (p.getAttribute('data-filter-value') === '') p.classList.add('active');
+                    });
                 }
             }
         }
 
-        function filterScheduleMatrixTable() {
+        function filterTable() {
             const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
-            const selectedYear = filterYearLevel ? filterYearLevel.value : '';
-            const selectedSem = filterSemester ? filterSemester.value : '';
             let visibleCount = 0;
 
             tableRows.forEach(row => {
-                if (row.querySelector('.empty-table-state')) return;
-
                 const rowText = row.innerText.toLowerCase();
                 const rowYear = row.getAttribute('data-year') || '';
                 const rowSem = row.getAttribute('data-sem') || '';
 
                 const matchesSearch = rowText.includes(searchTerm);
-                const matchesYear = selectedYear === '' || rowYear === selectedYear;
-                const matchesSem = selectedSem === '' || rowSem === selectedSem;
+                const matchesYear = activeYear === '' || rowYear === activeYear;
+                const matchesSem = activeSem === '' || rowSem === activeSem;
 
                 if (matchesSearch && matchesYear && matchesSem) {
                     row.style.display = '';
@@ -169,48 +171,73 @@
             if (visibleClassesCount) {
                 visibleClassesCount.textContent = `${visibleCount} Active Classes`;
             }
+
+            if (noMatchRow) {
+                if (visibleCount === 0 && initialTotal > 0) {
+                    noMatchRow.style.display = '';
+                } else {
+                    noMatchRow.style.display = 'none';
+                }
+            }
         }
 
-        if (filterYearLevel) {
-            filterYearLevel.addEventListener('change', function () {
-                toggleSummerOption();
-                filterScheduleMatrixTable();
+        filterPills.forEach(pill => {
+            pill.addEventListener('click', function () {
+                const type = this.getAttribute('data-filter-type');
+                const value = this.getAttribute('data-filter-value');
+
+                document.querySelectorAll(`.filter-pill[data-filter-type="${type}"]`).forEach(p => {
+                    p.classList.remove('active');
+                });
+                this.classList.add('active');
+
+                if (type === 'year') {
+                    activeYear = value;
+                    updateSummerButtonVisibility();
+                } else if (type === 'sem') {
+                    activeSem = value;
+                }
+
+                filterTable();
             });
+        });
+
+        if (searchInput) {
+            searchInput.addEventListener('input', filterTable);
         }
 
-        if (searchInput) searchInput.addEventListener('input', filterScheduleMatrixTable);
-        if (filterSemester) filterSemester.addEventListener('change', filterScheduleMatrixTable);
-
-        // Run initial setup on page load
-        toggleSummerOption();
-        filterScheduleMatrixTable();
+        updateSummerButtonVisibility();
+        filterTable();
     });
 </script>
 
 <style>
-    .sa-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #0f172a; max-width: 1400px; margin: 0 auto; padding: 20px; }
-    .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; }
-    .header-titles h2 { margin: 0 0 4px 0; font-size: 28px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
-    .header-titles p { margin: 0; font-size: 14.5px; color: #64748b; }
+    .sa-container { font-family: 'Segoe UI', sans-serif; padding: 20px; max-width: 1300px; margin: 0 auto; }
+    .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; }
+    .header-titles h2 { margin: 0 0 4px 0; font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+    .header-titles p { margin: 0; font-size: 14px; color: #64748b; }
     .sa-workspace { display: flex; flex-direction: row; width: 100%; }
     .table-panel { flex: 1; width: 100%; background: #ffffff; }
-    .sa-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.03); overflow: hidden; }
-    .card-header-flex { background-color: #f8fafc; padding: 16px 22px; border-bottom: 1px solid #e2e8f0; }
+    .sa-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); overflow: hidden; }
+    .card-header-flex { background-color: #f8fafc; padding: 16px 24px; border-bottom: 1px solid #e2e8f0; }
     .card-title-list { font-size: 14.5px; font-weight: 700; color: #1e293b; margin: 0; }
-    .select-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 14px; color: #0f172a; outline: none; background: #ffffff; box-sizing: border-box; width: 100%; }
-    .select-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15); }
-    .select-input { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 12px center; background-repeat: no-repeat; background-size: 20px; -webkit-appearance: none; -moz-appearance: none; appearance: none; padding-right: 40px; cursor: pointer; }
+    
+    .custom-search-input { width: 100%; padding: 9px 12px; font-size: 13.5px; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; box-sizing: border-box; background: #fff; }
+    .custom-search-input:focus { border-color: #cbd5e1 !important; box-shadow: none !important; outline: none !important; }
+
+    .filter-pill { background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 5px 10px; font-size: 11.5px; font-weight: 600; border-radius: 20px; cursor: pointer; transition: all 0.15s ease; }
+    .filter-pill:hover { background: #e2e8f0; color: #0f172a; }
+    .filter-pill.active { background: #0f172a; color: #ffffff; border-color: #0f172a; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.2); }
+
     .table-responsive { width: 100%; overflow-x: auto; }
     .minimal-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px; }
-    .minimal-table th { background: #f8fafc; padding: 14px 20px; font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
-    .minimal-table td { padding: 15px 20px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
+    .minimal-table th { background: #f8fafc; padding: 12px 24px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
+    .minimal-table td { padding: 14px 24px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
     .minimal-table tbody tr:hover { background-color: #f8fafc; }
-    .subject-code-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; color: #4f46e5; background-color: #eef2ff; padding: 4px 8px; border-radius: 6px; font-size: 12px; display: inline-block; }
+    .subject-code-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; color: #2563eb; background-color: #eff6ff; padding: 4px 8px; border-radius: 6px; font-size: 12px; display: inline-block; border: 1px solid #dbeafe; }
     .sched-info-tag { font-size: 11.5px; font-weight: 600; color: #1e293b; background-color: #f1f5f9; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-right: 4px; border: 1px solid #e2e8f0; }
     .sched-info-tag i { color: #475569; margin-right: 3px; }
-    .prof-assigned-tag { font-size: 12.5px; font-weight: 600; color: #047857; background-color: #ecfdf5; border: 1px solid #a7f3d0; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; }
-    .prof-unassigned-tag { font-size: 12px; font-weight: 500; color: #64748b; background-color: #f1f5f9; padding: 4px 10px; border-radius: 6px; display: inline-block; font-style: italic; }
     .empty-table-state { text-align: center; color: #94a3b8; padding: 50px 0 !important; font-style: italic; font-size: 13.5px; }
-    .badge-count { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 4px 12px; border-radius: 20px; font-weight: 700; }
+    .badge-count { background: #0f172a; color: white; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
 </style>
 @endsection

@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Student;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -11,42 +12,47 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class NewStudentCredentials extends Mailable
+class NewUserCredentials extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public Student $student;
+    public $recipient;
     public string $defaultPassword;
+    public string $accountType;
 
     /**
      * Create a new message instance.
+     * 
+     * @param Student|User 
+     * @param string 
+     * @param string 
      */
-    public function __construct(Student $student, string $defaultPassword)
+    public function __construct($recipient, string $defaultPassword, string $accountType = 'student')
     {
-        $this->student = $student;
+        $this->recipient = $recipient;
         $this->defaultPassword = $defaultPassword;
+        $this->accountType = $accountType;
     }
 
-    /**
-     * Get the message envelope.
-     */
     public function envelope(): Envelope
     {
+        $subject = $this->accountType === 'employee' 
+            ? 'Welcome to Arellano University - Your Faculty/Employee Account Details' 
+            : 'Welcome to Arellano University - Your Student Account Details';
+
         return new Envelope(
-            subject: 'Welcome to Arellano University - Your Student Account Details',
+            subject: $subject,
         );
     }
 
-    /**
-     * Get the message content definition.
-     */
     public function content(): Content
     {
         return new Content(
             view: 'emails.new_student_credentials',
             with: [
-                'student' => $this->student,
+                'recipient' => $this->recipient,
                 'defaultPassword' => $this->defaultPassword,
+                'accountType' => $this->accountType,
             ],
         );
     }

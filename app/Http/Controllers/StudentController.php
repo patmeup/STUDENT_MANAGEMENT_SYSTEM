@@ -528,16 +528,6 @@ class StudentController extends Controller
             'first_name' => 'required|string',
             'contact_no' => 'required|string',
             'email' => 'required|email|unique:students,email',
-
-            'doc_psa' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_2x2' => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
-            'doc_f138' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_good_moral_new' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_diploma' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_tor' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_dismissal' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_good_moral_trans' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'doc_permit' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
         $currentYearShort = date('y');
@@ -558,32 +548,6 @@ class StudentController extends Controller
         }
 
         $generatedStudentNumber = $prefix . $nextSequence;
-
-        $filePaths = [];
-
-        $fileFields = [
-            'doc_psa' => 'psa_birth_certificate',
-            'doc_2x2' => '2x2_id_picture',
-            'doc_f138' => 'form_138_report_card',
-            'doc_good_moral_new' => 'good_moral_freshman',
-            'doc_diploma' => 'high_school_diploma',
-            'doc_tor' => 'transcript_of_records',
-            'doc_dismissal' => 'honorable_dismissal',
-            'doc_good_moral_trans' => 'good_moral_transferee',
-            'doc_permit' => 'cross_enroll_permit'
-        ];
-
-        foreach ($fileFields as $inputName => $cleanFileName) {
-            if ($request->hasFile($inputName)) {
-                $file = $request->file($inputName);
-                $extension = $file->getClientOriginalExtension();
-                $finalFileName = "{$cleanFileName}.{$extension}";
-
-                $file->storeAs("student_records/{$generatedStudentNumber}", $finalFileName, 'local');
-
-                $filePaths[$inputName] = $finalFileName;
-            }
-        }
 
         $student = new Student();
         $student->student_id = $generatedStudentNumber;
@@ -633,7 +597,18 @@ class StudentController extends Controller
         $student->college_school_address = $request->college_school_address;
         $student->college_school_year = $request->college_school_year;
 
-        $student->credentials = array_values($filePaths);
+        $student->credentials = [
+            'psa_birth_certificate'      => $request->has('check_psa'),
+            'id_picture_2x2'             => $request->has('check_2x2'),
+            'form_138'                   => $request->has('check_f138'),
+            'good_moral_new'             => $request->has('check_good_moral_new'),
+            'diploma'                    => $request->has('check_diploma'),
+            'transcript_of_records'      => $request->has('check_tor'),
+            'honorable_dismissal'        => $request->has('check_dismissal'),
+            'good_moral_transferee'      => $request->has('check_good_moral_trans'),
+            'old_curriculum'             => $request->has('check_curriculum'),
+            'cross_enroll_permit'        => $request->has('check_permit')
+        ];
 
         $defaultPassword = 'Welcome@AU2026';
         $student->password = Hash::make($defaultPassword);
@@ -641,12 +616,16 @@ class StudentController extends Controller
         $student->save();
 
         try {
-            \Illuminate\Support\Facades\Mail::to($student->email)->send(new \App\Mail\NewStudentCredentials($student, $defaultPassword));
+            \Illuminate\Support\Facades\Mail::to($student->email)->send(new \App\Mail\NewUserCredentials($student, $defaultPassword));
         } catch (\Exception $e) {
-            return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. The welcome email was not sent. (" . $e->getMessage() . ") — Please provide the Student ID and default password to the student manually.");
+            return redirect()->back()
+                ->with('success', "Student registration compiled successfully, but email was not sent.")
+                ->with('student_id', $generatedStudentNumber); 
         }
 
-        return redirect()->back()->with('success', "Student registration compiled successfully! Assigned Student ID: {$generatedStudentNumber}. Login credentials have also been sent to the student’s email.");
+        return redirect()->back()
+            ->with('success', "Student registration compiled successfully! Login credentials have been sent to the student’s email.")
+            ->with('student_id', $generatedStudentNumber);
     }
 
     public function myClasses()

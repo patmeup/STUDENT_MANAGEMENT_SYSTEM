@@ -163,7 +163,7 @@ class RegistrarController extends Controller
 
             return redirect()->back()->with([
                 'success' => 'Student registration successful!',
-                'student_id' => $student->student_id
+                'student_id' => $generatedStudentId
             ]);
 
         } catch (\Exception $e) {
