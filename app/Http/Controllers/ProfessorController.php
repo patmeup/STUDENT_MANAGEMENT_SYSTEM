@@ -136,7 +136,8 @@ class ProfessorController extends Controller
                 'students.last_name',
                 'students.first_name',
                 'students.middle_name',
-                'students.status'
+                'students.status',
+                'students.updated_at'
             )
             ->orderBy('students.last_name', 'asc')
             ->get();
@@ -181,6 +182,18 @@ class ProfessorController extends Controller
                 }
             }
         }
+
+        // === Recorded attendance dates (for the calendar dot indicator) ===
+        $recordedDates = DB::table('attendances')
+            ->where('class_schedule_id', $schedule_id)
+            ->select('attendance_date')
+            ->distinct()
+            ->pluck('attendance_date')
+            ->map(function ($date) {
+                return \Carbon\Carbon::parse($date)->format('Y-m-d');
+            })
+            ->values()
+            ->toArray();
 
         $gConnection = DB::table('google_classroom_connections')
             ->where('professor_id', $professorId)
@@ -245,6 +258,9 @@ class ProfessorController extends Controller
                     ->orderBy('created_at', 'desc')
                     ->get();
             }
+        } else {
+            $termTasks = collect();
+            $termPeriods = collect();
         }
 
         $studentSubmissions = DB::table('task_submissions')
@@ -265,7 +281,8 @@ class ProfessorController extends Controller
             'gAnnouncements',
             'gCourseWork',
             'gMaterials',
-            'studentSubmissions'
+            'studentSubmissions',
+            'recordedDates'
         ));
     }
 
@@ -338,6 +355,24 @@ class ProfessorController extends Controller
             DB::rollback();
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    public function getAttendanceDates($schedule_id)
+    {
+        $dates = DB::table('attendances')
+            ->where('class_schedule_id', $schedule_id)
+            ->select('attendance_date')
+            ->distinct()
+            ->pluck('attendance_date')
+            ->map(function ($date) {
+                return \Carbon\Carbon::parse($date)->format('Y-m-d');
+            })
+            ->toArray();
+
+        return response()->json([
+            'success' => true,
+            'dates'   => $dates
+        ]);
     }
 
     public function linkGoogleClassroomCourse(Request $request, $schedule_id)
@@ -559,7 +594,7 @@ class ProfessorController extends Controller
 
             DB::table('student_tasks')->where('id', $id)->update($updateData);
 
-            return response()->json(['success`' => true]);
+            return response()->json(['success' => true]);
 
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
@@ -1029,7 +1064,7 @@ class ProfessorController extends Controller
         return view('professor.user_details', compact('user', 'isLocked', 'gConnection'));
     }
 
-        public function updateProfilePicture(Request $request)
+    public function updateProfilePicture(Request $request)
     {
         $request->validate([
             'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',

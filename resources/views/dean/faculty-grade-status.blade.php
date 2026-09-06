@@ -4,22 +4,16 @@
 <div class="sa-container">
     <div class="sa-header">
         <div class="header-titles">
-            <h2><i class="fas fa-user-clock"></i> Faculty Grade Submission Status</h2>
-            <p>
-                Track which classes have complete, partial, or missing grade submissions
-                @if($activeAcademicPeriod)
-                    for <strong>{{ $activeAcademicPeriod->school_year }} ({{ $activeAcademicPeriod->semester }})</strong>
-                @endif
-            </p>
+            <h2>Faculty Grade Submission Status</h2>
+            <p>Track which classes have complete, partial, or missing grade submissions @if($activeAcademicPeriod) for <strong>{{ $activeAcademicPeriod->school_year }} ({{ $activeAcademicPeriod->semester }})</strong> @endif</p>
         </div>
     </div>
 
     <div class="filter-bar-card">
-        <form method="GET" action="{{ route('dean.faculty-grade-status') }}" class="term-form">
-            <input type="hidden" name="search" value="{{ $search }}">
+        <form method="GET" action="{{ route('dean.faculty-grade-status') }}" class="term-form" id="termForm">
             <div class="term-select-wrapper">
                 <i class="fa-regular fa-calendar-days"></i>
-                <select name="term" class="term-select" onchange="this.form.submit()">
+                <select name="term" class="term-select" onchange="document.getElementById('termForm').submit()">
                     @foreach($termPeriods as $tp)
                         <option value="{{ $tp->term }}" {{ $termFilter == $tp->term ? 'selected' : '' }}>
                             {{ ucfirst($tp->term) }} Term ({{ \Carbon\Carbon::parse($tp->start_date)->format('M d') }} - {{ \Carbon\Carbon::parse($tp->end_date)->format('M d, Y') }})
@@ -29,27 +23,21 @@
             </div>
         </form>
 
-        <form method="GET" action="{{ route('dean.faculty-grade-status') }}" class="search-form">
-            <input type="hidden" name="term" value="{{ $termFilter }}">
-            <div class="search-input-wrapper">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" name="search" class="search-input" placeholder="Search by professor, subject, or section..." value="{{ $search }}">
-            </div>
-            <button type="submit" class="btn-filter-submit">
-                <i class="fa-solid fa-filter"></i> Filter
-            </button>
-        </form>
-    </div>
+        <div class="search-input-wrapper">
+            <input type="text" id="liveSearchInput" class="custom-search-input" placeholder="Search by professor, subject, or section..." value="{{ $search }}">
+        </div>
 
-    <div class="status-legend">
-        <span class="legend-chip legend-complete"><i class="fa-solid fa-circle-check"></i> Complete</span>
-        <span class="legend-chip legend-partial"><i class="fa-solid fa-triangle-exclamation"></i> Partial</span>
-        <span class="legend-chip legend-not-started"><i class="fa-solid fa-circle-xmark"></i> Not Started</span>
+        <div class="status-pills-filter">
+            <button type="button" class="status-pill-btn active" data-status-filter="all">All</button>
+            <button type="button" class="status-pill-btn text-success" data-status-filter="complete"><i class="fa-solid fa-circle-check"></i> Complete</button>
+            <button type="button" class="status-pill-btn text-warning" data-status-filter="partial"><i class="fa-solid fa-triangle-exclamation"></i> Partial</button>
+            <button type="button" class="status-pill-btn text-danger" data-status-filter="not_started"><i class="fa-solid fa-circle-xmark"></i> Not Started</button>
+        </div>
     </div>
 
     <div class="sa-card">
         <div class="table-responsive">
-            <table class="minimal-table">
+            <table class="minimal-table" id="gradeStatusTable">
                 <thead>
                     <tr>
                         <th>Professor</th>
@@ -60,9 +48,9 @@
                         <th class="text-center">Action</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="gradeTableBody">
                     @forelse($report as $class)
-                        <tr>
+                        <tr class="grade-row-item" data-status="{{ $class->status }}">
                             <td>
                                 @if($class->prof_first_name && $class->prof_last_name)
                                     <strong>{{ strtoupper($class->prof_last_name) }}</strong>, {{ $class->prof_first_name }}
@@ -95,20 +83,24 @@
                             </td>
                         </tr>
                     @empty
-                        <tr>
+                        <tr id="emptyStaticRow">
                             <td colspan="6" style="text-align: center; padding: 50px; color: #64748b;">
                                 <i class="fa-regular fa-folder-open" style="font-size: 30px; display: block; margin-bottom: 10px; color: #cbd5e1;"></i>
                                 No class schedules found.
                             </td>
                         </tr>
                     @endforelse
+                    <tr id="noMatchRow" style="display: none;">
+                        <td colspan="6" style="text-align: center; padding: 50px; color: #64748b;">
+                            No class submission statuses match your search criteria.
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
-<!-- GRADE BREAKDOWN MODAL -->
 <div id="breakdownModal" class="modal-overlay" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
@@ -135,7 +127,6 @@
                         </tr>
                     </thead>
                     <tbody id="modalTableBody">
-                        <!-- Dynamic content via JS -->
                     </tbody>
                 </table>
             </div>
@@ -144,6 +135,57 @@
 </div>
 
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const liveSearchInput = document.getElementById('liveSearchInput');
+        const statusButtons = document.querySelectorAll('.status-pill-btn');
+        const gradeRows = document.querySelectorAll('.grade-row-item');
+        const noMatchRow = document.getElementById('noMatchRow');
+        const initialTotal = gradeRows.length;
+
+        let activeStatus = 'all';
+
+        function filterTable() {
+            const searchTerm = liveSearchInput ? liveSearchInput.value.toLowerCase().trim() : '';
+            let visibleCount = 0;
+
+            gradeRows.forEach(row => {
+                const rowText = row.innerText.toLowerCase();
+                const rowStatus = row.getAttribute('data-status');
+
+                const matchesSearch = rowText.includes(searchTerm);
+                const matchesStatus = (activeStatus === 'all' || rowStatus === activeStatus);
+
+                if (matchesSearch && matchesStatus) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            if (noMatchRow) {
+                if (visibleCount === 0 && initialTotal > 0) {
+                    noMatchRow.style.display = '';
+                } else {
+                    noMatchRow.style.display = 'none';
+                }
+            }
+        }
+
+        if (liveSearchInput) {
+            liveSearchInput.addEventListener('input', filterTable);
+        }
+
+        statusButtons.forEach(btn => {
+            btn.addEventListener('click', function () {
+                statusButtons.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                activeStatus = this.getAttribute('data-status-filter');
+                filterTable();
+            });
+        });
+    });
+
     function openBreakdownModal(scheduleId, subjectInfo, term) {
         document.getElementById('breakdownModal').style.display = 'flex';
         document.getElementById('modalSubjectTitle').innerText = subjectInfo;
@@ -153,7 +195,6 @@
         document.getElementById('modalTableContainer').style.display = 'none';
         document.getElementById('modalTableBody').innerHTML = '';
 
-        // Fetch grades summary via AJAX route (Gagawin mo itong route sa web.php)
         fetch(`/dean/grade-breakdown/${scheduleId}?term=${term}`)
             .then(response => response.json())
             .then(data => {
@@ -194,43 +235,37 @@
 
 <style>
     .sa-container { font-family: 'Segoe UI', sans-serif; padding: 20px; max-width: 1300px; margin: 0 auto; }
-    .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
-    .header-titles h2 { margin: 0; font-size: 24px; color: #0f172a; font-weight: 800; display: flex; align-items: center; gap: 10px; }
-    .header-titles p { margin: 6px 0 0 0; font-size: 14px; color: #64748b; }
+    .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; }
+    .header-titles h2 { margin: 0 0 4px 0; font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+    .header-titles p { margin: 0; font-size: 14px; color: #64748b; }
     .header-titles p strong { color: #1e293b; }
 
     .filter-bar-card {
-        display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;
+        display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
         background: white; border: 1px solid #e2e8f0; border-radius: 12px;
-        padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
+        padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
     }
     .term-select-wrapper {
-        display: flex; align-items: center; gap: 10px;
-        border: 1px solid #cbd5e1; border-radius: 50px; padding: 8px 18px;
+        display: flex; align-items: center; gap: 8px;
+        border: 1px solid #cbd5e1; border-radius: 6px; padding: 7px 12px;
         background: #f8fafc; color: #64748b;
     }
-    .term-select { border: none; background: transparent; font-weight: 600; color: #334155; font-size: 13.5px; outline: none; cursor: pointer; }
+    .term-select { border: none; background: transparent; font-weight: 600; color: #334155; font-size: 13px; outline: none; cursor: pointer; }
 
-    .search-form { display: flex; gap: 10px; flex: 1; min-width: 280px; margin-top: 12px; }
-    .search-input-wrapper { position: relative; flex: 1; }
-    .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px; }
-    .search-input {
-        width: 100%; box-sizing: border-box; padding: 9px 12px 9px 36px;
-        border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13.5px; color: #334155; outline: none;
+    .search-input-wrapper { flex: 1; min-width: 250px; }
+    .custom-search-input {
+        width: 100%; box-sizing: border-box; padding: 9px 12px;
+        border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13.5px; color: #334155; outline: none; background: #fff;
     }
-    .search-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
-    .btn-filter-submit {
-        background: #1e2a5a; color: white; border: none; padding: 9px 18px;
-        border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
-        display: inline-flex; align-items: center; gap: 6px;
-    }
-    .btn-filter-submit:hover { background: #141d40; }
+    .custom-search-input:focus { border-color: #cbd5e1 !important; box-shadow: none !important; outline: none !important; }
 
-    .status-legend { display: flex; gap: 14px; margin-bottom: 16px; padding: 0 4px; }
-    .legend-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
-    .legend-complete { color: #15803d; }
-    .legend-partial { color: #b45309; }
-    .legend-not-started { color: #dc2626; }
+    .status-pills-filter { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .status-pill-btn {
+        background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px;
+        font-size: 11.5px; font-weight: 600; border-radius: 20px; cursor: pointer; transition: all 0.15s ease; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .status-pill-btn:hover { background: #e2e8f0; color: #0f172a; }
+    .status-pill-btn.active { background: #0f172a; color: #ffffff; border-color: #0f172a; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.2); }
 
     .sa-card { border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
 
@@ -255,7 +290,6 @@
     }
     .btn-breakdown:hover { background: #e2e8f0; color: #0f172a; }
 
-    /* Modal Styles */
     .modal-overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6);
         display: flex; justify-content: center; align-items: center; z-index: 1000;
@@ -268,7 +302,7 @@
         padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
         display: flex; justify-content: space-between; align-items: center;
     }
-    .modal-close { background: none; border: none; font-size: 24px; cursor: color: #64748b; cursor: pointer; }
+    .modal-close { background: none; border: none; font-size: 24px; color: #64748b; cursor: pointer; }
     .modal-close:hover { color: #0f172a; }
     .modal-body { padding: 10px 0; }
 

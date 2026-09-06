@@ -17,7 +17,7 @@ class RegistrarController extends Controller
             ->orderBy('display_order', 'asc')
             ->orderBy('id', 'asc')
             ->get();
-            
+
         $totalStudents = DB::table('students')->count();
 
         $pendingApprovals = DB::table('document_requests')->where('status', 'Pending')->count();
@@ -78,7 +78,7 @@ class RegistrarController extends Controller
             'last_name' => 'required|string',
             'first_name' => 'required|string',
             'contact_no' => 'required|string',
-            'email' => 'required|email',
+            'email' => 'required|email|unique:students,email',
         ];
 
         $request->validate($rules);
@@ -126,22 +126,22 @@ class RegistrarController extends Controller
             $student->mothers_name = $request->mothers_name;
             $student->mothers_occupation = $request->mothers_occupation;
 
-            $student->elementary_school_name    = array_values(array_filter($request->input('elem_school_name', [])));
-            $student->elementary_school_address = array_values(array_filter($request->input('elem_school_address', [])));
-            $student->elementary_school_year    = array_values(array_filter($request->input('elem_school_year', [])));
+            $student->elementary_school_name    = array_values(array_filter($request->input('elementary_school_name', [])));
+            $student->elementary_school_address = array_values(array_filter($request->input('elementary_school_address', [])));
+            $student->elementary_school_year    = array_values(array_filter($request->input('elementary_school_year', [])));
 
-            $student->junior_hs_school_name    = array_values(array_filter($request->input('jhs_school_name', [])));
-            $student->junior_hs_school_address = array_values(array_filter($request->input('jhs_school_address', [])));
-            $student->junior_hs_school_year    = array_values(array_filter($request->input('jhs_school_year', [])));
+            $student->junior_hs_school_name    = array_values(array_filter($request->input('junior_hs_school_name', [])));
+            $student->junior_hs_school_address = array_values(array_filter($request->input('junior_hs_school_address', [])));
+            $student->junior_hs_school_year    = array_values(array_filter($request->input('junior_hs_school_year', [])));
 
-            $student->senior_hs_school_name    = array_values(array_filter($request->input('shs_school_name', [])));
-            $student->senior_hs_school_address = array_values(array_filter($request->input('shs_school_address', [])));
-            $student->senior_hs_school_year    = array_values(array_filter($request->input('shs_school_year', [])));
+            $student->senior_hs_school_name    = array_values(array_filter($request->input('senior_hs_school_name', [])));
+            $student->senior_hs_school_address = array_values(array_filter($request->input('senior_hs_school_address', [])));
+            $student->senior_hs_school_year    = array_values(array_filter($request->input('senior_hs_school_year', [])));
 
             $student->vocational_school_name    = array_values(array_filter($request->input('vocational_school_name', [])));
             $student->vocational_school_address = array_values(array_filter($request->input('vocational_school_address', [])));
             $student->vocational_school_year    = array_values(array_filter($request->input('vocational_school_year', [])));
-            
+
             $student->college_school_name    = $request->college_school_name;
             $student->college_school_address = $request->college_school_address;
             $student->college_school_year    = $request->college_school_year;
@@ -163,7 +163,7 @@ class RegistrarController extends Controller
 
             return redirect()->back()->with([
                 'success' => 'Student registration successful!',
-                'student_id' => $student->student_id
+                'student_id' => $generatedStudentId
             ]);
 
         } catch (\Exception $e) {
@@ -207,28 +207,13 @@ class RegistrarController extends Controller
         $student = Student::findOrFail($id);
 
         $request->validate([
-            'course' => 'required|string',
-            'year_level' => 'required|string',
-            'semester' => 'required|string',
-            'section' => 'nullable|string',
             'status' => 'required|string|in:Enrolled,On-Hold,Purged,Dropped',
-            'contact_no' => 'required|string',
-            'email' => 'required|email',
-            'city_address' => 'required|string',
         ]);
 
-        $student->course = $request->course;
-        $student->year_level = $request->year_level;
-        $student->semester = $request->semester;
-        $student->section = $request->section;
         $student->status = $request->status;
-        $student->contact_no = $request->contact_no;
-        $student->email = $request->email;
-        $student->city_address = $request->city_address;
-        
         $student->save();
 
-        return redirect()->back()->with('Success', "Student information updated successfully for ID: {$student->student_id}");
+        return redirect()->back()->with('Success', "Student academic status updated successfully for ID: {$student->student_id}");
     }
 
     public function updateStudentDocuments(Request $request, $id)

@@ -126,6 +126,8 @@ Route::middleware(['role:dept_sec'])->group(function () {
     Route::get('/department-secretary/dashboard', [DeptSecController::class, 'dashboard'])->name('department_secretary.dashboard');
     Route::get('/department_secretary/subject-catalog', [DeptSecController::class, 'subjectCatalog'])->name('department_secretary.subject_catalog');
     Route::get('/department-secretary/masterlist', [DeptSecController::class, 'studentsList'])->name('department_secretary.students');
+    Route::get('/department-secretary/student-profile/{student_id}', [DeptSecController::class, 'viewStudentProfile'])->name('department_secretary.students.profile');
+    Route::get('/department-secretary/students/{student_id}/file/{filename}', [DeptSecController::class, 'secureViewFile'])->name('department_secretary.secure-view');
     Route::delete('/department-secretary/student/delete/{student_id}', [DeptSecController::class, 'deleteStudent'])->name('department_secretary.delete_student');
     Route::get('/department-secretary/section/{section_name}', [DeptSecController::class, 'viewSectionRoster'])->name('department_secretary.view_section');
     Route::post('/department-secretary/section/bulk-enroll', [DeptSecController::class, 'bulkEnrollSection'])->name('department_secretary.bulk_enroll');
@@ -167,6 +169,7 @@ Route::middleware(['role:professor'])->group(function () {
     Route::get('/professor/user_details', [ProfessorController::class, 'profileView'])->name('professor.user_details');
     Route::post('/professor/google-classroom/disconnect', [GoogleClassroomController::class, 'disconnect'])->name('professor.google-classroom.disconnect');
     Route::post('/professor/profile/picture', [ProfessorController::class, 'updateProfilePicture'])->name('professor.profile.picture.update');
+    Route::get('/professor/class/{schedule}/attendance-dates', [AttendanceController::class, 'getRecordedDates']);
     });
 
 // STUDENT ROUTES

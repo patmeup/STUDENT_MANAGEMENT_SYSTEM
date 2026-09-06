@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\NewUserCredentials;
 
 class FacultyController extends Controller
 {
@@ -38,8 +40,9 @@ class FacultyController extends Controller
         }
 
         $generatedId = "EMP-{$yearShort}-{$nextNumber}";
+        $defaultPassword = 'Welcome@AU2026';
 
-        User::create([
+        $faculty = User::create([
             'employee_id' => $generatedId,
             'first_name'  => strtoupper($request->first_name),
             'last_name'   => strtoupper($request->last_name),
@@ -49,10 +52,18 @@ class FacultyController extends Controller
             'role'        => $request->role,
             'department'  => $request->department,  
             'status'      => 'Active',
-            'password'    => Hash::make('Welcome@AU2026'),
+            'password'    => Hash::make($defaultPassword),
         ]);
 
-        return redirect()->back()->with('success', "Account successfully provisioned! ID: {$generatedId}");
+        try {
+            Mail::to($faculty->email)->send(
+                new NewUserCredentials($faculty, $defaultPassword, 'employee')
+            );
+        } catch (\Exception $e) {
+            return redirect()->back()->with('success', "Account successfully provisioned! ID: {$generatedId}, but email failed to send: " . $e->getMessage());
+        }
+
+        return redirect()->back()->with('success', "Account successfully provisioned! ID: {$generatedId} and credentials sent to email.");
     }
 
     public function update(Request $request, $id)

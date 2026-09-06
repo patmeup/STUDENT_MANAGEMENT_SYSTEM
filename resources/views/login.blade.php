@@ -55,6 +55,31 @@
         input::-ms-reveal {
             display: none;
         }
+
+        .input-group {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background-color: #fff;
+            overflow: hidden;
+        }
+
+        .input-group .form-control {
+            border: none;
+            box-shadow: none;
+            background-color: transparent;
+        }
+
+        .input-group-text {
+            width: 48px;
+            justify-content: center;
+            background-color: #f8fafc;
+            border: none;
+        }
+
+        .input-group:focus-within {
+            border-color: #cbd5e1;
+            box-shadow: none;
+        }
     </style>
 </head>
 

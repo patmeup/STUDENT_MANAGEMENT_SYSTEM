@@ -5,7 +5,7 @@
     <div class="sa-header">
         <div class="header-titles">
             <h2>Department Student Registry</h2>
-            <p>Department: <strong>{{ strtoupper($dept) }}</strong> — Academic Year Center</p>
+            <p>View, search, and manage department student records and block sections.</p>
         </div>
     </div>
 
@@ -31,14 +31,26 @@
 
     <div id="individualTab" class="tab-content-panel active-panel">
         <div class="sa-card">
-            <div class="card-header-flex">
-                <h3 class="card-title-list">All Enrolled Students (Alphabetical Order)</h3>
-                <span class="badge-count">{{ count($students) }} Total Students</span>
-            </div>
+            <div class="card-header-flex" style="display: flex; flex-direction: column; gap: 14px; align-items: stretch;">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <h3 class="card-title-list">All Enrolled Students</h3>
+                    <span class="badge-count" id="studentTotalCount">{{ count($students) }} Total Students</span>
+                </div>
 
-            <div class="search-bar-container">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" id="studentSearchInput" placeholder="Search by Student ID, Name, or Course..." class="custom-search-input">
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; width: 100%;">
+                    <div style="flex: 2; min-width: 280px;">
+                        <input type="text" id="studentSearchInput" placeholder="Search by Student ID, Name, or Course..." class="custom-search-input">
+                    </div>
+
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                        <span style="font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-right: 2px;">Year:</span>
+                        <button type="button" class="filter-pill active" data-filter-value="">All</button>
+                        <button type="button" class="filter-pill" data-filter-value="1st Year">1st</button>
+                        <button type="button" class="filter-pill" data-filter-value="2nd Year">2nd</button>
+                        <button type="button" class="filter-pill" data-filter-value="3rd Year">3rd</button>
+                        <button type="button" class="filter-pill" data-filter-value="4th Year">4th</button>
+                    </div>
+                </div>
             </div>
 
             <div class="table-responsive">
@@ -53,7 +65,7 @@
                     </thead>
                     <tbody id="studentTableBody">
                         @forelse($students as $student)
-                            <tr class="student-row">
+                            <tr class="student-row" data-year="{{ $student->year_level }}">
                                 <td><strong class="code-highlight">{{ $student->student_id }}</strong></td>
                                 <td><strong>{{ strtoupper($student->last_name) }}</strong>, {{ $student->first_name }}</td>
                                 <td><span class="sem-tag">{{ $student->course }}</span></td>
@@ -64,23 +76,24 @@
                                 <td colspan="4" style="text-align: center; padding: 40px; color: #64748b;">No individual student records found for this department.</td>
                             </tr>
                         @endforelse
+                        <tr id="studentNoMatchRow" style="display: none;">
+                            <td colspan="4" style="text-align: center; padding: 40px; color: #64748b;">No students match your filter or search query.</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    {{-- BLOCK SECTION TAB --}}
     <div id="sectionTab" class="tab-content-panel">
         <div class="sa-card">
             <div class="card-header-flex">
-                <h3 class="card-title-list">Active Dynamic Block Sections</h3>
+                <h3 class="card-title-list">Active Block Sections</h3>
                 <span class="badge-count" style="background: #16a34a;">{{ count($sections) }} Active Blocks</span>
             </div>
 
-            <div class="search-bar-container">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" id="blockSearchInput" placeholder="Search by Student ID, Name, or Course..." class="custom-search-input">
+            <div class="search-bar-container" style="padding: 14px 24px; background: #ffffff; border-bottom: 1px solid #f1f5f9;">
+                <input type="text" id="blockSearchInput" placeholder="Search by Block Name..." class="custom-search-input" style="max-width: 450px;">
             </div>
 
             <div class="table-responsive">
@@ -89,7 +102,6 @@
                         <tr>
                             <th>Block Section Name</th>
                             <th>Enrolled Students</th>
-                            <th>Academic Level</th>
                             <th style="text-align: center;">Action</th>
                         </tr>
                     </thead>
@@ -111,12 +123,6 @@
                                     </span>
                                 </td>
 
-                                <td>
-                                    <span>
-                                        <strong>{{ $records->first()->total_subjects }}</strong> Active Subjects
-                                    </span>
-                                </td>
-
                                 <td style="text-align: center;">
                                     <a href="{{ route('dean.view_section', $sectionName) }}" class="btn-action-view">
                                         <i class="fas fa-users"></i> View Students
@@ -125,7 +131,7 @@
                             </tr>
                         @empty
                             <tr id="blockEmptyRow">
-                                <td colspan="4" style="text-align: center; padding: 40px; color: #64748b;">No active block sections mapped in schedule matrix for your courses.</td>
+                                <td colspan="3" style="text-align: center; padding: 40px; color: #64748b;">No active block sections mapped in schedule matrix for your courses.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -150,24 +156,60 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        // --- 1. Student Masterlist Filter ---
         const studentSearch = document.getElementById('studentSearchInput');
-        const studentTableBody = document.getElementById('studentTableBody');
-        
-        if (studentSearch && studentTableBody) {
-            const rows = studentTableBody.getElementsByClassName('student-row');
-            
-            studentSearch.addEventListener('input', function () {
-                const searchVal = studentSearch.value.toLowerCase().trim();
-                
-                for (let i = 0; i < rows.length; i++) {
-                    const content = rows[i].textContent.toLowerCase();
-                    rows[i].style.display = content.includes(searchVal) ? '' : 'none';
+        const filterPills = document.querySelectorAll('.filter-pill');
+        const studentRows = document.querySelectorAll('.student-row');
+        const noMatchRow = document.getElementById('studentNoMatchRow');
+        const totalCountBadge = document.getElementById('studentTotalCount');
+        const initialTotal = studentRows.length;
+
+        let activeYear = '';
+
+        function filterStudents() {
+            const query = studentSearch.value.toLowerCase().trim();
+            let visibleCount = 0;
+
+            studentRows.forEach(row => {
+                const content = row.textContent.toLowerCase();
+                const rowYear = row.getAttribute('data-year');
+
+                const matchesSearch = content.includes(query);
+                const matchesYear = activeYear === '' || rowYear === activeYear;
+
+                if (matchesSearch && matchesYear) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
                 }
             });
+
+            if (totalCountBadge) {
+                totalCountBadge.textContent = `${visibleCount} Students Found`;
+            }
+
+            if (noMatchRow) {
+                if (visibleCount === 0 && initialTotal > 0) {
+                    noMatchRow.style.display = '';
+                } else {
+                    noMatchRow.style.display = 'none';
+                }
+            }
         }
 
-        // --- 2. Block Section Filter ---
+        filterPills.forEach(pill => {
+            pill.addEventListener('click', function () {
+                filterPills.forEach(p => p.classList.remove('active'));
+                this.classList.add('active');
+                activeYear = this.getAttribute('data-filter-value');
+                filterStudents();
+            });
+        });
+
+        if (studentSearch) {
+            studentSearch.addEventListener('input', filterStudents);
+        }
+
         const blockSearch = document.getElementById('blockSearchInput');
         const blockTableBody = document.getElementById('blockTableBody');
         
@@ -188,14 +230,16 @@
 
 <style>
     .sa-container { font-family: 'Segoe UI', sans-serif; padding: 20px; max-width: 1300px; margin: 0 auto; }
-    .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
-    .header-titles h2 { margin: 0; font-size: 24px; color: #0f172a; font-weight: 800; }
-    .header-titles p { margin: 4px 0 0 0; font-size: 14px; color: #64748b; }
+    .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; }
+    .header-titles h2 { margin: 0 0 4px 0; font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+    .header-titles p { margin: 0; font-size: 14px; color: #64748b; }
 
-    .search-bar-container { padding: 14px 24px; background: #ffffff; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; position: relative; }
-    .search-icon { position: absolute; left: 38px; color: #94a3b8; font-size: 14px; }
-    .custom-search-input { width: 100%; max-width: 450px; padding: 9px 12px 9px 36px; font-size: 13.5px; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; transition: border-color 0.15s ease; }
-    .custom-search-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08); }
+    .custom-search-input { width: 100%; padding: 9px 12px; font-size: 13.5px; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; box-sizing: border-box; background: #fff; }
+    .custom-search-input:focus { border-color: #cbd5e1 !important; box-shadow: none !important; outline: none !important; }
+
+    .filter-pill { background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 5px 10px; font-size: 11.5px; font-weight: 600; border-radius: 20px; cursor: pointer; transition: all 0.15s ease; }
+    .filter-pill:hover { background: #e2e8f0; color: #0f172a; }
+    .filter-pill.active { background: #0f172a; color: #ffffff; border-color: #0f172a; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.2); }
 
     .tabs-control-wrapper { display: flex; gap: 8px; margin-bottom: 20px; background: #f1f5f9; padding: 6px; border-radius: 8px; width: max-content; }
     .tab-toggle-btn { background: transparent; border: none; padding: 8px 18px; font-weight: 600; font-size: 13.5px; color: #475569; border-radius: 6px; cursor: pointer; transition: all 0.2s; }

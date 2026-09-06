@@ -32,7 +32,6 @@
         </div>
     @endif
 
-    <!-- Student Information Form -->
     <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); overflow: hidden; margin-bottom: 30px;">
         <div style="background-color: #0033A0; padding: 18px 24px; font-size: 16px; font-weight: 700; color: white;">
             <span><i class="fas fa-user-graduate"></i> Student Record — {{ $student->student_id }}</span>
@@ -43,7 +42,7 @@
             @method('PUT')
 
             <p style="font-size: 14px; color: #64748b; margin-top: 0; margin-bottom: 20px;">
-                Review and update academic profile and contact details below.
+                Review student academic status and view profile details below.
             </p>
 
             <table style="width: 100%; border-collapse: collapse;">
@@ -55,34 +54,20 @@
                 </tr>
                 <tr>
                     <td style="padding: 14px 12px; font-weight: 700; color: #475569; vertical-align: middle; border-bottom: 1px solid #f1f5f9;">Course / Program:</td>
-                    <td style="padding: 14px 12px; border-bottom: 1px solid #f1f5f9;">
-                        <select name="course" style="width: 100%; max-width: 400px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background-color: #fff; color: #0f172a;">
-                            <option value="BSIT" {{ $student->course == 'BSIT' ? 'selected' : '' }}>BSIT</option>
-                            <option value="BSCS" {{ $student->course == 'BSCS' ? 'selected' : '' }}>BSCS</option>
-                        </select>
+                    <td style="padding: 14px 12px; color: #0f172a; font-weight: 600; border-bottom: 1px solid #f1f5f9;">
+                        {{ $student->course }}
                     </td>
                 </tr>
                 <tr>
                     <td style="padding: 14px 12px; font-weight: 700; color: #475569; vertical-align: middle; border-bottom: 1px solid #f1f5f9;">Section:</td>
-                    <td style="padding: 14px 12px; border-bottom: 1px solid #f1f5f9;">
-                        <input type="text" name="section" value="{{ $student->section }}" placeholder="e.g. BSIT-1A" style="width: 100%; max-width: 400px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+                    <td style="padding: 14px 12px; color: #0f172a; font-weight: 600; border-bottom: 1px solid #f1f5f9;">
+                        {{ $student->section ?? 'None' }}
                     </td>
                 </tr>
                 <tr>
                     <td style="padding: 14px 12px; font-weight: 700; color: #475569; vertical-align: middle; border-bottom: 1px solid #f1f5f9;">Year Level & Semester:</td>
-                    <td style="padding: 14px 12px; border-bottom: 1px solid #f1f5f9;">
-                        <div style="display: flex; gap: 12px; max-width: 400px;">
-                            <select name="year_level" style="flex: 1; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background-color: #fff;">
-                                <option value="1st Year" {{ $student->year_level == '1st Year' ? 'selected' : '' }}>1st Year</option>
-                                <option value="2nd Year" {{ $student->year_level == '2nd Year' ? 'selected' : '' }}>2nd Year</option>
-                                <option value="3rd Year" {{ $student->year_level == '3rd Year' ? 'selected' : '' }}>3rd Year</option>
-                                <option value="4th Year" {{ $student->year_level == '4th Year' ? 'selected' : '' }}>4th Year</option>
-                            </select>
-                            <select name="semester" style="flex: 1; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background-color: #fff;">
-                                <option value="1st Semester" {{ $student->semester == '1st Semester' ? 'selected' : '' }}>1st Semester</option>
-                                <option value="2nd Semester" {{ $student->semester == '2nd Semester' ? 'selected' : '' }}>2nd Semester</option>
-                            </select>
-                        </div>
+                    <td style="padding: 14px 12px; color: #0f172a; font-weight: 600; border-bottom: 1px solid #f1f5f9;">
+                        {{ $student->year_level }} — {{ $student->semester }}
                     </td>
                 </tr>
                 <tr>
@@ -98,33 +83,32 @@
                 </tr>
                 <tr>
                     <td style="padding: 14px 12px; font-weight: 700; color: #475569; vertical-align: middle; border-bottom: 1px solid #f1f5f9;">Contact Number:</td>
-                    <td style="padding: 14px 12px; border-bottom: 1px solid #f1f5f9;">
-                        <input type="text" name="contact_no" value="{{ $student->contact_no }}" placeholder="09xxxxxxxxx" style="width: 100%; max-width: 400px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+                    <td style="padding: 14px 12px; color: #0f172a; font-weight: 600; border-bottom: 1px solid #f1f5f9;">
+                        {{ $student->contact_no }} <span style="font-size: 11px; color: #64748b; font-weight: normal; margin-left: 8px;"></span>
                     </td>
                 </tr>
                 <tr>
                     <td style="padding: 14px 12px; font-weight: 700; color: #475569; vertical-align: middle; border-bottom: 1px solid #f1f5f9;">Email Address:</td>
-                    <td style="padding: 14px 12px; border-bottom: 1px solid #f1f5f9;">
-                        <input type="email" name="email" value="{{ $student->email }}" placeholder="student@example.com" style="width: 100%; max-width: 400px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+                    <td style="padding: 14px 12px; color: #0f172a; font-weight: 600; border-bottom: 1px solid #f1f5f9;">
+                        {{ $student->email }} <span style="font-size: 11px; color: #64748b; font-weight: normal; margin-left: 8px;"></span>
                     </td>
                 </tr>
                 <tr>
                     <td style="padding: 14px 12px; font-weight: 700; color: #475569; vertical-align: middle; border-bottom: 1px solid #f1f5f9;">Home Address:</td>
-                    <td style="padding: 14px 12px; border-bottom: 1px solid #f1f5f9;">
-                        <input type="text" name="city_address" value="{{ $student->city_address }}" placeholder="Complete Address" style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+                    <td style="padding: 14px 12px; color: #0f172a; font-weight: 600; border-bottom: 1px solid #f1f5f9;">
+                        {{ $student->city_address }} <span style="font-size: 11px; color: #64748b; font-weight: normal; margin-left: 8px;"></span>
                     </td>
                 </tr>
             </table>
 
             <div style="text-align: right; margin-top: 20px;">
                 <button type="submit" style="background-color: #0033A0; color: white; border: none; padding: 10px 22px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
-                    <i class="fas fa-save"></i> Save Profile Details
+                    <i class="fas fa-save"></i> Save Academic Status
                 </button>
             </div>
         </form>
     </div>
 
-    <!-- Student Documents Management Section -->
     <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); overflow: hidden;">
         <div style="background-color: #1e293b; padding: 18px 24px; font-size: 16px; font-weight: 700; color: white;">
             <span><i class="fas fa-folder-open"></i> Required Documents for ({{ $student->student_type }})</span>
