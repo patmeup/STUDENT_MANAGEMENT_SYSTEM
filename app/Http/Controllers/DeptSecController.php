@@ -133,6 +133,13 @@ class DeptSecController extends Controller
         return view('department_secretary.masterlist', compact('students', 'sections', 'dept'));
     }
 
+    public function viewStudentProfile($student_id)
+    {
+        $dept = session('user_department');
+        $student = Student::where('student_id', $student_id)->firstOrFail();
+        return view('department_secretary.student_profile', compact('student', 'dept'));
+    }
+
     public function deleteStudent($student_id)
     {
         try {
@@ -155,6 +162,17 @@ class DeptSecController extends Controller
             DB::rollBack();
             return redirect()->back()->with('error', 'Failed to delete student record: ' . $e->getMessage());
         }
+    }
+
+    public function secureViewFile($student_id, $filename)
+    {
+        $path = "student_records/{$student_id}/{$filename}";
+
+        if (!Storage::disk('local')->exists($path)) {
+            abort(404, 'File not found.');
+        }
+
+        return Storage::disk('local')->response($path);
     }
 
     public function viewSectionRoster($section_name)
@@ -207,6 +225,12 @@ class DeptSecController extends Controller
 
         $classSchedules = DB::table('class_schedules')->get();
 
+        $availableSections = DB::table('class_schedules')
+            ->select('section_name')
+            ->distinct()
+            ->orderBy('section_name', 'asc')
+            ->pluck('section_name');
+
         $enrolledSections = DB::table('student_subjects')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
             ->where('student_subjects.student_number', $student_id)
@@ -218,6 +242,7 @@ class DeptSecController extends Controller
             'curriculumSubjects',
             'dept',
             'classSchedules',
+            'availableSections',
             'enrolledSections'
         ));
     }
@@ -322,15 +347,22 @@ class DeptSecController extends Controller
                 return redirect()->back()->withInput()->with('error', 'Please select a schedule/section for at least one subject before saving.');
             }
 
+            $primarySection = reset($filteredSchedules);
+
+            $existingCount = DB::table('students')
+                ->where('section', $primarySection)
+                ->where('student_id', '!=', $studentNumber)
+                ->count();
+
+            if ($existingCount >= 30) {
+                return redirect()->back()
+                                ->withInput()
+                                ->with('error', "Section {$primarySection} has already reached the maximum capacity of 30 students (Current: {$existingCount}). Please choose another block section.");
+            }
+
             DB::table('student_subjects')->where('student_number', $studentNumber)->delete();
 
-            $primarySection = null;
-
             foreach ($filteredSchedules as $subjectId => $sectionName) {
-                if (!$primarySection) {
-                    $primarySection = $sectionName;
-                }
-
                 $matchingSchedules = DB::table('class_schedules')
                     ->where('subject_id', $subjectId)
                     ->where('section_name', $sectionName)
@@ -348,16 +380,17 @@ class DeptSecController extends Controller
                 }
             }
 
-            if ($primarySection) {
-                DB::table('students')
-                    ->where('student_id', $studentNumber)
-                    ->update(['section' => $primarySection]);
-            }
+            DB::table('students')
+                ->where('student_id', $studentNumber)
+                ->update([
+                    'section' => $primarySection,
+                    'updated_at' => now()
+                ]);
 
             DB::commit();
 
             return redirect()->route('department_secretary.students')
-                            ->with('success', 'Subjects (including LEC and LAB schedules) have been successfully plotted and saved for this student!');
+                            ->with('success', "Subjects successfully plotted! Student is now officially enrolled in section {$primarySection}.");
 
         } catch (\Exception $e) {
             DB::rollBack();

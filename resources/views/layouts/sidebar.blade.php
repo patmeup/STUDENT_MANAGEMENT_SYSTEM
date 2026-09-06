@@ -324,7 +324,7 @@
                         </a>
                     @else
                         <a href="{{ route('department_secretary.students') }}" class="{{ Request::is('department-secretary/masterlist*') || 
-                            Request::is('department_secretary/student/*/plot') || Request::is('department-secretary/section*') ? 'active' : '' }}">
+                            Request::is('department_secretary/student/*/plot') || Request::is('department-secretary/section*') || Request::is('department-secretary/student-profile/*') ? 'active' : '' }}">
                             <i data-lucide="users"></i> <span>Student Masterlist</span>
                         </a>
                     @endif

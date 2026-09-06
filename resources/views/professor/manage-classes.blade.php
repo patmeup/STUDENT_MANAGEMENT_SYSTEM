@@ -8,9 +8,8 @@
     <div class="prof-header">
         <div class="header-titles">
             <h2>Academic Class Management</h2>
-            <p>Faculty Load — Current Semester Active Loading & Roster Controls</p>
+            <p>View your active teaching loads, assigned student rosters, and Google Classroom integration status.</p>
         </div>
-        <div class="header-badge prof-level">Professor Portal</div>
     </div>
 
     @if(session('error'))

@@ -207,28 +207,13 @@ class RegistrarController extends Controller
         $student = Student::findOrFail($id);
 
         $request->validate([
-            'course' => 'required|string',
-            'year_level' => 'required|string',
-            'semester' => 'required|string',
-            'section' => 'nullable|string',
             'status' => 'required|string|in:Enrolled,On-Hold,Purged,Dropped',
-            'contact_no' => 'required|string',
-            'email' => 'required|email',
-            'city_address' => 'required|string',
         ]);
 
-        $student->course = $request->course;
-        $student->year_level = $request->year_level;
-        $student->semester = $request->semester;
-        $student->section = $request->section;
         $student->status = $request->status;
-        $student->contact_no = $request->contact_no;
-        $student->email = $request->email;
-        $student->city_address = $request->city_address;
-
         $student->save();
 
-        return redirect()->back()->with('Success', "Student information updated successfully for ID: {$student->student_id}");
+        return redirect()->back()->with('Success', "Student academic status updated successfully for ID: {$student->student_id}");
     }
 
     public function updateStudentDocuments(Request $request, $id)

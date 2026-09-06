@@ -136,7 +136,8 @@ class ProfessorController extends Controller
                 'students.last_name',
                 'students.first_name',
                 'students.middle_name',
-                'students.status'
+                'students.status',
+                'students.updated_at'
             )
             ->orderBy('students.last_name', 'asc')
             ->get();

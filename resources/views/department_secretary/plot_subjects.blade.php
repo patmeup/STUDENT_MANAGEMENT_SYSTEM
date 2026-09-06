@@ -18,7 +18,7 @@
 
     <div class="action-helper-card">
         <h4><i class="fas fa-magic"></i> Regular / Block Section Student Helper</h4>
-        <p>Select the Year, Semester, and type the Section letter to automatically select the Block Section for the student.</p>
+        <p>Select the Year, Semester, and Block Section to automatically select the matching schedules for the student.</p>
         
         <div class="helper-controls">
             <select id="helperYear" class="select-input-helper">
@@ -33,7 +33,12 @@
                 <option value="2nd Semester">2nd Semester</option>
             </select>
 
-            <input type="text" id="helperSection" placeholder="e.g., A, B, or C" class="input-helper-text">
+            <select id="helperSection" class="select-input-helper" style="width: 180px;">
+                <option value="">-- Select Block Section --</option>
+                @foreach($availableSections as $sec)
+                    <option value="{{ $sec }}">{{ strtoupper($sec) }}</option>
+                @endforeach
+            </select>
 
             <button type="button" class="btn-helper" id="autoBlockBtn">Apply Block Section</button>
         </div>
@@ -116,10 +121,10 @@
             autoBlockBtn.addEventListener('click', function () {
                 const targetYear = document.getElementById('helperYear').value;
                 const targetSem = document.getElementById('helperSem').value;
-                const sectionLetter = document.getElementById('helperSection').value.trim().toUpperCase();
+                const selectedSection = document.getElementById('helperSection').value.trim();
 
-                if (!sectionLetter) {
-                    alert('Please enter the Section letter (e.g., A, B, or C) you want to apply.');
+                if (!selectedSection) {
+                    alert('Please select a Block Section from the dropdown.');
                     return;
                 }
 
@@ -137,9 +142,9 @@
                             let sectionFound = false;
                             
                             for (let i = 0; i < select.options.length; i++) {
-                                const optionVal = select.options[i].value.toUpperCase();
+                                const optionVal = select.options[i].value;
                                 
-                                if (optionVal.endsWith('-' + sectionLetter) || optionVal === sectionLetter) {
+                                if (optionVal.toLowerCase() === selectedSection.toLowerCase()) {
                                     select.selectedIndex = i;
                                     sectionFound = true;
                                     matchedCount++;
@@ -155,9 +160,9 @@
                 });
 
                 if (matchedCount > 0) {
-                    alert(`Success! Section ${sectionLetter} has been applied to ${matchedCount} subjects.`);
+                    alert(`Success! Block Section "${selectedSection}" has been applied to ${matchedCount} subjects.`);
                 } else {
-                    alert(`Sorry, No sections ending in "-${sectionLetter}" were found for ${targetYear} (${targetSem}).`);
+                    alert(`Sorry, no schedules matching block section "${selectedSection}" were found for ${targetYear} (${targetSem}).`);
                 }
             });
         }

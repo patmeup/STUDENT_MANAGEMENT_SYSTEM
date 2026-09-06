@@ -5,7 +5,7 @@
     <div class="sa-header">
         <div class="header-titles">
             <h2>Department Student Registry</h2>
-            <p>Department: <strong>{{ strtoupper($dept) }}</strong> — Academic Year Center</p>
+            <p>View, search, and manage student records and block sections.</p>
         </div>
     </div>
 
@@ -43,14 +43,26 @@
 
     <div id="individualTab" class="tab-content-panel active-panel">
         <div class="sa-card">
-            <div class="card-header-flex">
-                <h3 class="card-title-list">All Enrolled Students (Alphabetical Order)</h3>
-                <span class="badge-count">{{ count($students) }} Total Students</span>
-            </div>
+            <div class="card-header-flex" style="display: flex; flex-direction: column; gap: 14px; align-items: stretch;">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <h3 class="card-title-list">All Enrolled Students (Alphabetical Order)</h3>
+                    <span class="badge-count" id="studentTotalCount">{{ count($students) }} Total Students</span>
+                </div>
 
-            <div class="search-bar-container">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" id="studentSearchInput" placeholder="Search by Student ID, Name, or Course..." class="custom-search-input">
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; width: 100%;">
+                    <div style="flex: 2; min-width: 280px;">
+                        <input type="text" id="studentSearchInput" placeholder="Search by Student ID, Name, or Course..." class="custom-search-input">
+                    </div>
+
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                        <span style="font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-right: 2px;">Year:</span>
+                        <button type="button" class="filter-pill active" data-filter-value="">All</button>
+                        <button type="button" class="filter-pill" data-filter-value="1st Year">1st</button>
+                        <button type="button" class="filter-pill" data-filter-value="2nd Year">2nd</button>
+                        <button type="button" class="filter-pill" data-filter-value="3rd Year">3rd</button>
+                        <button type="button" class="filter-pill" data-filter-value="4th Year">4th</button>
+                    </div>
+                </div>
             </div>
 
             <div class="table-responsive">
@@ -60,28 +72,42 @@
                             <th>Student ID</th>
                             <th>Full Name</th>
                             <th>Course</th>
+                            <th>Section</th>
                             <th>Academic Level</th>
                             <th style="text-align: center;">Action</th>
                         </tr>
                     </thead>
                     <tbody id="studentTableBody">
                         @forelse($students as $student)
-                            <tr class="student-row">
+                            <tr class="student-row" data-year="{{ $student->year_level }}">
                                 <td><strong class="code-highlight">{{ $student->student_id }}</strong></td>
                                 <td><strong>{{ strtoupper($student->last_name) }}</strong>, {{ $student->first_name }}</td>
                                 <td><span class="sem-tag">{{ $student->course }}</span></td>
+                                <td>
+                                    @if($student->section)
+                                        <span class="year-tag" style="background: #e0f2fe; color: #0369a1; border-color: #bae6fd;">
+                                            {{ $student->section }}
+                                        </span>
+                                    @else
+                                        <span style="color: #94a3b8; font-size: 12px; font-style: italic;">None</span>
+                                    @endif
+                                </td>
                                 <td><span class="year-tag">{{ $student->year_level }}</span></td>
                                 <td style="text-align: center;">
                                     <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
+                                        <a href="{{ route('department_secretary.students.profile', $student->student_id) }}" class="btn-action-view" title="View Student Profile">
+                                            <i class="fas fa-folder-open"></i> View Profile
+                                        </a>
+
                                         <a href="{{ route('department_secretary.plot_subjects', $student->student_id) }}" class="btn-action-plot">
-                                            <i class="fas fa-edit"></i> Plot
+                                            Plot
                                         </a>
 
                                         <form action="{{ route('department_secretary.delete_student', $student->student_id) }}" method="POST" style="display: inline-block;">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn-action-delete" onclick="return confirm('Are you sure you want to delete student {{ $student->student_id }}? This will permanently remove their record from the database.')">
-                                                <i class="fas fa-trash-alt"></i> Delete
+                                                Delete
                                             </button>
                                         </form>
                                     </div>
@@ -89,9 +115,12 @@
                             </tr>
                         @empty
                             <tr id="studentEmptyRow">
-                                <td colspan="5" style="text-align: center; padding: 40px; color: #64748b;">No individual student records found for this department.</td>
+                                <td colspan="6" style="text-align: center; padding: 40px; color: #64748b;">No individual student records found for this department.</td>
                             </tr>
                         @endforelse
+                        <tr id="studentNoMatchRow" style="display: none;">
+                            <td colspan="6" style="text-align: center; padding: 40px; color: #64748b;">No students match your filter or search query.</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -107,9 +136,8 @@
                 </span>
             </div>
 
-            <div class="search-bar-container">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" id="blockSearchInput" placeholder="Search by Block Section Name..." class="custom-search-input">
+            <div class="search-bar-container" style="padding: 14px 24px; background: #ffffff; border-bottom: 1px solid #f1f5f9;">
+                <input type="text" id="blockSearchInput" placeholder="Search by Block Section Name..." class="custom-search-input" style="max-width: 450px;">
             </div>
 
             <div class="table-responsive">
@@ -212,28 +240,60 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        // --- 1. Student Masterlist Filter Engine ---
         const studentSearch = document.getElementById('studentSearchInput');
-        const studentTableBody = document.getElementById('studentTableBody');
-        
-        if (studentSearch && studentTableBody) {
-            const rows = studentTableBody.getElementsByClassName('student-row');
-            
-            studentSearch.addEventListener('input', function () {
-                const searchVal = studentSearch.value.toLowerCase().trim();
-                
-                for (let i = 0; i < rows.length; i++) {
-                    const content = rows[i].textContent.toLowerCase();
-                    if (content.includes(searchVal)) {
-                        rows[i].style.display = '';
-                    } else {
-                        rows[i].style.display = 'none';
-                    }
+        const filterPills = document.querySelectorAll('.filter-pill');
+        const studentRows = document.querySelectorAll('.student-row');
+        const noMatchRow = document.getElementById('studentNoMatchRow');
+        const totalCountBadge = document.getElementById('studentTotalCount');
+        const initialTotal = studentRows.length;
+
+        let activeYear = '';
+
+        function filterStudents() {
+            const query = studentSearch ? studentSearch.value.toLowerCase().trim() : '';
+            let visibleCount = 0;
+
+            studentRows.forEach(row => {
+                const content = row.textContent.toLowerCase();
+                const rowYear = row.getAttribute('data-year');
+
+                const matchesSearch = content.includes(query);
+                const matchesYear = activeYear === '' || rowYear === activeYear;
+
+                if (matchesSearch && matchesYear) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
                 }
             });
+
+            if (totalCountBadge) {
+                totalCountBadge.textContent = `${visibleCount} Students Found`;
+            }
+
+            if (noMatchRow) {
+                if (visibleCount === 0 && initialTotal > 0) {
+                    noMatchRow.style.display = '';
+                } else {
+                    noMatchRow.style.display = 'none';
+                }
+            }
         }
 
-        // --- 2. Block Section Filter Engine ---
+        filterPills.forEach(pill => {
+            pill.addEventListener('click', function () {
+                filterPills.forEach(p => p.classList.remove('active'));
+                this.classList.add('active');
+                activeYear = this.getAttribute('data-filter-value');
+                filterStudents();
+            });
+        });
+
+        if (studentSearch) {
+            studentSearch.addEventListener('input', filterStudents);
+        }
+
         const blockSearch = document.getElementById('blockSearchInput');
         const blockTableBody = document.getElementById('blockTableBody');
         
@@ -254,7 +314,6 @@
             });
         }
 
-        // --- 3. Dynamic Semester Options & Subject Counter Engine ---
         function updateRowSemesterOptions(row) {
             const yearSelect = row.querySelector('.year-selector-js');
             const semSelect = row.querySelector('.sem-selector-js');
@@ -317,7 +376,6 @@
                 });
             }
 
-            // Run initial checks on page load
             updateRowSemesterOptions(row);
             updateSubjectCounter(targetSlug, row);
         });
@@ -330,38 +388,13 @@
     .header-titles h2 { margin: 0; font-size: 24px; color: #0f172a; font-weight: 800; }
     .header-titles p { margin: 4px 0 0 0; font-size: 14px; color: #64748b; }
 
-    /* Search Bar Design Styling */
-    .search-bar-container {
-        padding: 14px 24px;
-        background: #ffffff;
-        border-bottom: 1px solid #f1f5f9;
-        display: flex;
-        align-items: center;
-        position: relative;
-    }
-    .search-icon {
-        position: absolute;
-        left: 38px;
-        color: #94a3b8;
-        font-size: 14px;
-    }
-    .custom-search-input {
-        width: 100%;
-        max-width: 450px;
-        padding: 9px 12px 9px 36px;
-        font-size: 13.5px;
-        color: #334155;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        outline: none;
-        transition: border-color 0.15s ease;
-    }
-    .custom-search-input:focus {
-        border-color: #2563eb;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
-    }
+    .custom-search-input { width: 100%; padding: 9px 12px; font-size: 13.5px; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; box-sizing: border-box; background: #fff; }
+    .custom-search-input:focus { border-color: #cbd5e1 !important; box-shadow: none !important; outline: none !important; }
 
-    /* Tabs Styling */
+    .filter-pill { background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 5px 10px; font-size: 11.5px; font-weight: 600; border-radius: 20px; cursor: pointer; transition: all 0.15s ease; }
+    .filter-pill:hover { background: #e2e8f0; color: #0f172a; }
+    .filter-pill.active { background: #0f172a; color: #ffffff; border-color: #0f172a; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.2); }
+
     .tabs-control-wrapper { display: flex; gap: 8px; margin-bottom: 20px; background: #f1f5f9; padding: 6px; border-radius: 8px; width: max-content; }
     .tab-toggle-btn { background: transparent; border: none; padding: 8px 18px; font-weight: 600; font-size: 13.5px; color: #475569; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
     .tab-toggle-btn.active { background: #ffffff; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -369,7 +402,6 @@
     .tab-content-panel { display: none; }
     .tab-content-panel.active-panel { display: block; }
 
-    /* Tables & Cards Component Layouts */
     .sa-card { border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
     .card-header-flex { background-color: #f8fafc; padding: 16px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
     .card-title-list { font-size: 14.5px; font-weight: 700; margin: 0; color: #1e293b; }
@@ -387,28 +419,58 @@
     .minimal-table td { padding: 14px 24px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
     .minimal-table tbody tr:hover { background-color: #f8fafc; }
 
-    .btn-action-plot { text-decoration: none; background: #0f172a; color: white; padding: 6px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 600; display: inline-block; }
-    .btn-action-plot:hover { background: #1e293b; }
-    .btn-action-view { text-decoration: none; background: #2563eb; color: white; padding: 6px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 600; display: inline-block; }
-    .btn-action-view:hover { background: #1d4ed8; }
+    /* Registrar-style Action Buttons */
+    .btn-action-plot {
+        display: inline-block;
+        background-color: transparent;
+        color: #0f172a;
+        border: 1px solid #0f172a;
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 12.5px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+    .btn-action-plot:hover {
+        background-color: #0f172a;
+        color: white;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+    }
+
+    .btn-action-view {
+        display: inline-block;
+        background-color: transparent;
+        color: #2563eb;
+        border: 1px solid #2563eb;
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 12.5px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+    .btn-action-view:hover {
+        background-color: #2563eb;
+        color: white;
+    }
     
     .btn-action-delete {
-        background: #dc2626;
-        color: #ffffff;
-        border: none;
+        display: inline-block;
+        background-color: transparent;
+        color: #dc2626;
+        border: 1px solid #dc2626;
         padding: 6px 14px;
         border-radius: 6px;
         font-size: 12.5px;
         font-weight: 600;
         cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        transition: background 0.15s ease;
+        transition: all 0.15s ease;
     }
-
     .btn-action-delete:hover {
-        background: #b91c1c;
+        background-color: #dc2626;
+        color: white;
+        box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
     }
 
     .select-input-helper { background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 5px; color: #334155; cursor: pointer; }
