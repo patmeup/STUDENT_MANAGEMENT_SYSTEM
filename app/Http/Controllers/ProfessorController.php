@@ -300,7 +300,7 @@ class ProfessorController extends Controller
 
         $existingAttendance = DB::table('attendances')
             ->where('class_schedule_id', $schedule_id)
-            ->where('attendance_date', $date)
+            ->whereDate('attendance_date', $date)
             ->get()
             ->keyBy('student_id');
 
@@ -328,7 +328,7 @@ class ProfessorController extends Controller
                 $record = DB::table('attendances')
                     ->where('class_schedule_id', $schedule_id)
                     ->where('student_id', $studentId)
-                    ->where('attendance_date', $date)
+                    ->whereDate('attendance_date', $date)
                     ->first();
 
                 if ($record) {
