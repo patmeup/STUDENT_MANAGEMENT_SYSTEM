@@ -14,6 +14,7 @@ use App\Support\TermHelper;
 use App\Support\GradeHelper;
 use App\Support\GoogleClassroomService;
 use App\Support\PredictiveGradeHelper;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ProfessorController extends Controller
 {
@@ -183,7 +184,16 @@ class ProfessorController extends Controller
             }
         }
 
-        // === Recorded attendance dates (for the calendar dot indicator) ===
+        $termPeriods = DB::table('term_periods')->get();
+
+        $classAttendances = DB::table('attendances')
+            ->where('class_schedule_id', $schedule_id)
+            ->get()
+            ->map(function ($att) use ($termPeriods) {
+                $att->derived_term = TermHelper::deriveTerm($att->attendance_date, $termPeriods);
+                return $att;
+            });
+
         $recordedDates = DB::table('attendances')
             ->where('class_schedule_id', $schedule_id)
             ->select('attendance_date')
@@ -273,6 +283,7 @@ class ProfessorController extends Controller
             'tasks',
             'termTasks',
             'termPeriods',
+            'classAttendances',
             'autoGrades',
             'draftGrades',
             'gConnection',
@@ -861,6 +872,7 @@ class ProfessorController extends Controller
                 $join->on('student_tasks.id', '=', 'task_submissions.task_id')
                     ->where('task_submissions.student_id', '=', $student_id);
             })
+            ->whereNotIn(DB::raw('LOWER(student_tasks.activity_type)'), ['module', 'material', 'announcement']) // IDAGDAG ITO
             ->select(
                 'student_tasks.*',
                 'task_submissions.grade',
@@ -911,20 +923,12 @@ class ProfessorController extends Controller
             'grades.*.class_standing' => 'nullable|numeric|min:0|max:100',
             'grades.*.major_exam'     => 'nullable|numeric|min:0|max:100',
             'grades.*.equivalent'     => 'nullable|numeric|min:1|max:5',
-            'grades.*.is_manual'      => 'required|boolean',
+            'grades.*.is_manual'      => 'nullable',
         ]);
 
         try {
             foreach ($request->grades as $grade) {
-                $isManual = (bool) $grade['is_manual'];
-
-                $updateData = [
-                    'is_manual'    => $isManual ? 1 : 0,
-                    'is_submitted' => false,
-                    'class_standing' => $grade['class_standing'] ?? null,
-                    'major_exam'     => $grade['major_exam'] ?? null,
-                    'equivalent'     => $grade['equivalent'] ?? null,
-                ];
+                $isManual = filter_var($grade['is_manual'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
                 StudentTermGrade::updateOrCreate(
                     [
@@ -932,15 +936,57 @@ class ProfessorController extends Controller
                         'student_number' => $grade['student_number'],
                         'term'           => $grade['term'],
                     ],
-                    $updateData
+                    [
+                        'is_manual'      => $isManual ? 1 : 0,
+                        'is_submitted'   => false,
+                        'class_standing' => $grade['class_standing'] ?? null,
+                        'major_exam'     => $grade['major_exam'] ?? null,
+                        'equivalent'     => $grade['equivalent'] ?? null,
+                    ]
                 );
+
+                if (isset($grade['task_scores']) && is_array($grade['task_scores'])) {
+                    foreach ($grade['task_scores'] as $taskId => $taskScore) {
+                        if ($taskScore !== null && $taskScore !== '') {
+                            $task = DB::table('student_tasks')->where('id', $taskId)->first();
+                            
+                            $systemTaskId = null;
+                            $gcCourseworkLocalId = null;
+
+                            if ($task) {
+                                if (!empty($task->google_coursework_id)) {
+                                    $gcWork = DB::table('google_classroom_coursework')
+                                        ->where('google_coursework_id', $task->google_coursework_id)
+                                        ->first();
+                                    $gcCourseworkLocalId = $gcWork ? $gcWork->id : null;
+                                } else {
+                                    $systemTaskId = $taskId;
+                                }
+                            }
+
+                            DB::table('task_submissions')->updateOrInsert(
+                                [
+                                    'student_id' => $grade['student_number'],
+                                    'task_id'    => $systemTaskId,
+                                ],
+                                [
+                                    'google_coursework_id' => $gcCourseworkLocalId,
+                                    'grade'                => $taskScore,
+                                    'updated_at'           => now(),
+                                    'created_at'           => DB::raw("COALESCE(created_at, '" . now() . "')"),
+                                ]
+                            );
+                        }
+                    }
+                }
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Draft grades saved successfully.'
+                'message' => 'Draft grades and task scores saved successfully.'
             ]);
         } catch (\Exception $e) {
+            Log::error('Error saving draft grades: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -1086,6 +1132,109 @@ class ProfessorController extends Controller
         $user->save();
 
         return redirect()->back()->with('success', 'Profile picture updated successfully!');
+    }
+
+    public function exportMasterlistPdf($schedule_id)
+    {
+        $professorId = session('user_id');
+
+        $classDetails = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id')
+            ->where('class_schedules.id', $schedule_id)
+            ->where('subjects.professor_id', $professorId)
+            ->select(
+                'class_schedules.section_name',
+                'class_schedules.class_days',
+                'class_schedules.start_time',
+                'class_schedules.end_time',
+                'class_schedules.room_assignment',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'employees.first_name as prof_first',
+                'employees.last_name as prof_last'
+            )
+            ->first();
+
+        if (!$classDetails) {
+            return redirect()->route('professor.manage-classes')->with('error', 'Class section not found or unauthorized.');
+        }
+
+        $students = DB::table('student_subjects')
+            ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
+            ->where('student_subjects.schedule_id', $schedule_id)
+            ->select(
+                'students.student_id',
+                'students.last_name',
+                'students.first_name',
+                'students.middle_name',
+                'students.status'
+            )
+            ->orderBy('students.last_name', 'asc')
+            ->get();
+
+        $pdf = Pdf::loadView('professor.pdf.masterlist', [
+            'classDetails' => $classDetails,
+            'students' => $students,
+            'generatedAt' => now(),
+        ])->setPaper('a4', 'portrait');
+
+        $fileName = 'Student_Masterlist_' . strtoupper($classDetails->subject_code) . '_' . strtoupper($classDetails->section_name) . '.pdf';
+
+        return $pdf->download($fileName);
+    }
+
+    public function exportAttendancePdf($schedule_id, Request $request)
+    {
+        $professorId = session('user_id');
+        $date = $request->query('date', date('Y-m-d'));
+
+        $classDetails = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id')
+            ->where('class_schedules.id', $schedule_id)
+            ->where('subjects.professor_id', $professorId)
+            ->select(
+                'class_schedules.section_name',
+                'class_schedules.class_days',
+                'class_schedules.start_time',
+                'class_schedules.end_time',
+                'class_schedules.room_assignment',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'employees.first_name as prof_first',
+                'employees.last_name as prof_last'
+            )
+            ->first();
+
+        if (!$classDetails) {
+            return redirect()->route('professor.manage-classes')->with('error', 'Class section not found or unauthorized.');
+        }
+
+        $students = DB::table('student_subjects')
+            ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
+            ->where('student_subjects.schedule_id', $schedule_id)
+            ->where('student_subjects.status', 'Enrolled')
+            ->select('students.student_id', 'students.first_name', 'students.last_name')
+            ->orderBy('students.last_name', 'asc')
+            ->get();
+
+        $existingAttendance = DB::table('attendances')
+            ->where('class_schedule_id', $schedule_id)
+            ->whereDate('attendance_date', $date)
+            ->get()
+            ->keyBy('student_id');
+
+        $pdf = Pdf::loadView('professor.pdf.attendance', [
+            'classDetails' => $classDetails,
+            'students' => $students,
+            'existingAttendance' => $existingAttendance,
+            'attendanceDate' => \Carbon\Carbon::parse($date)->format('F d, Y'),
+        ])->setPaper('a4', 'landscape');
+
+        $fileName = 'Class_Attendance_' . strtoupper($classDetails->subject_code) . '_' . strtoupper($classDetails->section_name) . '_' . $date . '.pdf';
+
+        return $pdf->download($fileName);
     }
 
 }

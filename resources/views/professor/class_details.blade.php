@@ -67,7 +67,6 @@
                     this.datePickerInstance.redraw();
                 }
             } catch (err) {
-                // Keep whatever we already had (e.g. server-seeded dates) instead of wiping it on failure
                 window.globalRecordedDates = window.globalRecordedDates || [];
             }
         },
@@ -99,8 +98,6 @@
                     const d = String(dayElem.dateObj.getDate()).padStart(2, '0');
                     const dateIso = `${y}-${m}-${d}`;
 
-                    // Always read from window.globalRecordedDates so the initial
-                    // server-seeded list AND any later fetch/redraw stay in sync.
                     const recorded = window.globalRecordedDates || [];
                     if (recorded.includes(dateIso)) {
                         dayElem.classList.add('has-attendance-dot');
@@ -120,6 +117,7 @@
             this.fileSizeError = false;
             this.showModal = true;
         },
+
         openEditModal(task) {
             this.modalTerm = task.term;
             this.editingTaskId = task.id;
@@ -131,6 +129,7 @@
             this.fileSizeError = false;
             this.showModal = true;
         },
+
         setQuickDate(daysToAdd, hours = 23, minutes = 59) {
             let d = new Date();
             d.setDate(d.getDate() + daysToAdd);
@@ -145,6 +144,7 @@
 
             this.formDueDate = `${year}-${month}-${day}T${hh}:${mm}`;
         },
+
         deleteTask(id, term) {
             if (!confirm('Are you sure you want to delete this task?')) return;
             fetch(`/professor/delete-activity/${id}`, {
@@ -160,6 +160,7 @@
                 }
             });
         },
+
         bulkMark(status) {
             if (this.isPastDate() || this.hasSaved) return;
             Object.keys(this.attendanceState).forEach(key => {
@@ -249,19 +250,74 @@
         },
 
         async initAttendance() {
-            // Seed immediately from the server-rendered list so dots show up
-            // on first paint, without waiting for the fetch below.
             window.globalRecordedDates = @js($recordedDates ?? []);
 
             this.loadAttendanceData();
             this.initDatePicker();
 
-            // Then refresh in the background to stay accurate/up to date.
             await this.loadRecordedDates();
-        }
-    }",
+        },
 
-    x-init="if (currentTab === 'attendance') { initAttendance(); }">
+        exportMasterlistExcel() {
+            let csv = [];
+            let trs = document.querySelectorAll('#masterlist-table-shell table.custom-portal-table tbody tr');
+            
+            csv.push(['#', 'Student Number', 'Full Name', 'Status'].join(','));
+            
+            trs.forEach((tr) => {
+                let cols = tr.querySelectorAll('td');
+                if (cols.length >= 3) {
+                    let num = cols[0].innerText.trim();
+                    let snum = cols[1].innerText.trim();
+                    let name = cols[2].innerText.trim().replace(/[\\r\\n]+/g, ' ');
+                    let status = cols[3] ? cols[3].innerText.trim() : 'Enrolled';
+                    csv.push([num, `'${snum}'`, `'${name}'`, `'${status}'`].join(','));
+                }
+            });
+
+            let csvFile = new Blob([csv.join('\n')], { type: 'text/csv' });
+            let downloadLink = document.createElement('a');
+            downloadLink.download = 'Student_Masterlist_{{ strtoupper($classDetails->subject_code) }}_{{ strtoupper($classDetails->section_name) }}.csv';
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = 'none';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        },
+
+        exportAttendanceExcel() {
+            let csv = [];
+            let trs = document.querySelectorAll('.attendance-table-shell table.custom-portal-table tbody tr');
+            
+            csv.push(['#', 'Student ID', 'Full Name', 'Status', 'Remarks', 'Date'].join(','));
+            
+            trs.forEach((tr) => {
+                let cols = tr.querySelectorAll('td');
+                if (cols.length >= 4) {
+                    let num = cols[0].innerText.trim();
+                    let sid = cols[1].innerText.trim();
+                    let name = cols[2].innerText.trim().replace(/[\\r\\n]+/g, ' ');
+                    
+                    let status = this.attendanceState[sid] || 'N/A';
+                    let remarks = this.remarksState[sid] || '';
+                    
+                    csv.push([num, `'${sid}'`, `'${name}'`, `'${status}'`, `'${remarks}'`, `'${this.selectedDate}'`].join(','));
+                }
+            });
+
+            let csvFile = new Blob([csv.join('\n')], { type: 'text/csv' });
+            let downloadLink = document.createElement('a');
+            downloadLink.download = 'Class_Attendance_{{ strtoupper($classDetails->subject_code) }}_{{ strtoupper($classDetails->section_name) }}_' + this.selectedDate + '.csv';
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = 'none';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+    }"
+
+x-init="if (currentTab === 'attendance') { initAttendance(); }">
 
     <template x-if="landscapePrint">
         <style>@media print { @page { size: A4 landscape; margin: 10mm 12mm; } }</style>
@@ -287,7 +343,6 @@
 
     <div class="dashboard-grid-wrapper">
 
-        <!-- SIDEBAR -->
         <div class="unified-sidebar">
             <div class="sidebar-subject-card">
                 <div class="subject-tag-line mb-2">
@@ -343,16 +398,24 @@
                         </div>
                         <div class="masterlist-actions-stack">
                             <span class="students-count-badge">{{ count($students) }} Students Enrolled</span>
-                            <button type="button" @click="landscapePrint = false; setTimeout(() => window.print(), 150);" class="btn-print-attendance">
-                                <i class="fa-solid fa-print me-1"></i> Print / Download PDF
-                            </button>
+                            <div class="d-flex gap-2 mt-1">
+                                <button type="button" @click="landscapePrint = false; setTimeout(() => window.print(), 150);" class="btn-print-attendance">
+                                    <i class="fa-solid fa-print me-1"></i> Print
+                                </button>
+                                <a href="{{ route('professor.masterlist.export_pdf', $classDetails->schedule_id) }}" class="btn-print-attendance">
+                                    <i class="fa-solid fa-file-pdf me-1 text-danger"></i> Download PDF
+                                </a>
+                                <button type="button" @click="exportMasterlistExcel()" class="btn-print-attendance">
+                                    <i class="fa-solid fa-file-excel me-1 text-success"></i> Export Excel
+                                </button>
+                            </div>
                         </div>
                     </div>
 
                     @if($students->isEmpty())
                         <div class="p-5 text-center text-muted">No students officially enrolled in this schedule section.</div>
                     @else
-                        <div class="table-responsive">
+                        <div class="table-responsive" id="masterlist-table-shell">
                             <table class="table custom-portal-table align-middle m-0">
                                 <thead>
                                     <tr>
@@ -490,9 +553,17 @@
                                 </div>
 
                                 <template x-if="hasSaved">
-                                    <button type="button" @click="landscapePrint = false; setTimeout(() => window.print(), 150);" class="btn-print-attendance">
-                                        <i class="fa-solid fa-print me-1"></i> Print / Download PDF
-                                    </button>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" @click="landscapePrint = false; setTimeout(() => window.print(), 150);" class="btn-print-attendance">
+                                            <i class="fa-solid fa-print me-1"></i> Print
+                                        </button>
+                                        <a :href="'{{ route('professor.attendance.export_pdf', $classDetails->schedule_id) }}?date=' + selectedDate" class="btn-print-attendance">
+                                            <i class="fa-solid fa-file-pdf me-1 text-danger"></i> Download PDF
+                                        </a>
+                                        <button type="button" @click="exportAttendanceExcel()" class="btn-print-attendance">
+                                            <i class="fa-solid fa-file-excel me-1 text-success"></i> Export Excel
+                                        </button>
+                                    </div>
                                 </template>
                             </div>
 
@@ -790,65 +861,6 @@
 
                         <div x-show="termSubTab === 'deliverables'">
 
-                            @php
-                                $mergedDeliverables = collect();
-                                $currentTermTasks = collect($termTasks->get($key, []));
-                                $systemTaskTitles = $currentTermTasks->pluck('activity_name')->map(fn($t) => strtolower(trim($t)))->toArray();
-
-                                foreach ($currentTermTasks as $task) {
-                                    $mergedDeliverables->push((object)[
-                                        'source'     => !empty($task->google_coursework_id) ? 'gclass_coursework' : 'system',
-                                        'id'         => $task->id,
-                                        'title'      => $task->activity_name,
-                                        'type'       => $task->activity_type,
-                                        'max_score'  => $task->max_score,
-                                        'due_date'   => $task->due_date,
-                                        'sort_date'  => $task->due_date ?? '1970-01-01',
-                                    ]);
-                                }
-
-                                if (isset($gConnection) && $gConnection && isset($gLinkedCourse) && $gLinkedCourse) {
-                                    if (isset($gCourseWork)) {
-                                        foreach ($gCourseWork->where('term', $key) as $cw) {
-                                            if (!DB::table('student_tasks')->where('google_coursework_id', $cw->google_coursework_id)->exists() && !in_array(strtolower(trim($cw->title)), $systemTaskTitles)) {
-                                                $mergedDeliverables->push((object)[
-                                                    'source'     => 'gclass_coursework',
-                                                    'id'         => $cw->id,
-                                                    'title'      => $cw->title,
-                                                    'type'       => 'coursework',
-                                                    'max_score'  => $cw->max_points ?? null,
-                                                    'due_date'   => $cw->due_date,
-                                                    'sort_date'  => $cw->due_date ?? '1970-01-01',
-                                                ]);
-                                            }
-                                        }
-                                    }
-
-                                    if (isset($gMaterials)) {
-                                        $termMaterials = DB::table('google_classroom_materials')
-                                            ->where('course_id', $gLinkedCourse->id)
-                                            ->where('term', $key)
-                                            ->get();
-
-                                        foreach ($termMaterials as $mat) {
-                                            $mergedDeliverables->push((object)[
-                                                'source'     => 'gclass_material',
-                                                'id'         => $mat->id,
-                                                'title'      => $mat->title,
-                                                'type'       => 'material',
-                                                'max_score'  => null,
-                                                'due_date'   => null,
-                                                'posted_at'  => $mat->created_at ?? null,
-                                                'link'       => $mat->alternate_link ?? null,
-                                                'sort_date'  => $mat->created_at ?? '1970-01-01',
-                                            ]);
-                                        }
-                                    }
-                                }
-                                
-                                $mergedDeliverables = $mergedDeliverables->sortByDesc('sort_date')->values();
-                            @endphp
-
                             @if($gConnection && !$gLinkedCourse)
                                 <div class="gclass-link-box mb-3">
                                     <p class="gclass-link-text">Select which Google Classroom course corresponds to this class section to include its posts here.</p>
@@ -1005,9 +1017,44 @@
                         @php
                             $gradeModes = [];
                             $manualGrades = [];
+                            $taskInputGrades = [];
 
                             $termDraftCollection = $draftGrades->get($key);
                             $isTermSubmitted = $termDraftCollection ? $termDraftCollection->where('is_submitted', 1)->count() > 0 : false;
+
+                            $termTasksList = collect($termTasks->get($key, []))->filter(fn($t) => !in_array(strtolower($t->activity_type), ['module', 'material', 'announcement']));
+
+                            if (isset($gConnection) && $gConnection && isset($gLinkedCourse) && $gLinkedCourse) {
+                                if (isset($gCourseWork)) {
+                                    $filteredGCourseWork = $gCourseWork->where('term', $key);
+                                    foreach ($filteredGCourseWork as $cw) {
+                                        $exists = $termTasksList->first(fn($t) => $t->google_coursework_id == $cw->google_coursework_id || strtolower(trim($t->activity_name)) === strtolower(trim($cw->title)));
+                                        
+                                        if (!$exists) {
+                                            $termTasksList->push((object)[
+                                                'id' => 'gc_' . $cw->id,
+                                                'google_coursework_id' => $cw->google_coursework_id ?? $cw->id,
+                                                'activity_name' => $cw->title,
+                                                'activity_type' => strtolower($cw->work_type ?? 'assignment'),
+                                                'max_score' => $cw->max_points ?? 100,
+                                                'term' => $key,
+                                            ]);
+                                        }
+                                    }
+                                }
+                            }
+
+                            $attendanceSummaryData = [];
+                            foreach($students as $s) {
+                                foreach(['prelim', 'midterm', 'semifinal', 'final'] as $termKey) {
+                                    $termAtts = $classAttendances->where('student_id', $s->student_id)->where('derived_term', $termKey);
+                                    $attendanceSummaryData[$s->student_id][$termKey] = [
+                                        'Present' => $termAtts->where('status', 'Present')->count(),
+                                        'Late'    => $termAtts->where('status', 'Late')->count(),
+                                        'Absent'  => $termAtts->where('status', 'Absent')->count(),
+                                    ];
+                                }
+                            }
 
                             foreach ($students as $student) {
                                 $draft = optional(
@@ -1015,7 +1062,6 @@
                                 );
 
                                 $gradeModes[$student->student_id] = ($draft && $draft->is_manual) ? 'manual' : 'auto';
-
                                 $autoGradeStudent = $autoGrades[$key][$student->student_id] ?? [];
 
                                 $manualGrades[$student->student_id] = [
@@ -1023,6 +1069,20 @@
                                     'major_exam'     => $draft->major_exam ?? $autoGradeStudent['major_exam'] ?? '',
                                     'equivalent'     => $draft->equivalent ?? $autoGradeStudent['equivalent'] ?? '',
                                 ];
+
+                                foreach ($termTasksList as $task) {
+                                    if (isset($task->google_coursework_id) && str_starts_with($task->id, 'gc_')) {
+                                        $sub = $studentSubmissions->where('student_id', $student->student_id)
+                                            ->where('google_coursework_id', $task->google_coursework_id)
+                                            ->first();
+                                    } else {
+                                        $sub = $studentSubmissions->where('student_id', $student->student_id)
+                                            ->where('task_id', $task->id)
+                                            ->first();
+                                    }
+                                    
+                                    $taskInputGrades[$student->student_id][$task->id] = $sub->grade ?? '';
+                                }
                             }
                         @endphp
 
@@ -1030,10 +1090,27 @@
                             x-data="{
                                 gradeMode: @js($gradeModes),
                                 manualGrades: @js($manualGrades),
+                                taskScores: @js($taskInputGrades),
+                                attendanceSummary: @js($attendanceSummaryData),
+                                termTasks: @js($termTasksList->filter(fn($t) => strtolower($t->activity_type) !== 'exam')->values()),
+                                allTermTasks: @js($termTasksList->values()),
                                 cachedManualGrades: JSON.parse(JSON.stringify(@js($manualGrades))),
                                 autoGradesData: @js($autoGrades[$key] ?? []),
                                 hasUnsavedChanges: false,
                                 isSubmitted: @js($isTermSubmitted),
+                                
+                                taskModalOpen: false,
+                                activeStudent: null,
+                                activeStudentName: '',
+
+                                openTaskModal(sid, name) {
+                                    this.activeStudent = sid;
+                                    this.activeStudentName = name;
+                                    if (!this.taskScores[sid]) {
+                                        this.taskScores[sid] = {};
+                                    }
+                                    this.taskModalOpen = true;
+                                },
 
                                 init() {
                                     window.addEventListener('beforeunload', (event) => {
@@ -1042,6 +1119,81 @@
                                             event.returnValue = '';
                                         }
                                     });
+                                },
+
+                                recalculateGrade(sid) {
+                                    this.hasUnsavedChanges = true;
+                                    let cs = parseFloat(this.manualGrades[sid].class_standing) || 0;
+                                    let ex = parseFloat(this.manualGrades[sid].major_exam);
+
+                                    let finalPct = 0;
+                                    if (!isNaN(cs) && !isNaN(ex)) {
+                                        finalPct = (cs * 0.60) + (ex * 0.40);
+                                    } else if (!isNaN(cs)) {
+                                        finalPct = cs;
+                                    }
+
+                                    if (!isNaN(finalPct)) {
+                                        this.manualGrades[sid].equivalent = this.calculateEquivalentGrade(finalPct);
+                                    }
+                                },
+
+                                updateTaskScore(sid, taskId, maxScore) {
+                                    this.hasUnsavedChanges = true;
+                                    let studentTasks = this.taskScores[sid];
+                                    let csScores = [];
+                                    let examScores = [];
+
+                                    this.allTermTasks.forEach(t => {
+                                        let val = parseFloat(studentTasks[t.id]);
+                                        if (!isNaN(val) && t.max_score > 0) {
+                                            let pct = (val / t.max_score) * 100;
+                                            if (t.activity_type === 'exam') {
+                                                examScores.push(pct);
+                                            } else {
+                                                csScores.push(pct);
+                                            }
+                                        }
+                                    });
+
+                                    if (csScores.length > 0) {
+                                        let avgCs = csScores.reduce((a, b) => a + b, 0) / csScores.length;
+                                        this.manualGrades[sid].class_standing = Math.round(avgCs * 100) / 100;
+                                    } else {
+                                        this.manualGrades[sid].class_standing = 0;
+                                    }
+
+                                    if (examScores.length > 0) {
+                                        let avgExam = examScores.reduce((a, b) => a + b, 0) / examScores.length;
+                                        this.manualGrades[sid].major_exam = Math.round(avgExam * 100) / 100;
+                                    }
+
+                                    let cs = parseFloat(this.manualGrades[sid].class_standing) || 0;
+                                    let ex = parseFloat(this.manualGrades[sid].major_exam);
+                                    
+                                    let finalPct = 0;
+                                    if (!isNaN(cs) && !isNaN(ex)) {
+                                        finalPct = (cs * 0.60) + (ex * 0.40);
+                                    } else if (!isNaN(cs)) {
+                                        finalPct = cs;
+                                    }
+                                    
+                                    if (!isNaN(finalPct)) {
+                                        this.manualGrades[sid].equivalent = this.calculateEquivalentGrade(finalPct);
+                                    }
+                                },
+
+                                calculateEquivalentGrade(percent) {
+                                    if (percent < 75) return '5.00';
+                                    if (percent >= 97) return '1.00';
+                                    if (percent >= 94) return '1.25';
+                                    if (percent >= 91) return '1.50';
+                                    if (percent >= 88) return '1.75';
+                                    if (percent >= 85) return '2.00';
+                                    if (percent >= 82) return '2.25';
+                                    if (percent >= 79) return '2.50';
+                                    if (percent >= 76) return '2.75';
+                                    return '3.00';
                                 },
 
                                 async setMode(sid, mode) {
@@ -1075,15 +1227,7 @@
                                                 equivalent: data.computed.equivalent ?? ''
                                             };
                                         }
-                                    } else {
-                                        if (this.cachedManualGrades[sid]) {
-                                            this.manualGrades[sid] = JSON.parse(JSON.stringify(this.cachedManualGrades[sid]));
-                                        }
                                     }
-                                },
-
-                                markChanged() {
-                                    this.hasUnsavedChanges = true;
                                 },
 
                                 saveDraftGrades() {
@@ -1096,7 +1240,8 @@
                                             class_standing: this.manualGrades[sid].class_standing,
                                             major_exam: this.manualGrades[sid].major_exam,
                                             equivalent: this.manualGrades[sid].equivalent,
-                                            is_manual: this.gradeMode[sid] === 'manual'
+                                            is_manual: this.gradeMode[sid] === 'manual',
+                                            task_scores: this.taskScores[sid] || {}
                                         });
                                     }
 
@@ -1112,7 +1257,7 @@
                                     .then(data => {
                                         if(data.success) {
                                             this.hasUnsavedChanges = false;
-                                            alert('Grades saved successfully!');
+                                            alert('Grades and task scores saved successfully!');
                                             this.cachedManualGrades = JSON.parse(JSON.stringify(this.manualGrades));
                                         } else {
                                             alert('Error saving grades.');
@@ -1161,7 +1306,7 @@
                             <div class="grade-top-row mb-3">
                                 <div class="encoding-legend-bar">
                                     <span class="legend-item"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto — computed from task scores & attendance</span>
-                                    <span class="legend-item"><i class="fa-solid fa-pen"></i> Manual — professor enters custom score</span>
+                                    <span class="legend-item"><i class="fa-solid fa-pen"></i> Manual — edit Major Exam & tasks (Class Standing auto-computes)</span>
                                 </div>
 
                                 <template x-if="!isSubmitted">
@@ -1208,19 +1353,19 @@
                                         <thead>
                                             <tr>
                                                 <th style="width: 5%;">#</th>
-                                                <th style="width: 15%;">Student ID</th>
-                                                <th style="width: 22%;">Full Name</th>
-                                                <th style="width: 18%;" class="text-center">Class Standing (60%)</th>
-                                                <th style="width: 13%;" class="text-center">Major Exam (40%)</th>
-                                                <th style="width: 9%;" class="text-center">GWA</th>
-                                                <th style="width: 18%;" class="text-center">Mode</th>
+                                                <th style="width: 14%;">Student ID</th>
+                                                <th style="width: 25%;">Full Name</th>
+                                                <th style="width: 14%;" class="text-center">Class Standing</th>
+                                                <th style="width: 14%;" class="text-center">Major Exam</th>
+                                                <th style="width: 10%;" class="text-center">GWA</th>
+                                                <th style="width: 18%;" class="text-center">Mode & Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                         @foreach($students as $index => $student)
                                             @php
                                                 $sid = $student->student_id;
-                                                $auto = $autoGrades[$key][$sid] ?? ['class_standing' => null, 'major_exam' => null, 'equivalent' => null];
+                                                $fullName = strtoupper($student->last_name . ', ' . $student->first_name);
                                             @endphp
                                             <tr>
                                                 <td class="text-muted fw-bold">{{ $index + 1 }}</td>
@@ -1228,30 +1373,12 @@
                                                 <td class="text-uppercase fw-bold text-dark-slate">{{ $student->last_name }}, {{ $student->first_name }}</td>
 
                                                 <td class="text-center">
-                                                    <div class="encoding-cell-row">
-                                                        <input type="number" min="0" max="100" step="0.01" class="encoding-input"
-                                                            x-model.number="manualGrades['{{ $sid }}'].class_standing"
-                                                            placeholder="—"
-                                                            :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
-                                                            :disabled="isSubmitted"
-                                                            :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted ? 'encoding-input-active' : 'encoding-input-muted'"
-                                                            @input="
-                                                                markChanged();
-                                                                let value = parseFloat($event.target.value);
-                                                                if (isNaN(value)) {
-                                                                    manualGrades['{{ $sid }}'].class_standing = '';
-                                                                } else {
-                                                                    if (value > 100) value = 100;
-                                                                    if (value < 0) value = 0;
-                                                                    manualGrades['{{ $sid }}'].class_standing = value;
-                                                                    $event.target.value = value;
-                                                                }
-                                                            ">
-
-                                                        <a href="{{ route('professor.grades.breakdown', ['schedule_id' => $classDetails->schedule_id, 'student_id' => $sid, 'term' => $key]) }}" class="breakdown-icon-link" title="View individual activity scores and attendance breakdown">
-                                                            <i class="fa-solid fa-eye"></i>
-                                                        </a>
-                                                    </div>
+                                                    <input type="number" min="0" max="100" step="0.01" class="encoding-input encoding-input-muted"
+                                                        x-model.number="manualGrades['{{ $sid }}'].class_standing"
+                                                        placeholder="—"
+                                                        readonly
+                                                        disabled
+                                                        style="background-color: #f1f5f9 !important; color: #475569 !important; cursor: not-allowed;">
                                                 </td>
 
                                                 <td class="text-center">
@@ -1261,65 +1388,146 @@
                                                         :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
                                                         :disabled="isSubmitted"
                                                         :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted ? 'encoding-input-active' : 'encoding-input-muted'"
-                                                        @input="
-                                                            markChanged();
-                                                            let value = parseFloat($event.target.value);
-                                                            if (isNaN(value)) {
-                                                                manualGrades['{{ $sid }}'].major_exam = '';
-                                                            } else {
-                                                                if (value > 100) value = 100;
-                                                                if (value < 0) value = 0;
-                                                                manualGrades['{{ $sid }}'].major_exam = value;
-                                                                $event.target.value = value;
-                                                            }
-                                                        ">
+                                                        @input="recalculateGrade('{{ $sid }}')">
                                                 </td>
 
                                                 <td class="text-center">
-                                                    <span class="equivalent-pill">
-                                                        <input type="text" class="equivalent-input"
-                                                            x-model="manualGrades['{{ $sid }}'].equivalent"
-                                                            placeholder="—"
-                                                            maxlength="4"
-                                                            :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
-                                                            :disabled="isSubmitted"
-                                                            :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted ? 'encoding-input-active' : 'encoding-input-muted'"
-                                                            @input="
-                                                                markChanged();
-                                                                let v = $event.target.value.replace(/[^0-9.]/g, '');
-                                                                const parts = v.split('.');
-                                                                if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
-                                                                if (parts[0] && parts[0].length > 1) parts[0] = parts[0].slice(0, 1);
-                                                                if (parts[1]) parts[1] = parts[1].slice(0, 2);
-                                                                v = parts[1] !== undefined ? parts[0] + '.' + parts[1] : (parts[0] || '');
-                                                                manualGrades['{{ $sid }}'].equivalent = v;
-                                                            ">
-                                                    </span>
+                                                    <input type="text" class="equivalent-input equivalent-input-muted"
+                                                        x-model="manualGrades['{{ $sid }}'].equivalent"
+                                                        placeholder="—"
+                                                        maxlength="4"
+                                                        readonly
+                                                        disabled
+                                                        style="background-color: #f1f5f9 !important; color: #475569 !important; cursor: not-allowed;">
                                                 </td>
 
                                                 <td class="text-center">
-                                                    <div class="mode-toggle-group" :class="isSubmitted ? 'disabled-group' : ''">
-                                                        <button type="button"
-                                                            class="mode-toggle-btn"
-                                                            :class="(gradeMode['{{ $sid }}'] || 'auto') === 'auto' ? 'mode-toggle-active-auto' : ''"
-                                                            :disabled="isSubmitted"
-                                                            @click="if(!isSubmitted) setMode('{{ $sid }}', 'auto')">
-                                                            <i class="fa-solid fa-wand-magic-sparkles"></i> Auto
-                                                        </button>
-                                                        
-                                                        <button type="button"
-                                                            class="mode-toggle-btn"
-                                                            :class="gradeMode['{{ $sid }}'] === 'manual' ? 'mode-toggle-active-manual' : ''"
-                                                            :disabled="isSubmitted"
-                                                            @click="if(!isSubmitted) setMode('{{ $sid }}', 'manual')">
-                                                            <i class="fa-solid fa-pen"></i> Manual
-                                                        </button>
+                                                    <div class="d-flex align-items-center justify-content-center gap-2">
+                                                        <div class="mode-toggle-group" :class="isSubmitted ? 'disabled-group' : ''">
+                                                            <button type="button"
+                                                                class="mode-toggle-btn"
+                                                                :class="(gradeMode['{{ $sid }}'] || 'auto') === 'auto' ? 'mode-toggle-active-auto' : ''"
+                                                                :disabled="isSubmitted"
+                                                                @click="if(!isSubmitted) setMode('{{ $sid }}', 'auto')">
+                                                                Auto
+                                                            </button>
+                                                            
+                                                            <button type="button"
+                                                                class="mode-toggle-btn"
+                                                                :class="gradeMode['{{ $sid }}'] === 'manual' ? 'mode-toggle-active-manual' : ''"
+                                                                :disabled="isSubmitted"
+                                                                @click="if(!isSubmitted) setMode('{{ $sid }}', 'manual')">
+                                                                Manual
+                                                            </button>
+                                                        </div>
+
+                                                        <a href="{{ route('professor.grades.breakdown', ['schedule_id' => $classDetails->schedule_id, 'student_id' => $sid, 'term' => $key]) }}" class="btn-sm-outline breakdown-icon-link" title="View Full Grades & Attendance Breakdown">
+                                                            <i class="fa-solid fa-chart-pie"></i>
+                                                        </a>
+
+                                                        <template x-if="!isSubmitted">
+                                                            <button type="button" class="btn-sm-outline btn-edit-tasks" @click="openTaskModal('{{ $sid }}', '{{ $fullName }}')" title="Edit Individual Tasks & Scores">
+                                                                <i class="fa-solid fa-pen-to-square"></i>
+                                                            </button>
+                                                        </template>
                                                     </div>
                                                 </td>
                                             </tr>
                                         @endforeach
                                         </tbody>
                                     </table>
+                                </div>
+
+                                <div class="custom-modal-backdrop" x-show="taskModalOpen" style="display: none;" x-transition>
+                                    <div class="custom-modal-card" @click.away="taskModalOpen = false" style="max-width: 650px;">
+                                        <div class="modal-card-header">
+                                            <div>
+                                                <h4><i class="fa-solid fa-list-check text-primary me-2"></i> Edit Tasks & Scores</h4>
+                                                <span class="modal-term-tag" x-text="activeStudentName + ' (' + activeStudent + ')'"></span>
+                                            </div>
+                                            <button type="button" class="close-modal-btn" @click="taskModalOpen = false">&times;</button>
+                                        </div>
+
+                                        <div class="modal-card-body" style="max-height: 65vh; overflow-y: auto;">
+                                            <p class="small text-muted mb-3">
+                                                Encode individual scores for this student. Changes here will automatically re-compute the Class Standing and GWA.
+                                            </p>
+
+                                            <div class="p-3 mb-3 bg-light rounded-3 border">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <h6 class="fw-bold text-dark-blue m-0" style="font-size: 13px;">
+                                                        <i class="fa-solid fa-calendar-check me-1 text-success"></i> Attendance Record Summary
+                                                    </h6>
+                                                    @php
+                                                        $currentTermPeriod = $termPeriods->firstWhere('term', $key);
+                                                    @endphp
+                                                    @if($currentTermPeriod)
+                                                        <span class="badge bg-white text-secondary border px-2 py-1" style="font-size: 11px; font-weight: 600;">
+                                                            <i class="fa-regular fa-clock me-1 text-muted"></i>
+                                                            {{ \Carbon\Carbon::parse($currentTermPeriod->start_date)->format('M d, Y') }} – {{ \Carbon\Carbon::parse($currentTermPeriod->end_date)->format('M d, Y') }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+
+                                                <div class="row text-center g-2 mt-1">
+                                                    <div class="col-4">
+                                                        <div class="p-2 bg-white rounded border shadow-sm">
+                                                            <span class="d-block text-muted text-uppercase fw-bold" style="font-size: 10px;">Present</span>
+                                                            <strong class="text-success" style="font-size: 15px;" x-text="(activeStudent && attendanceSummary[activeStudent]) ? attendanceSummary[activeStudent]['{{ $key }}'].Present : 0"></strong>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <div class="p-2 bg-white rounded border shadow-sm">
+                                                            <span class="d-block text-muted text-uppercase fw-bold" style="font-size: 10px;">Late</span>
+                                                            <strong class="text-warning" style="font-size: 15px;" x-text="(activeStudent && attendanceSummary[activeStudent]) ? attendanceSummary[activeStudent]['{{ $key }}'].Late : 0"></strong>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <div class="p-2 bg-white rounded border shadow-sm">
+                                                            <span class="d-block text-muted text-uppercase fw-bold" style="font-size: 10px;">Absent</span>
+                                                            <strong class="text-danger" style="font-size: 15px;" x-text="(activeStudent && attendanceSummary[activeStudent]) ? attendanceSummary[activeStudent]['{{ $key }}'].Absent : 0"></strong>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="table-responsive">
+                                                <table class="table custom-portal-table align-middle">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Activity Title</th>
+                                                            <th class="text-center" style="width: 110px;">Type</th>
+                                                            <th class="text-center" style="width: 90px;">Max Score</th>
+                                                            <th class="text-center" style="width: 110px;">Score</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <template x-for="task in termTasks" :key="task.id">
+                                                            <tr>
+                                                                <td>
+                                                                    <strong class="text-dark-blue" x-text="task.activity_name"></strong>
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <span class="badge bg-secondary text-uppercase" x-text="task.activity_type" style="font-size: 10px;"></span>
+                                                                </td>
+                                                                <td class="text-center text-muted fw-bold" x-text="task.max_score ? task.max_score + ' pts' : '—'"></td>
+                                                                <td class="text-center">
+                                                                    <input type="number" step="0.01" class="encoding-input encoding-input-active text-center"
+                                                                        x-model.number="taskScores[activeStudent][task.id]"
+                                                                        placeholder="—"
+                                                                        @input="updateTaskScore(activeStudent, task.id, task.max_score)">
+                                                                </td>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        <div class="modal-card-footer">
+                                            <button type="button" class="btn-primary-portal px-4" @click="taskModalOpen = false">Done / Close</button>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <template x-if="isSubmitted">
@@ -1628,7 +1836,7 @@
     .badge-enrolled-status { background: #dcfce7; color: #15803d; font-size: 12px; padding: 4px 12px; font-weight: 700; border-radius: 20px; }
 
     .new-student-row {
-        background-color: #f0f9ff !important; /* Subtle blue background */
+        background-color: #f0f9ff !important;
     }
     
     .new-student-row td {
@@ -1838,6 +2046,20 @@
     .btn-grade:hover { border-color: #1e2a5a; color: #1e2a5a; background: #eef1fb; }
     .btn-edit:hover { border-color: #d97706; color: #d97706; background: #fffbeb; }
     .btn-delete:hover { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+    
+    .btn-edit-tasks {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #d97706;
+        padding: 6px 10px;
+        border-radius: 6px;
+    }
+    .btn-edit-tasks:hover {
+        background: #fef3c7;
+        color: #b45309;
+        border-color: #fcd34d;
+    }
+
     .breakdown-link { font-size: 11px; color: #0284c7; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; transition: 0.15s; }
     .breakdown-link:hover { color: #0369a1; text-decoration: underline; }
     .override-toggle-btn { width: 30px; height: 30px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; transition: 0.2s; }
@@ -2083,11 +2305,6 @@
     .encoding-table th:nth-child(2),
     .encoding-table th:nth-child(3) { text-align: left; }
 
-    .encoding-table th:nth-child(4) { width: 22%; } 
-    .encoding-table th:nth-child(5) { width: 16%; } 
-    .encoding-table th:nth-child(6) { width: 12%; } 
-    .encoding-table th:nth-child(7) { width: 20%; } 
-
     .encoding-cell-row {
         display: flex;
         align-items: center;
@@ -2243,6 +2460,8 @@
         transition: all 0.2s ease;
         display: inline-flex;
         align-items: center;
+        gap: 6px;
+        text-decoration: none;
     }
     .btn-print-attendance:hover {
         background-color: #1e2a5a;
