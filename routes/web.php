@@ -146,8 +146,10 @@ Route::middleware(['role:professor'])->group(function () {
     Route::get('/professor/dashboard', [ProfessorController::class, 'dashboard'])->name('professor.dashboard');
     Route::get('/professor/manage-classes', [ProfessorController::class, 'manageClasses'])->name('professor.manage-classes');
     Route::get('/professor/class_details/{schedule_id}', [ProfessorController::class, 'viewClassDashboard'])->name('professor.class_details');
+    Route::get('/professor/class/{schedule_id}/masterlist/pdf', [ProfessorController::class, 'exportMasterlistPdf'])->name('professor.masterlist.export_pdf');
     Route::get('/professor/class/{schedule_id}/attendance', [ProfessorController::class, 'showAttendanceSheet'])->name('professor.attendance.data');
     Route::post('/professor/class/{schedule_id}/attendance/save', [ProfessorController::class, 'saveAttendance'])->name('professor.save-attendance');
+    Route::get('/professor/class/{schedule_id}/attendance/pdf', [ProfessorController::class, 'exportAttendancePdf'])->name('professor.attendance.export_pdf');
     Route::get('/professor/google-classroom/connect', [GoogleClassroomController::class, 'redirect'])->name('professor.google-classroom.connect');
     Route::get('/professor/google-classroom/callback', [GoogleClassroomController::class, 'callback'])->name('professor.google-classroom.callback');
     Route::post('/professor/google-classroom/sync', [ProfessorController::class, 'syncGoogleClassroom'])->name('professor.google-classroom.sync');
