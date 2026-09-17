@@ -948,34 +948,54 @@ class ProfessorController extends Controller
                 if (isset($grade['task_scores']) && is_array($grade['task_scores'])) {
                     foreach ($grade['task_scores'] as $taskId => $taskScore) {
                         if ($taskScore !== null && $taskScore !== '') {
-                            $task = DB::table('student_tasks')->where('id', $taskId)->first();
-                            
                             $systemTaskId = null;
                             $gcCourseworkLocalId = null;
 
-                            if ($task) {
-                                if (!empty($task->google_coursework_id)) {
-                                    $gcWork = DB::table('google_classroom_coursework')
-                                        ->where('google_coursework_id', $task->google_coursework_id)
-                                        ->first();
-                                    $gcCourseworkLocalId = $gcWork ? $gcWork->id : null;
-                                } else {
-                                    $systemTaskId = $taskId;
+                            if (str_starts_with((string)$taskId, 'gc_')) {
+                                $realGcId = str_replace('gc_', '', $taskId);
+                                $gcWork = DB::table('google_classroom_coursework')->where('id', $realGcId)->first();
+                                $gcCourseworkLocalId = $gcWork ? $gcWork->id : null;
+                            } else {
+                                $task = DB::table('student_tasks')->where('id', $taskId)->first();
+                                if ($task) {
+                                    if (!empty($task->google_coursework_id)) {
+                                        $gcWork = DB::table('google_classroom_coursework')
+                                            ->where('google_coursework_id', $task->google_coursework_id)
+                                            ->first();
+                                        $gcCourseworkLocalId = $gcWork ? $gcWork->id : null;
+                                    } else {
+                                        $systemTaskId = $taskId;
+                                    }
                                 }
                             }
 
-                            DB::table('task_submissions')->updateOrInsert(
-                                [
-                                    'student_id' => $grade['student_number'],
-                                    'task_id'    => $systemTaskId,
-                                ],
-                                [
+                            $exists = DB::table('task_submissions')->where([
+                                'student_id'           => $grade['student_number'],
+                                'task_id'              => $systemTaskId,
+                                'google_coursework_id' => $gcCourseworkLocalId,
+                            ])->exists();
+
+                            if ($exists) {
+                                DB::table('task_submissions')->where([
+                                    'student_id'           => $grade['student_number'],
+                                    'task_id'              => $systemTaskId,
+                                    'google_coursework_id' => $gcCourseworkLocalId,
+                                ])->update([
+                                    'grade'      => $taskScore,
+                                    'updated_at' => now(),
+                                ]);
+                            } else {
+                                DB::table('task_submissions')->insert([
+                                    'student_id'           => $grade['student_number'],
+                                    'task_id'              => $systemTaskId,
                                     'google_coursework_id' => $gcCourseworkLocalId,
                                     'grade'                => $taskScore,
+                                    'file_path'            => '',
+                                    'original_filename'    => '',
+                                    'created_at'           => now(),
                                     'updated_at'           => now(),
-                                    'created_at'           => DB::raw("COALESCE(created_at, '" . now() . "')"),
-                                ]
-                            );
+                                ]);
+                            }
                         }
                     }
                 }
@@ -1012,6 +1032,10 @@ class ProfessorController extends Controller
                 'equivalent'     => $computed['equivalent'],
             ]
         );
+
+        if (isset($computed['equivalent']) && $computed['equivalent'] !== null) {
+            $computed['equivalent'] = number_format((float)$computed['equivalent'], 2, '.', '');
+        }
 
         return response()->json([
             'success' => true,

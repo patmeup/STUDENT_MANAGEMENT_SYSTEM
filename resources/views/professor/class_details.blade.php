@@ -1067,7 +1067,7 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                 $manualGrades[$student->student_id] = [
                                     'class_standing' => $draft->class_standing ?? $autoGradeStudent['class_standing'] ?? '',
                                     'major_exam'     => $draft->major_exam ?? $autoGradeStudent['major_exam'] ?? '',
-                                    'equivalent'     => $draft->equivalent ?? $autoGradeStudent['equivalent'] ?? '',
+                                    'equivalent'     => isset($draft->equivalent) && $draft->equivalent !== '' ? number_format((float)$draft->equivalent, 2, '.', '') : (isset($autoGradeStudent['equivalent']) && $autoGradeStudent['equivalent'] !== '' ? number_format((float)$autoGradeStudent['equivalent'], 2, '.', '') : ''),
                                 ];
 
                                 foreach ($termTasksList as $task) {
@@ -1103,13 +1103,51 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                 activeStudent: null,
                                 activeStudentName: '',
 
+                                editableTasks: {}, 
+                                modalSnapshot: null,
+                                modalHasChanges: false,
+
                                 openTaskModal(sid, name) {
                                     this.activeStudent = sid;
                                     this.activeStudentName = name;
                                     if (!this.taskScores[sid]) {
                                         this.taskScores[sid] = {};
                                     }
+
+                                    if (!this.editableTasks[sid]) {
+                                        this.editableTasks[sid] = {};
+                                        this.allTermTasks.forEach(t => {
+                                            let val = this.taskScores[sid][t.id];
+                                            this.editableTasks[sid][t.id] = (val !== '' && val != null);
+                                        });
+                                    }
+
+                                    this.modalSnapshot = {
+                                        tasks: JSON.parse(JSON.stringify(this.taskScores[sid])),
+                                        grades: JSON.parse(JSON.stringify(this.manualGrades[sid]))
+                                    };
+                                    this.modalHasChanges = false;
+                                    
                                     this.taskModalOpen = true;
+                                },
+
+                                attemptCloseModal(saveChanges) {
+                                    if (saveChanges) {
+                                        this.taskModalOpen = false;
+                                    } else {
+                                        if (this.modalHasChanges) {
+                                            if (confirm('You have unsaved changes in this modal. Are you sure you want to discard them?')) {
+                                                this.taskScores[this.activeStudent] = this.modalSnapshot.tasks;
+                                                this.manualGrades[this.activeStudent] = this.modalSnapshot.grades;
+                                                
+                                                this.taskModalOpen = false;
+                                                this.modalHasChanges = false;
+                                                this.hasUnsavedChanges = false;
+                                            }
+                                        } else {
+                                            this.taskModalOpen = false;
+                                        }
+                                    }
                                 },
 
                                 init() {
@@ -1140,6 +1178,8 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
 
                                 updateTaskScore(sid, taskId, maxScore) {
                                     this.hasUnsavedChanges = true;
+                                    this.modalHasChanges = true;
+
                                     let studentTasks = this.taskScores[sid];
                                     let csScores = [];
                                     let examScores = [];
@@ -1159,8 +1199,6 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                     if (csScores.length > 0) {
                                         let avgCs = csScores.reduce((a, b) => a + b, 0) / csScores.length;
                                         this.manualGrades[sid].class_standing = Math.round(avgCs * 100) / 100;
-                                    } else {
-                                        this.manualGrades[sid].class_standing = 0;
                                     }
 
                                     if (examScores.length > 0) {
@@ -1245,23 +1283,47 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                         });
                                     }
 
+                                    console.log('Payload being sent to server:', { grades: grades });
+
                                     fetch('{{ route('professor.save-grades') }}', {
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',
-                                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                            'Accept': 'application/json'
                                         },
                                         body: JSON.stringify({ grades: grades })
                                     })
-                                    .then(res => res.json())
+                                    .then(async res => {
+                                        let data;
+                                        try {
+                                            data = await res.json();
+                                        } catch (e) {
+                                            throw new Error('Server returned non-JSON response. Status: ' + res.status);
+                                        }
+
+                                        if (!res.ok) {
+                                            let errorMsg = data.message || 'Server error occurred.';
+                                            if (data.errors) {
+                                                errorMsg += '\nDetails:\n' + JSON.stringify(data.errors, null, 2);
+                                            }
+                                            throw new Error(errorMsg);
+                                        }
+
+                                        return data;
+                                    })
                                     .then(data => {
                                         if(data.success) {
                                             this.hasUnsavedChanges = false;
                                             alert('Grades and task scores saved successfully!');
                                             this.cachedManualGrades = JSON.parse(JSON.stringify(this.manualGrades));
                                         } else {
-                                            alert('Error saving grades.');
+                                            alert('Server reported error: ' + (data.message || 'Unknown error'));
                                         }
+                                    })
+                                    .catch(err => {
+                                        console.error('Save Draft Catch Error:', err);
+                                        alert('DEBUG ERROR:\n' + err.message);
                                     });
                                 },
 
@@ -1299,7 +1361,7 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                         console.error(err);
                                         alert('Something went wrong. Please try again.');
                                     });
-                                }
+                                },
                             }"
                             x-init="init()">
 
@@ -1382,13 +1444,26 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                                 </td>
 
                                                 <td class="text-center">
-                                                    <input type="number" min="0" max="100" step="0.01" class="encoding-input"
-                                                        x-model.number="manualGrades['{{ $sid }}'].major_exam"
-                                                        placeholder="—"
-                                                        :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
-                                                        :disabled="isSubmitted"
-                                                        :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted ? 'encoding-input-active' : 'encoding-input-muted'"
-                                                        @input="recalculateGrade('{{ $sid }}')">
+                                                <input type="number" min="0" max="100" step="0.01" class="encoding-input"
+                                                    x-model.number="manualGrades['{{ $sid }}'].major_exam"
+                                                    placeholder="—"
+                                                    :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted || (() => {
+                                                        let examTask = allTermTasks.find(t => t.activity_type === 'exam');
+                                                        return examTask && (!taskScores['{{ $sid }}'] || taskScores['{{ $sid }}'][examTask.id] === '' || taskScores['{{ $sid }}'][examTask.id] == null);
+                                                    })()"
+                                                    :disabled="isSubmitted"
+                                                    :class="((gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted && !(() => {
+                                                        let examTask = allTermTasks.find(t => t.activity_type === 'exam');
+                                                        return examTask && (!taskScores['{{ $sid }}'] || taskScores['{{ $sid }}'][examTask.id] === '' || taskScores['{{ $sid }}'][examTask.id] == null);
+                                                    })()) ? 'encoding-input-active' : 'encoding-input-muted'"
+                                                    :title="(() => {
+                                                        let examTask = allTermTasks.find(t => t.activity_type === 'exam');
+                                                        if (examTask && (!taskScores['{{ $sid }}'] || taskScores['{{ $sid }}'][examTask.id] === '' || taskScores['{{ $sid }}'][examTask.id] == null)) {
+                                                            return 'No exam score yet. Enter a score in the Deliverables tab first.';
+                                                        }
+                                                        return 'Edit Major Exam score';
+                                                    })()"
+                                                    @input="recalculateGrade('{{ $sid }}')">
                                                 </td>
 
                                                 <td class="text-center">
@@ -1425,7 +1500,7 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                                             <i class="fa-solid fa-chart-pie"></i>
                                                         </a>
 
-                                                        <template x-if="!isSubmitted">
+                                                        <template x-if="!isSubmitted && gradeMode['{{ $sid }}'] === 'manual'">
                                                             <button type="button" class="btn-sm-outline btn-edit-tasks" @click="openTaskModal('{{ $sid }}', '{{ $fullName }}')" title="Edit Individual Tasks & Scores">
                                                                 <i class="fa-solid fa-pen-to-square"></i>
                                                             </button>
@@ -1439,13 +1514,13 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                 </div>
 
                                 <div class="custom-modal-backdrop" x-show="taskModalOpen" style="display: none;" x-transition>
-                                    <div class="custom-modal-card" @click.away="taskModalOpen = false" style="max-width: 650px;">
+                                    <div class="custom-modal-card" @click.away="attemptCloseModal(false)" style="max-width: 650px;">
                                         <div class="modal-card-header">
                                             <div>
                                                 <h4><i class="fa-solid fa-list-check text-primary me-2"></i> Edit Tasks & Scores</h4>
                                                 <span class="modal-term-tag" x-text="activeStudentName + ' (' + activeStudent + ')'"></span>
                                             </div>
-                                            <button type="button" class="close-modal-btn" @click="taskModalOpen = false">&times;</button>
+                                            <button type="button" class="close-modal-btn" @click="attemptCloseModal(false)">&times;</button>
                                         </div>
 
                                         <div class="modal-card-body" style="max-height: 65vh; overflow-y: auto;">
@@ -1512,9 +1587,12 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                                                 </td>
                                                                 <td class="text-center text-muted fw-bold" x-text="task.max_score ? task.max_score + ' pts' : '—'"></td>
                                                                 <td class="text-center">
-                                                                    <input type="number" step="0.01" class="encoding-input encoding-input-active text-center"
+                                                                    <input type="number" step="0.01" class="encoding-input text-center"
+                                                                        :class="!editableTasks[activeStudent][task.id] ? 'encoding-input-muted' : 'encoding-input-active'"
                                                                         x-model.number="taskScores[activeStudent][task.id]"
                                                                         placeholder="—"
+                                                                        :readonly="!editableTasks[activeStudent][task.id]"
+                                                                        :title="!editableTasks[activeStudent][task.id] ? 'No grade yet. Use the Deliverables tab to enter the initial score.' : 'Edit score'"
                                                                         @input="updateTaskScore(activeStudent, task.id, task.max_score)">
                                                                 </td>
                                                             </tr>
@@ -1525,7 +1603,7 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                         </div>
 
                                         <div class="modal-card-footer">
-                                            <button type="button" class="btn-primary-portal px-4" @click="taskModalOpen = false">Done / Close</button>
+                                            <button type="button" class="btn-primary-portal px-4" @click="attemptCloseModal(true)">Done</button>
                                         </div>
                                     </div>
                                 </div>
@@ -2053,7 +2131,9 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
         color: #d97706;
         padding: 6px 10px;
         border-radius: 6px;
+        flex-shrink: 0;
     }
+
     .btn-edit-tasks:hover {
         background: #fef3c7;
         color: #b45309;
@@ -2313,19 +2393,20 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
     }
 
     .breakdown-icon-link {
-        width: 30px; height: 30px;
-        border-radius: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+        padding: 6px 10px;
+        border-radius: 6px;
         background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #cbd5e1;
         color: #0284c7;
         font-size: 12px;
         text-decoration: none;
         transition: 0.15s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         flex-shrink: 0;
     }
+
     .breakdown-icon-link:hover {
         background: #eff6ff;
         border-color: #93c5fd;
