@@ -168,6 +168,7 @@ Route::middleware(['role:professor'])->group(function () {
     Route::post('/professor/save-grades',[ProfessorController::class, 'saveDraftGrades'])->name('professor.save-grades');
     Route::post('/professor/recalculate-grade', [ProfessorController::class, 'recalculateAutoGrade'])->name('professor.recalculate-grade');
     Route::post('/professor/submit-to-registrar', [ProfessorController::class, 'submitToRegistrar'])->name('professor.submit-registrar');
+    Route::post('/professor/revert-submission', [ProfessorController::class, 'revertSubmission'])->name('professor.revert-registrar');
     Route::get('/professor/user_details', [ProfessorController::class, 'profileView'])->name('professor.user_details');
     Route::post('/professor/google-classroom/disconnect', [GoogleClassroomController::class, 'disconnect'])->name('professor.google-classroom.disconnect');
     Route::post('/professor/profile/picture', [ProfessorController::class, 'updateProfilePicture'])->name('professor.profile.picture.update');

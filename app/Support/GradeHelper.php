@@ -77,17 +77,17 @@ class GradeHelper
         $taskAvg = self::computeTaskAverage($schedule_id, $student_id, $term);
         $attendanceRate = self::computeAttendanceRate($schedule_id, $student_id, $term);
 
-        if ($taskAvg === null && $attendanceRate === null) {
-            return null;
-        }
         if ($taskAvg === null) {
-            return $attendanceRate;
+            return null; 
         }
+        
         if ($attendanceRate === null) {
             return $taskAvg;
         }
 
-        return round(($taskAvg + $attendanceRate) / 2, 2);
+        $classStanding = ($taskAvg * 0.80) + ($attendanceRate * 0.20);
+
+        return round($classStanding, 2);
     }
 
     public static function computeMajorExam($schedule_id, $student_id, $term)

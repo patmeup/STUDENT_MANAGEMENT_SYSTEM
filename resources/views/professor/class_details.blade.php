@@ -1021,6 +1021,14 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
 
                             $termDraftCollection = $draftGrades->get($key);
                             $isTermSubmitted = $termDraftCollection ? $termDraftCollection->where('is_submitted', 1)->count() > 0 : false;
+                            $siblingStatus = $siblingTermStatus[$key] ?? ['submitted' => false, 'sent' => false];
+                            $siblingPayload = !empty($siblingSchedule) ? [
+                                'type'      => strtoupper($siblingSchedule->schedule_type),
+                                'submitted' => $siblingStatus['submitted'],
+                                'sent'      => $siblingStatus['sent'],
+                            ] : null;
+                            $currentSchedType = strtoupper($classDetails->schedule_type ?? 'LEC');
+                            $isTermSentToStudent = $termDraftCollection ? $termDraftCollection->where('is_sent_to_student', 1)->count() > 0 : false;
 
                             $termTasksList = collect($termTasks->get($key, []))->filter(fn($t) => !in_array(strtolower($t->activity_type), ['module', 'material', 'announcement']));
 
@@ -1061,13 +1069,24 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                     $draftGrades->get($key)?->firstWhere('student_number', $student->student_id)
                                 );
 
-                                $gradeModes[$student->student_id] = ($draft && $draft->is_manual) ? 'manual' : 'auto';
+                                $isManualStudent = ($draft && $draft->is_manual);
+                                $gradeModes[$student->student_id] = $isManualStudent ? 'manual' : 'auto';
                                 $autoGradeStudent = $autoGrades[$key][$student->student_id] ?? [];
 
+                                if ($isManualStudent) {
+                                    $cs  = $draft->class_standing ?? $autoGradeStudent['class_standing'] ?? '';
+                                    $ex  = $draft->major_exam     ?? $autoGradeStudent['major_exam']     ?? '';
+                                    $eq  = $draft->equivalent     ?? $autoGradeStudent['equivalent']     ?? '';
+                                } else {
+                                    $cs  = $autoGradeStudent['class_standing'] ?? '';
+                                    $ex  = $autoGradeStudent['major_exam']     ?? '';
+                                    $eq  = $autoGradeStudent['equivalent']     ?? '';
+                                }
+
                                 $manualGrades[$student->student_id] = [
-                                    'class_standing' => $draft->class_standing ?? $autoGradeStudent['class_standing'] ?? '',
-                                    'major_exam'     => $draft->major_exam ?? $autoGradeStudent['major_exam'] ?? '',
-                                    'equivalent'     => isset($draft->equivalent) && $draft->equivalent !== '' ? number_format((float)$draft->equivalent, 2, '.', '') : (isset($autoGradeStudent['equivalent']) && $autoGradeStudent['equivalent'] !== '' ? number_format((float)$autoGradeStudent['equivalent'], 2, '.', '') : ''),
+                                    'class_standing' => $cs,
+                                    'major_exam'     => $ex,
+                                    'equivalent'     => ($eq !== '' && $eq !== null) ? number_format((float)$eq, 2, '.', '') : '',
                                 ];
 
                                 foreach ($termTasksList as $task) {
@@ -1090,67 +1109,21 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                             x-data="{
                                 gradeMode: @js($gradeModes),
                                 manualGrades: @js($manualGrades),
-                                taskScores: @js($taskInputGrades),
-                                attendanceSummary: @js($attendanceSummaryData),
-                                termTasks: @js($termTasksList->filter(fn($t) => strtolower($t->activity_type) !== 'exam')->values()),
-                                allTermTasks: @js($termTasksList->values()),
                                 cachedManualGrades: JSON.parse(JSON.stringify(@js($manualGrades))),
                                 autoGradesData: @js($autoGrades[$key] ?? []),
                                 hasUnsavedChanges: false,
                                 isSubmitted: @js($isTermSubmitted),
-                                
-                                taskModalOpen: false,
-                                activeStudent: null,
-                                activeStudentName: '',
-
-                                editableTasks: {}, 
-                                modalSnapshot: null,
-                                modalHasChanges: false,
-
-                                openTaskModal(sid, name) {
-                                    this.activeStudent = sid;
-                                    this.activeStudentName = name;
-                                    if (!this.taskScores[sid]) {
-                                        this.taskScores[sid] = {};
-                                    }
-
-                                    if (!this.editableTasks[sid]) {
-                                        this.editableTasks[sid] = {};
-                                        this.allTermTasks.forEach(t => {
-                                            let val = this.taskScores[sid][t.id];
-                                            this.editableTasks[sid][t.id] = (val !== '' && val != null);
-                                        });
-                                    }
-
-                                    this.modalSnapshot = {
-                                        tasks: JSON.parse(JSON.stringify(this.taskScores[sid])),
-                                        grades: JSON.parse(JSON.stringify(this.manualGrades[sid]))
-                                    };
-                                    this.modalHasChanges = false;
-                                    
-                                    this.taskModalOpen = true;
-                                },
-
-                                attemptCloseModal(saveChanges) {
-                                    if (saveChanges) {
-                                        this.taskModalOpen = false;
-                                    } else {
-                                        if (this.modalHasChanges) {
-                                            if (confirm('You have unsaved changes in this modal. Are you sure you want to discard them?')) {
-                                                this.taskScores[this.activeStudent] = this.modalSnapshot.tasks;
-                                                this.manualGrades[this.activeStudent] = this.modalSnapshot.grades;
-                                                
-                                                this.taskModalOpen = false;
-                                                this.modalHasChanges = false;
-                                                this.hasUnsavedChanges = false;
-                                            }
-                                        } else {
-                                            this.taskModalOpen = false;
-                                        }
-                                    }
-                                },
+                                isSentToStudent: @js($isTermSentToStudent),
+                                sibling: @js($siblingPayload),
+                                currentType: @js($currentSchedType),
+                                showSubmitModal: false,
+                                submitChoice: 'single',
 
                                 init() {
+                                    window.addEventListener('pageshow', (event) => {
+                                        if (event.persisted && !this.hasUnsavedChanges) window.location.reload();
+                                    });
+
                                     window.addEventListener('beforeunload', (event) => {
                                         if (this.hasUnsavedChanges) {
                                             event.preventDefault();
@@ -1162,7 +1135,7 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                 recalculateGrade(sid) {
                                     this.hasUnsavedChanges = true;
                                     let cs = parseFloat(this.manualGrades[sid].class_standing) || 0;
-                                    let ex = parseFloat(this.manualGrades[sid].major_exam);
+                                    let ex = parseFloat(this.manualGrades[sid].major_exam) || 0;
 
                                     let finalPct = 0;
                                     if (!isNaN(cs) && !isNaN(ex)) {
@@ -1171,51 +1144,6 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                         finalPct = cs;
                                     }
 
-                                    if (!isNaN(finalPct)) {
-                                        this.manualGrades[sid].equivalent = this.calculateEquivalentGrade(finalPct);
-                                    }
-                                },
-
-                                updateTaskScore(sid, taskId, maxScore) {
-                                    this.hasUnsavedChanges = true;
-                                    this.modalHasChanges = true;
-
-                                    let studentTasks = this.taskScores[sid];
-                                    let csScores = [];
-                                    let examScores = [];
-
-                                    this.allTermTasks.forEach(t => {
-                                        let val = parseFloat(studentTasks[t.id]);
-                                        if (!isNaN(val) && t.max_score > 0) {
-                                            let pct = (val / t.max_score) * 100;
-                                            if (t.activity_type === 'exam') {
-                                                examScores.push(pct);
-                                            } else {
-                                                csScores.push(pct);
-                                            }
-                                        }
-                                    });
-
-                                    if (csScores.length > 0) {
-                                        let avgCs = csScores.reduce((a, b) => a + b, 0) / csScores.length;
-                                        this.manualGrades[sid].class_standing = Math.round(avgCs * 100) / 100;
-                                    }
-
-                                    if (examScores.length > 0) {
-                                        let avgExam = examScores.reduce((a, b) => a + b, 0) / examScores.length;
-                                        this.manualGrades[sid].major_exam = Math.round(avgExam * 100) / 100;
-                                    }
-
-                                    let cs = parseFloat(this.manualGrades[sid].class_standing) || 0;
-                                    let ex = parseFloat(this.manualGrades[sid].major_exam);
-                                    
-                                    let finalPct = 0;
-                                    if (!isNaN(cs) && !isNaN(ex)) {
-                                        finalPct = (cs * 0.60) + (ex * 0.40);
-                                    } else if (!isNaN(cs)) {
-                                        finalPct = cs;
-                                    }
-                                    
                                     if (!isNaN(finalPct)) {
                                         this.manualGrades[sid].equivalent = this.calculateEquivalentGrade(finalPct);
                                     }
@@ -1278,12 +1206,9 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                             class_standing: this.manualGrades[sid].class_standing,
                                             major_exam: this.manualGrades[sid].major_exam,
                                             equivalent: this.manualGrades[sid].equivalent,
-                                            is_manual: this.gradeMode[sid] === 'manual',
-                                            task_scores: this.taskScores[sid] || {}
+                                            is_manual: this.gradeMode[sid] === 'manual'
                                         });
                                     }
-
-                                    console.log('Payload being sent to server:', { grades: grades });
 
                                     fetch('{{ route('professor.save-grades') }}', {
                                         method: 'POST',
@@ -1294,36 +1219,18 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                         },
                                         body: JSON.stringify({ grades: grades })
                                     })
-                                    .then(async res => {
-                                        let data;
-                                        try {
-                                            data = await res.json();
-                                        } catch (e) {
-                                            throw new Error('Server returned non-JSON response. Status: ' + res.status);
-                                        }
-
-                                        if (!res.ok) {
-                                            let errorMsg = data.message || 'Server error occurred.';
-                                            if (data.errors) {
-                                                errorMsg += '\nDetails:\n' + JSON.stringify(data.errors, null, 2);
-                                            }
-                                            throw new Error(errorMsg);
-                                        }
-
-                                        return data;
-                                    })
+                                    .then(res => res.json())
                                     .then(data => {
                                         if(data.success) {
                                             this.hasUnsavedChanges = false;
-                                            alert('Grades and task scores saved successfully!');
+                                            alert('Draft grades saved successfully!');
                                             this.cachedManualGrades = JSON.parse(JSON.stringify(this.manualGrades));
                                         } else {
-                                            alert('Server reported error: ' + (data.message || 'Unknown error'));
+                                            alert('Error: ' + (data.message || 'Unknown error'));
                                         }
                                     })
                                     .catch(err => {
-                                        console.error('Save Draft Catch Error:', err);
-                                        alert('DEBUG ERROR:\n' + err.message);
+                                        alert('Error: ' + err.message);
                                     });
                                 },
 
@@ -1333,15 +1240,63 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                         return;
                                     }
 
-                                    if (!confirm('Are you sure you want to submit these grades to the registrar? This action cannot be undone.')) {
+                                    if (this.sibling) {
+                                        this.submitChoice = 'single';
+                                        this.showSubmitModal = true;
                                         return;
                                     }
+
+                                    if (!confirm('Are you sure you want to submit these grades to the registrar? You can still revert the submission later if it has not been released to students.')) {
+                                        return;
+                                    }
+
+                                    this.doSubmit(false);
+                                },
+
+                                doSubmit(applyToSibling) {
+                                    this.showSubmitModal = false;
 
                                     fetch('{{ route('professor.submit-registrar') }}', {
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',
-                                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                            'Accept': 'application/json'
+                                        },
+                                        body: JSON.stringify({
+                                            schedule_id: {{ $classDetails->schedule_id }},
+                                            term: '{{ $key }}',
+                                            apply_to_sibling: applyToSibling
+                                        })
+                                    })
+                                    .then(res => res.json())
+                                    .then(data => {
+                                        if (data.success) {
+                                            alert(data.message || 'Grades successfully submitted to the registrar!');
+                                            window.location.reload();
+                                        } else {
+                                            alert('Error: ' + (data.message || 'Failed to submit grades.'));
+                                        }
+                                    })
+                                    .catch(err => alert('Error: ' + err.message));
+                                },
+
+                                revertSubmission() {
+                                    if (this.isSentToStudent) {
+                                        alert('These grades were already released to students and can no longer be reverted.');
+                                        return;
+                                    }
+
+                                    if (!confirm('Revert this submission? The grades will be pulled back from the registrar and become editable again. You will need to submit again after editing.')) {
+                                        return;
+                                    }
+
+                                    fetch('{{ route('professor.revert-registrar') }}', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                            'Accept': 'application/json'
                                         },
                                         body: JSON.stringify({
                                             schedule_id: {{ $classDetails->schedule_id }},
@@ -1351,31 +1306,29 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                     .then(res => res.json())
                                     .then(data => {
                                         if (data.success) {
-                                            alert('Grades successfully submitted to the registrar!');
+                                            alert('Submission reverted. You can now edit the grades again.');
                                             window.location.reload();
                                         } else {
-                                            alert('Error: ' + (data.message || 'Failed to submit grades.'));
+                                            alert('Error: ' + (data.message || 'Failed to revert submission.'));
                                         }
                                     })
-                                    .catch(err => {
-                                        console.error(err);
-                                        alert('Something went wrong. Please try again.');
-                                    });
-                                },
+                                    .catch(err => alert('Error: ' + err.message));
+                                }
                             }"
-                            x-init="init()">
+                        x-init="init()">
 
                             <div class="grade-top-row mb-3">
                                 <div class="encoding-legend-bar">
                                     <span class="legend-item"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto — computed from task scores & attendance</span>
-                                    <span class="legend-item"><i class="fa-solid fa-pen"></i> Manual — edit Major Exam & tasks (Class Standing auto-computes)</span>
+                                    <span class="legend-item"><i class="fa-solid fa-pen"></i> Manual — type Class Standing, Major Exam & GWA directly</span>
                                 </div>
 
                                 <template x-if="!isSubmitted">
                                     <div class="grade-action-buttons">
                                         <button
                                             type="button"
-                                            class="btn-sm-outline text-dark-blue fw-bold bg-white"
+                                            class="btn-primary-portal fw-bold"
+                                            style="font-size: 13px;"
                                             @click="saveDraftGrades()">
                                             <i class="fa-solid fa-floppy-disk me-1"></i> Save Draft
                                         </button>
@@ -1396,11 +1349,75 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                             <span>Grades Submitted to Registrar</span>
                                         </div>
                                         
+                                        <template x-if="!isSentToStudent">
+                                            <button type="button" class="btn-revert-grades ms-2" @click="revertSubmission()" title="Pull back the submitted grades so you can edit them again">
+                                                <i class="fa-solid fa-rotate-left me-1"></i> Revert Submission
+                                            </button>
+                                        </template>
+                                        <template x-if="isSentToStudent">
+                                            <span class="text-muted small ms-2" title="Grades were already released to students">
+                                                <i class="fa-solid fa-lock me-1"></i> Released to students
+                                            </span>
+                                        </template>
+
                                         <button type="button" class="btn-print-attendance bg-white text-dark-blue ms-2" @click="landscapePrint = true; setTimeout(() => window.print(), 150);" title="Download PDF Evaluation Report">
                                             <i class="fa-solid fa-file-pdf me-1"></i> Print Evaluation
                                         </button>
                                     </div>
                                 </template>
+                            </div>
+
+                            <div class="grade-modal-overlay" x-show="showSubmitModal" style="display: none;"
+                                @click.self="showSubmitModal = false" @keydown.escape.window="showSubmitModal = false">
+                                <div class="grade-modal" x-show="showSubmitModal">
+                                    <h5 class="grade-modal-title">Submit to Registrar</h5>
+                                    <p class="grade-modal-sub">
+                                        This section also has a
+                                        <strong x-text="sibling ? sibling.type : ''"></strong> class.
+                                        Are the grades the same for both?
+                                    </p>
+
+                                    <label class="grade-choice" :class="submitChoice === 'single' ? 'grade-choice-active' : ''">
+                                        <input type="radio" value="single" x-model="submitChoice">
+                                        <div>
+                                            <div class="grade-choice-title">Separate grades</div>
+                                            <div class="grade-choice-desc">
+                                                Submit only this <span x-text="currentType"></span> class.
+                                                You'll submit the <span x-text="sibling ? sibling.type : ''"></span> class on its own later.
+                                            </div>
+                                        </div>
+                                    </label>
+
+                                    <label class="grade-choice"
+                                        :class="[submitChoice === 'both' ? 'grade-choice-active' : '', (sibling && (sibling.submitted || sibling.sent)) ? 'grade-choice-disabled' : '']">
+                                        <input type="radio" value="both" x-model="submitChoice"
+                                            :disabled="sibling && (sibling.submitted || sibling.sent)">
+                                        <div>
+                                            <div class="grade-choice-title">Same grades for both</div>
+                                            <div class="grade-choice-desc">
+                                                Copy these grades to the <span x-text="sibling ? sibling.type : ''"></span> class
+                                                and submit both at once.
+                                            </div>
+                                            <template x-if="sibling && sibling.sent">
+                                                <div class="grade-choice-warn">
+                                                    <span x-text="sibling.type"></span> grades were already released to students.
+                                                </div>
+                                            </template>
+                                            <template x-if="sibling && sibling.submitted && !sibling.sent">
+                                                <div class="grade-choice-warn">
+                                                    <span x-text="sibling.type"></span> was already submitted. Revert it first to copy these grades over.
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </label>
+
+                                    <div class="grade-modal-actions">
+                                        <button type="button" class="btn-cancel-portal" @click="showSubmitModal = false">Cancel</button>
+                                        <button type="button" class="btn-primary-portal" @click="doSubmit(submitChoice === 'both')">
+                                            <i class="fa-solid fa-paper-plane me-1"></i> Confirm &amp; Submit
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
                             @if($students->isEmpty())
@@ -1435,45 +1452,30 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                                 <td class="text-uppercase fw-bold text-dark-slate">{{ $student->last_name }}, {{ $student->first_name }}</td>
 
                                                 <td class="text-center">
-                                                    <input type="number" min="0" max="100" step="0.01" class="encoding-input encoding-input-muted"
+                                                    <input type="number" min="0" max="100" step="0.01" class="encoding-input"
                                                         x-model.number="manualGrades['{{ $sid }}'].class_standing"
                                                         placeholder="—"
-                                                        readonly
-                                                        disabled
-                                                        style="background-color: #f1f5f9 !important; color: #475569 !important; cursor: not-allowed;">
+                                                        :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
+                                                        :class="((gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted) ? 'encoding-input-active' : 'encoding-input-muted'"
+                                                        @input="hasUnsavedChanges = true">
                                                 </td>
 
                                                 <td class="text-center">
-                                                <input type="number" min="0" max="100" step="0.01" class="encoding-input"
-                                                    x-model.number="manualGrades['{{ $sid }}'].major_exam"
-                                                    placeholder="—"
-                                                    :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted || (() => {
-                                                        let examTask = allTermTasks.find(t => t.activity_type === 'exam');
-                                                        return examTask && (!taskScores['{{ $sid }}'] || taskScores['{{ $sid }}'][examTask.id] === '' || taskScores['{{ $sid }}'][examTask.id] == null);
-                                                    })()"
-                                                    :disabled="isSubmitted"
-                                                    :class="((gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted && !(() => {
-                                                        let examTask = allTermTasks.find(t => t.activity_type === 'exam');
-                                                        return examTask && (!taskScores['{{ $sid }}'] || taskScores['{{ $sid }}'][examTask.id] === '' || taskScores['{{ $sid }}'][examTask.id] == null);
-                                                    })()) ? 'encoding-input-active' : 'encoding-input-muted'"
-                                                    :title="(() => {
-                                                        let examTask = allTermTasks.find(t => t.activity_type === 'exam');
-                                                        if (examTask && (!taskScores['{{ $sid }}'] || taskScores['{{ $sid }}'][examTask.id] === '' || taskScores['{{ $sid }}'][examTask.id] == null)) {
-                                                            return 'No exam score yet. Enter a score in the Deliverables tab first.';
-                                                        }
-                                                        return 'Edit Major Exam score';
-                                                    })()"
-                                                    @input="recalculateGrade('{{ $sid }}')">
-                                                </td>
-
-                                                <td class="text-center">
-                                                    <input type="text" class="equivalent-input equivalent-input-muted"
-                                                        x-model="manualGrades['{{ $sid }}'].equivalent"
+                                                    <input type="number" min="0" max="100" step="0.01" class="encoding-input"
+                                                        x-model.number="manualGrades['{{ $sid }}'].major_exam"
                                                         placeholder="—"
-                                                        maxlength="4"
-                                                        readonly
-                                                        disabled
-                                                        style="background-color: #f1f5f9 !important; color: #475569 !important; cursor: not-allowed;">
+                                                        :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
+                                                        :class="((gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted) ? 'encoding-input-active' : 'encoding-input-muted'"
+                                                        @input="hasUnsavedChanges = true">
+                                                </td>
+
+                                                <td class="text-center">
+                                                    <input type="number" min="1" max="5" step="0.01" class="equivalent-input"
+                                                        x-model.number="manualGrades['{{ $sid }}'].equivalent"
+                                                        placeholder="—"
+                                                        :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
+                                                        :class="((gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted) ? 'equivalent-input-active' : 'equivalent-input-muted'"
+                                                        @input="hasUnsavedChanges = true">
                                                 </td>
 
                                                 <td class="text-center">
@@ -1499,113 +1501,12 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                                         <a href="{{ route('professor.grades.breakdown', ['schedule_id' => $classDetails->schedule_id, 'student_id' => $sid, 'term' => $key]) }}" class="btn-sm-outline breakdown-icon-link" title="View Full Grades & Attendance Breakdown">
                                                             <i class="fa-solid fa-chart-pie"></i>
                                                         </a>
-
-                                                        <template x-if="!isSubmitted && gradeMode['{{ $sid }}'] === 'manual'">
-                                                            <button type="button" class="btn-sm-outline btn-edit-tasks" @click="openTaskModal('{{ $sid }}', '{{ $fullName }}')" title="Edit Individual Tasks & Scores">
-                                                                <i class="fa-solid fa-pen-to-square"></i>
-                                                            </button>
-                                                        </template>
                                                     </div>
                                                 </td>
                                             </tr>
                                         @endforeach
                                         </tbody>
                                     </table>
-                                </div>
-
-                                <div class="custom-modal-backdrop" x-show="taskModalOpen" style="display: none;" x-transition>
-                                    <div class="custom-modal-card" @click.away="attemptCloseModal(false)" style="max-width: 650px;">
-                                        <div class="modal-card-header">
-                                            <div>
-                                                <h4><i class="fa-solid fa-list-check text-primary me-2"></i> Edit Tasks & Scores</h4>
-                                                <span class="modal-term-tag" x-text="activeStudentName + ' (' + activeStudent + ')'"></span>
-                                            </div>
-                                            <button type="button" class="close-modal-btn" @click="attemptCloseModal(false)">&times;</button>
-                                        </div>
-
-                                        <div class="modal-card-body" style="max-height: 65vh; overflow-y: auto;">
-                                            <p class="small text-muted mb-3">
-                                                Encode individual scores for this student. Changes here will automatically re-compute the Class Standing and GWA.
-                                            </p>
-
-                                            <div class="p-3 mb-3 bg-light rounded-3 border">
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <h6 class="fw-bold text-dark-blue m-0" style="font-size: 13px;">
-                                                        <i class="fa-solid fa-calendar-check me-1 text-success"></i> Attendance Record Summary
-                                                    </h6>
-                                                    @php
-                                                        $currentTermPeriod = $termPeriods->firstWhere('term', $key);
-                                                    @endphp
-                                                    @if($currentTermPeriod)
-                                                        <span class="badge bg-white text-secondary border px-2 py-1" style="font-size: 11px; font-weight: 600;">
-                                                            <i class="fa-regular fa-clock me-1 text-muted"></i>
-                                                            {{ \Carbon\Carbon::parse($currentTermPeriod->start_date)->format('M d, Y') }} – {{ \Carbon\Carbon::parse($currentTermPeriod->end_date)->format('M d, Y') }}
-                                                        </span>
-                                                    @endif
-                                                </div>
-
-                                                <div class="row text-center g-2 mt-1">
-                                                    <div class="col-4">
-                                                        <div class="p-2 bg-white rounded border shadow-sm">
-                                                            <span class="d-block text-muted text-uppercase fw-bold" style="font-size: 10px;">Present</span>
-                                                            <strong class="text-success" style="font-size: 15px;" x-text="(activeStudent && attendanceSummary[activeStudent]) ? attendanceSummary[activeStudent]['{{ $key }}'].Present : 0"></strong>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-4">
-                                                        <div class="p-2 bg-white rounded border shadow-sm">
-                                                            <span class="d-block text-muted text-uppercase fw-bold" style="font-size: 10px;">Late</span>
-                                                            <strong class="text-warning" style="font-size: 15px;" x-text="(activeStudent && attendanceSummary[activeStudent]) ? attendanceSummary[activeStudent]['{{ $key }}'].Late : 0"></strong>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-4">
-                                                        <div class="p-2 bg-white rounded border shadow-sm">
-                                                            <span class="d-block text-muted text-uppercase fw-bold" style="font-size: 10px;">Absent</span>
-                                                            <strong class="text-danger" style="font-size: 15px;" x-text="(activeStudent && attendanceSummary[activeStudent]) ? attendanceSummary[activeStudent]['{{ $key }}'].Absent : 0"></strong>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="table-responsive">
-                                                <table class="table custom-portal-table align-middle">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Activity Title</th>
-                                                            <th class="text-center" style="width: 110px;">Type</th>
-                                                            <th class="text-center" style="width: 90px;">Max Score</th>
-                                                            <th class="text-center" style="width: 110px;">Score</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <template x-for="task in termTasks" :key="task.id">
-                                                            <tr>
-                                                                <td>
-                                                                    <strong class="text-dark-blue" x-text="task.activity_name"></strong>
-                                                                </td>
-                                                                <td class="text-center">
-                                                                    <span class="badge bg-secondary text-uppercase" x-text="task.activity_type" style="font-size: 10px;"></span>
-                                                                </td>
-                                                                <td class="text-center text-muted fw-bold" x-text="task.max_score ? task.max_score + ' pts' : '—'"></td>
-                                                                <td class="text-center">
-                                                                    <input type="number" step="0.01" class="encoding-input text-center"
-                                                                        :class="!editableTasks[activeStudent][task.id] ? 'encoding-input-muted' : 'encoding-input-active'"
-                                                                        x-model.number="taskScores[activeStudent][task.id]"
-                                                                        placeholder="—"
-                                                                        :readonly="!editableTasks[activeStudent][task.id]"
-                                                                        :title="!editableTasks[activeStudent][task.id] ? 'No grade yet. Use the Deliverables tab to enter the initial score.' : 'Edit score'"
-                                                                        @input="updateTaskScore(activeStudent, task.id, task.max_score)">
-                                                                </td>
-                                                            </tr>
-                                                        </template>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-
-                                        <div class="modal-card-footer">
-                                            <button type="button" class="btn-primary-portal px-4" @click="attemptCloseModal(true)">Done</button>
-                                        </div>
-                                    </div>
                                 </div>
 
                                 <template x-if="isSubmitted">
@@ -2528,6 +2429,53 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
         filter: none !important;
         cursor: not-allowed;
     }
+
+    .equivalent-input-active {
+        background: #fff !important;
+        border-color: #1e2a5a !important;
+        color: #1e2a5a !important;
+        cursor: text !important;
+    }
+    .encoding-input-active, .equivalent-input-active { cursor: text !important; }
+
+    .grade-modal-overlay {
+        position: fixed; inset: 0; z-index: 2000;
+        background: rgba(15, 23, 42, 0.45);
+        display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    .grade-modal {
+        background: #fff; border-radius: 14px; width: 100%; max-width: 460px;
+        padding: 22px 24px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+    }
+    .grade-modal-title { font-size: 17px; font-weight: 800; color: #1e2a5a; margin: 0 0 6px; }
+    .grade-modal-sub { font-size: 13.5px; color: #475569; margin: 0 0 14px; }
+    .grade-choice {
+        display: flex; gap: 12px; align-items: flex-start;
+        border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;
+        margin-bottom: 10px; cursor: pointer; transition: 0.15s;
+    }
+    .grade-choice input { margin-top: 4px; accent-color: #1e2a5a; }
+    .grade-choice-active { border-color: #1e2a5a; background: #eef1fb; }
+    .grade-choice-disabled { opacity: 0.6; cursor: not-allowed; }
+    .grade-choice-title { font-size: 13.5px; font-weight: 700; color: #1e293b; }
+    .grade-choice-desc { font-size: 12.5px; color: #64748b; margin-top: 2px; }
+    .grade-choice-warn { font-size: 12px; font-weight: 600; color: #b45309; margin-top: 6px; }
+    .grade-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+    .btn-revert-grades {
+        background-color: #fffbeb;
+        color: #b45309;
+        border: 1px solid #fde68a;
+        font-size: 12.5px;
+        font-weight: 700;
+        padding: 7px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.15s;
+        display: inline-flex;
+        align-items: center;
+    }
+    .btn-revert-grades:hover { background-color: #fef3c7; border-color: #f59e0b; }
 
     .btn-print-attendance {
         background-color: #ffffff;
