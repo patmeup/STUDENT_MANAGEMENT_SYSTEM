@@ -15,15 +15,18 @@
         </div>
     @endif
 
-    @if($errors->any())
+    @if(isset($errors) && count($errors) > 0)
         <div class="admin-alert-danger" style="align-items: flex-start;">
             <i class="fas fa-exclamation-circle" style="margin-top: 3px;"></i>
             <div>
                 <strong>Unable to process request:</strong>
                 <ul style="margin: 4px 0 0 0; padding-left: 20px;">
-                    @foreach($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
+                    @php
+                        $allErrors =$errors->all();
+                    @endphp
+                    @for($i = 0; $i < count($allErrors);$i++)
+                        <li>{{ $allErrors[$i] }}</li>
+                    @endfor
                 </ul>
             </div>
         </div>
@@ -35,6 +38,7 @@
     </div>
 
     <div class="admin-workspace">
+        <!-- ADD FACULTY MEMBER FORM -->
         <div class="admin-card form-panel">
             <div class="card-bar">
                 <span><i class="fas fa-user-plus"></i> Add Faculty Member</span>
@@ -94,6 +98,7 @@
             </form>
         </div>
 
+        <!-- FACULTY DIRECTORY TABLE -->
         <div class="admin-card table-panel">
             <div class="card-header-flex">
                 <div class="card-title-container">
@@ -109,7 +114,7 @@
                         class="custom-search-input">
                     </div>
                     <span class="badge-count" id="facultyTotalCount">
-                        Total: {{ $faculties->count() }}
+                        Total: {{ count($faculties) }}
                     </span>
                 </div>
             </div>
@@ -125,49 +130,54 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($faculties as $faculty)
-                            <tr class="faculty-row-item">
-                                <td>
-                                    <strong class="faculty-id-text search-target-id">{{ $faculty->employee_id }}</strong>
-                                    <br><span class="faculty-name-text search-target-name">{{ strtoupper($faculty->last_name) }}, {{ strtoupper($faculty->first_name) }}</span>
-                                    <br><small class="faculty-email-text search-target-email">{{ $faculty->email }}</small>
-                                </td>
-                                <td style="text-align: center;">
-                                    <span class="rank-badge {{ $faculty->role }} search-target-role">
-                                        {{ $faculty->role === 'dept_sec' ? 'Department Secretary' : ($faculty->role === 'dean' ? 'Dean' : 'Professor') }}
-                                    </span>
-                                </td>
-                                <td style="text-align: center;">
-                                    <div class="status-indicator-center">
-                                        <span class="pulse-dot-green"></span>
-                                        <span class="status-label-text">Active</span>
-                                    </div>
-                                </td>
-                                <td style="text-align: center;">
-                                    <div class="action-btn-group">
-                                        <button class="btn-action-edit"
-                                            onclick="openEditFaculty(
-                                                {{ $faculty->id }},
-                                                @js($faculty->first_name),
-                                                @js($faculty->last_name),
-                                                @js($faculty->middle_name),
-                                                @js($faculty->sex),
-                                                @js($faculty->email),
-                                                @js($faculty->role),
-                                                @js($faculty->department)
-                                            )">Edit</button>
-                                        <button class="btn-action-delete"
-                                            onclick="openDeleteFaculty({{ $faculty->id }}, '{{ strtoupper($faculty->last_name) }}, {{ strtoupper($faculty->first_name) }}')">Delete</button>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
+                        @if(count($faculties) > 0)
+                            @for($fIdx = 0; $fIdx < count($faculties);$fIdx++)
+                                @php
+                                    $faculty = $faculties[$fIdx];
+                                @endphp
+                                <tr class="faculty-row-item">
+                                    <td>
+                                        <strong class="faculty-id-text search-target-id">{{ $faculty->employee_id }}</strong>
+                                        <br><span class="faculty-name-text search-target-name">{{ strtoupper($faculty->last_name) }}, {{ strtoupper($faculty->first_name) }}</span>
+                                        <br><small class="faculty-email-text search-target-email">{{ $faculty->email }}</small>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <span class="rank-badge {{ $faculty->role }} search-target-role">
+                                            {{ $faculty->role === 'dept_sec' ? 'Department Secretary' : ($faculty->role === 'dean' ? 'Dean' : 'Professor') }}
+                                        </span>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <div class="status-indicator-center">
+                                            <span class="pulse-dot-green"></span>
+                                            <span class="status-label-text">Active</span>
+                                        </div>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <div class="action-btn-group">
+                                            <button class="btn-action-edit"
+                                                onclick="openEditFaculty(
+                                                    {{ $faculty->id }},
+                                                    @js($faculty->first_name),
+                                                    @js($faculty->last_name),
+                                                    @js($faculty->middle_name),
+                                                    @js($faculty->sex),
+                                                    @js($faculty->email),
+                                                    @js($faculty->role),
+                                                    @js($faculty->department)
+                                                )">Edit</button>
+                                            <button class="btn-action-delete"
+                                                onclick="openDeleteFaculty({{ $faculty->id }}, '{{ strtoupper($faculty->last_name) }}, {{ strtoupper($faculty->first_name) }}')">Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endfor
+                        @else
                             <tr class="static-empty-row">
                                 <td colspan="4" class="empty-table-state">
                                     No faculty members recorded under the institutional scope yet.
                                 </td>
                             </tr>
-                        @endforelse
+                        @endif
                         <tr id="facultyNoResults" style="display:none;">
                             <td colspan="4" class="empty-table-state" style="text-align: center; color: #94a3b8; padding: 40px 0;">
                                 <i class="fas fa-database" style="font-size: 20px; display: block; margin-bottom: 8px;"></i>
@@ -181,52 +191,68 @@
     </div>
 </div>
 
+<!-- EDIT FACULTY MODAL -->
 <div id="editFacultyModal" class="modal-overlay" style="display:none;">
     <div class="modal-box">
         <div class="modal-header">
-            <h3><i class="fas fa-user-edit"></i> Edit Faculty Record</h3>
-            <button class="modal-close" onclick="closeModal('editFacultyModal')">&times;</button>
+            <h3><i class="fas fa-user-edit" style="color: #0284c7;"></i> Edit Role & Department</h3>
+            <button class="modal-close" type="button" onclick="closeModal('editFacultyModal')">&times;</button>
         </div>
         <form id="editFacultyForm" method="POST" class="modal-form">
             @csrf
             @method('PATCH')
+            
+            <!-- HIDDEN INPUTS PARA HINDI MAG-TRIGGER ANG REQUIRED VALIDATION KUNG SA STORE MAN PUMASOK -->
+            <input type="hidden" name="first_name" id="hidden_first_name">
+            <input type="hidden" name="last_name" id="hidden_last_name">
+            <input type="hidden" name="middle_name" id="hidden_middle_name">
+            <input type="hidden" name="sex" id="hidden_sex">
+            <input type="hidden" name="email" id="hidden_email">
+
             <div class="form-group">
-                <label>First Name</label>
-                <input type="text" name="first_name" id="edit_first_name" required>
+                <label>First Name <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
+                <input type="text" id="edit_first_name" class="readonly-input" readonly tabindex="-1">
             </div>
+
             <div class="form-group">
-                <label>Last Name</label>
-                <input type="text" name="last_name" id="edit_last_name" required>
+                <label>Last Name <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
+                <input type="text" id="edit_last_name" class="readonly-input" readonly tabindex="-1">
             </div>
+
             <div class="form-grid-2">
                 <div class="form-group">
-                    <label>Middle Name (Optional)</label>
-                    <input type="text" name="middle_name" id="edit_middle_name">
+                    <label>Middle Name <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
+                    <input type="text" id="edit_middle_name" class="readonly-input" readonly tabindex="-1">
                 </div>
                 <div class="form-group">
-                    <label>Sex</label>
-                    <div class="custom-select-wrapper">
-                        <select name="sex" id="edit_sex" class="custom-select-dropdown" required>
+                    <label>Sex <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
+                    <div class="custom-select-wrapper readonly-wrapper">
+                        <select id="edit_sex" class="custom-select-dropdown readonly-input" disabled>
                             <option value="Male">Male</option>
                             <option value="Female">Female</option>
                         </select>
                     </div>
                 </div>
             </div>
+
             <div class="form-group">
-                <label>Email</label>
-                <input type="email" name="email" id="edit_email" required>
+                <label>Email <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
+                <input type="email" id="edit_email" class="readonly-input" readonly tabindex="-1">
             </div>
+
+            <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 4px 0;">
+
             <div class="form-group">
-                <label>Department</label>
+                <label>Assigned Department <span class="required-star">*</span></label>
                 <div class="custom-select-wrapper">
                     <select name="department" id="edit_department" class="custom-select-dropdown" required>
                         <option value="College of Computer Studies">College of Computer Studies</option>
                     </select>
                 </div>
             </div>
+
             <div class="form-group">
-                <label>Role / Designation</label>
+                <label>Role / Designation <span class="required-star">*</span></label>
                 <div class="custom-select-wrapper">
                     <select name="role" id="edit_role" class="custom-select-dropdown" required>
                         <option value="dean">Dean</option>
@@ -235,6 +261,7 @@
                     </select>
                 </div>
             </div>
+
             <div class="modal-actions">
                 <button type="button" class="btn-modal-cancel" onclick="closeModal('editFacultyModal')">Cancel</button>
                 <button type="submit" class="btn-modal-confirm-edit">Save Changes</button>
@@ -243,11 +270,12 @@
     </div>
 </div>
 
+<!-- DELETE FACULTY MODAL -->
 <div id="deleteFacultyModal" class="modal-overlay" style="display:none;">
     <div class="modal-box modal-box-sm">
         <div class="modal-header modal-header-danger">
             <h3><i class="fas fa-exclamation-triangle"></i> Confirm Deletion</h3>
-            <button class="modal-close" onclick="closeModal('deleteFacultyModal')">&times;</button>
+            <button class="modal-close" type="button" onclick="closeModal('deleteFacultyModal')">&times;</button>
         </div>
         <div class="modal-body-text">
             <p>Are you sure you want to remove <strong id="deleteFacultyName"></strong> from the system? This action cannot be undone.</p>
@@ -265,16 +293,12 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const existingFacultyList = [
-        @foreach($faculties as $f)
-            {
-                first_name: @js(strtolower($f->first_name)),
-                last_name: @js(strtolower($f->last_name)),
-                email: @js(strtolower($f->email)),
-                role: @js(strtolower($f->role))
-            },
-        @endforeach
-    ];
+    const existingFacultyList = @js($faculties->map(fn($f) => [
+        'first_name' => strtolower($f->first_name),
+        'last_name'  => strtolower($f->last_name),
+        'email'      => strtolower($f->email),
+        'role'       => strtolower($f->role)
+    ]));
 
     const facultyForm = document.getElementById('faculty-form');
     const jsAlertError = document.getElementById('js-alert-error');
@@ -373,6 +397,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function openEditFaculty(id, firstName, lastName, middleName, sex, email, role, department) {
+    // Visible Readonly Inputs
     document.getElementById('edit_first_name').value  = firstName;
     document.getElementById('edit_last_name').value   = lastName;
     document.getElementById('edit_middle_name').value = middleName && middleName !== 'null' ? middleName : '';
@@ -380,18 +405,27 @@ function openEditFaculty(id, firstName, lastName, middleName, sex, email, role, 
     document.getElementById('edit_email').value       = email;
     document.getElementById('edit_role').value        = role;
     document.getElementById('edit_department').value  = department;
-    let editUrl = "{{ route('system_admin.manage-faculty.update', ':id') }}";
-    editUrl = editUrl.replace(':id', id);
 
-    document.getElementById('editFacultyForm').action = editUrl;
+    // Hidden Inputs
+    document.getElementById('hidden_first_name').value  = firstName;
+    document.getElementById('hidden_last_name').value   = lastName;
+    document.getElementById('hidden_middle_name').value = middleName && middleName !== 'null' ? middleName : '';
+    document.getElementById('hidden_sex').value         = sex;
+    document.getElementById('hidden_email').value       = email;
+
+    // Set Form Action Route
+    const editForm = document.getElementById('editFacultyForm');
+    editForm.action = `/system_admin/manage-faculty/${id}`; // siguraduhing tugma sa URL route structure mo sa web.php
+
     document.getElementById('editFacultyModal').style.display = 'flex';
 }
 
 function openDeleteFaculty(id, name) {
     document.getElementById('deleteFacultyName').textContent = name;
-    let deleteUrl = "{{ route('system_admin.manage-faculty.destroy', ':id') }}";
-    deleteUrl = deleteUrl.replace(':id', id);
-    document.getElementById('deleteFacultyForm').action = deleteUrl;
+    
+    const deleteForm = document.getElementById('deleteFacultyForm');
+    deleteForm.action = `/system-admin/manage-faculty/${id}`;
+    
     document.getElementById('deleteFacultyModal').style.display = 'flex';
 }
 
@@ -494,5 +528,10 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     .btn-modal-confirm-edit:hover { background: #1e293b; }
     .btn-modal-confirm-delete { background: #dc2626; color: #ffffff; border: none; padding: 9px 20px; font-size: 13px; font-weight: 700; border-radius: 6px; cursor: pointer; }
     .btn-modal-confirm-delete:hover { background: #b91c1c; }
+
+    /* Readonly styling */
+    .readonly-input { background-color: #f1f5f9 !important; color: #64748b !important; border-color: #cbd5e1 !important; cursor: not-allowed !important; user-select: none; }
+    .readonly-wrapper::after { color: #94a3b8 !important; }
+    .lock-icon { font-size: 10px; color: #94a3b8; margin-left: 4px; }
 </style>
 @endsection

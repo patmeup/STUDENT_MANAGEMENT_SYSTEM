@@ -159,5 +159,24 @@ class SystemAdminController extends Controller
 
         return redirect()->back()->with('success', 'Profile picture updated successfully!');
     }
+
+    public function updateFaculty(Request $request, $id)
+    {
+        // Role at Department na lang ang dapat i-validate
+        $request->validate([
+            'role'       => 'required|string|in:dean,dept_sec,professor',
+            'department' => 'required|string|max:255',
+        ]);
+
+        $faculty = User::findOrFail($id);
+
+        // Role at Department lang ang babaguhin sa DB
+        $faculty->role       = $request->role;
+        $faculty->department = $request->department;
+
+        $faculty->save();
+
+        return redirect()->back()->with('success', 'Faculty assignment and role successfully updated!');
+    }
     
 }
