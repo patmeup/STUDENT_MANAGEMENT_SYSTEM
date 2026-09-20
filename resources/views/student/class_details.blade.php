@@ -104,40 +104,31 @@
 
                 <hr class="sidebar-divider">
 
-                <div class="au-prediction-display-box text-center p-3 rounded-10 bg-light-gray">
+                <div class="au-prediction-display-box text-center p-3 rounded-10 bg-light-gray" :class="{ 'au-borderline': grades[currentTab].equivalent === '3.00' }">
                     <span class="font-xxs text-uppercase fw-bold text-muted tracking-wider d-block mb-1">Current Computed Grade</span>
                     
-                    <div class="predicted-grade-number my-1" x-text="
-                        (() => {
-                            let p = grades[currentTab].currentCalculatedGrade;
-                            if (p === null || p === undefined) return '--';
-                            if (p >= 97) return '1.00';
-                            if (p >= 94) return '1.25';
-                            if (p >= 91) return '1.50';
-                            if (p >= 88) return '1.75';
-                            if (p >= 85) return '2.00';
-                            if (p >= 82) return '2.25';
-                            if (p >= 79) return '2.50';
-                            if (p >= 76) return '2.75';
-                            if (p >= 75) return '3.00';
-                            return '5.00';
-                        })()
-                    "></div>
+                    <div class="predicted-grade-number my-1" x-text="grades[currentTab].equivalent ?? '--'"></div>
                     
                     <div class="mb-2">
                         <span class="badge px-2 py-1" :class="{
                             'badge-excellent': grades[currentTab].currentCalculatedGrade !== null && grades[currentTab].currentCalculatedGrade >= 94,
-                            'badge-passed': grades[currentTab].currentCalculatedGrade !== null && grades[currentTab].currentCalculatedGrade >= 75 && grades[currentTab].currentCalculatedGrade < 94,
+                            'badge-passed': grades[currentTab].currentCalculatedGrade !== null && grades[currentTab].currentCalculatedGrade >= 75 && grades[currentTab].currentCalculatedGrade < 94 && grades[currentTab].equivalent !== '3.00',
+                            'badge-warning': grades[currentTab].equivalent === '3.00',
                             'badge-failed': grades[currentTab].currentCalculatedGrade !== null && grades[currentTab].currentCalculatedGrade < 75,
                             'd-none': grades[currentTab].currentCalculatedGrade === null
-                        }" x-text="grades[currentTab].currentCalculatedGrade !== null ? (grades[currentTab].currentCalculatedGrade >= 75 ? 'PASSED (GOOD STANDING)' : 'AT RISK (FAILED)') : ''"></span>
+                        }" x-text="grades[currentTab].currentCalculatedGrade === null ? '' : (grades[currentTab].equivalent === '3.00' ? 'PASSED (BORDERLINE)' : (grades[currentTab].currentCalculatedGrade >= 75 ? 'PASSED (GOOD STANDING)' : 'AT RISK (FAILED)'))"></span>
                     </div>
                     
                     <p class="font-xs text-muted m-0" x-text="
                         grades[currentTab].currentCalculatedGrade !== null 
-                            ? 'Equivalent to ' + grades[currentTab].currentCalculatedGrade.toFixed(1) + '%' 
+                            ? 'Equivalent to ' + grades[currentTab].currentCalculatedGrade.toFixed(2) + '%' 
                             : 'This will be updated once you have grades recorded for this term.'
                     "></p>
+
+                    <div class="au-early-warning" x-show="grades[currentTab].equivalent === '3.00'" x-cloak>
+                        <div class="au-early-warning-title"><i class="fa-solid fa-triangle-exclamation me-1"></i> Early Academic Warning</div>
+                        <p class="m-0">You are only barely passing this term. A small drop in your next scores may put you below the 75% passing mark. Focus on your remaining tasks and exam, and consider consulting your professor.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -176,11 +167,30 @@
                 </div>
             </div>
 
+            @php
+                // Google Classroom coursework is also mirrored as a local task row (needed for grading).
+                // Collect the Google IDs shown on this page so the mirror rows are not listed twice.
+                // student_tasks.google_coursework_id stores Google's own ID (google_classroom_coursework.google_coursework_id),
+                // not the local table id.
+                $allGoogleIds = collect($termGoogleData ?? [])
+                    ->flatMap(fn($d) => $d['coursework'] ?? collect())
+                    ->pluck('google_coursework_id')
+                    ->map(fn($id) => (string) $id)
+                    ->all();
+            @endphp
+
             @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key => $termLabel)
                 @php
                     $termAll = $activities->where('term', $key);
                     $termModules = $termAll->where('activity_type', 'module');
-                    $termTasks = $termAll->whereNotIn('activity_type', ['module']);
+                    $termTasks = $termAll
+                        ->whereNotIn('activity_type', ['module'])
+                        ->filter(fn($t) => empty($t->google_coursework_id) || !in_array((string) $t->google_coursework_id, $allGoogleIds, true));
+
+                    // Scores of mirrored Google tasks, so the Google Classroom row can still show the student's grade
+                    $gMirrorGrades = $activities
+                        ->filter(fn($t) => !empty($t->google_coursework_id))
+                        ->keyBy('google_coursework_id');
 
                     $termMaterials = collect($materials)->where('term', $key);
                     
@@ -303,7 +313,14 @@
                                                     </td>
                                                     <td style="width: 15%;"><span class="badge bg-secondary text-uppercase">{{ $cw->work_type ?? 'coursework' }}</span></td>
                                                     <td style="width: 15%;">{{ $cw->max_points ?? '—' }} pts</td>
-                                                    <td style="width: 15%;"><span class="text-muted">--</span></td>
+                                                    <td style="width: 15%;">
+                                                        @php $mirror = $gMirrorGrades->get($cw->google_coursework_id); @endphp
+                                                        @if($mirror && !is_null($mirror->student_grade))
+                                                            <strong class="text-success">{{ $mirror->student_grade }}</strong> <span class="text-muted">/{{ $mirror->max_score }}</span>
+                                                        @else
+                                                            <span class="text-muted">--</span>
+                                                        @endif
+                                                    </td>
                                                     <td style="width: 15%;">{{ $cw->due_date ? \Carbon\Carbon::parse($cw->due_date)->format('M d, Y') : 'No Deadline' }}</td>
                                                     <td style="width: 15%;" class="text-center">
                                                         <a href="{{ route('student.view-google-task', $cw->id) }}" class="btn-sm-outline btn-view-task">
@@ -368,6 +385,11 @@
 
     .badge-excellent { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; font-size: 10px; font-weight: 700; }
     .badge-passed { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-size: 10px; font-weight: 700; }
+    .badge-warning { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 10px; font-weight: 700; }
+    .au-prediction-display-box.au-borderline { border: 1px solid #f59e0b; background-color: #fffbeb; }
+    .au-prediction-display-box.au-borderline .predicted-grade-number { color: #b45309; }
+    .au-early-warning { margin-top: 12px; padding: 10px 12px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; text-align: left; font-size: 11.5px; color: #78350f; line-height: 1.45; }
+    .au-early-warning-title { font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
     .badge-failed { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; font-size: 10px; font-weight: 700; }
 
     .sidebar-navigation-card { 

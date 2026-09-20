@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use App\Support\GradeHelper;
 
 class StudentController extends Controller
 {
@@ -380,24 +381,20 @@ class StudentController extends Controller
                     'assignmentAverage' => null,
                     'currentAttendance' => null,
                     'majorExam' => null,
-                    'currentCalculatedGrade' => null
+                    'currentCalculatedGrade' => null,
+                    'equivalent' => null
                 ];
             }
 
-            if ($hasTasks && $hasAttendanceLogs) {
-                $classStandingAverage = ($currentTaskAverage * 0.75) + ($currentAttendance * 0.25);
-            } elseif ($hasTasks) {
-                $classStandingAverage = $currentTaskAverage;
-            } elseif ($hasAttendanceLogs) {
-                $classStandingAverage = $currentAttendance;
-            } else {
-                $classStandingAverage = 0;
-            }
+            $helperStanding   = GradeHelper::computeClassStanding($schedule_id, $studentNumber, $termName);
+            $helperAttendance = GradeHelper::computeAttendanceRate($schedule_id, $studentNumber, $termName);
+            $helperExam       = GradeHelper::computeMajorExam($schedule_id, $studentNumber, $termName);
 
-            $examScoreToUse = $hasExam ? $majorExam : 0;
+            $standingToUse = $helperStanding ?? $helperAttendance ?? 0;
+            $examToUse     = $helperExam ?? 0;
 
-            $classStandingContribution = $classStandingAverage * 0.60;
-            $examContribution = $examScoreToUse * 0.40;
+            $finalPercent = GradeHelper::computeFinalPercent($standingToUse, $examToUse);
+            $equivalent   = GradeHelper::computeEquivalent($finalPercent);
 
             return [
                 'quizAverage' => $quizAverage,
@@ -405,7 +402,8 @@ class StudentController extends Controller
                 'assignmentAverage' => $assignmentAverage,
                 'currentAttendance' => $currentAttendance,
                 'majorExam' => $majorExam,
-                'currentCalculatedGrade' => round($classStandingContribution + $examContribution, 2)
+                'currentCalculatedGrade' => $finalPercent,
+                'equivalent' => number_format((float) $equivalent, 2)
             ];
         };
 
