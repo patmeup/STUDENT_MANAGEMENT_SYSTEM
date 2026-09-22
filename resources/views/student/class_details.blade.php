@@ -104,31 +104,22 @@
 
                 <hr class="sidebar-divider">
 
-                <div class="au-prediction-display-box text-center p-3 rounded-10 bg-light-gray" :class="{ 'au-borderline': grades[currentTab].equivalent === '3.00' }">
-                    <span class="font-xxs text-uppercase fw-bold text-muted tracking-wider d-block mb-1">Current Computed Grade</span>
+                <div class="au-prediction-display-box text-center p-3 rounded-10" style="background-color: #f8fafc; border: 1px solid #cbd5e1;" x-show="grades[currentTab].currentCalculatedGrade !== null">
+                    <span class="font-xxs text-uppercase fw-bold text-muted tracking-wider d-block mb-1">
+                        Predicted Term Grade
+                    </span>
                     
-                    <div class="predicted-grade-number my-1" x-text="grades[currentTab].equivalent ?? '--'"></div>
-                    
-                    <div class="mb-2">
-                        <span class="badge px-2 py-1" :class="{
-                            'badge-excellent': grades[currentTab].currentCalculatedGrade !== null && grades[currentTab].currentCalculatedGrade >= 94,
-                            'badge-passed': grades[currentTab].currentCalculatedGrade !== null && grades[currentTab].currentCalculatedGrade >= 75 && grades[currentTab].currentCalculatedGrade < 94 && grades[currentTab].equivalent !== '3.00',
-                            'badge-warning': grades[currentTab].equivalent === '3.00',
-                            'badge-failed': grades[currentTab].currentCalculatedGrade !== null && grades[currentTab].currentCalculatedGrade < 75,
-                            'd-none': grades[currentTab].currentCalculatedGrade === null
-                        }" x-text="grades[currentTab].currentCalculatedGrade === null ? '' : (grades[currentTab].equivalent === '3.00' ? 'PASSED (BORDERLINE)' : (grades[currentTab].currentCalculatedGrade >= 75 ? 'PASSED (GOOD STANDING)' : 'AT RISK (FAILED)'))"></span>
-                    </div>
-                    
-                    <p class="font-xs text-muted m-0" x-text="
-                        grades[currentTab].currentCalculatedGrade !== null 
-                            ? 'Equivalent to ' + grades[currentTab].currentCalculatedGrade.toFixed(2) + '%' 
-                            : 'This will be updated once you have grades recorded for this term.'
-                    "></p>
-
-                    <div class="au-early-warning" x-show="grades[currentTab].equivalent === '3.00'" x-cloak>
-                        <div class="au-early-warning-title"><i class="fa-solid fa-triangle-exclamation me-1"></i> Early Academic Warning</div>
-                        <p class="m-0">You are only barely passing this term. A small drop in your next scores may put you below the 75% passing mark. Focus on your remaining tasks and exam, and consider consulting your professor.</p>
-                    </div>
+                    @if(isset($livePrediction) && $livePrediction->predicted_semestral)
+                        <div class="predicted-grade-number my-1" style="color: #1e2a5a;">
+                            {{ number_format($livePrediction->predicted_semestral, 2) }}
+                        </div>
+                        <p class="font-xs text-muted m-0">
+                            Machine learning forecast based on your ongoing <span x-text="currentTab"></span> standing.
+                        </p>
+                    @else
+                        <div class="predicted-grade-number my-1 text-muted">--</div>
+                        <p class="font-xs text-muted m-0">Awaiting performance data to generate prediction.</p>
+                    @endif
                 </div>
             </div>
         </div>

@@ -414,12 +414,85 @@ class StudentController extends Controller
             'final' => $calculateTermGrades('final'),
         ];
 
+        $livePrediction = null;
+        $stageMap = ['prelim' => 1, 'midterm' => 2, 'semifinal' => 3];
+        $stage = $stageMap[$defaultActiveTerm] ?? null;
+
+        if ($stage) {
+            $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
+            if ($activePeriod) {
+                $mlModel = DB::table('ml_grade_models')
+                    ->where('academic_period_id', $activePeriod->id)
+                    ->where('stage', $stage)
+                    ->first();
+
+                if ($mlModel) {
+                    $coefs = json_decode($mlModel->coefficients, true);
+                    if (is_array($coefs) && count($coefs) > 0) {
+                        $intercept = $coefs[0] ?? 0;
+                        $predictedSemestral = $intercept;
+                        $isValidPrediction = true;
+
+                        $prelimGrade = $termGrades['prelim']['currentCalculatedGrade'] ?? null;
+                        $midtermGrade = $termGrades['midterm']['currentCalculatedGrade'] ?? null;
+                        $semiFinalGrade = $termGrades['semifinal']['currentCalculatedGrade'] ?? null;
+
+                        if ($stage == 1) {
+                            if ($prelimGrade !== null && isset($coefs[1])) {
+                                $predictedSemestral += $coefs[1] * $prelimGrade;
+                            } else {
+                                $isValidPrediction = false;
+                            }
+                        } elseif ($stage == 2) {
+                            if ($prelimGrade !== null && $midtermGrade !== null && isset($coefs[1], $coefs[2])) {
+                                $predictedSemestral += ($coefs[1] * $prelimGrade) + ($coefs[2] * $midtermGrade);
+                            } else {
+                                $isValidPrediction = false;
+                            }
+                        } elseif ($stage == 3) {
+                            if ($prelimGrade !== null && $midtermGrade !== null && $semiFinalGrade !== null && isset($coefs[1], $coefs[2], $coefs[3])) {
+                                $predictedSemestral += ($coefs[1] * $prelimGrade) + ($coefs[2] * $midtermGrade) + ($coefs[3] * $semiFinalGrade);
+                            } else {
+                                $isValidPrediction = false;
+                            }
+                        }
+
+                        if ($isValidPrediction) {
+                            $predictedSemestral = max(1.00, min(5.00, round($predictedSemestral, 2)));
+
+                            $livePrediction = (object)[
+                                'based_on_term' => $defaultActiveTerm,
+                                'predicted_semestral' => $predictedSemestral,
+                                'input_grade' => $termGrades[$defaultActiveTerm]['currentCalculatedGrade'] ?? 0
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
+        $actualTermGrades = DB::table('student_term_grades')
+            ->where('schedule_id', $schedule_id)
+            ->where('student_number', $studentNumber)
+            ->where('is_sent_to_student', 1)
+            ->pluck('equivalent', 'term')
+            ->toArray();
+
+        $mlPrediction = DB::table('student_term_grades_predictions')
+            ->where('schedule_id', $schedule_id)
+            ->where('student_number', $studentNumber)
+            ->orderBy('id', 'desc')
+            ->first();
+
         return view('student.class_details', compact(
             'classDetails',
             'activities',
             'materials',
             'activeTab',
             'termGrades',
+            'livePrediction',
+            'actualTermGrades',
+            'mlPrediction',
             'attendanceRecords',
             'gLinkedCourse',
             'termGoogleData'

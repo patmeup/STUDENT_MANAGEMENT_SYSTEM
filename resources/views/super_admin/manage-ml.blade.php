@@ -94,7 +94,8 @@
                                         $termNames = [
                                             1 => 'Prelim',
                                             2 => 'Midterm',
-                                            3 => 'Finals'
+                                            3 => 'Semi-Final',
+                                            4 => 'Finals'
                                         ];
                                     @endphp
 

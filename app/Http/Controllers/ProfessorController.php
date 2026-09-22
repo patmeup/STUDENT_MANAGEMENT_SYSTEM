@@ -277,7 +277,6 @@ class ProfessorController extends Controller
             ->whereIn('student_id', collect($students)->pluck('student_id'))
             ->get();
 
-        // LEC <-> LAB sibling (same subject + same section, different schedule_type)
         $siblingSchedule = $this->findSiblingSchedule($schedule_id);
         $siblingTermStatus = [];
 
@@ -1008,6 +1007,76 @@ class ProfessorController extends Controller
         ]);
     }
 
+    private function generatePredictionsForClass($schedule_id, $term)
+    {
+        $stageMap = ['prelim' => 1, 'midterm' => 2, 'semifinal' => 3];
+        if (!array_key_exists($term, $stageMap)) {
+            return;
+        }
+        $stage = $stageMap[$term];
+
+        $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
+        if (!$activePeriod) return;
+
+        $mlModel = DB::table('ml_grade_models')
+            ->where('academic_period_id', $activePeriod->id)
+            ->where('stage', $stage)
+            ->first();
+
+        if (!$mlModel) return;
+
+        $coefs = json_decode($mlModel->coefficients, true);
+        if (!is_array($coefs)) return;
+
+        $intercept = $coefs[0] ?? 0;
+
+        $students = DB::table('student_subjects')
+            ->where('schedule_id', $schedule_id)
+            ->where('status', 'Enrolled')
+            ->pluck('student_number');
+
+        foreach ($students as $student_id) {
+            $actualGrades = DB::table('student_term_grades')
+                ->where('schedule_id', $schedule_id)
+                ->where('student_number', $student_id)
+                ->pluck('equivalent', 'term');
+
+            $predictedSemestral = $intercept;
+
+            if ($stage >= 1 && isset($actualGrades['prelim'])) {
+                $predictedSemestral += ($coefs[1] * $actualGrades['prelim']);
+            }
+            if ($stage >= 2 && isset($actualGrades['midterm'])) {
+                $predictedSemestral += ($coefs[2] * $actualGrades['midterm']);
+            }
+            if ($stage == 3 && isset($actualGrades['semifinal'])) {
+                $predictedSemestral += ($coefs[3] * $actualGrades['semifinal']);
+            }
+
+            $predictedSemestral = max(1.00, min(5.00, round($predictedSemestral, 2)));
+
+            $predictedMidterm = ($stage < 2) ? $predictedSemestral : null;
+            $predictedSemifinal = ($stage < 3) ? $predictedSemestral : null;
+            $predictedFinal = ($stage < 4) ? $predictedSemestral : null;
+
+            DB::table('student_term_grades_predictions')->updateOrInsert(
+                [
+                    'schedule_id' => $schedule_id,
+                    'student_number' => $student_id,
+                    'based_on_term' => $term
+                ],
+                [
+                    'predicted_midterm' => $predictedMidterm,
+                    'predicted_semifinal' => $predictedSemifinal,
+                    'predicted_final' => $predictedFinal,
+                    'predicted_semestral' => $predictedSemestral,
+                    'updated_at' => now(),
+                    'created_at' => now()
+                ]
+            );
+        }
+    }
+
     public function revertSubmission(Request $request)
     {
         $request->validate([
@@ -1232,6 +1301,12 @@ class ProfessorController extends Controller
                     }
                 }
             });
+
+            $this->generatePredictionsForClass($schedule_id, $term);
+            
+            if ($sibling) {
+                $this->generatePredictionsForClass($sibling->id, $term);
+            }
 
             if ($term === 'final') {
                 $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
