@@ -15,39 +15,54 @@
         </div>
     @endif
 
-    @if($errors->any())
+    @if(isset($errors) && count($errors) > 0)
         <div class="admin-alert-danger" style="align-items: flex-start;">
             <i class="fas fa-exclamation-circle" style="margin-top: 3px;"></i>
             <div>
                 <strong>Unable to process request:</strong>
                 <ul style="margin: 4px 0 0 0; padding-left: 20px;">
-                    @foreach($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
+                    @php
+                        $allErrors = $errors->all();
+                    @endphp
+                    @for($i = 0; $i < count($allErrors); $i++)
+                        <li>{{ $allErrors[$i] }}</li>
+                    @endfor
                 </ul>
             </div>
         </div>
     @endif
 
-    <div id="js-alert-error" class="admin-alert-danger" style="display: none; align-items: center; gap: 10px;">
-        <i class="fas fa-exclamation-triangle"></i>
-        <span id="js-alert-message">Please fill out all required fields before submitting.</span>
+    <div id="js-alert-error" class="admin-alert-danger" style="display: none; align-items: flex-start; gap: 10px;">
+        <i class="fas fa-exclamation-triangle" style="margin-top: 3px;"></i>
+        <div>
+            <strong>Unable to process request:</strong>
+            <ul id="js-alert-list" style="margin: 4px 0 0 0; padding-left: 20px;"></ul>
+        </div>
     </div>
 
     <div class="admin-workspace">
         <div class="admin-card form-panel">
             <div class="card-bar">
-                <span><i class="fas fa-user-plus"></i> Add Faculty Member</span>
+                <span id="form-panel-title"><i class="fas fa-user-plus"></i> Add Faculty Member</span>
             </div>
 
             <form action="{{ route('system_admin.manage-faculty.store') }}" method="POST" id="faculty-form" autocomplete="off" class="pure-form" novalidate>
                 @csrf
+                <input type="hidden" name="_method" id="form_method">
+                <input type="hidden" name="faculty_id" id="form_faculty_id">
+
+                <input type="hidden" name="first_name" id="hidden_first_name">
+                <input type="hidden" name="last_name" id="hidden_last_name">
+                <input type="hidden" name="middle_name" id="hidden_middle_name">
+                <input type="hidden" name="sex" id="hidden_sex">
+                <input type="hidden" name="email" id="hidden_email">
+
                 <div class="form-group">
-                    <label>First Name <span class="required-star">*</span></label>
+                    <label>First Name <span id="star_first_name" class="required-star">*</span></label>
                     <input type="text" name="first_name" id="first_name" placeholder="Please put the first name" value="{{ old('first_name') }}" required>
                 </div>
                 <div class="form-group">
-                    <label>Last Name <span class="required-star">*</span></label>
+                    <label>Last Name <span id="star_last_name" class="required-star">*</span></label>
                     <input type="text" name="last_name" id="last_name" placeholder="Please put the last name" value="{{ old('last_name') }}" required>
                 </div>
                 <div class="form-grid-2">
@@ -56,8 +71,8 @@
                         <input type="text" name="middle_name" id="middle_name" placeholder="Middle name" value="{{ old('middle_name') }}">
                     </div>
                     <div class="form-group">
-                        <label>Sex <span class="required-star">*</span></label>
-                        <div class="custom-select-wrapper">
+                        <label>Sex <span id="star_sex" class="required-star">*</span></label>
+                        <div class="custom-select-wrapper" id="wrapper_sex">
                             <select name="sex" id="sex" class="custom-select-dropdown" required>
                                 <option value="" disabled {{ old('sex') ? '' : 'selected' }} hidden>Select Sex</option>
                                 <option value="Male" {{ old('sex') == 'Male' ? 'selected' : '' }}>Male</option>
@@ -86,11 +101,15 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Personal Email <span class="required-star">*</span></label>
+                    <label>Personal Email <span id="star_email" class="required-star">*</span></label>
                     <input type="email" name="email" id="email" placeholder="Please put the personal email" value="{{ old('email') }}" required>
-                    <small class="field-help">A temporary default credential (Welcome@AU2026) will be generated automatically.</small>
+                    <small class="field-help" id="email-help-text">A temporary default credential (Welcome@AU2026) will be generated automatically.</small>
                 </div>
-                <button type="submit" class="btn-deploy-faculty">Save Faculty Member</button>
+                
+                <div class="form-actions-bar">
+                    <button type="button" class="btn-clear" id="btn-reset-form" onclick="resetFacultyFormState()">Reset Form</button>
+                    <button type="submit" id="btn-submit-action" class="btn-deploy-faculty">Save Faculty Member</button>
+                </div>
             </form>
         </div>
 
@@ -99,17 +118,26 @@
                 <div class="card-title-container">
                     <h3 class="card-title-list">Faculty Members Directory</h3>
                 </div>
-                <div class="header-controls-flex" style="display: flex; align-items: center; gap: 15px;">
-                    <div class="search-bar-container">
-                        <i class="fas fa-search search-icon"></i>
-                        <input
-                        type="text"
-                        id="adminFacultySearch"
-                        placeholder="Search by Name, ID, or Email..."
-                        class="custom-search-input">
+                <div class="header-controls-flex">
+                    <div class="custom-select-wrapper" style="width: 140px;">
+                        <select id="roleFilterSelect" class="form-select-custom" style="padding: 6px 30px 6px 12px; font-size: 12.5px;">
+                            <option value="">All Roles</option>
+                            <option value="dean">Dean</option>
+                            <option value="professor">Professor</option>
+                            <option value="department secretary">Department Secretary</option>
+                        </select>
                     </div>
+
+                    <div class="table-search-box">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+                            <line x1="16.2" y1="16.2" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <input type="text" id="adminFacultySearch" placeholder="Search by Name, ID, or Email...">
+                    </div>
+
                     <span class="badge-count" id="facultyTotalCount">
-                        Total: {{ $faculties->count() }}
+                        Total: {{ count($faculties) }}
                     </span>
                 </div>
             </div>
@@ -125,53 +153,60 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($faculties as $faculty)
-                            <tr class="faculty-row-item">
-                                <td>
-                                    <strong class="faculty-id-text search-target-id">{{ $faculty->employee_id }}</strong>
-                                    <br><span class="faculty-name-text search-target-name">{{ strtoupper($faculty->last_name) }}, {{ strtoupper($faculty->first_name) }}</span>
-                                    <br><small class="faculty-email-text search-target-email">{{ $faculty->email }}</small>
-                                </td>
-                                <td style="text-align: center;">
-                                    <span class="rank-badge {{ $faculty->role }} search-target-role">
-                                        {{ $faculty->role === 'dept_sec' ? 'Department Secretary' : ($faculty->role === 'dean' ? 'Dean' : 'Professor') }}
-                                    </span>
-                                </td>
-                                <td style="text-align: center;">
-                                    <div class="status-indicator-center">
-                                        <span class="pulse-dot-green"></span>
-                                        <span class="status-label-text">Active</span>
-                                    </div>
-                                </td>
-                                <td style="text-align: center;">
-                                    <div class="action-btn-group">
-                                        <button class="btn-action-edit"
-                                            onclick="openEditFaculty(
-                                                {{ $faculty->id }},
-                                                @js($faculty->first_name),
-                                                @js($faculty->last_name),
-                                                @js($faculty->middle_name),
-                                                @js($faculty->sex),
-                                                @js($faculty->email),
-                                                @js($faculty->role),
-                                                @js($faculty->department)
-                                            )">Edit</button>
-                                        <button class="btn-action-delete"
-                                            onclick="openDeleteFaculty({{ $faculty->id }}, '{{ strtoupper($faculty->last_name) }}, {{ strtoupper($faculty->first_name) }}')">Delete</button>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
+                        @if(count($faculties) > 0)
+                            @for($fIdx = 0; $fIdx < count($faculties);$fIdx++)
+                                @php
+                                    $faculty = $faculties[$fIdx];
+                                @endphp
+                                <tr class="faculty-row-item">
+                                    <td>
+                                        <strong class="faculty-id-text search-target-id">{{ $faculty->employee_id }}</strong>
+                                        <br><span class="faculty-name-text search-target-name">{{ strtoupper($faculty->last_name) }}, {{ strtoupper($faculty->first_name) }}</span>
+                                        <br><small class="faculty-email-text search-target-email">{{ $faculty->email }}</small>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <span class="rank-badge {{ $faculty->role }} search-target-role">
+                                            {{ $faculty->role === 'dept_sec' ? 'Department Secretary' : ($faculty->role === 'dean' ? 'Dean' : 'Professor') }}
+                                        </span>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <div class="status-indicator-center">
+                                            <span class="pulse-dot-green"></span>
+                                            <span class="status-label-text">Active</span>
+                                        </div>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <div class="action-btn-group">
+                                            <button type="button" class="btn-action-edit btn-trigger-edit"
+                                                data-id="{{ $faculty->id }}"
+                                                data-firstname="{{ $faculty->first_name }}"
+                                                data-lastname="{{ $faculty->last_name }}"
+                                                data-middlename="{{ $faculty->middle_name }}"
+                                                data-sex="{{ $faculty->sex }}"
+                                                data-email="{{ $faculty->email }}"
+                                                data-role="{{ $faculty->role }}"
+                                                data-department="{{ $faculty->department }}">
+                                                Edit
+                                            </button>
+                                            <button type="button" class="btn-action-delete"
+                                                onclick="openDeleteFaculty({{ $faculty->id }}, '{{ strtoupper($faculty->last_name) }}, {{ strtoupper($faculty->first_name) }}')">
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endfor
+                        @else
                             <tr class="static-empty-row">
                                 <td colspan="4" class="empty-table-state">
                                     No faculty members recorded under the institutional scope yet.
                                 </td>
                             </tr>
-                        @endforelse
+                        @endif
                         <tr id="facultyNoResults" style="display:none;">
                             <td colspan="4" class="empty-table-state" style="text-align: center; color: #94a3b8; padding: 40px 0;">
                                 <i class="fas fa-database" style="font-size: 20px; display: block; margin-bottom: 8px;"></i>
-                                No faculty members match your search query.
+                                No faculty members match your search/filter query.
                             </td>
                         </tr>
                     </tbody>
@@ -181,73 +216,11 @@
     </div>
 </div>
 
-<div id="editFacultyModal" class="modal-overlay" style="display:none;">
-    <div class="modal-box">
-        <div class="modal-header">
-            <h3><i class="fas fa-user-edit"></i> Edit Faculty Record</h3>
-            <button class="modal-close" onclick="closeModal('editFacultyModal')">&times;</button>
-        </div>
-        <form id="editFacultyForm" method="POST" class="modal-form">
-            @csrf
-            @method('PATCH')
-            <div class="form-group">
-                <label>First Name</label>
-                <input type="text" name="first_name" id="edit_first_name" required>
-            </div>
-            <div class="form-group">
-                <label>Last Name</label>
-                <input type="text" name="last_name" id="edit_last_name" required>
-            </div>
-            <div class="form-grid-2">
-                <div class="form-group">
-                    <label>Middle Name (Optional)</label>
-                    <input type="text" name="middle_name" id="edit_middle_name">
-                </div>
-                <div class="form-group">
-                    <label>Sex</label>
-                    <div class="custom-select-wrapper">
-                        <select name="sex" id="edit_sex" class="custom-select-dropdown" required>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" name="email" id="edit_email" required>
-            </div>
-            <div class="form-group">
-                <label>Department</label>
-                <div class="custom-select-wrapper">
-                    <select name="department" id="edit_department" class="custom-select-dropdown" required>
-                        <option value="College of Computer Studies">College of Computer Studies</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Role / Designation</label>
-                <div class="custom-select-wrapper">
-                    <select name="role" id="edit_role" class="custom-select-dropdown" required>
-                        <option value="dean">Dean</option>
-                        <option value="professor">Professor</option>
-                        <option value="dept_sec">Department Secretary</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="btn-modal-cancel" onclick="closeModal('editFacultyModal')">Cancel</button>
-                <button type="submit" class="btn-modal-confirm-edit">Save Changes</button>
-            </div>
-        </form>
-    </div>
-</div>
-
 <div id="deleteFacultyModal" class="modal-overlay" style="display:none;">
     <div class="modal-box modal-box-sm">
         <div class="modal-header modal-header-danger">
             <h3><i class="fas fa-exclamation-triangle"></i> Confirm Deletion</h3>
-            <button class="modal-close" onclick="closeModal('deleteFacultyModal')">&times;</button>
+            <button class="modal-close" type="button" onclick="closeModal('deleteFacultyModal')">&times;</button>
         </div>
         <div class="modal-body-text">
             <p>Are you sure you want to remove <strong id="deleteFacultyName"></strong> from the system? This action cannot be undone.</p>
@@ -265,132 +238,226 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const existingFacultyList = [
-        @foreach($faculties as $f)
-            {
-                first_name: @js(strtolower($f->first_name)),
-                last_name: @js(strtolower($f->last_name)),
-                email: @js(strtolower($f->email)),
-                role: @js(strtolower($f->role))
-            },
-        @endforeach
-    ];
+    const existingFacultyList = @js($faculties->map(fn($f) => [
+        'first_name' => strtolower($f->first_name),
+        'last_name'  => strtolower($f->last_name),
+        'email'      => strtolower($f->email),
+        'role'       => strtolower($f->role)
+    ]));
 
     const facultyForm = document.getElementById('faculty-form');
+    const submitBtn = document.getElementById('btn-submit-action');
     const jsAlertError = document.getElementById('js-alert-error');
-    const jsAlertMessage = document.getElementById('js-alert-message');
+    const jsAlertList = document.getElementById('js-alert-list');
 
     if (facultyForm) {
         facultyForm.addEventListener('submit', function (e) {
-            const firstName = document.getElementById('first_name').value.trim();
-            const lastName = document.getElementById('last_name').value.trim();
-            const sex = document.getElementById('sex').value;
-            const department = document.getElementById('department').value;
-            const role = document.getElementById('role').value;
-            const email = document.getElementById('email').value.trim();
+            const facultyId = document.getElementById('form_faculty_id').value;
+            let errorMessages = [];
+
+            if (!facultyId) {
+                const firstName = document.getElementById('first_name').value.trim();
+                const lastName = document.getElementById('last_name').value.trim();
+                const sex = document.getElementById('sex').value;
+                const email = document.getElementById('email').value.trim();
+                const department = document.getElementById('department').value;
+                const role = document.getElementById('role').value;
+
+                if (!firstName || !lastName || !sex || !department || !role || !email) {
+                    errorMessages.push('Please fill out all required fields before submitting.');
+                } else {
+                    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailPattern.test(email)) {
+                        errorMessages.push('Please enter a valid email address.');
+                    }
+                    const emailLower = email.toLowerCase();
+                    if (existingFacultyList.some(f => f.email === emailLower)) {
+                        errorMessages.push('This email address is already registered in the system.');
+                    }
+                }
+            } else {
+                const department = document.getElementById('department').value;
+                const role = document.getElementById('role').value;
+                if (!department || !role) {
+                    errorMessages.push('Please select a department and role.');
+                }
+            }
 
             if (jsAlertError) jsAlertError.style.display = 'none';
 
-            if (!firstName || !lastName || !sex || !department || !role || !email) {
+            if (errorMessages.length > 0) {
                 e.preventDefault();
-                showJsError('Please fill out all required fields before submitting.');
-                return false;
-            }
-
-            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailPattern.test(email)) {
-                e.preventDefault();
-                showJsError('Please enter a valid email address.');
-                return false;
-            }
-
-            const fNameLower = firstName.toLowerCase();
-            const lNameLower = lastName.toLowerCase();
-            const emailLower = email.toLowerCase();
-
-            const emailExists = existingFacultyList.some(f => f.email === emailLower);
-            if (emailExists) {
-                e.preventDefault();
-                showJsError('This email address is already registered in the system.');
-                return false;
-            }
-
-            const nameAndRoleExists = existingFacultyList.some(f => 
-                f.first_name === fNameLower && f.last_name === lNameLower && f.role === role
-            );
-            if (nameAndRoleExists) {
-                e.preventDefault();
-                showJsError('A faculty member with this exact name and role already exists.');
+                showJsErrors(errorMessages);
                 return false;
             }
         });
     }
 
-    function showJsError(message) {
-        if (jsAlertError && jsAlertMessage) {
-            jsAlertMessage.textContent = message;
+    function showJsErrors(messages) {
+        if (jsAlertError && jsAlertList) {
+            jsAlertList.innerHTML = '';
+            messages.forEach(msg => {
+                const li = document.createElement('li');
+                li.textContent = msg;
+                jsAlertList.appendChild(li);
+            });
             jsAlertError.style.display = 'flex';
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     }
 
+    // Trigger Edit from Table row to Form Panel
+    const editButtons = document.querySelectorAll('.btn-trigger-edit');
+    editButtons.forEach(button => {
+        button.addEventListener('click', function () {
+            const id = this.getAttribute('data-id');
+            const firstName = this.getAttribute('data-firstname');
+            const lastName = this.getAttribute('data-lastname');
+            const middleName = this.getAttribute('data-middlename');
+            const sex = this.getAttribute('data-sex');
+            const email = this.getAttribute('data-email');
+            const role = this.getAttribute('data-role');
+            const department = this.getAttribute('data-department');
+
+            document.getElementById('form_faculty_id').value = id;
+            
+            // Fill values
+            document.getElementById('first_name').value = firstName;
+            document.getElementById('last_name').value = lastName;
+            document.getElementById('middle_name').value = middleName && middleName !== 'null' ? middleName : '';
+            document.getElementById('sex').value = sex;
+            document.getElementById('email').value = email;
+            document.getElementById('department').value = department;
+            document.getElementById('role').value = role;
+
+            // Fill hidden inputs
+            document.getElementById('hidden_first_name').value = firstName;
+            document.getElementById('hidden_last_name').value = lastName;
+            document.getElementById('hidden_middle_name').value = middleName && middleName !== 'null' ? middleName : '';
+            document.getElementById('hidden_sex').value = sex;
+            document.getElementById('hidden_email').value = email;
+
+            // Make fields Readonly/Disabled
+            document.getElementById('first_name').setAttribute('readonly', true);
+            document.getElementById('last_name').setAttribute('readonly', true);
+            document.getElementById('middle_name').setAttribute('readonly', true);
+            document.getElementById('sex').setAttribute('disabled', true);
+            document.getElementById('email').setAttribute('readonly', true);
+
+            // Add visual readonly styling class
+            document.getElementById('first_name').classList.add('readonly-input');
+            document.getElementById('last_name').classList.add('readonly-input');
+            document.getElementById('middle_name').classList.add('readonly-input');
+            document.getElementById('sex').classList.add('readonly-input');
+            document.getElementById('wrapper_sex').classList.add('readonly-wrapper');
+            document.getElementById('email').classList.add('readonly-input');
+
+            // Hide required stars for readonly fields
+            document.getElementById('star_first_name').style.display = 'none';
+            document.getElementById('star_last_name').style.display = 'none';
+            document.getElementById('star_sex').style.display = 'none';
+            document.getElementById('star_email').style.display = 'none';
+
+            // Update Form Action Route
+            facultyForm.action = `/system_admin/manage-faculty/${id}`;
+            document.getElementById('form_method').value = 'PATCH';
+
+            // Change UI headers and button text
+            document.getElementById('form-panel-title').innerHTML = '<i class="fas fa-user-edit"></i> Edit Faculty Member';
+            document.getElementById('email-help-text').textContent = 'Identity details are locked and cannot be modified.';
+            submitBtn.innerText = "Update Faculty Member";
+            submitBtn.style.backgroundColor = "#dc2626";
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    });
+
+    // Search & Role Filtering logic
     const searchInput = document.getElementById('adminFacultySearch');
+    const roleFilterSelect = document.getElementById('roleFilterSelect');
     const tableRows = document.querySelectorAll('.faculty-row-item');
     const noResults = document.getElementById('facultyNoResults');
     const totalCountBadge = document.getElementById('facultyTotalCount');
     const initialTotal = tableRows.length;
 
-    if (searchInput) {
-        searchInput.addEventListener('input', function () {
-            const query = this.value.toLowerCase().trim();
-            let visibleCount = 0;
+    function filterFacultyTable() {
+        const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const selectedRole = roleFilterSelect ? roleFilterSelect.value.toLowerCase().trim() : '';
+        let visibleCount = 0;
 
-            tableRows.forEach(row => {
-                const empId = row.querySelector('.search-target-id').textContent.toLowerCase();
-                const name = row.querySelector('.search-target-name').textContent.toLowerCase();
-                const email = row.querySelector('.search-target-email').textContent.toLowerCase();
-                const role = row.querySelector('.search-target-role').textContent.toLowerCase();
+        tableRows.forEach(row => {
+            const empId = row.querySelector('.search-target-id').textContent.toLowerCase();
+            const name = row.querySelector('.search-target-name').textContent.toLowerCase();
+            const email = row.querySelector('.search-target-email').textContent.toLowerCase();
+            const role = row.querySelector('.search-target-role').textContent.toLowerCase().trim();
 
-                if (empId.includes(query) || name.includes(query) || email.includes(query) || role.includes(query)) {
-                    row.style.display = '';
-                    visibleCount++;
-                } else {
-                    row.style.display = 'none';
-                }
-            });
+            const matchesRole = (selectedRole === '' || role === selectedRole);
+            const matchesSearch = (empId.includes(query) || name.includes(query) || email.includes(query) || role.includes(query));
 
-            if (totalCountBadge) {
-                totalCountBadge.textContent = query === '' ? `Total: ${initialTotal}` : `Total: ${visibleCount}`;
-            }
-
-            if (visibleCount === 0 && initialTotal > 0) {
-                noResults.style.display = '';
+            if (matchesRole && matchesSearch) {
+                row.style.display = '';
+                visibleCount++;
             } else {
-                noResults.style.display = 'none';
+                row.style.display = 'none';
             }
         });
+
+        if (totalCountBadge) {
+            totalCountBadge.textContent = (query === '' && selectedRole === '') ? `Total: ${initialTotal}` : `Total: ${visibleCount}`;
+        }
+
+        if (noResults) {
+            noResults.style.display = (visibleCount === 0 && initialTotal > 0) ? 'table-row' : 'none';
+        }
     }
+
+    if (searchInput) searchInput.addEventListener('input', filterFacultyTable);
+    if (roleFilterSelect) roleFilterSelect.addEventListener('change', filterFacultyTable);
 });
 
-function openEditFaculty(id, firstName, lastName, middleName, sex, email, role, department) {
-    document.getElementById('edit_first_name').value  = firstName;
-    document.getElementById('edit_last_name').value   = lastName;
-    document.getElementById('edit_middle_name').value = middleName && middleName !== 'null' ? middleName : '';
-    document.getElementById('edit_sex').value         = sex;
-    document.getElementById('edit_email').value       = email;
-    document.getElementById('edit_role').value        = role;
-    document.getElementById('edit_department').value  = department;
-    let editUrl = "{{ route('system_admin.manage-faculty.update', ':id') }}";
-    editUrl = editUrl.replace(':id', id);
+function resetFacultyFormState() {
+    const facultyForm = document.getElementById('faculty-form');
+    const submitBtn = document.getElementById('btn-submit-action');
 
-    document.getElementById('editFacultyForm').action = editUrl;
-    document.getElementById('editFacultyModal').style.display = 'flex';
+    facultyForm.reset();
+
+    document.getElementById('form_faculty_id').value = '';
+    document.getElementById('form_method').value = '';
+    facultyForm.action = "{{ route('system_admin.manage-faculty.store') }}";
+
+    // Remove Readonly attributes
+    document.getElementById('first_name').removeAttribute('readonly');
+    document.getElementById('last_name').removeAttribute('readonly');
+    document.getElementById('middle_name').removeAttribute('readonly');
+    document.getElementById('sex').removeAttribute('disabled');
+    document.getElementById('email').removeAttribute('readonly');
+
+    // Remove visual readonly styling
+    document.getElementById('first_name').classList.remove('readonly-input');
+    document.getElementById('last_name').classList.remove('readonly-input');
+    document.getElementById('middle_name').classList.remove('readonly-input');
+    document.getElementById('sex').classList.remove('readonly-input');
+    document.getElementById('wrapper_sex').classList.remove('readonly-wrapper');
+    document.getElementById('email').classList.remove('readonly-input');
+
+    // Restore required stars
+    document.getElementById('star_first_name').style.display = '';
+    document.getElementById('star_last_name').style.display = '';
+    document.getElementById('star_sex').style.display = '';
+    document.getElementById('star_email').style.display = '';
+
+    document.getElementById('form-panel-title').innerHTML = '<i class="fas fa-user-plus"></i> Add Faculty Member';
+    document.getElementById('email-help-text').textContent = 'A temporary default credential (Welcome@AU2026) will be generated automatically.';
+    submitBtn.innerText = "Save Faculty Member";
+    submitBtn.style.backgroundColor = "#1e2a5a";
 }
 
 function openDeleteFaculty(id, name) {
     document.getElementById('deleteFacultyName').textContent = name;
+    
     let deleteUrl = "{{ route('system_admin.manage-faculty.destroy', ':id') }}";
     deleteUrl = deleteUrl.replace(':id', id);
+
     document.getElementById('deleteFacultyForm').action = deleteUrl;
     document.getElementById('deleteFacultyModal').style.display = 'flex';
 }
@@ -407,43 +474,59 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 </script>
 
 <style>
-    .admin-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #0f172a; max-width: 1300px; margin: 0 auto; padding: 20px; }
+    .admin-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #0f172a; max-width: 1350px; margin: 0 auto; padding: 20px 24px; }
     .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; }
     .header-titles h2 { margin: 0 0 4px 0; font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
     .header-titles p { margin: 0; font-size: 14px; color: #64748b; }
 
     .required-star { color: #dc2626; font-weight: 700; }
 
-    .admin-workspace { display: flex; flex-direction: row; gap: 28px; align-items: flex-start; width: 100%; }
-    .form-panel { flex: 1; min-width: 360px; background: #ffffff; }
-    .table-panel { flex: 1.5; background: #ffffff; }
+    .admin-workspace { display: flex; flex-direction: row; gap: 24px; align-items: flex-start; justify-content: space-between; width: 100%; }
+    .form-panel { flex: 0 0 380px; background: #ffffff; }
+    .table-panel { flex: 1; background: #ffffff; min-width: 0; }
 
     .admin-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px -2px rgba(0,0,0,0.03); overflow: hidden; transition: .2s ease; }
-    .card-bar { background: #f8fafc; padding: 16px 22px; font-weight: 700; font-size: 14.5px; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
-    .card-header-flex { background-color: #f8fafc; padding: 16px 22px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .card-bar { background: #f8fafc; padding: 16px 20px; font-weight: 700; font-size: 14.5px; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
+    .card-header-flex { background-color: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
     .card-title-container { display: flex; align-items: center; gap: 12px; }
     .card-title-list { font-size: 14.5px; font-weight: 700; color: #1e293b; margin: 0; }
+    .header-controls-flex { display: flex; align-items: center; gap: 12px; }
 
-    .search-bar-container { position: relative; display: flex; align-items: center; }
-    .custom-search-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px 6px 32px; font-size: 12.5px; color: #0f172a; outline: none; background: #ffffff; width: 220px; transition: all 0.2s ease; font-weight: 500; }
-    .custom-search-input:focus { border-color: #475569; width: 260px; box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.1); }
-    .search-icon { position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none; }
+    /* EXACT SEARCH BOX & ICON STYLING FROM CURRICULUM MANAGEMENT */
+    .table-search-box { position: relative; display: flex; align-items: center; }
+    .table-search-box input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px 6px 32px; font-size: 12.5px; color: #0f172a; outline: none; background: #ffffff; width: 220px; transition: all 0.2s ease; font-weight: 500; box-sizing: border-box; }
+    .table-search-box input:focus { border-color: #1e2a5a; width: 250px; box-shadow: 0 0 0 3px rgba(30, 42, 90, 0.08); }
+    .table-search-box .search-icon { position: absolute; left: 12px; color: #94a3b8; width: 14px; height: 14px; pointer-events: none; }
 
     .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group label { font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.3px; }
     .form-group input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 14px; color: #0f172a; outline: none; background: #ffffff; box-sizing: border-box; width: 100%; }
-    .form-group input:focus { border-color: #000000; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
-    .form-grid-2 { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px; }
+    .form-group input:focus { border-color: #1e2a5a; box-shadow: 0 0 0 3px rgba(30, 42, 90, 0.08); }
+    .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .field-help { font-size: 11px; color: #64748b; margin-top: 2px; }
 
-    .btn-deploy-faculty { background: #000000; color: #ffffff; border: none; padding: 12px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; margin-top: 8px; width: 100%; }
-    .btn-deploy-faculty:hover { background: #1e293b; }
+    .form-actions-bar { display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 16px; }
+    .btn-deploy-faculty { 
+        background: #1e2a5a; 
+        color: #ffffff; 
+        border: none; 
+        padding: 12px 20px; 
+        font-size: 14px; 
+        font-weight: 700; 
+        border-radius: 6px; 
+        cursor: pointer; 
+        flex: 1; 
+        transition: background 0.2s; 
+    }
+    .btn-deploy-faculty:hover { background: #152238; }
+    .btn-clear { background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 12px 16px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; }
+    .btn-clear:hover { background: #f8fafc; }
 
     .table-responsive { width: 100%; overflow-x: auto; }
     .minimal-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px; }
-    .minimal-table th { background: #f8fafc; padding: 14px 20px; font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
-    .minimal-table td { padding: 15px 20px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
+    .minimal-table th { background: #f8fafc; padding: 14px 16px; font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
+    .minimal-table td { padding: 15px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
     .minimal-table tbody tr:hover { background-color: #f8fafc; }
 
     .faculty-id-text { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; color: #0f172a; font-size: 13px; }
@@ -472,12 +555,16 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     .badge-count { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 4px 12px; border-radius: 20px; font-weight: 700; white-space: nowrap; }
 
     .custom-select-wrapper { position: relative; width: 100%; }
-    .custom-select-dropdown { width: 100%; padding: 10px 40px 10px 14px; font-size: 14px; color: #0f172a; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; appearance: none; -webkit-appearance: none; cursor: pointer; outline: none; }
-    .custom-select-dropdown:focus { border-color: #000000; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
+    .custom-select-dropdown, .form-select-custom { width: 100%; padding: 10px 40px 10px 14px; font-size: 14px; color: #0f172a; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; appearance: none; -webkit-appearance: none; cursor: pointer; outline: none; transition: all 0.2s ease; }
+    .form-select-custom { padding: 6px 30px 6px 12px; font-size: 12.5px; font-weight: 500; }
+    .custom-select-dropdown:focus, .form-select-custom:focus { border-color: #1e2a5a; box-shadow: 0 0 0 3px rgba(30, 42, 90, 0.08); }
     .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 
+    .readonly-input { background-color: #f1f5f9 !important; color: #64748b !important; border-color: #cbd5e1 !important; cursor: not-allowed !important; user-select: none; }
+    .readonly-wrapper::after { color: #cbd5e1 !important; }
+
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 9999; display: flex; align-items: center; justify-content: center; }
-    .modal-box { background: #ffffff; border-radius: 14px; width: 100%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden; }
+    .modal-box { background: #ffffff; border-radius: 14px; width: 100%; max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden; }
     .modal-box-sm { max-width: 420px; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
     .modal-header h3 { margin: 0; font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; }
@@ -485,13 +572,10 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     .modal-header-danger h3 { color: #dc2626; }
     .modal-close { background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; padding: 0; line-height: 1; }
     .modal-close:hover { color: #0f172a; }
-    .modal-form { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
     .modal-body-text { padding: 24px 24px 0 24px; font-size: 14px; color: #334155; line-height: 1.6; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #f1f5f9; }
     .btn-modal-cancel { background: transparent; border: 1px solid #cbd5e1; color: #64748b; padding: 9px 18px; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; }
     .btn-modal-cancel:hover { background: #f8fafc; }
-    .btn-modal-confirm-edit { background: #000000; color: #ffffff; border: none; padding: 9px 20px; font-size: 13px; font-weight: 700; border-radius: 6px; cursor: pointer; }
-    .btn-modal-confirm-edit:hover { background: #1e293b; }
     .btn-modal-confirm-delete { background: #dc2626; color: #ffffff; border: none; padding: 9px 20px; font-size: 13px; font-weight: 700; border-radius: 6px; cursor: pointer; }
     .btn-modal-confirm-delete:hover { background: #b91c1c; }
 </style>

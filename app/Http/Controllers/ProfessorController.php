@@ -14,6 +14,7 @@ use App\Support\TermHelper;
 use App\Support\GradeHelper;
 use App\Support\GoogleClassroomService;
 use App\Support\PredictiveGradeHelper;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ProfessorController extends Controller
 {
@@ -25,10 +26,14 @@ class ProfessorController extends Controller
             ->orderBy('display_order', 'asc')
             ->orderBy('id', 'asc')
             ->get();
+
+        $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
+        $activePeriodId = $activePeriod ? $activePeriod->id : 0;
             
         $totalClasses = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->where('subjects.professor_id', $professor_id)
+            ->where('class_schedules.academic_period_id', $activePeriodId)
             ->distinct('class_schedules.id')
             ->count('class_schedules.id');
 
@@ -37,6 +42,7 @@ class ProfessorController extends Controller
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
             ->where('subjects.professor_id', $professor_id)
+            ->where('class_schedules.academic_period_id', $activePeriodId)
             ->where('student_subjects.status', 'Enrolled')
             ->count('student_subjects.id');
 
@@ -49,6 +55,7 @@ class ProfessorController extends Controller
                     ->on('student_subjects.student_number', '=', 'task_submissions.student_id');
             })
             ->where('subjects.professor_id', $professor_id)
+            ->where('class_schedules.academic_period_id', $activePeriodId)
             ->where('student_subjects.status', 'Enrolled')
             ->whereNull('task_submissions.grade')
             ->count(DB::raw('DISTINCT CONCAT(task_submissions.task_id, "-", task_submissions.student_id)'));
@@ -64,6 +71,17 @@ class ProfessorController extends Controller
     public function manageClasses()
     {
         $professor_id = session('user_id');
+
+        $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
+
+        if (!$activePeriod) {
+            $classes = collect();
+            $gConnection = DB::table('google_classroom_connections')
+                ->where('professor_id', $professor_id)
+                ->first();
+
+            return view('professor.manage-classes', compact('classes', 'gConnection'));
+        }
 
         $classes = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
@@ -87,6 +105,7 @@ class ProfessorController extends Controller
                         AND student_subjects.status = "Enrolled") as students_count')
             )
             ->where('subjects.professor_id', $professor_id)
+            ->where('class_schedules.academic_period_id', $activePeriod->id)
             ->orderBy('class_schedules.section_name')
             ->get();
 
@@ -183,7 +202,16 @@ class ProfessorController extends Controller
             }
         }
 
-        // === Recorded attendance dates (for the calendar dot indicator) ===
+        $termPeriods = DB::table('term_periods')->get();
+
+        $classAttendances = DB::table('attendances')
+            ->where('class_schedule_id', $schedule_id)
+            ->get()
+            ->map(function ($att) use ($termPeriods) {
+                $att->derived_term = TermHelper::deriveTerm($att->attendance_date, $termPeriods);
+                return $att;
+            });
+
         $recordedDates = DB::table('attendances')
             ->where('class_schedule_id', $schedule_id)
             ->select('attendance_date')
@@ -267,12 +295,30 @@ class ProfessorController extends Controller
             ->whereIn('student_id', collect($students)->pluck('student_id'))
             ->get();
 
+        $siblingSchedule = $this->findSiblingSchedule($schedule_id);
+        $siblingTermStatus = [];
+
+        if ($siblingSchedule) {
+            $siblingRows = StudentTermGrade::where('schedule_id', $siblingSchedule->id)
+                ->get()
+                ->groupBy('term');
+
+            foreach ($terms as $t) {
+                $rows = $siblingRows->get($t, collect());
+                $siblingTermStatus[$t] = [
+                    'submitted' => $rows->where('is_submitted', 1)->count() > 0,
+                    'sent'      => $rows->where('is_sent_to_student', 1)->count() > 0,
+                ];
+            }
+        }
+
         return view('professor.class_details', compact(
             'classDetails',
             'students',
             'tasks',
             'termTasks',
             'termPeriods',
+            'classAttendances',
             'autoGrades',
             'draftGrades',
             'gConnection',
@@ -282,7 +328,9 @@ class ProfessorController extends Controller
             'gCourseWork',
             'gMaterials',
             'studentSubmissions',
-            'recordedDates'
+            'recordedDates',
+            'siblingSchedule',
+            'siblingTermStatus'
         ));
     }
 
@@ -300,7 +348,7 @@ class ProfessorController extends Controller
 
         $existingAttendance = DB::table('attendances')
             ->where('class_schedule_id', $schedule_id)
-            ->where('attendance_date', $date)
+            ->whereDate('attendance_date', $date)
             ->get()
             ->keyBy('student_id');
 
@@ -328,7 +376,7 @@ class ProfessorController extends Controller
                 $record = DB::table('attendances')
                     ->where('class_schedule_id', $schedule_id)
                     ->where('student_id', $studentId)
-                    ->where('attendance_date', $date)
+                    ->whereDate('attendance_date', $date)
                     ->first();
 
                 if ($record) {
@@ -451,6 +499,7 @@ class ProfessorController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'type' => 'required|string',
+            'description' => 'nullable|string',
             'max_score' => 'nullable',
             'term' => 'required|string',
             'schedule_id' => 'required|integer',
@@ -490,7 +539,7 @@ class ProfessorController extends Controller
                 $filePath = "{$folderPath}/{$finalName}";
             }
 
-            $isNonGradable = in_array(strtolower($request->type), ['module', 'material']);
+            $isNonGradable = in_array(strtolower($request->type), ['module', 'material', 'announcement']);
                         
             $formattedDueDate = (!$isNonGradable && !empty($request->due_date)) 
                 ? date('Y-m-d H:i:s', strtotime($request->due_date)) 
@@ -503,6 +552,7 @@ class ProfessorController extends Controller
                 'term' => $request->term,
                 'activity_name' => $request->title,
                 'activity_type' => $request->type,
+                'description' => $request->description,
                 'max_score' => $maxScore,
                 'due_date' => $formattedDueDate,
                 'file_path' => $filePath,
@@ -531,6 +581,7 @@ class ProfessorController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'type' => 'required|string',
+            'description' => 'nullable|string',
             'max_score' => 'nullable',
             'due_date' => 'nullable',
             'attachment' => 'nullable|file|max:10240|mimes:pdf,doc,docx,ppt,pptx,zip,jpg,png',
@@ -543,7 +594,7 @@ class ProfessorController extends Controller
                 return response()->json(['success' => false, 'message' => 'Task not found.'], 404);
             }
 
-            $isNonGradable = in_array(strtolower($request->type), ['module', 'material']);
+            $isNonGradable = in_array(strtolower($request->type), ['module', 'material', 'announcement']);
 
             $formattedDueDate = (!$isNonGradable && !empty($request->due_date)) 
                 ? date('Y-m-d H:i:s', strtotime($request->due_date)) 
@@ -554,9 +605,10 @@ class ProfessorController extends Controller
             $updateData = [
                 'activity_name' => $request->title,
                 'activity_type' => $request->type,
-                'max_score' => $maxScore,
-                'due_date' => $formattedDueDate,
-                'updated_at' => now(),
+                'description'   => $request->description,
+                'max_score'     => $maxScore,
+                'due_date'      => $formattedDueDate,
+                'updated_at'    => now(),
             ];
 
             if ($request->hasFile('attachment')) {
@@ -861,6 +913,7 @@ class ProfessorController extends Controller
                 $join->on('student_tasks.id', '=', 'task_submissions.task_id')
                     ->where('task_submissions.student_id', '=', $student_id);
             })
+            ->whereNotIn(DB::raw('LOWER(student_tasks.activity_type)'), ['module', 'material', 'announcement'])
             ->select(
                 'student_tasks.*',
                 'task_submissions.grade',
@@ -911,20 +964,12 @@ class ProfessorController extends Controller
             'grades.*.class_standing' => 'nullable|numeric|min:0|max:100',
             'grades.*.major_exam'     => 'nullable|numeric|min:0|max:100',
             'grades.*.equivalent'     => 'nullable|numeric|min:1|max:5',
-            'grades.*.is_manual'      => 'required|boolean',
+            'grades.*.is_manual'      => 'nullable',
         ]);
 
         try {
             foreach ($request->grades as $grade) {
-                $isManual = (bool) $grade['is_manual'];
-
-                $updateData = [
-                    'is_manual'    => $isManual ? 1 : 0,
-                    'is_submitted' => false,
-                    'class_standing' => $grade['class_standing'] ?? null,
-                    'major_exam'     => $grade['major_exam'] ?? null,
-                    'equivalent'     => $grade['equivalent'] ?? null,
-                ];
+                $isManual = filter_var($grade['is_manual'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
                 StudentTermGrade::updateOrCreate(
                     [
@@ -932,7 +977,13 @@ class ProfessorController extends Controller
                         'student_number' => $grade['student_number'],
                         'term'           => $grade['term'],
                     ],
-                    $updateData
+                    [
+                        'is_manual'      => $isManual ? 1 : 0,
+                        'is_submitted'   => false,
+                        'class_standing' => $grade['class_standing'] ?? null,
+                        'major_exam'     => $grade['major_exam'] ?? null,
+                        'equivalent'     => $grade['equivalent'] ?? null,
+                    ]
                 );
             }
 
@@ -941,6 +992,7 @@ class ProfessorController extends Controller
                 'message' => 'Draft grades saved successfully.'
             ]);
         } catch (\Exception $e) {
+            Log::error('Error saving draft grades: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -967,13 +1019,87 @@ class ProfessorController extends Controller
             ]
         );
 
+        if (isset($computed['equivalent']) && $computed['equivalent'] !== null) {
+            $computed['equivalent'] = number_format((float)$computed['equivalent'], 2, '.', '');
+        }
+
         return response()->json([
             'success' => true,
             'computed' => $computed
         ]);
     }
 
-    public function submitToRegistrar(Request $request)
+    private function generatePredictionsForClass($schedule_id, $term)
+    {
+        $stageMap = ['prelim' => 1, 'midterm' => 2, 'semifinal' => 3];
+        if (!array_key_exists($term, $stageMap)) {
+            return;
+        }
+        $stage = $stageMap[$term];
+
+        $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
+        if (!$activePeriod) return;
+
+        $mlModel = DB::table('ml_grade_models')
+            ->where('academic_period_id', $activePeriod->id)
+            ->where('stage', $stage)
+            ->first();
+
+        if (!$mlModel) return;
+
+        $coefs = json_decode($mlModel->coefficients, true);
+        if (!is_array($coefs)) return;
+
+        $intercept = $coefs[0] ?? 0;
+
+        $students = DB::table('student_subjects')
+            ->where('schedule_id', $schedule_id)
+            ->where('status', 'Enrolled')
+            ->pluck('student_number');
+
+        foreach ($students as $student_id) {
+            $actualGrades = DB::table('student_term_grades')
+                ->where('schedule_id', $schedule_id)
+                ->where('student_number', $student_id)
+                ->pluck('equivalent', 'term');
+
+            $predictedSemestral = $intercept;
+
+            if ($stage >= 1 && isset($actualGrades['prelim'])) {
+                $predictedSemestral += ($coefs[1] * $actualGrades['prelim']);
+            }
+            if ($stage >= 2 && isset($actualGrades['midterm'])) {
+                $predictedSemestral += ($coefs[2] * $actualGrades['midterm']);
+            }
+            if ($stage == 3 && isset($actualGrades['semifinal'])) {
+                $predictedSemestral += ($coefs[3] * $actualGrades['semifinal']);
+            }
+
+            $predictedSemestral = max(1.00, min(5.00, round($predictedSemestral, 2)));
+
+            $predictedMidterm = ($stage < 2) ? $predictedSemestral : null;
+            $predictedSemifinal = ($stage < 3) ? $predictedSemestral : null;
+            $predictedFinal = ($stage < 4) ? $predictedSemestral : null;
+
+            DB::table('student_term_grades_predictions')->updateOrInsert(
+                [
+                    'schedule_id' => $schedule_id,
+                    'student_number' => $student_id,
+                    'based_on_term' => $term
+                ],
+                [
+                    'predicted_midterm' => $predictedMidterm,
+                    'predicted_semifinal' => $predictedSemifinal,
+                    'predicted_final' => $predictedFinal,
+                    'predicted_semestral' => $predictedSemestral,
+                    'updated_at' => now(),
+                    'created_at' => now()
+                ]
+            );
+        }
+    }
+
+    public function revertSubmission(Request $request)
     {
         $request->validate([
             'schedule_id' => 'required|integer',
@@ -981,8 +1107,128 @@ class ProfessorController extends Controller
         ]);
 
         try {
+            $professorId = session('user_id');
             $schedule_id = $request->schedule_id;
             $term = strtolower(trim($request->term));
+
+            $ownsClass = DB::table('class_schedules')
+                ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+                ->where('class_schedules.id', $schedule_id)
+                ->where('subjects.professor_id', $professorId)
+                ->exists();
+
+            if (!$ownsClass) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Class section not found or unauthorized.'
+                ], 403);
+            }
+
+            $grades = StudentTermGrade::where('schedule_id', $schedule_id)
+                ->where('term', $term);
+
+            if ((clone $grades)->where('is_submitted', 1)->count() === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'There is no submitted grade to revert for this term.'
+                ], 422);
+            }
+
+            if ((clone $grades)->where('is_sent_to_student', 1)->count() > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'These grades were already released to students and cannot be reverted.'
+                ], 422);
+            }
+
+            $grades->update(['is_submitted' => false]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Submission reverted. Grades are editable again.'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error reverting grade submission: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function findSiblingSchedule($schedule_id)
+    {
+        $current = DB::table('class_schedules')->where('id', $schedule_id)->first();
+
+        if (!$current) {
+            return null;
+        }
+
+        return DB::table('class_schedules')
+            ->where('subject_id', $current->subject_id)
+            ->where('section_name', $current->section_name)
+            ->where('schedule_type', '!=', $current->schedule_type)
+            ->first();
+    }
+
+    private function submitOwnGrade($schedule_id, $student_number, $term)
+    {
+        $existingGrade = StudentTermGrade::where('schedule_id', $schedule_id)
+            ->where('student_number', $student_number)
+            ->where('term', $term)
+            ->first();
+
+        if ($existingGrade && $existingGrade->is_manual) {
+            $existingGrade->update(['is_submitted' => true]);
+            return;
+        }
+
+        $computed = GradeHelper::computeAutoGrades($schedule_id, $student_number, $term);
+
+        StudentTermGrade::updateOrCreate(
+            [
+                'schedule_id'    => $schedule_id,
+                'student_number' => $student_number,
+                'term'           => $term,
+            ],
+            [
+                'class_standing' => $computed['class_standing'] ?? null,
+                'major_exam'     => $computed['major_exam'] ?? null,
+                'equivalent'     => $computed['equivalent'] ?? null,
+                'is_manual'      => 0,
+                'is_submitted'   => true,
+            ]
+        );
+    }
+
+    public function submitToRegistrar(Request $request)
+    {
+        $request->validate([
+            'schedule_id'      => 'required|integer',
+            'term'             => 'required|in:prelim,midterm,semifinal,final',
+            'apply_to_sibling' => 'nullable',
+        ]);
+
+        try {
+            $professorId = session('user_id');
+            $schedule_id = $request->schedule_id;
+            $term = strtolower(trim($request->term));
+            $applyToSibling = filter_var($request->input('apply_to_sibling', false), FILTER_VALIDATE_BOOLEAN);
+
+            $ownsClass = DB::table('class_schedules')
+                ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+                ->where('class_schedules.id', $schedule_id)
+                ->where('subjects.professor_id', $professorId)
+                ->exists();
+
+            if (!$ownsClass) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Class section not found or unauthorized.'
+                ], 403);
+            }
 
             $students = DB::table('student_subjects')
                 ->where('schedule_id', $schedule_id)
@@ -996,28 +1242,91 @@ class ProfessorController extends Controller
                 ], 404);
             }
 
-            foreach ($students as $student_number) {
-                $existingGrade = StudentTermGrade::where('schedule_id', $schedule_id)
-                    ->where('student_number', $student_number)
-                    ->where('term', $term)
-                    ->first();
+            $sibling = null;
+            if ($applyToSibling) {
+                $sibling = $this->findSiblingSchedule($schedule_id);
 
-                if ($existingGrade) {
-                    $existingGrade->update(['is_submitted' => true]);
-                } else {
-                    $computed = GradeHelper::computeAutoGrades($schedule_id, $student_number, $term);
-
-                    StudentTermGrade::create([
-                        'schedule_id'    => $schedule_id,
-                        'student_number' => $student_number,
-                        'term'           => $term,
-                        'class_standing' => $computed['class_standing'] ?? null,
-                        'major_exam'     => $computed['major_exam'] ?? null,
-                        'equivalent'     => $computed['equivalent'] ?? null,
-                        'is_manual'      => 0,
-                        'is_submitted'   => true,
-                    ]);
+                if (!$sibling) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No matching Lecture/Laboratory class was found for this section.'
+                    ], 422);
                 }
+
+                $siblingGrades = StudentTermGrade::where('schedule_id', $sibling->id)->where('term', $term);
+                $siblingType = strtoupper($sibling->schedule_type);
+
+                if ((clone $siblingGrades)->where('is_sent_to_student', 1)->exists()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "The {$siblingType} grades were already released to students and cannot be overwritten."
+                    ], 422);
+                }
+
+                if ((clone $siblingGrades)->where('is_submitted', 1)->exists()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "The {$siblingType} grades were already submitted. Revert that submission first if you want to copy these grades over."
+                    ], 422);
+                }
+            }
+
+            $copied = 0;
+            $keptOwn = 0;
+
+            DB::transaction(function () use ($students, $schedule_id, $term, $sibling, &$copied, &$keptOwn) {
+                foreach ($students as $student_number) {
+                    $this->submitOwnGrade($schedule_id, $student_number, $term);
+                }
+
+                if ($sibling) {
+                    $source = StudentTermGrade::where('schedule_id', $schedule_id)
+                        ->where('term', $term)
+                        ->get()
+                        ->keyBy('student_number');
+
+                    $siblingStudents = DB::table('student_subjects')
+                        ->where('schedule_id', $sibling->id)
+                        ->where('status', 'Enrolled')
+                        ->pluck('student_number');
+
+                    foreach ($siblingStudents as $student_number) {
+                        $src = $source->get($student_number);
+
+                        $hasGrade = $src && (
+                            $src->class_standing !== null ||
+                            $src->major_exam !== null ||
+                            $src->equivalent !== null
+                        );
+
+                        if ($hasGrade) {
+                            StudentTermGrade::updateOrCreate(
+                                [
+                                    'schedule_id'    => $sibling->id,
+                                    'student_number' => $student_number,
+                                    'term'           => $term,
+                                ],
+                                [
+                                    'class_standing' => $src->class_standing,
+                                    'major_exam'     => $src->major_exam,
+                                    'equivalent'     => $src->equivalent,
+                                    'is_manual'      => 1,
+                                    'is_submitted'   => true,
+                                ]
+                            );
+                            $copied++;
+                        } else {
+                            $this->submitOwnGrade($sibling->id, $student_number, $term);
+                            $keptOwn++;
+                        }
+                    }
+                }
+            });
+
+            $this->generatePredictionsForClass($schedule_id, $term);
+            
+            if ($sibling) {
+                $this->generatePredictionsForClass($sibling->id, $term);
             }
 
             if ($term === 'final') {
@@ -1032,11 +1341,20 @@ class ProfessorController extends Controller
                 }
             }
 
+            $message = 'Grades successfully submitted to the registrar!';
+            if ($sibling) {
+                $message = 'Grades submitted for both ' . strtoupper($sibling->schedule_type)
+                    . ' and this class. ' . $copied . ' student(s) copied'
+                    . ($keptOwn > 0 ? ', ' . $keptOwn . ' kept their own grade.' : '.');
+            }
+
             return response()->json([
                 'success'     => true,
-                'message'     => 'Grades successfully submitted to the registrar!',
+                'message'     => $message,
                 'schedule_id' => $schedule_id,
-                'term'        => $term
+                'term'        => $term,
+                'copied'      => $copied,
+                'kept_own'    => $keptOwn,
             ]);
 
         } catch (\Exception $e) {
@@ -1086,6 +1404,109 @@ class ProfessorController extends Controller
         $user->save();
 
         return redirect()->back()->with('success', 'Profile picture updated successfully!');
+    }
+
+    public function exportMasterlistPdf($schedule_id)
+    {
+        $professorId = session('user_id');
+
+        $classDetails = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id')
+            ->where('class_schedules.id', $schedule_id)
+            ->where('subjects.professor_id', $professorId)
+            ->select(
+                'class_schedules.section_name',
+                'class_schedules.class_days',
+                'class_schedules.start_time',
+                'class_schedules.end_time',
+                'class_schedules.room_assignment',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'employees.first_name as prof_first',
+                'employees.last_name as prof_last'
+            )
+            ->first();
+
+        if (!$classDetails) {
+            return redirect()->route('professor.manage-classes')->with('error', 'Class section not found or unauthorized.');
+        }
+
+        $students = DB::table('student_subjects')
+            ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
+            ->where('student_subjects.schedule_id', $schedule_id)
+            ->select(
+                'students.student_id',
+                'students.last_name',
+                'students.first_name',
+                'students.middle_name',
+                'students.status'
+            )
+            ->orderBy('students.last_name', 'asc')
+            ->get();
+
+        $pdf = Pdf::loadView('professor.pdf.masterlist', [
+            'classDetails' => $classDetails,
+            'students' => $students,
+            'generatedAt' => now(),
+        ])->setPaper('a4', 'portrait');
+
+        $fileName = 'Student_Masterlist_' . strtoupper($classDetails->subject_code) . '_' . strtoupper($classDetails->section_name) . '.pdf';
+
+        return $pdf->download($fileName);
+    }
+
+    public function exportAttendancePdf($schedule_id, Request $request)
+    {
+        $professorId = session('user_id');
+        $date = $request->query('date', date('Y-m-d'));
+
+        $classDetails = DB::table('class_schedules')
+            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id')
+            ->where('class_schedules.id', $schedule_id)
+            ->where('subjects.professor_id', $professorId)
+            ->select(
+                'class_schedules.section_name',
+                'class_schedules.class_days',
+                'class_schedules.start_time',
+                'class_schedules.end_time',
+                'class_schedules.room_assignment',
+                'subjects.subject_code',
+                'subjects.subject_title',
+                'employees.first_name as prof_first',
+                'employees.last_name as prof_last'
+            )
+            ->first();
+
+        if (!$classDetails) {
+            return redirect()->route('professor.manage-classes')->with('error', 'Class section not found or unauthorized.');
+        }
+
+        $students = DB::table('student_subjects')
+            ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
+            ->where('student_subjects.schedule_id', $schedule_id)
+            ->where('student_subjects.status', 'Enrolled')
+            ->select('students.student_id', 'students.first_name', 'students.last_name')
+            ->orderBy('students.last_name', 'asc')
+            ->get();
+
+        $existingAttendance = DB::table('attendances')
+            ->where('class_schedule_id', $schedule_id)
+            ->whereDate('attendance_date', $date)
+            ->get()
+            ->keyBy('student_id');
+
+        $pdf = Pdf::loadView('professor.pdf.attendance', [
+            'classDetails' => $classDetails,
+            'students' => $students,
+            'existingAttendance' => $existingAttendance,
+            'attendanceDate' => \Carbon\Carbon::parse($date)->format('F d, Y'),
+        ])->setPaper('a4', 'landscape');
+
+        $fileName = 'Class_Attendance_' . strtoupper($classDetails->subject_code) . '_' . strtoupper($classDetails->section_name) . '_' . $date . '.pdf';
+
+        return $pdf->download($fileName);
     }
 
 }

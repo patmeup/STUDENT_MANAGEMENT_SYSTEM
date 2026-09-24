@@ -31,14 +31,13 @@ class SuperAdminController extends Controller
 
     public function dashboard()
     {
-
         $announcements = DB::table('announcements')
             ->orderBy('display_order', 'asc')
             ->orderBy('id', 'asc')
             ->get();
 
-        $totalStudents = DB::table('students')->count();
-        $totalEmployees = DB::table('employees')->count();
+        $totalStudents  = DB::table('students')->count();
+        $totalEmployees = User::where('role', '!=', 'super_admin')->count();
         $totalCourses   = DB::table('courses')->count();
         $totalSubjects  = DB::table('subjects')->count();
 
@@ -66,13 +65,13 @@ class SuperAdminController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
+            'first_name'  => 'required|string|max:255',
+            'last_name'   => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
-            'sex' => 'required|string',
-            'email' => 'required|email|unique:employees,email',
-            'role' => 'required|string|in:system_admin,dean,registrar',
-            'department' => 'required_if:role,dean|string|nullable|max:255',
+            'sex'         => 'required|string',
+            'email'       => 'required|email|unique:users,email',
+            'role'        => 'required|string|in:system_admin,dean,registrar,dept_sec,professor',
+            'department'  => 'required_if:role,dean,dept_sec,professor|string|nullable|max:255',
         ]);
 
         $yearShort = date('y');
@@ -89,23 +88,23 @@ class SuperAdminController extends Controller
 
         User::create([
             'employee_id' => $generatedId,
-            'first_name' => strtoupper($request->first_name),
-            'last_name' => strtoupper($request->last_name),
+            'first_name'  => strtoupper($request->first_name),
+            'last_name'   => strtoupper($request->last_name),
             'middle_name' => $request->middle_name ? strtoupper($request->middle_name) : null,
-            'sex' => $request->sex,
-            'email' => $request->email,
-            'role' => $request->role,
-            'department' => $request->role === 'dean' ? $request->department : null,
-            'status' => 'Active',
-            'password' => 'Welcome@AU2026',
+            'sex'         => $request->sex,
+            'email'       => strtolower($request->email),
+            'role'        => $request->role,
+            'department'  => in_array($request->role, ['dean', 'dept_sec', 'professor']) ? $request->department : null,
+            'status'      => 'Active',
+            'password'    => 'Welcome@AU2026',
         ]);
 
-        return redirect()->back()->with('Success', "Personnel account successfully created! ID: {$generatedId} | Default Pass: Welcome@AU2026");
+        return redirect()->back()->with('success', "Personnel account successfully created! ID: {$generatedId} | Default Pass: Welcome@AU2026");
     }
 
     public function toggleEmployeeStatus($id)
     {
-        $employee = \App\Models\User::findOrFail($id);
+        $employee = User::findOrFail($id);
 
         if ($employee->email === session('user_email') || $employee->role === 'super_admin') {
             return redirect()->back()->with('error', 'You cannot disable a Super Admin account for system security reasons.');
@@ -116,12 +115,33 @@ class SuperAdminController extends Controller
             $message = "The account of {$employee->first_name} {$employee->last_name} has been successfully locked.";
         } else {
             $employee->status = 'Active';
-            $message = "The account of {$employee->first_name} {$employee->last_name} has been successfully umlocked.";
+            $message = "The account of {$employee->first_name} {$employee->last_name} has been successfully unlocked.";
         }
 
         $employee->save();
 
         return redirect()->back()->with('success', $message);
+    }
+
+    public function updateEmployee(Request $request, $id)
+    {
+        $request->validate([
+            'role' => 'required|string|in:system_admin,dean,registrar,dept_sec,professor',
+            'department' => 'required_if:role,dean,dept_sec,professor|nullable|string|max:255',
+        ]);
+
+        $employee = User::findOrFail($id);
+        $employee->role = $request->role;
+
+        if (in_array($request->role, ['dean', 'dept_sec', 'professor'])) {
+            $employee->department = $request->department;
+        } else {
+            $employee->department = null;
+        }
+
+        $employee->save();
+
+        return redirect()->back()->with('success', 'Employee role and department assignment updated successfully!');
     }
 
     public function manageCourses()
@@ -138,21 +158,20 @@ class SuperAdminController extends Controller
             'course_title' => 'required|string|max:255',
         ]);
 
-        $course = \App\Models\Course::findOrFail($id); 
+        $course = Course::findOrFail($id); 
         $course->update([
             'course_code'  => strtoupper($request->course_code),
             'department'   => strtoupper($request->department),
             'course_title' => $request->course_title,
         ]);
 
-        return redirect()->back()->with('Success', 'Course registry blueprint successfully modified.');
+        return redirect()->back()->with('success', 'Course registry blueprint successfully modified.');
     }
 
     public function storeCourse(Request $request)
     {
         $isCustom = $request->input('is_custom_mode') == '1';
 
-        // Kunin ang course code depende sa mode
         $courseCode = $isCustom 
             ? strtoupper(trim($request->input('course_code_custom')))
             : strtoupper(trim($request->input('course_code_select')));
@@ -169,7 +188,7 @@ class SuperAdminController extends Controller
 
         Course::create($validated);
 
-        return redirect()->back()->with('Success', 'New institutional course program successfully registered!');
+        return redirect()->back()->with('success', 'New institutional course program successfully registered!');
     }
 
     public function manageMlModels()
@@ -273,6 +292,6 @@ class SuperAdminController extends Controller
         $user->password = Hash::make($request->password);
         $user->save();
 
-        return redirect()->back()->with('Success', 'Password successfully updated. Security requirements met!');
+        return redirect()->back()->with('success', 'Password successfully updated. Security requirements met!');
     }
 }

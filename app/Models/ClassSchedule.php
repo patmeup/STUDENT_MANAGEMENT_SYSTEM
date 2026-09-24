@@ -10,6 +10,7 @@ class ClassSchedule extends Model
     use HasFactory;
 
     protected $fillable = [
+        'academic_period_id',
         'subject_id',
         'professor_id',
         'schedule_type',

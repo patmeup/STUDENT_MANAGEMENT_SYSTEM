@@ -45,7 +45,43 @@ class DocumentRequestController extends Controller
             'updated_at'    => now(),
         ]);
 
+        $student = DB::table('students')->where('student_id', $studentId)->first();
+        if ($student && !empty($student->email)) {
+            \Illuminate\Support\Facades\Mail::to($student->email)
+                ->send(new \App\Mail\DocumentRequestSubmitted($student, $documentName));
+        }
+
         return redirect()->back()->with('success', 'Document request submitted successfully!');
+    }
+
+    public function updateStatus(Request $request, $requestId)
+    {
+        $request->validate([
+            'status'  => 'required|string',
+        ]);
+
+        DB::table('document_requests')
+            ->where('id', $requestId)
+            ->update([
+                'status'     => $request->status,
+                'updated_at' => now(),
+            ]);
+
+        if ($request->has('notify_email') && $request->notify_email == 1) {
+            $reqDetails = DB::table('document_requests')
+                ->join('students', 'document_requests.student_id', '=', 'students.student_id')
+                ->where('document_requests.id', $requestId)
+                ->first();
+
+            if ($reqDetails && $reqDetails->email) {
+                $studentName = $reqDetails->first_name . ' ' . $reqDetails->last_name;
+                
+                \Illuminate\Support\Facades\Mail::to($reqDetails->email)
+                    ->send(new \App\Mail\SendDocumentMail($studentName, $reqDetails->document_name, null));
+            }
+        }
+
+        return redirect()->back()->with('success', 'Document request status updated successfully!');
     }
 
     public function manageDocumentRequests()
@@ -68,21 +104,5 @@ class DocumentRequestController extends Controller
             ->get();
 
         return view('registrar.document_requests', compact('requests'));
-    }
-
-    public function updateStatus(Request $request, $requestId)
-    {
-        $request->validate([
-            'status'  => 'required|string',
-        ]);
-
-        DB::table('document_requests')
-            ->where('id', $requestId)
-            ->update([
-                'status'     => $request->status,
-                'updated_at' => now(),
-            ]);
-
-        return redirect()->back()->with('success', 'Document request status updated successfully!');
     }
 }

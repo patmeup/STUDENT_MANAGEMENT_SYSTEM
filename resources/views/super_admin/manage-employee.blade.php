@@ -22,15 +22,18 @@
         </div>
     @endif
 
-    @if($errors->any())
+    @if(isset($errors) && count($errors) > 0)
         <div class="sa-alert-error">
             <i class="fas fa-exclamation-circle" style="font-size: 16px;"></i>
             <div>
                 <strong>Unable to process request:</strong>
                 <ul style="margin: 4px 0 0 0; padding-left: 20px;">
-                    @foreach($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
+                    @php
+                        $allErrors = $errors->all();
+                    @endphp
+                    @for($i = 0; $i < count($allErrors); $i++)
+                        <li>{{ $allErrors[$i] }}</li>
+                    @endfor
                 </ul>
             </div>
         </div>
@@ -43,6 +46,7 @@
 
     <div class="sa-workspace">
         
+        <!-- ADD EMPLOYEE FORM PANEL -->
         <div class="sa-card form-panel">
             <div class="card-bar"><i class="fas fa-user-plus"></i> Add New Employee</div>
             
@@ -89,11 +93,13 @@
                             <option value="system_admin" {{ old('role') == 'system_admin' ? 'selected' : '' }}>System Admin</option>
                             <option value="dean" {{ old('role') == 'dean' ? 'selected' : '' }}>Dean</option>
                             <option value="registrar" {{ old('role') == 'registrar' ? 'selected' : '' }}>Registrar</option>
+                            <option value="dept_sec" {{ old('role') == 'dept_sec' ? 'selected' : '' }}>Dept Sec</option>
+                            <option value="professor" {{ old('role') == 'professor' ? 'selected' : '' }}>Professor</option>
                         </select>
                     </div>
                 </div>
 
-                <div class="form-group" id="department-group" style="{{ old('role') == 'dean' ? 'display: flex;' : 'display: none;' }}">
+                <div class="form-group" id="department-group" style="{{ old('role') == 'dean' || old('role') == 'dept_sec' || old('role') == 'professor' ? 'display: flex;' : 'display: none;' }}">
                     <label>Department <span class="required-star">*</span></label>
                     <div class="custom-select-wrapper">
                         <select name="department" id="department-select" class="custom-select-dropdown">
@@ -107,7 +113,7 @@
             </form>
         </div>
 
-        {{-- TABLE PANEL WITH SEARCH FEATURE --}}
+        <!-- TABLE PANEL -->
         <div class="sa-card table-panel">
             <div class="card-bar d-flex-jsb table-header-flex">
                 <span>Employee List</span>
@@ -116,7 +122,7 @@
                         <i class="fas fa-search search-icon"></i>
                         <input type="text" id="personnel-search" placeholder="Search ID, name, email or role...">
                     </div>
-                    <span class="count-tag">Total: {{ $employees->count() }}</span>
+                    <span class="count-tag">Total: {{ count($employees) }}</span>
                 </div>
             </div>
             
@@ -130,60 +136,81 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($employees as $emp)
-                            <tr class="personnel-row">
-                                <td>
-                                    <strong class="emp-id-text search-target-id">{{ $emp->employee_id }}</strong>
-                                    <br><span class="emp-name-text search-target-name">{{ strtoupper($emp->last_name) }}, {{ strtoupper($emp->first_name) }}</span>
-                                    
-                                    @if($emp->department)
-                                        <br><span class="emp-dept-text"><i class="fas fa-university"></i> {{ $emp->department }}</span>
-                                    @endif
-                                    
-                                    <br><small class="emp-email-text search-target-email">{{ $emp->email }}</small>
-                                </td>
-                                <td>
-                                    <span class="role-badge-sa {{ $emp->role }} search-target-role">
-                                        {{ str_replace('_', ' ', strtoupper($emp->role)) }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="status-indicator-zone" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 12px;">
+                        @if(count($employees) > 0)
+                            @for($idx = 0; $idx < count($employees);$idx++)
+                                @php
+                                    $emp = $employees[$idx];
+                                @endphp
+                                <tr class="personnel-row">
+                                    <td>
+                                        <strong class="emp-id-text search-target-id">{{ $emp->employee_id }}</strong>
+                                        <br><span class="emp-name-text search-target-name">{{ strtoupper($emp->last_name) }}, {{ strtoupper($emp->first_name) }}</span>
                                         
-                                        <div class="status-indicator">
-                                            <span class="pulse-dot {{ strtolower($emp->status ?? 'Active') }}"></span>
-                                            <span class="status-label">{{ ucfirst($emp->status ?? 'Active') }}</span>
-                                        </div>
-
-                                        @if(strtolower($emp->role) !== 'super_admin' && $emp->email !== session('user_email'))
-                                            <form action="{{ route('super_admin.employees.toggle_status', $emp->id) }}" method="POST" style="margin: 0; display: inline-block;">
-                                                @csrf
-                                                @method('PATCH')
-                                                
-                                                @if(ucfirst($emp->status ?? 'Active') === 'Active')
-                                                    <button type="submit" class="btn-action-restrict" onclick="return confirm('Are you sure you want to restrict this employee?')" title="Lock Account">
-                                                        <i class="fas fa-user-slash"></i> Restrict
-                                                    </button>
-                                                @else
-                                                    <button type="submit" class="btn-action-restore" onclick="return confirm('Are you sure you want to restore this employee?')" title="Unlock Account">
-                                                        <i class="fas fa-user-check"></i> Restore
-                                                    </button>
-                                                @endif
-                                            </form>
-                                        @else
-                                            <span class="badge-root-immunity">Protected</span>
+                                        @if($emp->department)
+                                            <br><span class="emp-dept-text"><i class="fas fa-university"></i> {{ $emp->department }}</span>
                                         @endif
+                                        
+                                        <br><small class="emp-email-text search-target-email">{{ $emp->email }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="role-badge-sa {{ $emp->role }} search-target-role">
+                                            {{ str_replace('_', ' ', strtoupper($emp->role)) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="status-indicator-zone" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;">
+                                            
+                                            <div class="status-indicator">
+                                                <span class="pulse-dot {{ strtolower($emp->status ?? 'Active') }}"></span>
+                                                <span class="status-label">{{ ucfirst($emp->status ?? 'Active') }}</span>
+                                            </div>
 
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
+                                            <div class="action-buttons-group" style="display: flex; align-items: center; gap: 6px;">
+                                                <button type="button" 
+                                                    class="btn-action-edit btn-trigger-edit" 
+                                                    data-id="{{ $emp->id }}"
+                                                    data-firstname="{{ $emp->first_name }}"
+                                                    data-lastname="{{ $emp->last_name }}"
+                                                    data-middlename="{{ $emp->middle_name ?? '' }}"
+                                                    data-sex="{{ $emp->sex }}"
+                                                    data-email="{{ $emp->email }}"
+                                                    data-role="{{ $emp->role }}"
+                                                    data-department="{{ $emp->department ?? '' }}"
+                                                    title="Edit Employee">
+                                                    <i class="fas fa-edit"></i> Edit
+                                                </button>
+
+                                                @if(strtolower($emp->role) !== 'super_admin' &&$emp->email !== session('user_email'))
+                                                    <form action="{{ route('super_admin.employees.toggle_status', $emp->id) }}" method="POST" style="margin: 0; display: inline-block;">
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        
+                                                        @if(ucfirst($emp->status ?? 'Active') === 'Active')
+                                                            <button type="submit" class="btn-action-restrict" onclick="return confirm('Are you sure you want to restrict this employee?')" title="Lock Account">
+                                                                <i class="fas fa-user-slash"></i> Restrict
+                                                            </button>
+                                                        @else
+                                                            <button type="submit" class="btn-action-restore" onclick="return confirm('Are you sure you want to restore this employee?')" title="Unlock Account">
+                                                                <i class="fas fa-user-check"></i> Restore
+                                                            </button>
+                                                        @endif
+                                                    </form>
+                                                @else
+                                                    <span class="badge-root-immunity">Protected</span>
+                                                @endif
+                                            </div>
+
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endfor
+                        @else
                             <tr class="static-empty-row">
                                 <td colspan="3" class="empty-message-state">
                                     No employees added yet. Use the form to create an account.
                                 </td>
                             </tr>
-                        @endforelse
+                        @endif
                         <tr id="no-search-results-row" style="display: none;">
                             <td colspan="3" class="empty-message-state" style="text-align: center; color: #94a3b8; padding: 40px 0;">
                                 <i class="fas fa-database" style="font-size: 20px; display: block; margin-bottom: 8px;"></i>
@@ -198,6 +225,81 @@
     </div>
 </div>
 
+<!-- EDIT EMPLOYEE MODAL (LOCKED PERSONAL DATA) -->
+<div id="editEmployeeModal" class="sa-modal-backdrop" style="display: none;">
+    <div class="sa-modal-card">
+        <div class="sa-modal-header">
+            <h4><i class="fas fa-user-edit" style="color: #0284c7;"></i> Edit Role & Assignment</h4>
+            <button type="button" class="sa-modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <form id="edit-employee-form" method="POST" class="pure-form">
+            @csrf
+            @method('PUT')
+            
+            <div class="form-group">
+                <label>First Name <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
+                <input type="text" id="edit_first_name" class="readonly-input" readonly tabindex="-1">
+            </div>
+
+            <div class="form-group">
+                <label>Last Name <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
+                <input type="text" id="edit_last_name" class="readonly-input" readonly tabindex="-1">
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Middle Name <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
+                    <input type="text" id="edit_middle_name" class="readonly-input" readonly tabindex="-1">
+                </div>
+                <div class="form-group">
+                    <label>Sex <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
+                    <div class="custom-select-wrapper readonly-wrapper">
+                        <select id="edit_sex" class="custom-select-dropdown readonly-input" disabled>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Email Address <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
+                <input type="email" id="edit_email" class="readonly-input" readonly tabindex="-1">
+            </div>
+
+            <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 4px 0;">
+
+            <div class="form-group">
+                <label>Role <span class="required-star">*</span></label>
+                <div class="custom-select-wrapper">
+                    <select name="role" id="edit_role_select" class="custom-select-dropdown" required>
+                        <option value="system_admin">System Admin</option>
+                        <option value="dean">Dean</option>
+                        <option value="registrar">Registrar</option>
+                        <option value="dept_sec">Dept Sec</option>
+                        <option value="professor">Professor</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group" id="edit_department_group" style="display: none;">
+                <label>Department <span class="required-star">*</span></label>
+                <div class="custom-select-wrapper">
+                    <select name="department" id="edit_department_select" class="custom-select-dropdown">
+                        <option value="" disabled selected hidden>Select Department</option>
+                        <option value="College of Computer Studies">College of Computer Studies</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="sa-modal-footer">
+                <button type="button" class="btn-cancel-modal" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn-save-modal">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const employeeForm = document.getElementById('employee-form');
@@ -207,15 +309,26 @@
         const jsAlertError = document.getElementById('js-alert-error');
         const jsAlertMessage = document.getElementById('js-alert-message');
 
-        roleSelect.addEventListener('change', function () {
-            if (this.value === 'dean') {
-                departmentGroup.style.display = 'flex';
-                departmentSelect.setAttribute('required', 'required');
+        const editRoleSelect = document.getElementById('edit_role_select');
+        const editDepartmentGroup = document.getElementById('edit_department_group');
+
+        function toggleDepartmentVisibility(roleVal, groupElem) {
+            if (['dean', 'dept_sec', 'professor'].includes(roleVal)) {
+                groupElem.style.display = 'flex';
             } else {
-                departmentGroup.style.display = 'none';
-                departmentSelect.removeAttribute('required');
+                groupElem.style.display = 'none';
+            }
+        }
+
+        roleSelect.addEventListener('change', function () {
+            toggleDepartmentVisibility(this.value, departmentGroup);
+            if (!['dean', 'dept_sec', 'professor'].includes(this.value)) {
                 departmentSelect.value = '';
             }
+        });
+
+        editRoleSelect.addEventListener('change', function () {
+            toggleDepartmentVisibility(this.value, editDepartmentGroup);
         });
 
         employeeForm.addEventListener('submit', function (e) {
@@ -224,7 +337,6 @@
             const sex = document.getElementById('sex').value;
             const email = document.getElementById('email').value.trim();
             const role = roleSelect.value;
-            const department = departmentSelect.value;
 
             jsAlertError.style.display = 'none';
 
@@ -238,12 +350,6 @@
             if (!emailPattern.test(email)) {
                 e.preventDefault();
                 showJsError('Please enter a valid email address.');
-                return false;
-            }
-
-            if (role === 'dean' && !department) {
-                e.preventDefault();
-                showJsError('Please select a department for the Dean role.');
                 return false;
             }
         });
@@ -282,7 +388,54 @@
                 noResultsRow.style.display = 'none';
             }
         });
+
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-trigger-edit');
+            if (!btn) return;
+
+            const emp = {
+                id: btn.dataset.id,
+                first_name: btn.dataset.firstname,
+                last_name: btn.dataset.lastname,
+                middle_name: btn.dataset.middlename,
+                sex: btn.dataset.sex,
+                email: btn.dataset.email,
+                role: btn.dataset.role,
+                department: btn.dataset.department
+            };
+
+            openEditModal(emp);
+        });
     });
+
+    function openEditModal(emp) {
+        document.getElementById('edit_first_name').value = emp.first_name || '';
+        document.getElementById('edit_last_name').value = emp.last_name || '';
+        document.getElementById('edit_middle_name').value = emp.middle_name || '';
+        document.getElementById('edit_sex').value = emp.sex || 'Male';
+        document.getElementById('edit_email').value = emp.email || '';
+        document.getElementById('edit_role_select').value = emp.role || '';
+
+        const editDeptGroup = document.getElementById('edit_department_group');
+        const editDeptSelect = document.getElementById('edit_department_select');
+
+        if (['dean', 'dept_sec', 'professor'].includes(emp.role)) {
+            editDeptGroup.style.display = 'flex';
+            editDeptSelect.value = emp.department || '';
+        } else {
+            editDeptGroup.style.display = 'none';
+            editDeptSelect.value = '';
+        }
+
+        const editForm = document.getElementById('edit-employee-form');
+        editForm.action = `/super-admin/employees/${emp.id}`;
+
+        document.getElementById('editEmployeeModal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+        document.getElementById('editEmployeeModal').style.display = 'none';
+    }
 </script>
 
 <style>
@@ -325,6 +478,8 @@
     .role-badge-sa.system_admin { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
     .role-badge-sa.dean { background: #f0fdfa; color: #0d9488; border: 1px solid #ccfbf1; }
     .role-badge-sa.registrar { background: #eff6ff; color: #1e40af; border: 1px solid #dbeafe; }
+    .role-badge-sa.dept_sec { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+    .role-badge-sa.professor { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
 
     .status-indicator { display: flex; align-items: center; gap: 6px; }
     .pulse-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
@@ -346,6 +501,9 @@
     .pulse-dot.active { background: #22c55e; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); animation: pulseGreen 2s infinite; }
     .pulse-dot.disabled { background: #dc2626; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); animation: pulseRed 2s infinite; }
 
+    .btn-action-edit { background: #f0f9ff; color: #0284c7; border: 1px solid #bae6fd; padding: 6px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 5px; }
+    .btn-action-edit:hover { background: #0284c7; color: #ffffff; border-color: #0284c7; }
+
     .btn-action-restrict { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 5px; }
     .btn-action-restrict:hover { background: #dc2626; color: #ffffff; border-color: #dc2626; }
 
@@ -359,6 +517,21 @@
     .search-icon { position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none; }
     #personnel-search { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px 6px 32px; font-size: 12.5px; color: #0f172a; outline: none; background: #ffffff; width: 240px; transition: all 0.2s ease; font-weight: 500; }
     #personnel-search:focus { border-color: #475569; width: 280px; box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.1); }
+
+    .sa-modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.55); display: flex; justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(2px); }
+    .sa-modal-card { background: #ffffff; width: 100%; max-width: 500px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; border: 1px solid #e2e8f0; }
+    .sa-modal-header { padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+    .sa-modal-header h4 { margin: 0; font-size: 16px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+    .sa-modal-close { background: none; border: none; font-size: 22px; color: #64748b; cursor: pointer; }
+    .sa-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+    .btn-cancel-modal { background: #ffffff; color: #475569; border: 1px solid #cbd5e1; padding: 9px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-save-modal { background: #0284c7; color: #ffffff; border: none; padding: 9px 18px; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-save-modal:hover { background: #0369a1; }
+
+    /* Readonly styling */
+    .readonly-input { background-color: #f1f5f9 !important; color: #64748b !important; border-color: #cbd5e1 !important; cursor: not-allowed !important; user-select: none; }
+    .readonly-wrapper::after { color: #94a3b8 !important; }
+    .lock-icon { font-size: 10px; color: #94a3b8; margin-left: 4px; }
 
     @keyframes pulseGreen {
         0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }

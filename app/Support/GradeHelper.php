@@ -77,17 +77,17 @@ class GradeHelper
         $taskAvg = self::computeTaskAverage($schedule_id, $student_id, $term);
         $attendanceRate = self::computeAttendanceRate($schedule_id, $student_id, $term);
 
-        if ($taskAvg === null && $attendanceRate === null) {
-            return null;
-        }
         if ($taskAvg === null) {
-            return $attendanceRate;
+            return null; 
         }
+        
         if ($attendanceRate === null) {
             return $taskAvg;
         }
 
-        return round(($taskAvg + $attendanceRate) / 2, 2);
+        $classStanding = ($taskAvg * 0.80) + ($attendanceRate * 0.20);
+
+        return round($classStanding, 2);
     }
 
     public static function computeMajorExam($schedule_id, $student_id, $term)
@@ -238,22 +238,25 @@ class GradeHelper
 
         $results = [];
 
-        $results[1] = self::trainStage($academicPeriodId, 1, $completedStudents, ['prelim']);
+        $results[1] = self::trainStage($academicPeriodId, 1, $completedStudents, function ($row) {
+            return [1.0, $row['prelim_cs'], $row['prelim_me']];
+        });
 
-        $results[2] = self::trainStage($academicPeriodId, 2, $completedStudents, ['prelim', 'midterm']);
+        $results[2] = self::trainStage($academicPeriodId, 2, $completedStudents, function ($row) {
+            return [1.0, $row['prelim_eq'], $row['midterm_cs'], $row['midterm_me']];
+        });
 
-        $results[3] = self::trainStage($academicPeriodId, 3, $completedStudents, ['prelim', 'midterm', 'semifinal']);
+        $results[3] = self::trainStage($academicPeriodId, 3, $completedStudents, function ($row) {
+            return [1.0, $row['prelim_eq'], $row['midterm_eq'], $row['semifinal_cs'], $row['semifinal_me']];
+        });
 
         return ['success' => true, 'results' => $results];
     }
 
-    protected static function getCompletedTrainingData($academicPeriodId)
+    protected static function getCompletedTrainingData($upToAcademicPeriodId)
     {
         $scheduleIds = DB::table('class_schedules')
-            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-            ->join('curricula', 'subjects.id', '=', 'curricula.subject_id')
-            ->join('academic_periods', 'curricula.semester', '=', 'academic_periods.semester')
-            ->where('academic_periods.id', $academicPeriodId)
+            ->where('academic_period_id', '<=', $upToAcademicPeriodId)
             ->distinct()
             ->pluck('class_schedules.id');
 
@@ -267,21 +270,32 @@ class GradeHelper
         $completed = [];
 
         foreach ($allGrades as $key => $rows) {
-            $byTerm = $rows->pluck('equivalent', 'term');
+            $byTerm = $rows->keyBy('term');
 
             if ($byTerm->has('prelim') && $byTerm->has('midterm') &&
                 $byTerm->has('semifinal') && $byTerm->has('final')) {
 
+                $prelim = $byTerm->get('prelim');
+                $midterm = $byTerm->get('midterm');
+                $semifinal = $byTerm->get('semifinal');
+                $final = $byTerm->get('final');
+
                 $semestral = round(
-                    ($byTerm['prelim'] + $byTerm['midterm'] + $byTerm['semifinal'] + $byTerm['final']) / 4,
+                    ($prelim->equivalent + $midterm->equivalent + $semifinal->equivalent + $final->equivalent) / 4,
                     2
                 );
 
                 $completed[] = [
-                    'prelim'    => (float) $byTerm['prelim'],
-                    'midterm'   => (float) $byTerm['midterm'],
-                    'semifinal' => (float) $byTerm['semifinal'],
-                    'semestral' => $semestral,
+                    'prelim_eq'    => (float) $prelim->equivalent,
+                    'prelim_cs'    => (float) ($prelim->class_standing ?? 0),
+                    'prelim_me'    => (float) ($prelim->major_exam ?? 0),
+                    'midterm_eq'   => (float) $midterm->equivalent,
+                    'midterm_cs'   => (float) ($midterm->class_standing ?? 0),
+                    'midterm_me'   => (float) ($midterm->major_exam ?? 0),
+                    'semifinal_eq' => (float) $semifinal->equivalent,
+                    'semifinal_cs' => (float) ($semifinal->class_standing ?? 0),
+                    'semifinal_me' => (float) ($semifinal->major_exam ?? 0),
+                    'semestral'    => $semestral,
                 ];
             }
         }
@@ -289,17 +303,13 @@ class GradeHelper
         return $completed;
     }
 
-    protected static function trainStage($academicPeriodId, $stage, $data, $featureKeys)
+    protected static function trainStage($academicPeriodId, $stage, $data, callable $featureBuilder)
     {
         $X = [];
         $y = [];
 
         foreach ($data as $row) {
-            $features = [1.0]; 
-            foreach ($featureKeys as $key) {
-                $features[] = $row[$key];
-            }
-            $X[] = $features;
+            $X[] = $featureBuilder($row);
             $y[] = $row['semestral'];
         }
 
@@ -329,9 +339,9 @@ class GradeHelper
     public static function predict($scheduleId, $studentNumber, $academicPeriodId)
     {
         $terms = self::getOrderedTermGrades($scheduleId, $studentNumber);
-        $submittedCount = collect($terms)->filter(fn($v) => $v !== null)->count();
 
-        if ($submittedCount === 4) {
+        if ($terms['prelim'] !== null && $terms['midterm'] !== null &&
+            $terms['semifinal'] !== null && $terms['final'] !== null) {
             $actual = round(($terms['prelim'] + $terms['midterm'] + $terms['semifinal'] + $terms['final']) / 4, 2);
             return [
                 'type'       => 'actual',
@@ -341,21 +351,15 @@ class GradeHelper
             ];
         }
 
-        $stage = null;
-        $features = [1.0];
-
-        if ($terms['prelim'] !== null && $terms['midterm'] === null) {
+        if ($terms['prelim'] === null) {
             $stage = 1;
-            $features[] = (float) $terms['prelim'];
-        } elseif ($terms['prelim'] !== null && $terms['midterm'] !== null && $terms['semifinal'] === null) {
+            $currentTerm = 'prelim';
+        } elseif ($terms['midterm'] === null) {
             $stage = 2;
-            $features[] = (float) $terms['prelim'];
-            $features[] = (float) $terms['midterm'];
-        } elseif ($terms['prelim'] !== null && $terms['midterm'] !== null && $terms['semifinal'] !== null) {
+            $currentTerm = 'midterm';
+        } elseif ($terms['semifinal'] === null) {
             $stage = 3;
-            $features[] = (float) $terms['prelim'];
-            $features[] = (float) $terms['midterm'];
-            $features[] = (float) $terms['semifinal'];
+            $currentTerm = 'semifinal';
         } else {
             return [
                 'type'       => 'unavailable',
@@ -363,6 +367,29 @@ class GradeHelper
                 'stage'      => null,
                 'confidence' => null,
             ];
+        }
+
+        $liveClassStanding = self::computeClassStanding($scheduleId, $studentNumber, $currentTerm);
+        $liveMajorExam = self::computeMajorExam($scheduleId, $studentNumber, $currentTerm);
+
+        if ($liveClassStanding === null && $liveMajorExam === null) {
+            return [
+                'type'       => 'insufficient_data',
+                'value'      => null,
+                'stage'      => $stage,
+                'confidence' => null,
+            ];
+        }
+
+        $liveClassStanding = $liveClassStanding ?? 0.0;
+        $liveMajorExam = $liveMajorExam ?? 0.0;
+
+        if ($stage === 1) {
+            $features = [1.0, $liveClassStanding, $liveMajorExam];
+        } elseif ($stage === 2) {
+            $features = [1.0, (float) $terms['prelim'], $liveClassStanding, $liveMajorExam];
+        } else {
+            $features = [1.0, (float) $terms['prelim'], (float) $terms['midterm'], $liveClassStanding, $liveMajorExam];
         }
 
         $model = DB::table('ml_grade_models')

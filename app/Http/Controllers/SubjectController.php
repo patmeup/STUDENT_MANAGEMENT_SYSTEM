@@ -20,10 +20,10 @@ class SubjectController extends Controller
             ->where('status', 'Active')
             ->first();
 
-        $professors = User::where('role', 'professor')
-                          ->where('status', 'Active')
-                          ->orderBy('last_name', 'asc')
-                          ->get();
+        $professors = User::whereIn('role', ['professor', 'dean'])
+                        ->where('status', 'Active')
+                        ->orderBy('last_name', 'asc')
+                        ->get();
 
         return view('system_admin.manage-subjects', compact('subjects', 'courses', 'professors', 'dean'));
     }

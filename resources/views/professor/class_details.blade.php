@@ -36,6 +36,7 @@
         formType: 'quiz',
         formMaxScore: 100,
         formDueDate: '',
+        formDescription: '',
         publishing: false,
         fileSizeError: false,
 
@@ -67,7 +68,6 @@
                     this.datePickerInstance.redraw();
                 }
             } catch (err) {
-                // Keep whatever we already had (e.g. server-seeded dates) instead of wiping it on failure
                 window.globalRecordedDates = window.globalRecordedDates || [];
             }
         },
@@ -99,8 +99,6 @@
                     const d = String(dayElem.dateObj.getDate()).padStart(2, '0');
                     const dateIso = `${y}-${m}-${d}`;
 
-                    // Always read from window.globalRecordedDates so the initial
-                    // server-seeded list AND any later fetch/redraw stay in sync.
                     const recorded = window.globalRecordedDates || [];
                     if (recorded.includes(dateIso)) {
                         dayElem.classList.add('has-attendance-dot');
@@ -116,10 +114,12 @@
             this.formType = 'quiz';
             this.formMaxScore = 100;
             this.formDueDate = '';
+            this.formDescription = '';
             this.publishing = false;
             this.fileSizeError = false;
             this.showModal = true;
         },
+
         openEditModal(task) {
             this.modalTerm = task.term;
             this.editingTaskId = task.id;
@@ -127,10 +127,12 @@
             this.formType = task.activity_type;
             this.formMaxScore = task.max_score;
             this.formDueDate = task.due_date;
+            this.formDescription = task.description || '';
             this.publishing = false;
             this.fileSizeError = false;
             this.showModal = true;
         },
+
         setQuickDate(daysToAdd, hours = 23, minutes = 59) {
             let d = new Date();
             d.setDate(d.getDate() + daysToAdd);
@@ -145,6 +147,7 @@
 
             this.formDueDate = `${year}-${month}-${day}T${hh}:${mm}`;
         },
+
         deleteTask(id, term) {
             if (!confirm('Are you sure you want to delete this task?')) return;
             fetch(`/professor/delete-activity/${id}`, {
@@ -160,6 +163,7 @@
                 }
             });
         },
+
         bulkMark(status) {
             if (this.isPastDate() || this.hasSaved) return;
             Object.keys(this.attendanceState).forEach(key => {
@@ -249,19 +253,74 @@
         },
 
         async initAttendance() {
-            // Seed immediately from the server-rendered list so dots show up
-            // on first paint, without waiting for the fetch below.
             window.globalRecordedDates = @js($recordedDates ?? []);
 
             this.loadAttendanceData();
             this.initDatePicker();
 
-            // Then refresh in the background to stay accurate/up to date.
             await this.loadRecordedDates();
-        }
-    }",
+        },
 
-    x-init="if (currentTab === 'attendance') { initAttendance(); }">
+        exportMasterlistExcel() {
+            let csv = [];
+            let trs = document.querySelectorAll('#masterlist-table-shell table.custom-portal-table tbody tr');
+            
+            csv.push(['#', 'Student Number', 'Full Name', 'Status'].join(','));
+            
+            trs.forEach((tr) => {
+                let cols = tr.querySelectorAll('td');
+                if (cols.length >= 3) {
+                    let num = cols[0].innerText.trim();
+                    let snum = cols[1].innerText.trim();
+                    let name = cols[2].innerText.trim().replace(/[\\r\\n]+/g, ' ');
+                    let status = cols[3] ? cols[3].innerText.trim() : 'Enrolled';
+                    csv.push([num, `'${snum}'`, `'${name}'`, `'${status}'`].join(','));
+                }
+            });
+
+            let csvFile = new Blob([csv.join('\n')], { type: 'text/csv' });
+            let downloadLink = document.createElement('a');
+            downloadLink.download = 'Student_Masterlist_{{ strtoupper($classDetails->subject_code) }}_{{ strtoupper($classDetails->section_name) }}.csv';
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = 'none';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        },
+
+        exportAttendanceExcel() {
+            let csv = [];
+            let trs = document.querySelectorAll('.attendance-table-shell table.custom-portal-table tbody tr');
+            
+            csv.push(['#', 'Student ID', 'Full Name', 'Status', 'Remarks', 'Date'].join(','));
+            
+            trs.forEach((tr) => {
+                let cols = tr.querySelectorAll('td');
+                if (cols.length >= 4) {
+                    let num = cols[0].innerText.trim();
+                    let sid = cols[1].innerText.trim();
+                    let name = cols[2].innerText.trim().replace(/[\\r\\n]+/g, ' ');
+                    
+                    let status = this.attendanceState[sid] || 'N/A';
+                    let remarks = this.remarksState[sid] || '';
+                    
+                    csv.push([num, `'${sid}'`, `'${name}'`, `'${status}'`, `'${remarks}'`, `'${this.selectedDate}'`].join(','));
+                }
+            });
+
+            let csvFile = new Blob([csv.join('\n')], { type: 'text/csv' });
+            let downloadLink = document.createElement('a');
+            downloadLink.download = 'Class_Attendance_{{ strtoupper($classDetails->subject_code) }}_{{ strtoupper($classDetails->section_name) }}_' + this.selectedDate + '.csv';
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = 'none';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+    }"
+
+x-init="if (currentTab === 'attendance') { initAttendance(); }">
 
     <template x-if="landscapePrint">
         <style>@media print { @page { size: A4 landscape; margin: 10mm 12mm; } }</style>
@@ -287,7 +346,6 @@
 
     <div class="dashboard-grid-wrapper">
 
-        <!-- SIDEBAR -->
         <div class="unified-sidebar">
             <div class="sidebar-subject-card">
                 <div class="subject-tag-line mb-2">
@@ -343,16 +401,24 @@
                         </div>
                         <div class="masterlist-actions-stack">
                             <span class="students-count-badge">{{ count($students) }} Students Enrolled</span>
-                            <button type="button" @click="landscapePrint = false; setTimeout(() => window.print(), 150);" class="btn-print-attendance">
-                                <i class="fa-solid fa-print me-1"></i> Print / Download PDF
-                            </button>
+                            <div class="d-flex gap-2 mt-1">
+                                <button type="button" @click="landscapePrint = false; setTimeout(() => window.print(), 150);" class="btn-print-attendance">
+                                    <i class="fa-solid fa-print me-1"></i> Print
+                                </button>
+                                <a href="{{ route('professor.masterlist.export_pdf', $classDetails->schedule_id) }}" class="btn-print-attendance">
+                                    <i class="fa-solid fa-file-pdf me-1 text-danger"></i> Download PDF
+                                </a>
+                                <button type="button" @click="exportMasterlistExcel()" class="btn-print-attendance">
+                                    <i class="fa-solid fa-file-excel me-1 text-success"></i> Export Excel
+                                </button>
+                            </div>
                         </div>
                     </div>
 
                     @if($students->isEmpty())
                         <div class="p-5 text-center text-muted">No students officially enrolled in this schedule section.</div>
                     @else
-                        <div class="table-responsive">
+                        <div class="table-responsive" id="masterlist-table-shell">
                             <table class="table custom-portal-table align-middle m-0">
                                 <thead>
                                     <tr>
@@ -490,9 +556,17 @@
                                 </div>
 
                                 <template x-if="hasSaved">
-                                    <button type="button" @click="landscapePrint = false; setTimeout(() => window.print(), 150);" class="btn-print-attendance">
-                                        <i class="fa-solid fa-print me-1"></i> Print / Download PDF
-                                    </button>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" @click="landscapePrint = false; setTimeout(() => window.print(), 150);" class="btn-print-attendance">
+                                            <i class="fa-solid fa-print me-1"></i> Print
+                                        </button>
+                                        <a :href="'{{ route('professor.attendance.export_pdf', $classDetails->schedule_id) }}?date=' + selectedDate" class="btn-print-attendance">
+                                            <i class="fa-solid fa-file-pdf me-1 text-danger"></i> Download PDF
+                                        </a>
+                                        <button type="button" @click="exportAttendanceExcel()" class="btn-print-attendance">
+                                            <i class="fa-solid fa-file-excel me-1 text-success"></i> Export Excel
+                                        </button>
+                                    </div>
                                 </template>
                             </div>
 
@@ -699,14 +773,15 @@
                         }
 
                         $mergedDeliverables->push((object)[
-                            'source'     => $isGoogleTask ? 'gclass_coursework' : 'system',
-                            'id'         => $task->id,
-                            'title'      => $task->activity_name,
-                            'type'       => $task->activity_type,
-                            'max_score'  => $task->max_score,
-                            'due_date'   => $task->due_date,
-                            'link'       => $gLink ?? null,
-                            'sort_date'  => $task->due_date ?? '1970-01-01',
+                            'source'      => $isGoogleTask ? 'gclass_coursework' : 'system',
+                            'id'          => $task->id,
+                            'title'       => $task->activity_name,
+                            'type'        => $task->activity_type,
+                            'max_score'   => $task->max_score,
+                            'due_date'    => $task->due_date,
+                            'description' => $task->description ?? null,
+                            'link'        => $gLink ?? null,
+                            'sort_date'   => $task->due_date ?? '1970-01-01',
                         ]);
                     }
 
@@ -790,65 +865,6 @@
 
                         <div x-show="termSubTab === 'deliverables'">
 
-                            @php
-                                $mergedDeliverables = collect();
-                                $currentTermTasks = collect($termTasks->get($key, []));
-                                $systemTaskTitles = $currentTermTasks->pluck('activity_name')->map(fn($t) => strtolower(trim($t)))->toArray();
-
-                                foreach ($currentTermTasks as $task) {
-                                    $mergedDeliverables->push((object)[
-                                        'source'     => !empty($task->google_coursework_id) ? 'gclass_coursework' : 'system',
-                                        'id'         => $task->id,
-                                        'title'      => $task->activity_name,
-                                        'type'       => $task->activity_type,
-                                        'max_score'  => $task->max_score,
-                                        'due_date'   => $task->due_date,
-                                        'sort_date'  => $task->due_date ?? '1970-01-01',
-                                    ]);
-                                }
-
-                                if (isset($gConnection) && $gConnection && isset($gLinkedCourse) && $gLinkedCourse) {
-                                    if (isset($gCourseWork)) {
-                                        foreach ($gCourseWork->where('term', $key) as $cw) {
-                                            if (!DB::table('student_tasks')->where('google_coursework_id', $cw->google_coursework_id)->exists() && !in_array(strtolower(trim($cw->title)), $systemTaskTitles)) {
-                                                $mergedDeliverables->push((object)[
-                                                    'source'     => 'gclass_coursework',
-                                                    'id'         => $cw->id,
-                                                    'title'      => $cw->title,
-                                                    'type'       => 'coursework',
-                                                    'max_score'  => $cw->max_points ?? null,
-                                                    'due_date'   => $cw->due_date,
-                                                    'sort_date'  => $cw->due_date ?? '1970-01-01',
-                                                ]);
-                                            }
-                                        }
-                                    }
-
-                                    if (isset($gMaterials)) {
-                                        $termMaterials = DB::table('google_classroom_materials')
-                                            ->where('course_id', $gLinkedCourse->id)
-                                            ->where('term', $key)
-                                            ->get();
-
-                                        foreach ($termMaterials as $mat) {
-                                            $mergedDeliverables->push((object)[
-                                                'source'     => 'gclass_material',
-                                                'id'         => $mat->id,
-                                                'title'      => $mat->title,
-                                                'type'       => 'material',
-                                                'max_score'  => null,
-                                                'due_date'   => null,
-                                                'posted_at'  => $mat->created_at ?? null,
-                                                'link'       => $mat->alternate_link ?? null,
-                                                'sort_date'  => $mat->created_at ?? '1970-01-01',
-                                            ]);
-                                        }
-                                    }
-                                }
-                                
-                                $mergedDeliverables = $mergedDeliverables->sortByDesc('sort_date')->values();
-                            @endphp
-
                             @if($gConnection && !$gLinkedCourse)
                                 <div class="gclass-link-box mb-3">
                                     <p class="gclass-link-text">Select which Google Classroom course corresponds to this class section to include its posts here.</p>
@@ -931,7 +947,13 @@
                                                         </td>
                                                         <td>
                                                             @if($item->source === 'system')
-                                                                <span class="badge bg-secondary text-uppercase">{{ $item->type }}</span>
+                                                                @if(strtolower($item->type) === 'activity')
+                                                                    <span class="plain-text-type">activity</span>
+                                                                @elseif(strtolower($item->type) === 'announcement')
+                                                                    <span class="plain-text-type">announcement</span>
+                                                                @else
+                                                                    <span class="plain-text-type">{{ strtolower($item->type) }}</span>
+                                                                @endif
                                                             @elseif($item->source === 'gclass_coursework')
                                                                 <span class="gclass-type-badge gclass-type-coursework">Coursework</span>
                                                             @elseif($item->source === 'gclass_material')
@@ -954,11 +976,11 @@
                                                             @if($item->source === 'system')
                                                                 <div class="action-btn-group">
                                                                     <button type="button" class="btn-sm-outline btn-edit"
-                                                                        @click="openEditModal({ id: {{ $item->id }}, term: '{{ $key }}', activity_name: @js($item->title), activity_type: '{{ $item->type }}', max_score: {{ $item->max_score ?? 'null' }}, due_date: '{{ $item->due_date }}' })">
+                                                                        @click="openEditModal({ id: {{ $item->id }}, term: '{{ $key }}', activity_name: @js($item->title), activity_type: '{{ $item->type }}', max_score: {{ $item->max_score ?? 'null' }}, due_date: '{{ $item->due_date }}', description: @js($item->description ?? '') })">
                                                                         <i class="fa-solid fa-pen"></i>
                                                                     </button>
 
-                                                                    @if(strtolower($item->type) !== 'module')
+                                                                    @if(!in_array(strtolower($item->type), ['module', 'announcement']))
                                                                         <a href="{{ route('professor.task-submissions', $item->id) }}" class="btn-sm-outline btn-grade">
                                                                             <i class="fa fa-star"></i> Grade
                                                                         </a>
@@ -1005,24 +1027,93 @@
                         @php
                             $gradeModes = [];
                             $manualGrades = [];
+                            $taskInputGrades = [];
 
                             $termDraftCollection = $draftGrades->get($key);
                             $isTermSubmitted = $termDraftCollection ? $termDraftCollection->where('is_submitted', 1)->count() > 0 : false;
+                            $siblingStatus = $siblingTermStatus[$key] ?? ['submitted' => false, 'sent' => false];
+                            $siblingPayload = !empty($siblingSchedule) ? [
+                                'type'      => strtoupper($siblingSchedule->schedule_type),
+                                'submitted' => $siblingStatus['submitted'],
+                                'sent'      => $siblingStatus['sent'],
+                            ] : null;
+                            $currentSchedType = strtoupper($classDetails->schedule_type ?? 'LEC');
+                            $isTermSentToStudent = $termDraftCollection ? $termDraftCollection->where('is_sent_to_student', 1)->count() > 0 : false;
+
+                            $termTasksList = collect($termTasks->get($key, []))->filter(
+                                fn($t) => !in_array(strtolower($t->activity_type), ['module', 'material', 'announcement'])
+                            );
+
+                            if (isset($gConnection) && $gConnection && isset($gLinkedCourse) && $gLinkedCourse) {
+                                if (isset($gCourseWork)) {
+                                    $filteredGCourseWork = $gCourseWork->where('term', $key);
+                                    foreach ($filteredGCourseWork as $cw) {
+                                        $exists = $termTasksList->first(fn($t) => $t->google_coursework_id == $cw->google_coursework_id || strtolower(trim($t->activity_name)) === strtolower(trim($cw->title)));
+                                        
+                                        if (!$exists) {
+                                            $termTasksList->push((object)[
+                                                'id' => 'gc_' . $cw->id,
+                                                'google_coursework_id' => $cw->google_coursework_id ?? $cw->id,
+                                                'activity_name' => $cw->title,
+                                                'activity_type' => strtolower($cw->work_type ?? 'assignment'),
+                                                'max_score' => $cw->max_points ?? 100,
+                                                'term' => $key,
+                                            ]);
+                                        }
+                                    }
+                                }
+                            }
+
+                            $attendanceSummaryData = [];
+                            foreach($students as $s) {
+                                foreach(['prelim', 'midterm', 'semifinal', 'final'] as $termKey) {
+                                    $termAtts = $classAttendances->where('student_id', $s->student_id)->where('derived_term', $termKey);
+                                    $attendanceSummaryData[$s->student_id][$termKey] = [
+                                        'Present' => $termAtts->where('status', 'Present')->count(),
+                                        'Late'    => $termAtts->where('status', 'Late')->count(),
+                                        'Absent'  => $termAtts->where('status', 'Absent')->count(),
+                                    ];
+                                }
+                            }
 
                             foreach ($students as $student) {
                                 $draft = optional(
                                     $draftGrades->get($key)?->firstWhere('student_number', $student->student_id)
                                 );
 
-                                $gradeModes[$student->student_id] = ($draft && $draft->is_manual) ? 'manual' : 'auto';
-
+                                $isManualStudent = ($draft && $draft->is_manual);
+                                $gradeModes[$student->student_id] = $isManualStudent ? 'manual' : 'auto';
                                 $autoGradeStudent = $autoGrades[$key][$student->student_id] ?? [];
 
+                                if ($isManualStudent) {
+                                    $cs  = $draft->class_standing ?? $autoGradeStudent['class_standing'] ?? '';
+                                    $ex  = $draft->major_exam     ?? $autoGradeStudent['major_exam']     ?? '';
+                                    $eq  = $draft->equivalent     ?? $autoGradeStudent['equivalent']     ?? '';
+                                } else {
+                                    $cs  = $autoGradeStudent['class_standing'] ?? '';
+                                    $ex  = $autoGradeStudent['major_exam']     ?? '';
+                                    $eq  = $autoGradeStudent['equivalent']     ?? '';
+                                }
+
                                 $manualGrades[$student->student_id] = [
-                                    'class_standing' => $draft->class_standing ?? $autoGradeStudent['class_standing'] ?? '',
-                                    'major_exam'     => $draft->major_exam ?? $autoGradeStudent['major_exam'] ?? '',
-                                    'equivalent'     => $draft->equivalent ?? $autoGradeStudent['equivalent'] ?? '',
+                                    'class_standing' => $cs,
+                                    'major_exam'     => $ex,
+                                    'equivalent'     => ($eq !== '' && $eq !== null) ? number_format((float)$eq, 2, '.', '') : '',
                                 ];
+
+                                foreach ($termTasksList as $task) {
+                                    if (isset($task->google_coursework_id) && str_starts_with($task->id, 'gc_')) {
+                                        $sub = $studentSubmissions->where('student_id', $student->student_id)
+                                            ->where('google_coursework_id', $task->google_coursework_id)
+                                            ->first();
+                                    } else {
+                                        $sub = $studentSubmissions->where('student_id', $student->student_id)
+                                            ->where('task_id', $task->id)
+                                            ->first();
+                                    }
+                                    
+                                    $taskInputGrades[$student->student_id][$task->id] = $sub->grade ?? '';
+                                }
                             }
                         @endphp
 
@@ -1034,14 +1125,53 @@
                                 autoGradesData: @js($autoGrades[$key] ?? []),
                                 hasUnsavedChanges: false,
                                 isSubmitted: @js($isTermSubmitted),
+                                isSentToStudent: @js($isTermSentToStudent),
+                                sibling: @js($siblingPayload),
+                                currentType: @js($currentSchedType),
+                                showSubmitModal: false,
+                                submitChoice: 'single',
 
                                 init() {
+                                    window.addEventListener('pageshow', (event) => {
+                                        if (event.persisted && !this.hasUnsavedChanges) window.location.reload();
+                                    });
+
                                     window.addEventListener('beforeunload', (event) => {
                                         if (this.hasUnsavedChanges) {
                                             event.preventDefault();
                                             event.returnValue = '';
                                         }
                                     });
+                                },
+
+                                recalculateGrade(sid) {
+                                    this.hasUnsavedChanges = true;
+                                    let cs = parseFloat(this.manualGrades[sid].class_standing) || 0;
+                                    let ex = parseFloat(this.manualGrades[sid].major_exam) || 0;
+
+                                    let finalPct = 0;
+                                    if (!isNaN(cs) && !isNaN(ex)) {
+                                        finalPct = (cs * 0.60) + (ex * 0.40);
+                                    } else if (!isNaN(cs)) {
+                                        finalPct = cs;
+                                    }
+
+                                    if (!isNaN(finalPct)) {
+                                        this.manualGrades[sid].equivalent = this.calculateEquivalentGrade(finalPct);
+                                    }
+                                },
+
+                                calculateEquivalentGrade(percent) {
+                                    if (percent < 75) return '5.00';
+                                    if (percent >= 97) return '1.00';
+                                    if (percent >= 94) return '1.25';
+                                    if (percent >= 91) return '1.50';
+                                    if (percent >= 88) return '1.75';
+                                    if (percent >= 85) return '2.00';
+                                    if (percent >= 82) return '2.25';
+                                    if (percent >= 79) return '2.50';
+                                    if (percent >= 76) return '2.75';
+                                    return '3.00';
                                 },
 
                                 async setMode(sid, mode) {
@@ -1075,15 +1205,7 @@
                                                 equivalent: data.computed.equivalent ?? ''
                                             };
                                         }
-                                    } else {
-                                        if (this.cachedManualGrades[sid]) {
-                                            this.manualGrades[sid] = JSON.parse(JSON.stringify(this.cachedManualGrades[sid]));
-                                        }
                                     }
-                                },
-
-                                markChanged() {
-                                    this.hasUnsavedChanges = true;
                                 },
 
                                 saveDraftGrades() {
@@ -1104,7 +1226,8 @@
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',
-                                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                            'Accept': 'application/json'
                                         },
                                         body: JSON.stringify({ grades: grades })
                                     })
@@ -1112,11 +1235,14 @@
                                     .then(data => {
                                         if(data.success) {
                                             this.hasUnsavedChanges = false;
-                                            alert('Grades saved successfully!');
+                                            alert('Draft grades saved successfully!');
                                             this.cachedManualGrades = JSON.parse(JSON.stringify(this.manualGrades));
                                         } else {
-                                            alert('Error saving grades.');
+                                            alert('Error: ' + (data.message || 'Unknown error'));
                                         }
+                                    })
+                                    .catch(err => {
+                                        alert('Error: ' + err.message);
                                     });
                                 },
 
@@ -1126,15 +1252,63 @@
                                         return;
                                     }
 
-                                    if (!confirm('Are you sure you want to submit these grades to the registrar? This action cannot be undone.')) {
+                                    if (this.sibling) {
+                                        this.submitChoice = 'single';
+                                        this.showSubmitModal = true;
                                         return;
                                     }
+
+                                    if (!confirm('Are you sure you want to submit these grades to the registrar? You can still revert the submission later if it has not been released to students.')) {
+                                        return;
+                                    }
+
+                                    this.doSubmit(false);
+                                },
+
+                                doSubmit(applyToSibling) {
+                                    this.showSubmitModal = false;
 
                                     fetch('{{ route('professor.submit-registrar') }}', {
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',
-                                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                            'Accept': 'application/json'
+                                        },
+                                        body: JSON.stringify({
+                                            schedule_id: {{ $classDetails->schedule_id }},
+                                            term: '{{ $key }}',
+                                            apply_to_sibling: applyToSibling
+                                        })
+                                    })
+                                    .then(res => res.json())
+                                    .then(data => {
+                                        if (data.success) {
+                                            alert(data.message || 'Grades successfully submitted to the registrar!');
+                                            window.location.reload();
+                                        } else {
+                                            alert('Error: ' + (data.message || 'Failed to submit grades.'));
+                                        }
+                                    })
+                                    .catch(err => alert('Error: ' + err.message));
+                                },
+
+                                revertSubmission() {
+                                    if (this.isSentToStudent) {
+                                        alert('These grades were already released to students and can no longer be reverted.');
+                                        return;
+                                    }
+
+                                    if (!confirm('Revert this submission? The grades will be pulled back from the registrar and become editable again. You will need to submit again after editing.')) {
+                                        return;
+                                    }
+
+                                    fetch('{{ route('professor.revert-registrar') }}', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                            'Accept': 'application/json'
                                         },
                                         body: JSON.stringify({
                                             schedule_id: {{ $classDetails->schedule_id }},
@@ -1144,31 +1318,29 @@
                                     .then(res => res.json())
                                     .then(data => {
                                         if (data.success) {
-                                            alert('Grades successfully submitted to the registrar!');
+                                            alert('Submission reverted. You can now edit the grades again.');
                                             window.location.reload();
                                         } else {
-                                            alert('Error: ' + (data.message || 'Failed to submit grades.'));
+                                            alert('Error: ' + (data.message || 'Failed to revert submission.'));
                                         }
                                     })
-                                    .catch(err => {
-                                        console.error(err);
-                                        alert('Something went wrong. Please try again.');
-                                    });
+                                    .catch(err => alert('Error: ' + err.message));
                                 }
                             }"
-                            x-init="init()">
+                        x-init="init()">
 
                             <div class="grade-top-row mb-3">
                                 <div class="encoding-legend-bar">
                                     <span class="legend-item"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto — computed from task scores & attendance</span>
-                                    <span class="legend-item"><i class="fa-solid fa-pen"></i> Manual — professor enters custom score</span>
+                                    <span class="legend-item"><i class="fa-solid fa-pen"></i> Manual — type Class Standing, Major Exam & GWA directly</span>
                                 </div>
 
                                 <template x-if="!isSubmitted">
                                     <div class="grade-action-buttons">
                                         <button
                                             type="button"
-                                            class="btn-sm-outline text-dark-blue fw-bold bg-white"
+                                            class="btn-primary-portal fw-bold"
+                                            style="font-size: 13px;"
                                             @click="saveDraftGrades()">
                                             <i class="fa-solid fa-floppy-disk me-1"></i> Save Draft
                                         </button>
@@ -1189,11 +1361,75 @@
                                             <span>Grades Submitted to Registrar</span>
                                         </div>
                                         
+                                        <template x-if="!isSentToStudent">
+                                            <button type="button" class="btn-revert-grades ms-2" @click="revertSubmission()" title="Pull back the submitted grades so you can edit them again">
+                                                <i class="fa-solid fa-rotate-left me-1"></i> Revert Submission
+                                            </button>
+                                        </template>
+                                        <template x-if="isSentToStudent">
+                                            <span class="text-muted small ms-2" title="Grades were already released to students">
+                                                <i class="fa-solid fa-lock me-1"></i> Released to students
+                                            </span>
+                                        </template>
+
                                         <button type="button" class="btn-print-attendance bg-white text-dark-blue ms-2" @click="landscapePrint = true; setTimeout(() => window.print(), 150);" title="Download PDF Evaluation Report">
                                             <i class="fa-solid fa-file-pdf me-1"></i> Print Evaluation
                                         </button>
                                     </div>
                                 </template>
+                            </div>
+
+                            <div class="grade-modal-overlay" x-show="showSubmitModal" style="display: none;"
+                                @click.self="showSubmitModal = false" @keydown.escape.window="showSubmitModal = false">
+                                <div class="grade-modal" x-show="showSubmitModal">
+                                    <h5 class="grade-modal-title">Submit to Registrar</h5>
+                                    <p class="grade-modal-sub">
+                                        This section also has a
+                                        <strong x-text="sibling ? sibling.type : ''"></strong> class.
+                                        Are the grades the same for both?
+                                    </p>
+
+                                    <label class="grade-choice" :class="submitChoice === 'single' ? 'grade-choice-active' : ''">
+                                        <input type="radio" value="single" x-model="submitChoice">
+                                        <div>
+                                            <div class="grade-choice-title">Separate grades</div>
+                                            <div class="grade-choice-desc">
+                                                Submit only this <span x-text="currentType"></span> class.
+                                                You'll submit the <span x-text="sibling ? sibling.type : ''"></span> class on its own later.
+                                            </div>
+                                        </div>
+                                    </label>
+
+                                    <label class="grade-choice"
+                                        :class="[submitChoice === 'both' ? 'grade-choice-active' : '', (sibling && (sibling.submitted || sibling.sent)) ? 'grade-choice-disabled' : '']">
+                                        <input type="radio" value="both" x-model="submitChoice"
+                                            :disabled="sibling && (sibling.submitted || sibling.sent)">
+                                        <div>
+                                            <div class="grade-choice-title">Same grades for both</div>
+                                            <div class="grade-choice-desc">
+                                                Copy these grades to the <span x-text="sibling ? sibling.type : ''"></span> class
+                                                and submit both at once.
+                                            </div>
+                                            <template x-if="sibling && sibling.sent">
+                                                <div class="grade-choice-warn">
+                                                    <span x-text="sibling.type"></span> grades were already released to students.
+                                                </div>
+                                            </template>
+                                            <template x-if="sibling && sibling.submitted && !sibling.sent">
+                                                <div class="grade-choice-warn">
+                                                    <span x-text="sibling.type"></span> was already submitted. Revert it first to copy these grades over.
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </label>
+
+                                    <div class="grade-modal-actions">
+                                        <button type="button" class="btn-cancel-portal" @click="showSubmitModal = false">Cancel</button>
+                                        <button type="button" class="btn-primary-portal" @click="doSubmit(submitChoice === 'both')">
+                                            <i class="fa-solid fa-paper-plane me-1"></i> Confirm &amp; Submit
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
                             @if($students->isEmpty())
@@ -1208,19 +1444,19 @@
                                         <thead>
                                             <tr>
                                                 <th style="width: 5%;">#</th>
-                                                <th style="width: 15%;">Student ID</th>
-                                                <th style="width: 22%;">Full Name</th>
-                                                <th style="width: 18%;" class="text-center">Class Standing (60%)</th>
-                                                <th style="width: 13%;" class="text-center">Major Exam (40%)</th>
-                                                <th style="width: 9%;" class="text-center">GWA</th>
-                                                <th style="width: 18%;" class="text-center">Mode</th>
+                                                <th style="width: 14%;">Student ID</th>
+                                                <th style="width: 25%;">Full Name</th>
+                                                <th style="width: 14%;" class="text-center">Class Standing</th>
+                                                <th style="width: 14%;" class="text-center">Major Exam</th>
+                                                <th style="width: 10%;" class="text-center">GWA</th>
+                                                <th style="width: 18%;" class="text-center">Mode & Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                         @foreach($students as $index => $student)
                                             @php
                                                 $sid = $student->student_id;
-                                                $auto = $autoGrades[$key][$sid] ?? ['class_standing' => null, 'major_exam' => null, 'equivalent' => null];
+                                                $fullName = strtoupper($student->last_name . ', ' . $student->first_name);
                                             @endphp
                                             <tr>
                                                 <td class="text-muted fw-bold">{{ $index + 1 }}</td>
@@ -1228,30 +1464,12 @@
                                                 <td class="text-uppercase fw-bold text-dark-slate">{{ $student->last_name }}, {{ $student->first_name }}</td>
 
                                                 <td class="text-center">
-                                                    <div class="encoding-cell-row">
-                                                        <input type="number" min="0" max="100" step="0.01" class="encoding-input"
-                                                            x-model.number="manualGrades['{{ $sid }}'].class_standing"
-                                                            placeholder="—"
-                                                            :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
-                                                            :disabled="isSubmitted"
-                                                            :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted ? 'encoding-input-active' : 'encoding-input-muted'"
-                                                            @input="
-                                                                markChanged();
-                                                                let value = parseFloat($event.target.value);
-                                                                if (isNaN(value)) {
-                                                                    manualGrades['{{ $sid }}'].class_standing = '';
-                                                                } else {
-                                                                    if (value > 100) value = 100;
-                                                                    if (value < 0) value = 0;
-                                                                    manualGrades['{{ $sid }}'].class_standing = value;
-                                                                    $event.target.value = value;
-                                                                }
-                                                            ">
-
-                                                        <a href="{{ route('professor.grades.breakdown', ['schedule_id' => $classDetails->schedule_id, 'student_id' => $sid, 'term' => $key]) }}" class="breakdown-icon-link" title="View individual activity scores and attendance breakdown">
-                                                            <i class="fa-solid fa-eye"></i>
-                                                        </a>
-                                                    </div>
+                                                    <input type="number" min="0" max="100" step="0.01" class="encoding-input"
+                                                        x-model.number="manualGrades['{{ $sid }}'].class_standing"
+                                                        placeholder="—"
+                                                        :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
+                                                        :class="((gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted) ? 'encoding-input-active' : 'encoding-input-muted'"
+                                                        @input="hasUnsavedChanges = true">
                                                 </td>
 
                                                 <td class="text-center">
@@ -1259,61 +1477,42 @@
                                                         x-model.number="manualGrades['{{ $sid }}'].major_exam"
                                                         placeholder="—"
                                                         :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
-                                                        :disabled="isSubmitted"
-                                                        :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted ? 'encoding-input-active' : 'encoding-input-muted'"
-                                                        @input="
-                                                            markChanged();
-                                                            let value = parseFloat($event.target.value);
-                                                            if (isNaN(value)) {
-                                                                manualGrades['{{ $sid }}'].major_exam = '';
-                                                            } else {
-                                                                if (value > 100) value = 100;
-                                                                if (value < 0) value = 0;
-                                                                manualGrades['{{ $sid }}'].major_exam = value;
-                                                                $event.target.value = value;
-                                                            }
-                                                        ">
+                                                        :class="((gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted) ? 'encoding-input-active' : 'encoding-input-muted'"
+                                                        @input="hasUnsavedChanges = true">
                                                 </td>
 
                                                 <td class="text-center">
-                                                    <span class="equivalent-pill">
-                                                        <input type="text" class="equivalent-input"
-                                                            x-model="manualGrades['{{ $sid }}'].equivalent"
-                                                            placeholder="—"
-                                                            maxlength="4"
-                                                            :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
-                                                            :disabled="isSubmitted"
-                                                            :class="(gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted ? 'encoding-input-active' : 'encoding-input-muted'"
-                                                            @input="
-                                                                markChanged();
-                                                                let v = $event.target.value.replace(/[^0-9.]/g, '');
-                                                                const parts = v.split('.');
-                                                                if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
-                                                                if (parts[0] && parts[0].length > 1) parts[0] = parts[0].slice(0, 1);
-                                                                if (parts[1]) parts[1] = parts[1].slice(0, 2);
-                                                                v = parts[1] !== undefined ? parts[0] + '.' + parts[1] : (parts[0] || '');
-                                                                manualGrades['{{ $sid }}'].equivalent = v;
-                                                            ">
-                                                    </span>
+                                                    <input type="number" min="1" max="5" step="0.01" class="equivalent-input"
+                                                        x-model.number="manualGrades['{{ $sid }}'].equivalent"
+                                                        placeholder="—"
+                                                        :readonly="(gradeMode['{{ $sid }}'] || 'auto') !== 'manual' || isSubmitted"
+                                                        :class="((gradeMode['{{ $sid }}'] || 'auto') === 'manual' && !isSubmitted) ? 'equivalent-input-active' : 'equivalent-input-muted'"
+                                                        @input="hasUnsavedChanges = true">
                                                 </td>
 
                                                 <td class="text-center">
-                                                    <div class="mode-toggle-group" :class="isSubmitted ? 'disabled-group' : ''">
-                                                        <button type="button"
-                                                            class="mode-toggle-btn"
-                                                            :class="(gradeMode['{{ $sid }}'] || 'auto') === 'auto' ? 'mode-toggle-active-auto' : ''"
-                                                            :disabled="isSubmitted"
-                                                            @click="if(!isSubmitted) setMode('{{ $sid }}', 'auto')">
-                                                            <i class="fa-solid fa-wand-magic-sparkles"></i> Auto
-                                                        </button>
-                                                        
-                                                        <button type="button"
-                                                            class="mode-toggle-btn"
-                                                            :class="gradeMode['{{ $sid }}'] === 'manual' ? 'mode-toggle-active-manual' : ''"
-                                                            :disabled="isSubmitted"
-                                                            @click="if(!isSubmitted) setMode('{{ $sid }}', 'manual')">
-                                                            <i class="fa-solid fa-pen"></i> Manual
-                                                        </button>
+                                                    <div class="d-flex align-items-center justify-content-center gap-2">
+                                                        <div class="mode-toggle-group" :class="isSubmitted ? 'disabled-group' : ''">
+                                                            <button type="button"
+                                                                class="mode-toggle-btn"
+                                                                :class="(gradeMode['{{ $sid }}'] || 'auto') === 'auto' ? 'mode-toggle-active-auto' : ''"
+                                                                :disabled="isSubmitted"
+                                                                @click="if(!isSubmitted) setMode('{{ $sid }}', 'auto')">
+                                                                Auto
+                                                            </button>
+                                                            
+                                                            <button type="button"
+                                                                class="mode-toggle-btn"
+                                                                :class="gradeMode['{{ $sid }}'] === 'manual' ? 'mode-toggle-active-manual' : ''"
+                                                                :disabled="isSubmitted"
+                                                                @click="if(!isSubmitted) setMode('{{ $sid }}', 'manual')">
+                                                                Manual
+                                                            </button>
+                                                        </div>
+
+                                                        <a href="{{ route('professor.grades.breakdown', ['schedule_id' => $classDetails->schedule_id, 'student_id' => $sid, 'term' => $key]) }}" class="btn-sm-outline breakdown-icon-link" title="View Full Grades & Attendance Breakdown">
+                                                            <i class="fa-solid fa-chart-pie"></i>
+                                                        </a>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1423,83 +1622,85 @@
                 <button type="button" class="close-modal-btn" @click="showModal = false">&times;</button>
             </div>
 
-                <form id="addActivityForm" @submit.prevent="
-                    publishing = true;
-                    let formData = new FormData($el);
-                    formData.append('term', modalTerm);
-                    formData.append('schedule_id', '{{ $classDetails->schedule_id }}');
-                    if (selectedFile) formData.append('attachment', selectedFile);
+            <form id="addActivityForm" @submit.prevent="
+                publishing = true;
+                let formData = new FormData($el);
+                formData.append('term', modalTerm);
+                formData.append('schedule_id', '{{ $classDetails->schedule_id }}');
+                if (selectedFile && formType !== 'announcement') formData.append('attachment', selectedFile);
 
-                    let url = editingTaskId
-                        ? `/professor/update-activity/${editingTaskId}`
-                        : '{{ route('professor.save-activity') }}';
+                let url = editingTaskId
+                    ? `/professor/update-activity/${editingTaskId}`
+                    : '{{ route('professor.save-activity') }}';
 
-                    fetch(url, {
-                        method: 'POST',
-                        headers: { 
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            'Accept': 'application/json'
-                        },
-                        body: formData
-                    })
-                    .then(async res => {
-                        let data;
-                        try {
-                            data = await res.json();
-                        } catch (e) {
-                            throw new Error('Server returned an invalid JSON response. Status: ' + res.status);
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                })
+                .then(async res => {
+                    let data;
+                    try {
+                        data = await res.json();
+                    } catch (e) {
+                        throw new Error('Server returned an invalid JSON response. Status: ' + res.status);
+                    }
+
+                    if (!res.ok) {
+                        let errorMsg = data.message || 'Server error occurred.';
+                        if (data.errors) {
+                            errorMsg += '\n' + Object.values(data.errors).flat().join('\n');
                         }
+                        throw new Error(errorMsg);
+                    }
 
-                        if (!res.ok) {
-                            let errorMsg = data.message || 'Server error occurred.';
-                            if (data.errors) {
-                                errorMsg += '\n' + Object.values(data.errors).flat().join('\n');
-                            }
-                            throw new Error(errorMsg);
-                        }
-
-                        return data;
-                    })
-                    .then(data => {
-                        if(data.success) {
-                            window.location.reload();
-                        } else {
-                            alert(data.message || 'Error saving data');
-                            publishing = false;
-                        }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        alert(' ERROR:\n' + err.message);
+                    return data;
+                })
+                .then(data => {
+                    if(data.success) {
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Error saving data');
                         publishing = false;
-                    });
-                ">
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert(' ERROR:\n' + err.message);
+                    publishing = false;
+                });
+            ">
 
                 <div class="modal-card-body">
                     <div class="field-group">
-                        <label class="field-label">Task Title</label>
-                        <input type="text" name="title" class="field-input" x-model="formTitle" placeholder="e.g., Quiz 1: Introduction to HTML" required>
+                        <label class="field-label" x-text="formType === 'announcement' ? 'Announcement Title' : 'Task Title'"></label>
+                        <input type="text" name="title" class="field-input" x-model="formTitle" :placeholder="formType === 'announcement' ? 'e.g., Class Cancellation / Exam Schedule' : 'e.g., Quiz 1: Introduction to HTML'" required>
                     </div>
 
                     <div class="field-row">
                         <div class="field-group">
                             <label class="field-label">Type</label>
-                            <select name="type" class="field-input" x-model="formType" @change="if(formType === 'module') formMaxScore = '';" required>
+                            <select name="type" class="field-input" x-model="formType" @change="if(formType === 'module' || formType === 'announcement') { formMaxScore = ''; formDueDate = ''; }" required>
                                 <option value="quiz">Quiz</option>
+                                <option value="activity">Activity</option>
                                 <option value="assignment">Assignment</option>
                                 <option value="project">Project / Laboratory</option>
                                 <option value="exam">Major Exam</option>
                                 <option value="module">Module / Learning Material</option>
+                                <option value="announcement">Announcement</option>
                             </select>
                         </div>
 
-                        <div class="field-group" x-show="formType !== 'module'">
+                        <div class="field-group" x-show="formType !== 'module' && formType !== 'announcement'">
                             <label class="field-label">Highest Score</label>
-                            <input type="number" name="max_score" class="field-input" x-model="formMaxScore" min="1" :required="formType !== 'module'">
+                            <input type="number" name="max_score" class="field-input" x-model="formMaxScore" min="1" :required="formType !== 'module' && formType !== 'announcement'">
                         </div>
                     </div>
 
-                    <div class="field-group" x-show="formType !== 'module' && formType !== 'material'">
+                    <div class="field-group" x-show="formType !== 'module' && formType !== 'announcement'">
                         <label class="field-label">Due Date <span class="field-optional">(Optional)</span></label>
                         <input type="datetime-local" name="due_date" class="field-input" x-model="formDueDate">
                         
@@ -1519,7 +1720,12 @@
                         </div>
                     </div>
 
-                    <div class="field-group" style="margin-bottom:0;">
+                    <div class="field-group" x-show="formType === 'announcement'" style="margin-bottom:0;">
+                        <label class="field-label">Announcement Details</label>
+                        <textarea name="description" class="field-input" x-model="formDescription" rows="4" placeholder="Write your announcement message or information here..."></textarea>
+                    </div>
+
+                    <div class="field-group" x-show="formType !== 'announcement'" style="margin-bottom:0;">
                         <label class="field-label">Attachment <span class="field-optional">(Optional)</span></label>
 
                         <div class="dropzone"
@@ -1583,10 +1789,11 @@
                             ">
                     </div>
                 </div>
+
                 <div class="modal-card-footer">
                     <button type="button" class="btn-cancel-portal" @click="showModal = false">Cancel</button>
                     <button type="submit" class="btn-primary-portal" :disabled="fileSizeError || publishing">
-                        <span x-html="publishing ? '<i class=\'fa-solid fa-spinner fa-spin\' style=\'margin-right: 6px;\'></i> Publishing...' : (editingTaskId ? 'Save Changes' : 'Publish Task')"></span>
+                        <span x-html="publishing ? '<i class=\'fa-solid fa-spinner fa-spin\' style=\'margin-right: 6px;\'></i> Publishing...' : (editingTaskId ? 'Save Changes' : (formType === 'announcement' ? 'Post Announcement' : 'Publish Task'))"></span>
                     </button>
                 </div>
             </form>
@@ -1627,8 +1834,16 @@
     .custom-portal-table td { padding: 12px; font-size: 13.5px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
     .badge-enrolled-status { background: #dcfce7; color: #15803d; font-size: 12px; padding: 4px 12px; font-weight: 700; border-radius: 20px; }
 
+    .plain-text-type {
+        color: #334155;
+        font-weight: 500;
+        font-size: 13.5px;
+        background: transparent;
+        padding: 0;
+    }
+
     .new-student-row {
-        background-color: #f0f9ff !important; /* Subtle blue background */
+        background-color: #f0f9ff !important;
     }
     
     .new-student-row td {
@@ -1838,6 +2053,22 @@
     .btn-grade:hover { border-color: #1e2a5a; color: #1e2a5a; background: #eef1fb; }
     .btn-edit:hover { border-color: #d97706; color: #d97706; background: #fffbeb; }
     .btn-delete:hover { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+    
+    .btn-edit-tasks {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #d97706;
+        padding: 6px 10px;
+        border-radius: 6px;
+        flex-shrink: 0;
+    }
+
+    .btn-edit-tasks:hover {
+        background: #fef3c7;
+        color: #b45309;
+        border-color: #fcd34d;
+    }
+
     .breakdown-link { font-size: 11px; color: #0284c7; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; transition: 0.15s; }
     .breakdown-link:hover { color: #0369a1; text-decoration: underline; }
     .override-toggle-btn { width: 30px; height: 30px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; transition: 0.2s; }
@@ -2083,11 +2314,6 @@
     .encoding-table th:nth-child(2),
     .encoding-table th:nth-child(3) { text-align: left; }
 
-    .encoding-table th:nth-child(4) { width: 22%; } 
-    .encoding-table th:nth-child(5) { width: 16%; } 
-    .encoding-table th:nth-child(6) { width: 12%; } 
-    .encoding-table th:nth-child(7) { width: 20%; } 
-
     .encoding-cell-row {
         display: flex;
         align-items: center;
@@ -2096,19 +2322,20 @@
     }
 
     .breakdown-icon-link {
-        width: 30px; height: 30px;
-        border-radius: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+        padding: 6px 10px;
+        border-radius: 6px;
         background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #cbd5e1;
         color: #0284c7;
         font-size: 12px;
         text-decoration: none;
         transition: 0.15s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         flex-shrink: 0;
     }
+
     .breakdown-icon-link:hover {
         background: #eff6ff;
         border-color: #93c5fd;
@@ -2231,6 +2458,53 @@
         cursor: not-allowed;
     }
 
+    .equivalent-input-active {
+        background: #fff !important;
+        border-color: #1e2a5a !important;
+        color: #1e2a5a !important;
+        cursor: text !important;
+    }
+    .encoding-input-active, .equivalent-input-active { cursor: text !important; }
+
+    .grade-modal-overlay {
+        position: fixed; inset: 0; z-index: 2000;
+        background: rgba(15, 23, 42, 0.45);
+        display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    .grade-modal {
+        background: #fff; border-radius: 14px; width: 100%; max-width: 460px;
+        padding: 22px 24px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+    }
+    .grade-modal-title { font-size: 17px; font-weight: 800; color: #1e2a5a; margin: 0 0 6px; }
+    .grade-modal-sub { font-size: 13.5px; color: #475569; margin: 0 0 14px; }
+    .grade-choice {
+        display: flex; gap: 12px; align-items: flex-start;
+        border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;
+        margin-bottom: 10px; cursor: pointer; transition: 0.15s;
+    }
+    .grade-choice input { margin-top: 4px; accent-color: #1e2a5a; }
+    .grade-choice-active { border-color: #1e2a5a; background: #eef1fb; }
+    .grade-choice-disabled { opacity: 0.6; cursor: not-allowed; }
+    .grade-choice-title { font-size: 13.5px; font-weight: 700; color: #1e293b; }
+    .grade-choice-desc { font-size: 12.5px; color: #64748b; margin-top: 2px; }
+    .grade-choice-warn { font-size: 12px; font-weight: 600; color: #b45309; margin-top: 6px; }
+    .grade-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+    .btn-revert-grades {
+        background-color: #fffbeb;
+        color: #b45309;
+        border: 1px solid #fde68a;
+        font-size: 12.5px;
+        font-weight: 700;
+        padding: 7px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.15s;
+        display: inline-flex;
+        align-items: center;
+    }
+    .btn-revert-grades:hover { background-color: #fef3c7; border-color: #f59e0b; }
+
     .btn-print-attendance {
         background-color: #ffffff;
         color: #1e2a5a;
@@ -2243,6 +2517,8 @@
         transition: all 0.2s ease;
         display: inline-flex;
         align-items: center;
+        gap: 6px;
+        text-decoration: none;
     }
     .btn-print-attendance:hover {
         background-color: #1e2a5a;

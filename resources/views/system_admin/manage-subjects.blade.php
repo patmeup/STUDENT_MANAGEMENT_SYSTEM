@@ -71,6 +71,19 @@
                         <input type="number" name="lab_units" id="form_lab_units" min="1" max="9" value="1" required>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>Assigned Professor <span class="required-star">*</span></label>
+                    <div class="custom-select-wrapper">
+                        <select name="professor_id" id="form_professor_id" class="select-input" required>
+                            <option value="">-- Select Professor --</option>
+                            @if(isset($professors) && count($professors) > 0)
+                                @foreach($professors as $prof)
+                                    <option value="{{ $prof->id }}">{{ strtoupper($prof->last_name) }}, {{$prof->first_name }}</option>
+                                @endforeach
+                            @endif
+                        </select>
+                    </div>
+                </div>
 
                 <div class="form-actions-bar">
                     <button type="button" class="btn-clear" onclick="resetFormState()">Reset Form</button>
@@ -87,17 +100,19 @@
                 </div>
 
                 <div class="header-controls-flex" style="display: flex; align-items: center; gap: 15px;">
-                    <div class="search-bar-container">
-                        <i class="fas fa-search search-icon"></i>
+                    <div class="table-search-box">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+                            <line x1="16.2" y1="16.2" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
                         <input
-                        type="text"
-                        id="adminSubjectSearch"
-                        placeholder="Search by Code, Title, or Professor..."
-                        class="custom-search-input">
+                            type="text"
+                            id="adminSubjectSearch"
+                            placeholder="Search by Code, Title, or Professor...">
                     </div>
 
                     <span class="badge-count" id="subjectTotalCount">
-                        Total: {{ isset($subjects) ? $subjects->count() : 0 }}
+                        Total: {{ isset($subjects) ? count($subjects) : 0 }}
                     </span>
                 </div>
 
@@ -117,7 +132,7 @@
                         </tr>
                     </thead>
                     <tbody id="adminSubjectTableBody">
-                        @if(isset($subjects) && $subjects->count() > 0)
+                        @if(isset($subjects) && count($subjects) > 0)
                             @foreach($subjects as $subject)
                                 <tr class="subject-data-row">
                                     <td><span class="subject-code-tag search-code">{{ strtoupper($subject->subject_code) }}</span></td>
@@ -126,11 +141,11 @@
                                     <td class="search-prof">
                                         @if($subject->professor)
                                             <span class="prof-assigned-tag">
-                                                <i class="fas fa-user-tie"></i> {{ strtoupper($subject->professor->last_name) }}, {{ $subject->professor->first_name }}
+                                                <i class="fas fa-user-tie"></i> {{ strtoupper($subject->professor->last_name) }}, {{$subject->professor->first_name }}
                                             </span>
-                                        @elseif(isset($dean) && $dean)
+                                        @elseif(isset($dean) &&$dean)
                                             <span class="prof-assigned-tag">
-                                                <i class="fas fa-user-tie"></i> {{ strtoupper($dean->last_name) }}, {{ $dean->first_name }}
+                                                <i class="fas fa-user-tie"></i> {{ strtoupper($dean->last_name) }}, {{$dean->first_name }}
                                             </span>
                                         @else
                                             <span class="prof-assigned-tag">
@@ -142,7 +157,7 @@
                                     <td style="text-align: center;">{{ $subject->lecture_units }}</td>
                                     <td style="text-align: center;">{{ $subject->lab_units }}</td>
                                     <td style="text-align: center;">
-                                        <strong class="total-units-text">{{ $subject->total_units ?? ($subject->lecture_units + $subject->lab_units) }}</strong>
+                                        <strong class="total-units-text">{{ $subject->total_units ?? ($subject->lecture_units +$subject->lab_units) }}</strong>
                                     </td>
                                     <td style="text-align: center;">
                                         <div class="action-btn-group">
@@ -220,23 +235,39 @@
     .card-title-list { font-size: 14.5px; font-weight: 700; color: #1e293b; margin: 0; }
     .header-controls-flex { display: flex; align-items: center; gap: 16px; }
 
-    .search-bar-container { position: relative; display: flex; align-items: center; }
-    .search-icon { position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none; }
-    .custom-search-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px 6px 32px; font-size: 12.5px; color: #0f172a; outline: none; background: #ffffff; width: 220px; transition: all 0.2s ease; font-weight: 500; }
-    .custom-search-input:focus { border-color: #475569; width: 250px; box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.1); }
+    .table-search-box { position: relative; display: flex; align-items: center; }
+    .table-search-box input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px 6px 32px; font-size: 12.5px; color: #0f172a; outline: none; background: #ffffff; width: 220px; transition: all 0.2s ease; font-weight: 500; box-sizing: border-box; }
+    .table-search-box input:focus { border-color: #1e2a5a; width: 250px; box-shadow: 0 0 0 3px rgba(30, 42, 90, 0.08); }
+    .table-search-box .search-icon { position: absolute; left: 12px; color: #94a3b8; width: 14px; height: 14px; pointer-events: none; }
+
+    .custom-select-wrapper { position: relative; width: 100%; }
+    .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 
     .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group label { font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.3px; }
-    .form-group input, .select-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 14px; color: #0f172a; outline: none; background: #ffffff; box-sizing: border-box; width: 100%; }
-    .form-group input:focus, .select-input:focus { border-color: #000000; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
+    .form-group input, .select-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 14px; color: #0f172a; outline: none; background: #ffffff; box-sizing: border-box; width: 100%; appearance: none; -webkit-appearance: none; }
+    .form-group input:focus, .select-input:focus { border-color: #1e2a5a; box-shadow: 0 0 0 3px rgba(30, 42, 90, 0.08); }
     .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .uppercase-input { text-transform: uppercase; }
     .field-help { font-size: 11px; color: #64748b; margin-top: 2px; }
 
     .form-actions-bar { display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 16px; }
-    .btn-submit-subj { background: #000000; color: #ffffff; border: none; padding: 12px 20px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; }
-    .btn-submit-subj:hover { background: #1e293b; }
+    .btn-submit-subj { 
+        background: #1e2a5a; 
+        color: white; 
+        border: none; 
+        padding: 12px 20px; 
+        font-size: 14px; 
+        font-weight: 700; 
+        border-radius: 6px; 
+        cursor: pointer; 
+        flex: 1; 
+        transition: background 0.2s; 
+    }
+    .btn-submit-subj:hover { 
+        background: #152238; 
+    }
     .btn-clear { background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 12px 16px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; }
     .btn-clear:hover { background: #f8fafc; }
 
@@ -273,29 +304,26 @@
     .modal-header-danger h3 { color: #dc2626; }
     .modal-close { background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; padding: 0; line-height: 1; }
     .modal-close:hover { color: #0f172a; }
-    .modal-form { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
     .modal-body-text { padding: 24px 24px 0 24px; font-size: 14px; color: #334155; line-height: 1.6; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #f1f5f9; }
     .btn-modal-cancel { background: transparent; border: 1px solid #cbd5e1; color: #64748b; padding: 9px 18px; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; }
     .btn-modal-cancel:hover { background: #f8fafc; }
-    .btn-modal-confirm-edit { background: #000000; color: #ffffff; border: none; padding: 9px 20px; font-size: 13px; font-weight: 700; border-radius: 6px; cursor: pointer; }
-    .btn-modal-confirm-edit:hover { background: #1e293b; }
     .btn-modal-confirm-delete { background: #dc2626; color: #ffffff; border: none; padding: 9px 20px; font-size: 13px; font-weight: 700; border-radius: 6px; cursor: pointer; }
     .btn-modal-confirm-delete:hover { background: #b91c1c; }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const existingSubjects = [
-        @if(isset($subjects))
-            @foreach($subjects as $sub)
-                {
-                    code: @js(strtolower($sub->subject_code)),
-                    title: @js(strtolower($sub->subject_title))
-                },
-            @endforeach
-        @endif
-    ];
+    const existingSubjects = @json(
+        isset($subjects) 
+            ? $subjects->map(function($s) {
+                return [
+                    'code' => strtolower($s->subject_code),
+                    'title' => strtolower($s->subject_title)
+                ];
+            }) 
+            : []
+    );
 
     const editButtons = document.querySelectorAll('.btn-trigger-edit');
     const formElement = document.getElementById('subjectForm');
@@ -421,6 +449,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     document.getElementById('form_subject_title').value = data.subject_title;
                     document.getElementById('form_lecture_units').value = data.lecture_units;
                     document.getElementById('form_lab_units').value = data.lab_units;
+                    document.getElementById('form_professor_id').value = data.professor_id ?? '';
 
                     let updateUrl = "{{ route('system_admin.subjects.update', ':id') }}";
                     updateUrl = updateUrl.replace(':id', data.id);
@@ -451,7 +480,7 @@ function resetFormState() {
     formElement.action = "{{ route('system_admin.subjects.store') }}";
 
     submitBtn.innerText = "Save Subject";
-    submitBtn.style.backgroundColor = "#000000";
+    submitBtn.style.backgroundColor = "#1e2a5a";
 }
 
 function openDeleteSubject(id, code) {

@@ -74,7 +74,19 @@
             <div class="card-title-container">
                 <h3 class="card-title-list">Academic Periods</h3>
             </div>
-            <span class="badge-count" id="totalPeriodsCount">{{ count($periods) }} Total</span>
+            <div class="header-controls-flex" style="display: flex; align-items: center; gap: 15px;">
+                <div class="table-search-box">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+                        <line x1="16.2" y1="16.2" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <input
+                        type="text"
+                        id="academicPeriodSearch"
+                        placeholder="Search by School Year...">
+                </div>
+                <span class="badge-count" id="totalPeriodsCount">{{ count($periods) }} Total</span>
+            </div>
         </div>
 
         @if($periods->isEmpty())
@@ -83,9 +95,36 @@
                 No academic periods created yet.
             </div>
         @else
+            <div id="noPeriodResults" style="display: none; padding: 50px; text-align: center; color: #94a3b8; font-style: italic;">
+                <i class="fas fa-magnifying-glass" style="font-size: 24px; display: block; margin-bottom: 8px;"></i>
+                No academic periods match your search.
+            </div>
             @foreach($periods as $period)
-                @php $terms = $termPeriods[$period->id] ?? collect(); @endphp
-                <div class="period-block">
+                @php
+                    $terms = $termPeriods[$period->id] ?? collect();
+
+                    // All 4 terms must have both start and end dates saved before activation
+                    $requiredTerms = ['prelim', 'midterm', 'semifinal', 'final'];
+                    $missingTerms = collect($requiredTerms)->filter(function ($key) use ($terms) {
+                        $t = $terms->firstWhere('term', $key);
+                        return !$t || empty($t->start_date) || empty($t->end_date);
+                    });
+                    $canActivate = $missingTerms->isEmpty();
+
+                    // School year -> year level mapping.
+                    // Base year 2023-2024 = 1st Year, 2024-2025 = 2nd Year, etc.
+                    $baseStartYear = 2023;
+                    $yearLevels = [1 => '1st Year', 2 => '2nd Year', 3 => '3rd Year', 4 => '4th Year'];
+                    $startYear = (int) substr(trim($period->school_year), 0, 4);
+                    $levelNumber = $startYear - $baseStartYear + 1;
+                    $mappedYearLevel = $yearLevels[$levelNumber] ?? null;
+
+                    // Subjects for this period's semester AND mapped year level
+                    $subjectsForPeriod = collect($curriculumSubjects[trim($period->semester)] ?? [])
+                        ->filter(fn($s) => $mappedYearLevel && trim($s->year_level) === $mappedYearLevel)
+                        ->values();
+                @endphp
+                <div class="period-block" data-school-year="{{ strtolower(trim($period->school_year)) }}">
                     <div class="period-block-header">
                         <div class="period-title-group">
                             <span class="period-title">{{ $period->school_year }} — {{ $period->semester }}</span>
@@ -96,12 +135,23 @@
                             @endif
                         </div>
                         <div class="period-actions">
+                            <button type="button" class="btn-action-edit"
+                                onclick="openPeriodSubjectsModal(@js($period->school_year . ' — ' . $period->semester), @js($mappedYearLevel ?? 'No matching year level'), @js($subjectsForPeriod))">
+                                <i class="fas fa-book"></i> View Subjects
+                            </button>
                             @if(!$period->is_active)
                                 <form action="{{ route('system_admin.activate_academic_period', $period->id) }}" method="POST" style="display:inline-block;">
                                     @csrf
-                                    <button type="submit" class="btn-action-edit" onclick="return confirm('Set this as the active academic period? This will deactivate the current one.')">
-                                        <i class="fas fa-check"></i> Set as Active
-                                    </button>
+                                    @if($canActivate)
+                                        <button type="submit" class="btn-action-edit" onclick="return confirm('Set this as the active academic period? This will deactivate the current one.')">
+                                            <i class="fas fa-check"></i> Set as Active
+                                        </button>
+                                    @else
+                                        <button type="button" class="btn-action-edit btn-disabled" disabled
+                                            title="Save the dates for all terms first (missing: {{ $missingTerms->map(fn($k) => ucfirst($k))->implode(', ') }})">
+                                            <i class="fas fa-lock"></i> Set as Active
+                                        </button>
+                                    @endif
                                 </form>
                             @endif
                             <form action="{{ route('system_admin.delete_academic_period', $period->id) }}" method="POST" class="delete-period-form" style="display:inline-block;">
@@ -117,22 +167,14 @@
 
                     <div class="term-dates-grid">
                         @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key => $label)
-                            @php 
-                                $existingTerm = $terms->firstWhere('term', $key); 
-                                // Map Term to Semester
-                                $mappedSemester = in_array($key, ['prelim', 'midterm']) ? '1st Semester' : '2nd Semester';
-                                $subjectsForTerm = $curriculumSubjects[$mappedSemester] ?? collect();
-                            @endphp
+                            @php $existingTerm = $terms->firstWhere('term', $key); @endphp
                             <form action="{{ route('system_admin.store_term_period') }}" method="POST" class="term-date-card term-form" novalidate>
                                 @csrf
                                 <input type="hidden" name="academic_period_id" value="{{ $period->id }}">
                                 <input type="hidden" name="term" value="{{ $key }}">
                                 
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
                                     <span class="term-date-label">{{ $label }}</span>
-                                    <button type="button" class="btn-view-subjects" onclick="openTermSubjectsModal('{{ $label }}', '{{ $mappedSemester }}', {{ json_encode($subjectsForTerm) }})">
-                                        <i class="fas fa-book"></i> View Subjects
-                                    </button>
                                 </div>
                                 
                                 <div class="term-inputs-group">
@@ -158,12 +200,12 @@
     </div>
 </div>
 
-<!-- MODAL FOR VIEWING SUBJECTS PER TERM -->
+<!-- MODAL FOR VIEWING SUBJECTS PER ACADEMIC PERIOD -->
 <div id="termSubjectsModal" class="custom-modal-overlay" style="display: none;">
     <div class="custom-modal-content" style="max-width: 650px;">
         <div class="modal-header-bar">
             <div>
-                <h3 id="modal-term-title" style="margin: 0; font-size: 16px; font-weight: 700;"><i class="fas fa-book-open"></i> Term Curriculum Subjects</h3>
+                <h3 id="modal-term-title" style="margin: 0; font-size: 16px; font-weight: 700;"><i class="fas fa-book-open"></i> Period Subjects</h3>
                 <span id="modal-term-subtitle" style="font-size: 12px; color: #64748b; font-weight: 600;"></span>
             </div>
             <button type="button" class="close-modal-btn" onclick="closeTermSubjectsModal()">&times;</button>
@@ -174,7 +216,6 @@
                 <thead>
                     <tr>
                         <th>Course</th>
-                        <th>Year Level</th>
                         <th>Code</th>
                         <th>Subject Title</th>
                     </tr>
@@ -222,7 +263,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     const years = schoolYear.split('-');
                     const y1 = parseInt(years[0], 10);
                     const y2 = parseInt(years[1], 10);
-                    if (y2 !== y1 + 1) {
+                    if (y1 === y2) {
+                        errorMessages.push(`Invalid School Year: "${schoolYear}" repeats the same year twice. It must span two consecutive years (e.g., 2026-2027).`);
+                    } else if (y2 !== y1 + 1) {
                         errorMessages.push('The second year must be exactly one year after the first year (e.g., 2026-2027).');
                     }
                 }
@@ -237,6 +280,40 @@ document.addEventListener('DOMContentLoaded', function () {
                 e.preventDefault();
                 showJsErrors(errorMessages);
                 return false;
+            }
+        });
+    }
+
+    // SEARCH BAR: filter periods by school year
+    const periodSearchInput = document.getElementById('academicPeriodSearch');
+    const periodBlocks = document.querySelectorAll('.period-block');
+    const noPeriodResults = document.getElementById('noPeriodResults');
+    const totalPeriodsBadge = document.getElementById('totalPeriodsCount');
+    const totalPeriodsAll = periodBlocks.length;
+
+    if (periodSearchInput) {
+        periodSearchInput.addEventListener('input', function () {
+            const query = periodSearchInput.value.toLowerCase().trim();
+            let visibleCount = 0;
+
+            periodBlocks.forEach(block => {
+                const schoolYear = block.getAttribute('data-school-year') || '';
+                if (schoolYear.includes(query)) {
+                    block.style.display = '';
+                    visibleCount++;
+                } else {
+                    block.style.display = 'none';
+                }
+            });
+
+            if (totalPeriodsBadge) {
+                totalPeriodsBadge.textContent = query === ''
+                    ? `${totalPeriodsAll} Total`
+                    : `${visibleCount} of ${totalPeriodsAll}`;
+            }
+
+            if (noPeriodResults) {
+                noPeriodResults.style.display = (visibleCount === 0 && totalPeriodsAll > 0) ? 'block' : 'none';
             }
         });
     }
@@ -310,44 +387,42 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
-// MODAL FUNCTIONALITY FOR VIEWING SUBJECTS
-function openTermSubjectsModal(termLabel, mappedSemester, subjects) {
-    const modal = document.getElementById('termSubjectsModal');
-    const title = document.getElementById('modal-term-title');
-    const subtitle = document.getElementById('modal-term-subtitle');
-    const listContainer = document.getElementById('modal-subjects-list');
+    function openPeriodSubjectsModal(periodLabel, yearLevel, subjects) {
+        const modal = document.getElementById('termSubjectsModal');
+        const title = document.getElementById('modal-term-title');
+        const subtitle = document.getElementById('modal-term-subtitle');
+        const listContainer = document.getElementById('modal-subjects-list');
 
-    title.innerHTML = `<i class="fas fa-book-open"></i> ${termLabel} Period Subjects`;
-    subtitle.textContent = `Curriculum Mapped Semester: ${mappedSemester}`;
+        title.innerHTML = `<i class="fas fa-book-open"></i> ${periodLabel}`;
+        subtitle.textContent = `Year Level: ${yearLevel} • ${subjects.length} subject(s)`;
 
-    listContainer.innerHTML = '';
+        listContainer.innerHTML = '';
 
-    if (!subjects || subjects.length === 0) {
-        listContainer.innerHTML = `
-            <tr>
-                <td colspan="4" style="text-align: center; color: #94a3b8; padding: 25px !important; font-style: italic;">
-                    No subjects registered for ${mappedSemester} in the curriculum masterlist.
-                </td>
-            </tr>`;
-    } else {
-        subjects.forEach(sub => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><span class="subject-code-tag" style="background:#f1f5f9; color:#475569;">${sub.course_code}</span></td>
-                <td style="font-size: 13px; font-weight: 600;">${sub.year_level}</td>
-                <td><span class="subject-code-tag" style="background:#ecfdf5; color:#059669;">${sub.subject_code}</span></td>
-                <td style="font-size: 13px; font-weight: 600; color:#1e293b;">${sub.subject_title}</td>
-            `;
-            listContainer.appendChild(tr);
-        });
+        if (!subjects || subjects.length === 0) {
+            listContainer.innerHTML = `
+                <tr>
+                    <td colspan="3" style="text-align: center; color: #94a3b8; padding: 25px !important; font-style: italic;">
+                        No subjects registered for this period in the curriculum masterlist.
+                    </td>
+                </tr>`;
+        } else {
+            subjects.forEach(sub => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span class="subject-code-tag" style="background:#f1f5f9; color:#475569;">${sub.course_code}</span></td>
+                    <td><span class="subject-code-tag" style="background:#ecfdf5; color:#059669;">${sub.subject_code}</span></td>
+                    <td style="font-size: 13px; font-weight: 600; color:#1e293b;">${sub.subject_title}</td>
+                `;
+                listContainer.appendChild(tr);
+            });
+        }
+
+        modal.style.display = 'flex';
     }
 
-    modal.style.display = 'flex';
-}
-
-function closeTermSubjectsModal() {
-    document.getElementById('termSubjectsModal').style.display = 'none';
-}
+    function closeTermSubjectsModal() {
+        document.getElementById('termSubjectsModal').style.display = 'none';
+    }
 </script>
 
 <style>
@@ -366,6 +441,11 @@ function closeTermSubjectsModal() {
     .card-title-list { font-size: 14.5px; font-weight: 700; margin: 0; color: #1e293b; }
     .badge-count { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 4px 12px; border-radius: 20px; font-weight: 700; white-space: nowrap; }
 
+    .table-search-box { position: relative; display: flex; align-items: center; }
+    .table-search-box .search-icon { position: absolute; left: 10px; width: 15px; height: 15px; color: #94a3b8; pointer-events: none; }
+    .table-search-box input { height: 36px; padding: 0 12px 0 32px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; color: #0f172a; background: #ffffff; outline: none; width: 220px; transition: border-color 0.2s, box-shadow 0.2s; }
+    .table-search-box input:focus { border-color: #0033A0; box-shadow: 0 0 0 3px rgba(0,51,160,0.1); }
+
     .create-period-grid { display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end; }
     .form-field { display: flex; flex-direction: column; gap: 6px; width: 100%; }
     .form-field-btn { display: flex; align-items: end; }
@@ -378,8 +458,8 @@ function closeTermSubjectsModal() {
     .form-select-custom:focus { border-color: #000000; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
     .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 
-    .btn-submit-subj { background: #000000; color: #ffffff; border: none; padding: 0 24px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 42px; transition: background 0.2s; white-space: nowrap; }
-    .btn-submit-subj:hover { background: #1e293b; }
+    .btn-submit-subj { background: #0033A0; color: #ffffff; border: none; padding: 0 24px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 42px; transition: background 0.2s; white-space: nowrap; }
+    .btn-submit-subj:hover { background: #002270; }
 
     .period-block { padding: 20px 24px; border-bottom: 1px solid #f1f5f9; }
     .period-block:last-child { border-bottom: none; }
@@ -401,11 +481,13 @@ function closeTermSubjectsModal() {
     .term-field-single { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
     .term-sub-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; }
 
-    .btn-save-term { background: #000000; color: white; border: none; padding: 9px; border-radius: 6px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s; }
-    .btn-save-term:hover { background: #1e293b; }
+    .btn-save-term { background: #0033A0; color: white; border: none; padding: 9px; border-radius: 6px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s; }
+    .btn-save-term:hover { background: #002270; }
 
     .btn-action-edit { background-color: transparent; border: 1px solid #cbd5e1; color: #475569; padding: 7px 14px; font-size: 12.5px; font-weight: 600; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
     .btn-action-edit:hover { background-color: #f1f5f9; color: #1e293b; border-color: #94a3b8; }
+
+    .btn-action-edit.btn-disabled, .btn-action-edit:disabled { opacity: 0.5; cursor: not-allowed; background-color: #f8fafc; color: #94a3b8; border-color: #e2e8f0; }
 
     .btn-action-delete { background-color: transparent; border: 1px solid #fecaca; color: #dc2626; padding: 7px 14px; font-size: 12.5px; font-weight: 600; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
     .btn-action-delete:hover { background-color: #fef2f2; color: #991b1b; border-color: #f87171; }

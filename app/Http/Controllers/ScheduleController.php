@@ -48,7 +48,9 @@ class ScheduleController extends Controller
             ->orderBy('last_name', 'asc')
             ->get();
 
-        return view('department_secretary.manage-schedules', compact('schedules', 'subjects', 'professors'));
+        $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
+
+        return view('department_secretary.manage-schedules', compact('schedules', 'subjects', 'professors', 'activePeriod'));
     }
 
     public function store(Request $request)
@@ -64,66 +66,25 @@ class ScheduleController extends Controller
             'professor_id'    => 'required|exists:employees,id',
         ]);
 
-        $assignedProfId = $request->input('professor_id');
+        $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
 
-        DB::table('subjects')
-            ->where('id', $request->subject_id)
-            ->update([
-                'professor_id' => $assignedProfId,
-                'updated_at'   => now(),
-            ]);
+        if (!$activePeriod) {
+            return redirect()->back()->with('error', 'Cannot create schedule. No active academic period set in the system.');
+        }
 
         ClassSchedule::create([
-            'subject_id'      => $request->input('subject_id'),
-            'professor_id'    => $request->input('professor_id'),
-            'schedule_type'   => strtoupper($request->input('schedule_type')), 
-            'section_name'    => strtoupper($request->input('section_name')),
-            'class_days'      => $request->input('class_days'),
-            'start_time'      => $request->input('start_time'),
-            'end_time'        => $request->input('end_time'),
-            'room_assignment' => strtoupper($request->input('room_assignment')),
+            'academic_period_id' => $activePeriod->id,
+            'subject_id'         => $request->input('subject_id'),
+            'professor_id'       => $request->input('professor_id'),
+            'schedule_type'      => strtoupper($request->input('schedule_type')), 
+            'section_name'       => strtoupper($request->input('section_name')),
+            'class_days'         => $request->input('class_days'),
+            'start_time'         => $request->input('start_time'),
+            'end_time'           => $request->input('end_time'),
+            'room_assignment'    => strtoupper($request->input('room_assignment')),
         ]);
 
         return redirect()->back()->with('success', 'Class deployment schedule successfully established!');
-    }
-
-    public function update(Request $request, $id)
-    {
-        $request->validate([
-            'schedule_type'   => 'required|in:LEC,LAB',
-            'section_name'    => 'required|string',
-            'class_days'      => 'required|string',
-            'room_assignment' => 'required|string',
-            'start_time'      => 'required',
-            'end_time'        => 'required',
-            'professor_id'    => 'required|exists:employees,id', 
-        ]);
-
-        $schedule = ClassSchedule::find($id);
-
-        if ($schedule) {
-            $professorId = $request->input('professor_id');
-
-            DB::table('subjects')
-                ->where('id', $schedule->subject_id)
-                ->update([
-                    'professor_id' => $professorId,
-                    'updated_at'   => now(),
-                ]);
-        }
-
-        DB::table('class_schedules')->where('id', $id)->update([
-            'professor_id'    => $request->input('professor_id'), 
-            'schedule_type'   => strtoupper($request->input('schedule_type')),
-            'section_name'    => strtoupper($request->input('section_name')),
-            'class_days'      => $request->input('class_days'),
-            'room_assignment' => strtoupper($request->input('room_assignment')),
-            'start_time'      => $request->input('start_time'),
-            'end_time'        => $request->input('end_time'),
-            'updated_at'      => now(),
-        ]);
-
-        return redirect()->back()->with('success', 'Class deployment schedule successfully updated!');
     }
 
     public function delete($id)
