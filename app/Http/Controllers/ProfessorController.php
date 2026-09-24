@@ -26,10 +26,14 @@ class ProfessorController extends Controller
             ->orderBy('display_order', 'asc')
             ->orderBy('id', 'asc')
             ->get();
+
+        $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
+        $activePeriodId = $activePeriod ? $activePeriod->id : 0;
             
         $totalClasses = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->where('subjects.professor_id', $professor_id)
+            ->where('class_schedules.academic_period_id', $activePeriodId)
             ->distinct('class_schedules.id')
             ->count('class_schedules.id');
 
@@ -38,6 +42,7 @@ class ProfessorController extends Controller
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
             ->where('subjects.professor_id', $professor_id)
+            ->where('class_schedules.academic_period_id', $activePeriodId)
             ->where('student_subjects.status', 'Enrolled')
             ->count('student_subjects.id');
 
@@ -50,6 +55,7 @@ class ProfessorController extends Controller
                     ->on('student_subjects.student_number', '=', 'task_submissions.student_id');
             })
             ->where('subjects.professor_id', $professor_id)
+            ->where('class_schedules.academic_period_id', $activePeriodId)
             ->where('student_subjects.status', 'Enrolled')
             ->whereNull('task_submissions.grade')
             ->count(DB::raw('DISTINCT CONCAT(task_submissions.task_id, "-", task_submissions.student_id)'));
@@ -65,6 +71,17 @@ class ProfessorController extends Controller
     public function manageClasses()
     {
         $professor_id = session('user_id');
+
+        $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
+
+        if (!$activePeriod) {
+            $classes = collect();
+            $gConnection = DB::table('google_classroom_connections')
+                ->where('professor_id', $professor_id)
+                ->first();
+
+            return view('professor.manage-classes', compact('classes', 'gConnection'));
+        }
 
         $classes = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
@@ -88,6 +105,7 @@ class ProfessorController extends Controller
                         AND student_subjects.status = "Enrolled") as students_count')
             )
             ->where('subjects.professor_id', $professor_id)
+            ->where('class_schedules.academic_period_id', $activePeriod->id)
             ->orderBy('class_schedules.section_name')
             ->get();
 
@@ -481,6 +499,7 @@ class ProfessorController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'type' => 'required|string',
+            'description' => 'nullable|string',
             'max_score' => 'nullable',
             'term' => 'required|string',
             'schedule_id' => 'required|integer',
@@ -520,7 +539,7 @@ class ProfessorController extends Controller
                 $filePath = "{$folderPath}/{$finalName}";
             }
 
-            $isNonGradable = in_array(strtolower($request->type), ['module', 'material']);
+            $isNonGradable = in_array(strtolower($request->type), ['module', 'material', 'announcement']);
                         
             $formattedDueDate = (!$isNonGradable && !empty($request->due_date)) 
                 ? date('Y-m-d H:i:s', strtotime($request->due_date)) 
@@ -533,6 +552,7 @@ class ProfessorController extends Controller
                 'term' => $request->term,
                 'activity_name' => $request->title,
                 'activity_type' => $request->type,
+                'description' => $request->description,
                 'max_score' => $maxScore,
                 'due_date' => $formattedDueDate,
                 'file_path' => $filePath,
@@ -561,6 +581,7 @@ class ProfessorController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'type' => 'required|string',
+            'description' => 'nullable|string',
             'max_score' => 'nullable',
             'due_date' => 'nullable',
             'attachment' => 'nullable|file|max:10240|mimes:pdf,doc,docx,ppt,pptx,zip,jpg,png',
@@ -573,7 +594,7 @@ class ProfessorController extends Controller
                 return response()->json(['success' => false, 'message' => 'Task not found.'], 404);
             }
 
-            $isNonGradable = in_array(strtolower($request->type), ['module', 'material']);
+            $isNonGradable = in_array(strtolower($request->type), ['module', 'material', 'announcement']);
 
             $formattedDueDate = (!$isNonGradable && !empty($request->due_date)) 
                 ? date('Y-m-d H:i:s', strtotime($request->due_date)) 
@@ -584,9 +605,10 @@ class ProfessorController extends Controller
             $updateData = [
                 'activity_name' => $request->title,
                 'activity_type' => $request->type,
-                'max_score' => $maxScore,
-                'due_date' => $formattedDueDate,
-                'updated_at' => now(),
+                'description'   => $request->description,
+                'max_score'     => $maxScore,
+                'due_date'      => $formattedDueDate,
+                'updated_at'    => now(),
             ];
 
             if ($request->hasFile('attachment')) {
@@ -891,7 +913,7 @@ class ProfessorController extends Controller
                 $join->on('student_tasks.id', '=', 'task_submissions.task_id')
                     ->where('task_submissions.student_id', '=', $student_id);
             })
-            ->whereNotIn(DB::raw('LOWER(student_tasks.activity_type)'), ['module', 'material', 'announcement']) // IDAGDAG ITO
+            ->whereNotIn(DB::raw('LOWER(student_tasks.activity_type)'), ['module', 'material', 'announcement'])
             ->select(
                 'student_tasks.*',
                 'task_submissions.grade',
@@ -1112,7 +1134,6 @@ class ProfessorController extends Controller
                 ], 422);
             }
 
-            // Once released to students, the professor can no longer pull it back
             if ((clone $grades)->where('is_sent_to_student', 1)->count() > 0) {
                 return response()->json([
                     'success' => false,

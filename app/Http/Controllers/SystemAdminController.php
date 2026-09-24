@@ -39,13 +39,12 @@ class SystemAdminController extends Controller
         $periods = DB::table('academic_periods')->orderBy('created_at', 'desc')->get();
         $termPeriods = DB::table('term_periods')->get()->groupBy('academic_period_id');
 
-        // Inayos ang JOIN at SELECT batay sa totoong schema ng 'curricula' at 'subjects'
         $curriculumSubjects = DB::table('curricula')
             ->join('subjects', 'curricula.subject_id', '=', 'subjects.id')
             ->select(
                 'curricula.semester',
                 'curricula.year_level',
-                'curricula.course as course_code', // Direct column mula sa curricula
+                'curricula.course as course_code',
                 'subjects.subject_code',
                 'subjects.subject_title'
             )
@@ -75,10 +74,24 @@ class SystemAdminController extends Controller
 
     public function activateAcademicPeriod($id)
     {
+        // Block activation unless all 4 terms have both start and end dates saved
+        $completeTerms = DB::table('term_periods')
+            ->where('academic_period_id', $id)
+            ->whereIn('term', ['prelim', 'midterm', 'semifinal', 'final'])
+            ->whereNotNull('start_date')
+            ->whereNotNull('end_date')
+            ->pluck('term')
+            ->unique();
+
+        if ($completeTerms->count() < 4) {
+            return redirect()->back()->with('error', 'Cannot activate this period yet. Please save the start and end dates for all terms (Prelim, Midterm, Semi-Final, Final) first.');
+        }
+
+        // Deactivate all periods first, then activate the selected one
         DB::table('academic_periods')->update(['is_active' => false]);
         DB::table('academic_periods')->where('id', $id)->update(['is_active' => true]);
 
-        return redirect()->back()->with('success', 'Academic period activated. This is now the current period system-wide.');
+        return redirect()->back()->with('success', 'Academic period activated. System data is now synced to this active period.');
     }
 
     public function storeTermPeriod(Request $request)

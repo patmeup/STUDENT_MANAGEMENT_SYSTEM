@@ -36,6 +36,7 @@
         formType: 'quiz',
         formMaxScore: 100,
         formDueDate: '',
+        formDescription: '',
         publishing: false,
         fileSizeError: false,
 
@@ -113,6 +114,7 @@
             this.formType = 'quiz';
             this.formMaxScore = 100;
             this.formDueDate = '';
+            this.formDescription = '';
             this.publishing = false;
             this.fileSizeError = false;
             this.showModal = true;
@@ -125,6 +127,7 @@
             this.formType = task.activity_type;
             this.formMaxScore = task.max_score;
             this.formDueDate = task.due_date;
+            this.formDescription = task.description || '';
             this.publishing = false;
             this.fileSizeError = false;
             this.showModal = true;
@@ -770,14 +773,15 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                         }
 
                         $mergedDeliverables->push((object)[
-                            'source'     => $isGoogleTask ? 'gclass_coursework' : 'system',
-                            'id'         => $task->id,
-                            'title'      => $task->activity_name,
-                            'type'       => $task->activity_type,
-                            'max_score'  => $task->max_score,
-                            'due_date'   => $task->due_date,
-                            'link'       => $gLink ?? null,
-                            'sort_date'  => $task->due_date ?? '1970-01-01',
+                            'source'      => $isGoogleTask ? 'gclass_coursework' : 'system',
+                            'id'          => $task->id,
+                            'title'       => $task->activity_name,
+                            'type'        => $task->activity_type,
+                            'max_score'   => $task->max_score,
+                            'due_date'    => $task->due_date,
+                            'description' => $task->description ?? null,
+                            'link'        => $gLink ?? null,
+                            'sort_date'   => $task->due_date ?? '1970-01-01',
                         ]);
                     }
 
@@ -943,7 +947,13 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                                         </td>
                                                         <td>
                                                             @if($item->source === 'system')
-                                                                <span class="badge bg-secondary text-uppercase">{{ $item->type }}</span>
+                                                                @if(strtolower($item->type) === 'activity')
+                                                                    <span class="plain-text-type">activity</span>
+                                                                @elseif(strtolower($item->type) === 'announcement')
+                                                                    <span class="plain-text-type">announcement</span>
+                                                                @else
+                                                                    <span class="plain-text-type">{{ strtolower($item->type) }}</span>
+                                                                @endif
                                                             @elseif($item->source === 'gclass_coursework')
                                                                 <span class="gclass-type-badge gclass-type-coursework">Coursework</span>
                                                             @elseif($item->source === 'gclass_material')
@@ -966,11 +976,11 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                                             @if($item->source === 'system')
                                                                 <div class="action-btn-group">
                                                                     <button type="button" class="btn-sm-outline btn-edit"
-                                                                        @click="openEditModal({ id: {{ $item->id }}, term: '{{ $key }}', activity_name: @js($item->title), activity_type: '{{ $item->type }}', max_score: {{ $item->max_score ?? 'null' }}, due_date: '{{ $item->due_date }}' })">
+                                                                        @click="openEditModal({ id: {{ $item->id }}, term: '{{ $key }}', activity_name: @js($item->title), activity_type: '{{ $item->type }}', max_score: {{ $item->max_score ?? 'null' }}, due_date: '{{ $item->due_date }}', description: @js($item->description ?? '') })">
                                                                         <i class="fa-solid fa-pen"></i>
                                                                     </button>
 
-                                                                    @if(strtolower($item->type) !== 'module')
+                                                                    @if(!in_array(strtolower($item->type), ['module', 'announcement']))
                                                                         <a href="{{ route('professor.task-submissions', $item->id) }}" class="btn-sm-outline btn-grade">
                                                                             <i class="fa fa-star"></i> Grade
                                                                         </a>
@@ -1030,7 +1040,9 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                             $currentSchedType = strtoupper($classDetails->schedule_type ?? 'LEC');
                             $isTermSentToStudent = $termDraftCollection ? $termDraftCollection->where('is_sent_to_student', 1)->count() > 0 : false;
 
-                            $termTasksList = collect($termTasks->get($key, []))->filter(fn($t) => !in_array(strtolower($t->activity_type), ['module', 'material', 'announcement']));
+                            $termTasksList = collect($termTasks->get($key, []))->filter(
+                                fn($t) => !in_array(strtolower($t->activity_type), ['module', 'material', 'announcement'])
+                            );
 
                             if (isset($gConnection) && $gConnection && isset($gLinkedCourse) && $gLinkedCourse) {
                                 if (isset($gCourseWork)) {
@@ -1610,83 +1622,85 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                 <button type="button" class="close-modal-btn" @click="showModal = false">&times;</button>
             </div>
 
-                <form id="addActivityForm" @submit.prevent="
-                    publishing = true;
-                    let formData = new FormData($el);
-                    formData.append('term', modalTerm);
-                    formData.append('schedule_id', '{{ $classDetails->schedule_id }}');
-                    if (selectedFile) formData.append('attachment', selectedFile);
+            <form id="addActivityForm" @submit.prevent="
+                publishing = true;
+                let formData = new FormData($el);
+                formData.append('term', modalTerm);
+                formData.append('schedule_id', '{{ $classDetails->schedule_id }}');
+                if (selectedFile && formType !== 'announcement') formData.append('attachment', selectedFile);
 
-                    let url = editingTaskId
-                        ? `/professor/update-activity/${editingTaskId}`
-                        : '{{ route('professor.save-activity') }}';
+                let url = editingTaskId
+                    ? `/professor/update-activity/${editingTaskId}`
+                    : '{{ route('professor.save-activity') }}';
 
-                    fetch(url, {
-                        method: 'POST',
-                        headers: { 
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            'Accept': 'application/json'
-                        },
-                        body: formData
-                    })
-                    .then(async res => {
-                        let data;
-                        try {
-                            data = await res.json();
-                        } catch (e) {
-                            throw new Error('Server returned an invalid JSON response. Status: ' + res.status);
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                })
+                .then(async res => {
+                    let data;
+                    try {
+                        data = await res.json();
+                    } catch (e) {
+                        throw new Error('Server returned an invalid JSON response. Status: ' + res.status);
+                    }
+
+                    if (!res.ok) {
+                        let errorMsg = data.message || 'Server error occurred.';
+                        if (data.errors) {
+                            errorMsg += '\n' + Object.values(data.errors).flat().join('\n');
                         }
+                        throw new Error(errorMsg);
+                    }
 
-                        if (!res.ok) {
-                            let errorMsg = data.message || 'Server error occurred.';
-                            if (data.errors) {
-                                errorMsg += '\n' + Object.values(data.errors).flat().join('\n');
-                            }
-                            throw new Error(errorMsg);
-                        }
-
-                        return data;
-                    })
-                    .then(data => {
-                        if(data.success) {
-                            window.location.reload();
-                        } else {
-                            alert(data.message || 'Error saving data');
-                            publishing = false;
-                        }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        alert(' ERROR:\n' + err.message);
+                    return data;
+                })
+                .then(data => {
+                    if(data.success) {
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Error saving data');
                         publishing = false;
-                    });
-                ">
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert(' ERROR:\n' + err.message);
+                    publishing = false;
+                });
+            ">
 
                 <div class="modal-card-body">
                     <div class="field-group">
-                        <label class="field-label">Task Title</label>
-                        <input type="text" name="title" class="field-input" x-model="formTitle" placeholder="e.g., Quiz 1: Introduction to HTML" required>
+                        <label class="field-label" x-text="formType === 'announcement' ? 'Announcement Title' : 'Task Title'"></label>
+                        <input type="text" name="title" class="field-input" x-model="formTitle" :placeholder="formType === 'announcement' ? 'e.g., Class Cancellation / Exam Schedule' : 'e.g., Quiz 1: Introduction to HTML'" required>
                     </div>
 
                     <div class="field-row">
                         <div class="field-group">
                             <label class="field-label">Type</label>
-                            <select name="type" class="field-input" x-model="formType" @change="if(formType === 'module') formMaxScore = '';" required>
+                            <select name="type" class="field-input" x-model="formType" @change="if(formType === 'module' || formType === 'announcement') { formMaxScore = ''; formDueDate = ''; }" required>
                                 <option value="quiz">Quiz</option>
+                                <option value="activity">Activity</option>
                                 <option value="assignment">Assignment</option>
                                 <option value="project">Project / Laboratory</option>
                                 <option value="exam">Major Exam</option>
                                 <option value="module">Module / Learning Material</option>
+                                <option value="announcement">Announcement</option>
                             </select>
                         </div>
 
-                        <div class="field-group" x-show="formType !== 'module'">
+                        <div class="field-group" x-show="formType !== 'module' && formType !== 'announcement'">
                             <label class="field-label">Highest Score</label>
-                            <input type="number" name="max_score" class="field-input" x-model="formMaxScore" min="1" :required="formType !== 'module'">
+                            <input type="number" name="max_score" class="field-input" x-model="formMaxScore" min="1" :required="formType !== 'module' && formType !== 'announcement'">
                         </div>
                     </div>
 
-                    <div class="field-group" x-show="formType !== 'module' && formType !== 'material'">
+                    <div class="field-group" x-show="formType !== 'module' && formType !== 'announcement'">
                         <label class="field-label">Due Date <span class="field-optional">(Optional)</span></label>
                         <input type="datetime-local" name="due_date" class="field-input" x-model="formDueDate">
                         
@@ -1706,7 +1720,12 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                         </div>
                     </div>
 
-                    <div class="field-group" style="margin-bottom:0;">
+                    <div class="field-group" x-show="formType === 'announcement'" style="margin-bottom:0;">
+                        <label class="field-label">Announcement Details</label>
+                        <textarea name="description" class="field-input" x-model="formDescription" rows="4" placeholder="Write your announcement message or information here..."></textarea>
+                    </div>
+
+                    <div class="field-group" x-show="formType !== 'announcement'" style="margin-bottom:0;">
                         <label class="field-label">Attachment <span class="field-optional">(Optional)</span></label>
 
                         <div class="dropzone"
@@ -1770,10 +1789,11 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                             ">
                     </div>
                 </div>
+
                 <div class="modal-card-footer">
                     <button type="button" class="btn-cancel-portal" @click="showModal = false">Cancel</button>
                     <button type="submit" class="btn-primary-portal" :disabled="fileSizeError || publishing">
-                        <span x-html="publishing ? '<i class=\'fa-solid fa-spinner fa-spin\' style=\'margin-right: 6px;\'></i> Publishing...' : (editingTaskId ? 'Save Changes' : 'Publish Task')"></span>
+                        <span x-html="publishing ? '<i class=\'fa-solid fa-spinner fa-spin\' style=\'margin-right: 6px;\'></i> Publishing...' : (editingTaskId ? 'Save Changes' : (formType === 'announcement' ? 'Post Announcement' : 'Publish Task'))"></span>
                     </button>
                 </div>
             </form>
@@ -1813,6 +1833,14 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
     .custom-portal-table th { background: #f8fafc; font-size: 11.5px; font-weight: 700; text-transform: uppercase; color: #64748b; padding: 14px 12px; border-bottom: 2px solid #e2e8f0; letter-spacing: 0.3px; }
     .custom-portal-table td { padding: 12px; font-size: 13.5px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
     .badge-enrolled-status { background: #dcfce7; color: #15803d; font-size: 12px; padding: 4px 12px; font-weight: 700; border-radius: 20px; }
+
+    .plain-text-type {
+        color: #334155;
+        font-weight: 500;
+        font-size: 13.5px;
+        background: transparent;
+        padding: 0;
+    }
 
     .new-student-row {
         background-color: #f0f9ff !important;

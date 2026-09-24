@@ -5,7 +5,15 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <div class="prof-container py-4"
-    x-data="{ currentTab: '{{ $activeTab }}' }">
+    x-data="{ 
+        currentTab: '{{ $activeTab }}',
+        showAnnouncementModal: false,
+        announcementData: { title: '', date: '', content: '' },
+        openAnnouncement(title, date, content) {
+            this.announcementData = { title, date, content };
+            this.showAnnouncementModal = true;
+        }
+    }">
 
     <div class="page-header-row">
         <a href="{{ route('student.my_classes') }}" class="btn-back-link">
@@ -159,10 +167,6 @@
             </div>
 
             @php
-                // Google Classroom coursework is also mirrored as a local task row (needed for grading).
-                // Collect the Google IDs shown on this page so the mirror rows are not listed twice.
-                // student_tasks.google_coursework_id stores Google's own ID (google_classroom_coursework.google_coursework_id),
-                // not the local table id.
                 $allGoogleIds = collect($termGoogleData ?? [])
                     ->flatMap(fn($d) => $d['coursework'] ?? collect())
                     ->pluck('google_coursework_id')
@@ -173,18 +177,19 @@
             @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key => $termLabel)
                 @php
                     $termAll = $activities->where('term', $key);
-                    $termModules = $termAll->where('activity_type', 'module');
+                    
+                    // Kabilang na rito ang parehong 'module' at 'announcement' para lumabas sa Learning Materials
+                    $termMaterialsList = $termAll->filter(fn($t) => in_array(strtolower($t->activity_type), ['module', 'announcement']));
+                    
+                    // Quizzes, Activities, Exams lang ang maiiwan sa Tasks & Assessments
                     $termTasks = $termAll
-                        ->whereNotIn('activity_type', ['module'])
+                        ->filter(fn($t) => !in_array(strtolower($t->activity_type), ['module', 'announcement']))
                         ->filter(fn($t) => empty($t->google_coursework_id) || !in_array((string) $t->google_coursework_id, $allGoogleIds, true));
 
-                    // Scores of mirrored Google tasks, so the Google Classroom row can still show the student's grade
                     $gMirrorGrades = $activities
                         ->filter(fn($t) => !empty($t->google_coursework_id))
                         ->keyBy('google_coursework_id');
 
-                    $termMaterials = collect($materials)->where('term', $key);
-                    
                     $gMaterials = $termGoogleData[$key]['materials'] ?? collect();
                     $gCourseWork = $termGoogleData[$key]['coursework'] ?? collect();
                     $hasGClass = isset($gLinkedCourse) && $gLinkedCourse;
@@ -194,27 +199,50 @@
 
                     <div class="workspace-card" style="margin-bottom: 32px;">
                         <div class="card-workspace-header mb-3">
-                            <h4 class="m-0 fw-bold text-dark-blue">{{ $termLabel }} Learning Materials</h4>
-                            <p class="small text-muted m-0">Modules, reviewers, and handouts for this term</p>
+                            <h4 class="m-0 fw-bold text-dark-blue">{{ $termLabel }} Learning Materials & Announcements</h4>
+                            <p class="small text-muted m-0">Modules, reviewers, handouts, and class announcements for this term</p>
                         </div>
 
-                        @if($termModules->isEmpty() && (!$hasGClass || $gMaterials->isEmpty()))
+                        @if($termMaterialsList->isEmpty() && (!$hasGClass || $gMaterials->isEmpty()))
                             <div class="empty-state-box">
                                 <div class="empty-state-icon"><i class="fa-solid fa-folder-open"></i></div>
-                                <h5 class="empty-state-title">No {{ $termLabel }} Materials Found</h5>
-                                <p class="empty-state-text">Your professor hasn't uploaded modules or handouts for this term yet.</p>
+                                <h5 class="empty-state-title">No {{ $termLabel }} Materials or Announcements Found</h5>
+                                <p class="empty-state-text">Your professor hasn't uploaded modules or posted announcements for this term yet.</p>
                             </div>
                         @else
                             <div class="material-list">
-                                @foreach($termModules as $module)
+                                @foreach($termMaterialsList as $item)
                                     <div class="material-row">
-                                        <div class="material-icon"><i class="fa-solid fa-file-lines"></i></div>
-                                        <div class="material-info">
-                                            <span class="material-title">{{ $module->activity_name }}</span>
-                                            <span class="material-filename">{{ $module->original_filename ?? 'No file attached' }}</span>
+                                        <div class="material-icon">
+                                            @if(strtolower($item->activity_type) === 'announcement')
+                                                <i class="fa-solid fa-bullhorn text-warning"></i>
+                                            @else
+                                                <i class="fa-solid fa-file-lines text-primary"></i>
+                                            @endif
                                         </div>
-                                        @if($module->file_path)
-                                            <a href="{{ route('professor.task-file', $module->id) }}" class="btn-sm-outline btn-download" target="_blank">
+                                        <div class="material-info">
+                                            <span class="material-title">
+                                                {{ $item->activity_name }}
+                                                @if(strtolower($item->activity_type) === 'announcement')
+                                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle font-xs ms-1">Announcement</span>
+                                                @endif
+                                            </span>
+                                            <span class="material-filename">
+                                                @if(strtolower($item->activity_type) === 'announcement')
+                                                    Posted {{ $item->created_at ? \Carbon\Carbon::parse($item->created_at)->format('M d, Y') : 'Recently' }}
+                                                @else
+                                                    {{ $item->original_filename ?? 'No file attached' }}
+                                                @endif
+                                            </span>
+                                        </div>
+
+                                        @if(strtolower($item->activity_type) === 'announcement')
+                                            <button type="button" class="btn-sm-outline btn-view-task" 
+                                                @click="openAnnouncement(@js($item->activity_name), '{{ $item->created_at ? \Carbon\Carbon::parse($item->created_at)->format('F d, Y h:i A') : 'N/A' }}', @js($item->description ?? 'No additional details provided.'))">
+                                                <i class="fa-solid fa-eye"></i> View Announcement
+                                            </button>
+                                        @elseif($item->file_path)
+                                            <a href="{{ route('professor.task-file', $item->id) }}" class="btn-sm-outline btn-download" target="_blank">
                                                 <i class="fa-solid fa-download"></i> Download
                                             </a>
                                         @endif
@@ -224,13 +252,12 @@
                                 @if($hasGClass)
                                     @foreach($gMaterials as $mat)
                                         <div class="material-row">
-                                            <div class="material-icon"><i class="fa-brands fa-google-drive"></i></div>
+                                            <div class="material-icon"><i class="fa-brands fa-google-drive text-success"></i></div>
                                             <div class="material-info">
                                                 <span class="material-title">
                                                     {{ $mat->title }} 
                                                     <span class="gclass-badge">Google Classroom</span>
                                                 </span>
-                                                
                                                 <span class="material-filename">
                                                     {{ $mat->drive_file_id ? ($mat->drive_file_name ?? 'Attached File') : 'No file attached' }}
                                                 </span>
@@ -331,6 +358,32 @@
 
         </div>
     </div>
+
+    <div class="custom-modal-backdrop" x-show="showAnnouncementModal" style="display: none;" x-transition>
+        <div class="custom-modal-card" @click.away="showAnnouncementModal = false">
+            <div class="modal-card-header">
+                <div>
+                    <h4 class="d-flex align-items-center gap-2 m-0 text-dark-blue">
+                        <i class="fa-solid fa-bullhorn text-warning"></i> 
+                        <span>Class Announcement</span>
+                    </h4>
+                    <span class="text-muted font-xs" x-text="announcementData.date"></span>
+                </div>
+                <button type="button" class="close-modal-btn" @click="showAnnouncementModal = false">&times;</button>
+            </div>
+
+            <div class="modal-card-body">
+                <h5 class="fw-bold text-dark-blue mb-3" x-text="announcementData.title"></h5>
+                
+                <div class="announcement-content-box p-3 rounded-3" style="background-color: #f8fafc; border: 1px solid #e2e8f0; font-size: 14px; color: #334155; line-height: 1.6; white-space: pre-wrap;" x-text="announcementData.content"></div>
+            </div>
+
+            <div class="modal-card-footer">
+                <button type="button" class="btn-primary-portal" @click="showAnnouncementModal = false">Close</button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <style>
@@ -475,6 +528,33 @@
         margin-left: 6px;
         vertical-align: middle;
         letter-spacing: 0.2px;
+    }
+
+    /* Modal Backdrop and Modal Styling */
+    .custom-modal-backdrop { 
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(15, 23, 42, 0.6); 
+        display: flex; justify-content: center; align-items: center; 
+        z-index: 9999; backdrop-filter: blur(2px); 
+    }
+    .custom-modal-card { 
+        background: white; width: 550px; max-width: 90%; 
+        border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); 
+        overflow: hidden; 
+    }
+    .modal-card-header { 
+        padding: 16px 20px; border-bottom: 1px solid #e2e8f0; 
+        display: flex; justify-content: space-between; align-items: center; 
+    }
+    .close-modal-btn { background: none; border: none; font-size: 24px; color: #94a3b8; cursor: pointer; }
+    .modal-card-body { padding: 20px; }
+    .modal-card-footer { 
+        padding: 14px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; 
+        display: flex; justify-content: flex-end; 
+    }
+    .btn-primary-portal { 
+        background: #1e2a5a; color: white; border: none; 
+        padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; 
     }
 </style>
 @endsection

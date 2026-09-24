@@ -253,13 +253,10 @@ class GradeHelper
         return ['success' => true, 'results' => $results];
     }
 
-    protected static function getCompletedTrainingData($academicPeriodId)
+    protected static function getCompletedTrainingData($upToAcademicPeriodId)
     {
         $scheduleIds = DB::table('class_schedules')
-            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-            ->join('curricula', 'subjects.id', '=', 'curricula.subject_id')
-            ->join('academic_periods', 'curricula.semester', '=', 'academic_periods.semester')
-            ->where('academic_periods.id', $academicPeriodId)
+            ->where('academic_period_id', '<=', $upToAcademicPeriodId)
             ->distinct()
             ->pluck('class_schedules.id');
 
