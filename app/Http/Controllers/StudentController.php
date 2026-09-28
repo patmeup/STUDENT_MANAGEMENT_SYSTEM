@@ -415,59 +415,16 @@ class StudentController extends Controller
         ];
 
         $livePrediction = null;
-        $stageMap = ['prelim' => 1, 'midterm' => 2, 'semifinal' => 3];
-        $stage = $stageMap[$defaultActiveTerm] ?? null;
+        $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
 
-        if ($stage) {
-            $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
-            if ($activePeriod) {
-                $mlModel = DB::table('ml_grade_models')
-                    ->where('academic_period_id', $activePeriod->id)
-                    ->where('stage', $stage)
-                    ->first();
+        if ($activePeriod) {
+            $predictedSemestral = GradeHelper::predictAndSave($schedule_id, $studentNumber, $defaultActiveTerm, $activePeriod->id);
 
-                if ($mlModel) {
-                    $coefs = json_decode($mlModel->coefficients, true);
-                    if (is_array($coefs) && count($coefs) > 0) {
-                        $intercept = $coefs[0] ?? 0;
-                        $predictedSemestral = $intercept;
-                        $isValidPrediction = true;
-
-                        $prelimGrade = $termGrades['prelim']['currentCalculatedGrade'] ?? null;
-                        $midtermGrade = $termGrades['midterm']['currentCalculatedGrade'] ?? null;
-                        $semiFinalGrade = $termGrades['semifinal']['currentCalculatedGrade'] ?? null;
-
-                        if ($stage == 1) {
-                            if ($prelimGrade !== null && isset($coefs[1])) {
-                                $predictedSemestral += $coefs[1] * $prelimGrade;
-                            } else {
-                                $isValidPrediction = false;
-                            }
-                        } elseif ($stage == 2) {
-                            if ($prelimGrade !== null && $midtermGrade !== null && isset($coefs[1], $coefs[2])) {
-                                $predictedSemestral += ($coefs[1] * $prelimGrade) + ($coefs[2] * $midtermGrade);
-                            } else {
-                                $isValidPrediction = false;
-                            }
-                        } elseif ($stage == 3) {
-                            if ($prelimGrade !== null && $midtermGrade !== null && $semiFinalGrade !== null && isset($coefs[1], $coefs[2], $coefs[3])) {
-                                $predictedSemestral += ($coefs[1] * $prelimGrade) + ($coefs[2] * $midtermGrade) + ($coefs[3] * $semiFinalGrade);
-                            } else {
-                                $isValidPrediction = false;
-                            }
-                        }
-
-                        if ($isValidPrediction) {
-                            $predictedSemestral = max(1.00, min(5.00, round($predictedSemestral, 2)));
-
-                            $livePrediction = (object)[
-                                'based_on_term' => $defaultActiveTerm,
-                                'predicted_semestral' => $predictedSemestral,
-                                'input_grade' => $termGrades[$defaultActiveTerm]['currentCalculatedGrade'] ?? 0
-                            ];
-                        }
-                    }
-                }
+            if ($predictedSemestral !== null) {
+                $livePrediction = (object) [
+                    'based_on_term'       => $defaultActiveTerm,
+                    'predicted_semestral' => $predictedSemestral,
+                ];
             }
         }
 
@@ -481,8 +438,16 @@ class StudentController extends Controller
         $mlPrediction = DB::table('student_term_grades_predictions')
             ->where('schedule_id', $schedule_id)
             ->where('student_number', $studentNumber)
-            ->orderBy('id', 'desc')
             ->first();
+
+        $columnKey = 'predicted_' . $activeTab;
+        if (!$mlPrediction || is_null($mlPrediction->{$columnKey})) {
+            GradeHelper::predictAndSave($schedule_id, $studentNumber, $activeTab);
+            $mlPrediction = DB::table('student_term_grades_predictions')
+                ->where('schedule_id', $schedule_id)
+                ->where('student_number', $studentNumber)
+                ->first();
+        }
 
         return view('student.class_details', compact(
             'classDetails',

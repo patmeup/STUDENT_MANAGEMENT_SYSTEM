@@ -13,7 +13,6 @@ use App\Models\StudentTermGrade;
 use App\Support\TermHelper;
 use App\Support\GradeHelper;
 use App\Support\GoogleClassroomService;
-use App\Support\PredictiveGradeHelper;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class ProfessorController extends Controller
@@ -398,6 +397,16 @@ class ProfessorController extends Controller
                 }
             }
             DB::commit();
+
+            $termPeriods = DB::table('term_periods')->get();
+            $affectedTerm = TermHelper::deriveTerm($date, $termPeriods);
+
+            if ($affectedTerm) {
+                foreach (array_keys($attendanceData) as $studentId) {
+                    GradeHelper::predictAndSave($schedule_id, $studentId, $affectedTerm);
+                }
+            }
+
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
             DB::rollback();
@@ -863,6 +872,10 @@ class ProfessorController extends Controller
             'updated_at' => now()
         ]);
 
+        if (!empty($task->term) && !empty($task->class_schedule_id) && !empty($submission->student_id)) {
+            GradeHelper::predictAndSave($task->class_schedule_id, $submission->student_id, $task->term);
+        }
+
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
@@ -1019,6 +1032,8 @@ class ProfessorController extends Controller
             ]
         );
 
+        GradeHelper::predictAndSave($schedule_id, $student_number, $term);
+
         if (isset($computed['equivalent']) && $computed['equivalent'] !== null) {
             $computed['equivalent'] = number_format((float)$computed['equivalent'], 2, '.', '');
         }
@@ -1029,73 +1044,21 @@ class ProfessorController extends Controller
         ]);
     }
 
+    /**
+     * Recompute and save the live ML prediction for every enrolled student in
+     * this class for the given term. $term is whichever term should be used
+     * as the "live" basis — it does NOT need to already be submitted; this
+     * is what lets the prediction move while a term is still in progress.
+     */
     private function generatePredictionsForClass($schedule_id, $term)
     {
-        $stageMap = ['prelim' => 1, 'midterm' => 2, 'semifinal' => 3];
-        if (!array_key_exists($term, $stageMap)) {
-            return;
-        }
-        $stage = $stageMap[$term];
-
-        $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
-        if (!$activePeriod) return;
-
-        $mlModel = DB::table('ml_grade_models')
-            ->where('academic_period_id', $activePeriod->id)
-            ->where('stage', $stage)
-            ->first();
-
-        if (!$mlModel) return;
-
-        $coefs = json_decode($mlModel->coefficients, true);
-        if (!is_array($coefs)) return;
-
-        $intercept = $coefs[0] ?? 0;
-
         $students = DB::table('student_subjects')
             ->where('schedule_id', $schedule_id)
             ->where('status', 'Enrolled')
             ->pluck('student_number');
 
-        foreach ($students as $student_id) {
-            $actualGrades = DB::table('student_term_grades')
-                ->where('schedule_id', $schedule_id)
-                ->where('student_number', $student_id)
-                ->pluck('equivalent', 'term');
-
-            $predictedSemestral = $intercept;
-
-            if ($stage >= 1 && isset($actualGrades['prelim'])) {
-                $predictedSemestral += ($coefs[1] * $actualGrades['prelim']);
-            }
-            if ($stage >= 2 && isset($actualGrades['midterm'])) {
-                $predictedSemestral += ($coefs[2] * $actualGrades['midterm']);
-            }
-            if ($stage == 3 && isset($actualGrades['semifinal'])) {
-                $predictedSemestral += ($coefs[3] * $actualGrades['semifinal']);
-            }
-
-            $predictedSemestral = max(1.00, min(5.00, round($predictedSemestral, 2)));
-
-            $predictedMidterm = ($stage < 2) ? $predictedSemestral : null;
-            $predictedSemifinal = ($stage < 3) ? $predictedSemestral : null;
-            $predictedFinal = ($stage < 4) ? $predictedSemestral : null;
-
-            DB::table('student_term_grades_predictions')->updateOrInsert(
-                [
-                    'schedule_id' => $schedule_id,
-                    'student_number' => $student_id,
-                    'based_on_term' => $term
-                ],
-                [
-                    'predicted_midterm' => $predictedMidterm,
-                    'predicted_semifinal' => $predictedSemifinal,
-                    'predicted_final' => $predictedFinal,
-                    'predicted_semestral' => $predictedSemestral,
-                    'updated_at' => now(),
-                    'created_at' => now()
-                ]
-            );
+        foreach ($students as $student_number) {
+            GradeHelper::predictAndSave($schedule_id, $student_number, $term);
         }
     }
 
@@ -1334,7 +1297,7 @@ class ProfessorController extends Controller
 
                 if ($activePeriod) {
                     try {
-                        \App\Support\PredictiveGradeHelper::trainModels($activePeriod->id);
+                        GradeHelper::trainModels($activePeriod->id);
                     } catch (\Exception $e) {
                         \Log::error('ML Auto-Train Error: ' . $e->getMessage());
                     }
