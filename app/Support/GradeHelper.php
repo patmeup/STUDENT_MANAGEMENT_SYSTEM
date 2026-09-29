@@ -195,7 +195,7 @@ class GradeHelper
             return null;
         }
 
-        return round($grades->avg(), 2);
+        return self::snapToOfficialGrade($grades->avg());
     }
 
     public static function getSubmittedTermCount($scheduleId, $studentNumber)
@@ -618,5 +618,20 @@ class GradeHelper
         }
 
         return round(1 - ($ssRes / $ssTot), 4);
+    }
+
+    public static function snapToOfficialGrade($value)
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $rounded = round($value * 4) / 4;
+
+        if ($rounded > 3.00) {
+            return 5.00;
+        }
+
+        return max(1.00, $rounded);
     }
 }

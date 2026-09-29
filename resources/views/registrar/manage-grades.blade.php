@@ -26,6 +26,9 @@
                         {{ ucfirst($tp->term) }} Term ({{ \Carbon\Carbon::parse($tp->start_date)->format('M d') }} - {{ \Carbon\Carbon::parse($tp->end_date)->format('M d, Y') }})
                     </option>
                 @endforeach
+                <option value="semestral" {{ strtolower($termFilter) == 'semestral' ? 'selected' : '' }}>
+                    Semestral Grade (Final Average)
+                </option>
             </select>
         </div>
 
@@ -147,7 +150,7 @@
             <div class="table-responsive">
                 <table class="minimal-table" style="font-size: 13px;">
                     <thead>
-                        <tr>
+                        <tr id="modalHeaderRow">
                             <th>Subject Code & Title</th>
                             <th class="text-center">Section</th>
                             <th class="text-center">Class Standing</th>
@@ -183,10 +186,30 @@
     function openGradesModal(studentId, studentName, term) {
         document.getElementById('modalStudentName').innerText = studentName + ' (' + studentId + ')';
         document.getElementById('modalTermLabel').innerText = term;
-        
+
+        const isSemestral = term.toLowerCase() === 'semestral';
+        const headerRow = document.getElementById('modalHeaderRow');
+        const colCount = isSemestral ? 8 : 6;
+
+        headerRow.innerHTML = isSemestral
+            ? `<th>Subject Code & Title</th>
+            <th class="text-center">Section</th>
+            <th class="text-center">Prelim</th>
+            <th class="text-center">Midterm</th>
+            <th class="text-center">Semi-Final</th>
+            <th class="text-center">Final</th>
+            <th class="text-center">Semestral</th>
+            <th class="text-center">Status</th>`
+            : `<th>Subject Code & Title</th>
+            <th class="text-center">Section</th>
+            <th class="text-center">Class Standing</th>
+            <th class="text-center">Major Exam</th>
+            <th class="text-center">Equivalent</th>
+            <th class="text-center">Status</th>`;
+
         const tbody = document.getElementById('modalGradesTableBody');
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 25px;"><i class="fa-solid fa-spinner fa-spin" style="color: #1e2a5a; font-size: 18px;"></i><div style="margin-top: 8px; color: #64748b; font-size: 13px;">Loading grades...</div></td></tr>';
-        
+        tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align: center; padding: 25px;"><i class="fa-solid fa-spinner fa-spin" style="color: #1e2a5a; font-size: 18px;"></i><div style="margin-top: 8px; color: #64748b; font-size: 13px;">Loading grades...</div></td></tr>`;
+
         document.getElementById('gradesModal').style.display = 'flex';
 
         fetch(`/registrar/student-grades-json/${studentId}?term=${term}`)
@@ -194,35 +217,57 @@
             .then(data => {
                 tbody.innerHTML = '';
                 if (!data || data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #64748b;">No enrolled subjects found.</td></tr>';
+                    tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align: center; padding: 20px; color: #64748b;">No enrolled subjects found.</td></tr>`;
                     return;
                 }
 
                 data.forEach(item => {
                     let isSubmitted = item.is_submitted == 1;
-                    let classStanding = (isSubmitted && item.class_standing !== null) ? item.class_standing : '—';
-                    let majorExam = (isSubmitted && item.major_exam !== null) ? item.major_exam : '—';
-                    let equivalent = (isSubmitted && item.equivalent !== null) ? parseFloat(item.equivalent).toFixed(2) : '—';
-
                     let tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td><strong>${item.subject_code}</strong><br><small style="color:#64748b;">${item.subject_title}</small></td>
-                        <td class="text-center"><span class="sem-tag">${item.section_name || '—'}</span></td>
-                        <td class="text-center">${classStanding}</td>
-                        <td class="text-center">${majorExam}</td>
-                        <td class="text-center"><strong>${equivalent}</strong></td>
-                        <td class="text-center">
-                            ${isSubmitted 
-                                ? '<span class="status-pill status-submitted" style="font-size:10px; padding:3px 8px;">Submitted</span>' 
-                                : '<span class="status-pill status-pending" style="font-size:10px; padding:3px 8px;">Pending</span>'}
-                        </td>
-                    `;
+
+                    if (isSemestral) {
+                        const fmt = v => (v !== null && v !== undefined) ? parseFloat(v).toFixed(2) : '—';
+                        let semestral = (isSubmitted && item.equivalent !== null) ? parseFloat(item.equivalent).toFixed(2) : '—';
+
+                        tr.innerHTML = `
+                            <td><strong>${item.subject_code_display}</strong><br><small style="color:#64748b;">${item.subject_title_display}</small></td>
+                            <td class="text-center"><span class="sem-tag">${item.section_name || '—'}</span></td>
+                            <td class="text-center">${fmt(item.prelim)}</td>
+                            <td class="text-center">${fmt(item.midterm)}</td>
+                            <td class="text-center">${fmt(item.semifinal)}</td>
+                            <td class="text-center">${fmt(item.final)}</td>
+                            <td class="text-center"><strong>${semestral}</strong></td>
+                            <td class="text-center">
+                                ${isSubmitted
+                                    ? '<span class="status-pill status-submitted" style="font-size:10px; padding:3px 8px;">Submitted</span>'
+                                    : '<span class="status-pill status-pending" style="font-size:10px; padding:3px 8px;">Pending</span>'}
+                            </td>
+                        `;
+                    } else {
+                        let classStanding = (isSubmitted && item.class_standing !== null) ? item.class_standing : '—';
+                        let majorExam = (isSubmitted && item.major_exam !== null) ? item.major_exam : '—';
+                        let equivalent = (isSubmitted && item.equivalent !== null) ? parseFloat(item.equivalent).toFixed(2) : '—';
+
+                        tr.innerHTML = `
+                            <td><strong>${item.subject_code_display}</strong><br><small style="color:#64748b;">${item.subject_title_display}</small></td>
+                            <td class="text-center"><span class="sem-tag">${item.section_name || '—'}</span></td>
+                            <td class="text-center">${classStanding}</td>
+                            <td class="text-center">${majorExam}</td>
+                            <td class="text-center"><strong>${equivalent}</strong></td>
+                            <td class="text-center">
+                                ${isSubmitted
+                                    ? '<span class="status-pill status-submitted" style="font-size:10px; padding:3px 8px;">Submitted</span>'
+                                    : '<span class="status-pill status-pending" style="font-size:10px; padding:3px 8px;">Pending</span>'}
+                            </td>
+                        `;
+                    }
+
                     tbody.appendChild(tr);
                 });
             })
             .catch(error => {
                 console.error('Error fetching modal grades:', error);
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red; padding: 20px;">Failed to load grades.</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align: center; color: red; padding: 20px;">Failed to load grades.</td></tr>`;
             });
     }
 

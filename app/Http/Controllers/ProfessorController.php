@@ -30,15 +30,13 @@ class ProfessorController extends Controller
         $activePeriodId = $activePeriod ? $activePeriod->id : 0;
             
         $totalClasses = DB::table('class_schedules')
-            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-            ->where('subjects.professor_id', $professor_id)
+            ->where('class_schedules.professor_id', $professor_id)
             ->where('class_schedules.academic_period_id', $activePeriodId)
             ->distinct('class_schedules.id')
             ->count('class_schedules.id');
 
         $professorScheduleIds = DB::table('class_schedules')
-            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-            ->where('subjects.professor_id', $professor_id)
+            ->where('class_schedules.professor_id', $professor_id)
             ->where('class_schedules.academic_period_id', $activePeriodId)
             ->pluck('class_schedules.id');
 
@@ -47,18 +45,18 @@ class ProfessorController extends Controller
             $totalStudents = DB::table('student_subjects')
                 ->whereIn('schedule_id', $professorScheduleIds)
                 ->where('status', 'Enrolled')
-                ->count(DB::raw('DISTINCT student_number'));
+                ->distinct()
+                ->count('student_number');
         }
 
         $pendingGrading = DB::table('task_submissions')
             ->join('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
             ->join('class_schedules', 'student_tasks.class_schedule_id', '=', 'class_schedules.id')
-            ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->join('student_subjects', function ($join) {
                 $join->on('student_subjects.schedule_id', '=', 'class_schedules.id')
                     ->on('student_subjects.student_number', '=', 'task_submissions.student_id');
             })
-            ->where('subjects.professor_id', $professor_id)
+            ->where('class_schedules.professor_id', $professor_id)
             ->where('class_schedules.academic_period_id', $activePeriodId)
             ->where('student_subjects.status', 'Enrolled')
             ->whereNull('task_submissions.grade')
@@ -108,7 +106,7 @@ class ProfessorController extends Controller
                         WHERE student_subjects.schedule_id = class_schedules.id
                         AND student_subjects.status = "Enrolled") as students_count')
             )
-            ->where('subjects.professor_id', $professor_id)
+            ->where('class_schedules.professor_id', $professor_id)
             ->where('class_schedules.academic_period_id', $activePeriod->id)
             ->orderBy('class_schedules.section_name')
             ->get();
