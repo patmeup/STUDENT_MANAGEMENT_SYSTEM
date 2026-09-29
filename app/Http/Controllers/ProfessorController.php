@@ -36,14 +36,19 @@ class ProfessorController extends Controller
             ->distinct('class_schedules.id')
             ->count('class_schedules.id');
 
-        $totalStudents = DB::table('student_subjects')
-            ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
+        $professorScheduleIds = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-            ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
             ->where('subjects.professor_id', $professor_id)
             ->where('class_schedules.academic_period_id', $activePeriodId)
-            ->where('student_subjects.status', 'Enrolled')
-            ->count('student_subjects.id');
+            ->pluck('class_schedules.id');
+
+        $totalStudents = 0;
+        if ($professorScheduleIds->isNotEmpty()) {
+            $totalStudents = DB::table('student_subjects')
+                ->whereIn('schedule_id', $professorScheduleIds)
+                ->where('status', 'Enrolled')
+                ->count(DB::raw('DISTINCT student_number'));
+        }
 
         $pendingGrading = DB::table('task_submissions')
             ->join('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
