@@ -243,10 +243,24 @@
                                     </td>
                                 </tr>
                             @endforeach
+
+                            <tr id="noMatchingSchedulesRow" style="display: none;">
+                                <td colspan="5" class="empty-table-state">
+                                    <div style="padding: 30px 10px; text-align: center;">
+                                        <i class="fas fa-calendar-times" style="font-size: 32px; color: #cbd5e1; margin-bottom: 10px;"></i>
+                                        <p style="margin: 0; font-weight: 600; color: #64748b; font-size: 14px;">No class schedules found for the selected filter.</p>
+                                        <small style="color: #94a3b8; font-size: 12px;">Try selecting another Year Level or Semester, or deploy a new schedule using the form.</small>
+                                    </div>
+                                </td>
+                            </tr>
                         @else
                             <tr>
                                 <td colspan="5" class="empty-table-state">
-                                    No active class scheduling or section deployments documented yet.
+                                    <div style="padding: 40px 10px; text-align: center;">
+                                        <i class="fas fa-folder-open" style="font-size: 36px; color: #cbd5e1; margin-bottom: 12px;"></i>
+                                        <p style="margin: 0; font-weight: 700; color: #475569; font-size: 15px;">No Class Schedules Documented Yet</p>
+                                        <small style="color: #94a3b8; font-size: 12.5px;">There are no schedules deployed in the system. Use the form on the left to add your first schedule.</small>
+                                    </div>
                                 </td>
                             </tr>
                         @endif
@@ -304,7 +318,8 @@
         const yearPills = document.querySelectorAll('.year-pill');
         const semPills = document.querySelectorAll('.sem-pill');
         const btnSummer = document.getElementById('btnSummer');
-        const tableRows = document.querySelectorAll('#scheduleTable tbody tr');
+        const tableRows = document.querySelectorAll('#scheduleTable tbody tr.schedule-row-item');
+        const noMatchRow = document.getElementById('noMatchingSchedulesRow');
         const visibleClassesCount = document.getElementById('visibleClassesCount');
 
         let selectedYear = '';
@@ -330,8 +345,6 @@
             let visibleCount = 0;
 
             tableRows.forEach(row => {
-                if (row.querySelector('.empty-table-state')) return;
-
                 const rowText = row.innerText.toLowerCase();
                 const rowYear = row.getAttribute('data-year') || '';
                 const rowSem = row.getAttribute('data-sem') || '';
@@ -347,6 +360,14 @@
                     row.style.display = 'none';
                 }
             });
+
+            if (noMatchRow) {
+                if (visibleCount === 0 && tableRows.length > 0) {
+                    noMatchRow.style.display = '';
+                } else {
+                    noMatchRow.style.display = 'none';
+                }
+            }
 
             if (visibleClassesCount) {
                 visibleClassesCount.textContent = `${visibleCount} Active Classes`;
@@ -517,7 +538,7 @@
     .form-group label { font-size: 11.5px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.3px; }
     
     .select-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 9px 12px; font-size: 13.5px; color: #0f172a; outline: none; background: #ffffff; box-sizing: border-box; width: 100%; transition: all 0.15s; }
-    .select-input:focus { border-color: #0033A0; box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.1); }
+    .select-input:focus { border-color: #0033a0; box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.1); }
     
     .input-error { border-color: #ef4444 !important; background-color: #fef2f2 !important; }
     .sa-alert-error { background: #fef2f2; color: #991b1b; padding: 12px 16px; border-radius: 6px; font-weight: 600; border-left: 4px solid #dc2626; font-size: 13px; }

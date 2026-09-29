@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Document Request Approved</title>
+<title>Document Ready for Pick-up</title>
 <style>
     body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6fb; margin: 0; padding: 0; }
     .email-wrapper { max-width: 480px; margin: 30px auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; }
@@ -23,14 +23,14 @@
         <div class="email-body">
             <p>Dear {{ $studentName }},</p>
             <p>
-                Your requested document has been approved and is now available.
+                Good news! Your requested document has been processed and is now <strong>Ready to Claim</strong>.
             </p>
             <div class="content-box">
-                <strong>Approved Document</strong>
-                <p>{{ $documentName }}</p>
+                <strong>Requested Document:</strong>
+                <p style="margin-top: 5px; font-weight: bold; color: #1e2a5a;">{{ str_replace(['[', ']', '"'], '', $documentName) }}</p>
             </div>
             <div class="notice-box">
-                Your requested document is attached to this email. Please download and keep it for your records.
+                Please proceed to the Registrar's Office during working hours to claim your physical document. Do not forget to bring your Student ID for verification.
             </div>
         </div>
 

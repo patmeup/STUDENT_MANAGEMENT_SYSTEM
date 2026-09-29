@@ -5,7 +5,15 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <div class="prof-container py-4"
-    x-data="{ currentTab: '{{ $activeTab }}' }">
+    x-data="{ 
+        currentTab: '{{ $activeTab }}',
+        showAnnouncementModal: false,
+        announcementData: { title: '', date: '', content: '' },
+        openAnnouncement(title, date, content) {
+            this.announcementData = { title, date, content };
+            this.showAnnouncementModal = true;
+        }
+    }">
 
     <div class="page-header-row">
         <a href="{{ route('student.my_classes') }}" class="btn-back-link">
@@ -104,40 +112,48 @@
 
                 <hr class="sidebar-divider">
 
-                <div class="au-prediction-display-box text-center p-3 rounded-10 bg-light-gray">
-                    <span class="font-xxs text-uppercase fw-bold text-muted tracking-wider d-block mb-1">Current Computed Grade</span>
+                <div class="au-prediction-display-box text-center p-3 rounded-10" style="background-color: #f8fafc; border: 1px solid #cbd5e1;" x-show="grades[currentTab].currentCalculatedGrade !== null">
+                    <span class="font-xxs text-uppercase fw-bold text-muted tracking-wider d-block mb-1">
+                        Predicted Term Grade
+                    </span>
                     
-                    <div class="predicted-grade-number my-1" x-text="
-                        (() => {
-                            let p = grades[currentTab].currentCalculatedGrade;
-                            if (p === null || p === undefined) return '--';
-                            if (p >= 97) return '1.00';
-                            if (p >= 94) return '1.25';
-                            if (p >= 91) return '1.50';
-                            if (p >= 88) return '1.75';
-                            if (p >= 85) return '2.00';
-                            if (p >= 82) return '2.25';
-                            if (p >= 79) return '2.50';
-                            if (p >= 76) return '2.75';
-                            if (p >= 75) return '3.00';
-                            return '5.00';
-                        })()
-                    "></div>
-                    
-                    <div class="mb-2">
-                        <span class="badge px-2 py-1" :class="{
-                            'badge-excellent': grades[currentTab].currentCalculatedGrade !== null && grades[currentTab].currentCalculatedGrade >= 94,
-                            'badge-passed': grades[currentTab].currentCalculatedGrade !== null && grades[currentTab].currentCalculatedGrade >= 75 && grades[currentTab].currentCalculatedGrade < 94,
-                            'badge-failed': grades[currentTab].currentCalculatedGrade !== null && grades[currentTab].currentCalculatedGrade < 75,
-                            'd-none': grades[currentTab].currentCalculatedGrade === null
-                        }" x-text="grades[currentTab].currentCalculatedGrade !== null ? (grades[currentTab].currentCalculatedGrade >= 75 ? 'PASSED (GOOD STANDING)' : 'AT RISK (FAILED)') : ''"></span>
+                    @php
+                        $pRecord = DB::table('student_term_grades_predictions')
+                            ->where('schedule_id', $classDetails->id)
+                            ->where('student_number', session('student_id'))
+                            ->first();
+
+                        $termPredictions = [
+                            'prelim'    => $pRecord ? $pRecord->predicted_prelim : null,
+                            'midterm'   => $pRecord ? $pRecord->predicted_midterm : null,
+                            'semifinal' => $pRecord ? $pRecord->predicted_semifinal : null,
+                            'final'     => $pRecord ? $pRecord->predicted_final : null,
+                        ];
+
+                        foreach(['prelim', 'midterm', 'semifinal', 'final'] as $tKey) {
+                            if (is_null($termPredictions[$tKey])) {
+                                $computedVal = \App\Support\GradeHelper::predictAndSave($classDetails->id, session('student_id'), $tKey);
+                                $termPredictions[$tKey] = $computedVal;
+                            }
+                        }
+                    @endphp
+
+                    <div x-data="{ termPredictions: @js($termPredictions) }">
+                        <template x-if="termPredictions[currentTab]">
+                            <div>
+                                <div class="predicted-grade-number my-1" style="color: #1e2a5a;" x-text="Number(termPredictions[currentTab]).toFixed(2)"></div>
+                                <p class="font-xs text-muted m-0">
+                                    Machine learning forecast based on your ongoing <span x-text="currentTab"></span> standing.
+                                </p>
+                            </div>
+                        </template>
+                        <template x-if="!termPredictions[currentTab]">
+                            <div>
+                                <div class="predicted-grade-number my-1 text-muted">--</div>
+                                <p class="font-xs text-muted m-0">Awaiting performance data to generate prediction.</p>
+                            </div>
+                        </template>
                     </div>
-                    
-                    <p class="font-xs text-muted m-0" x-text="
-                        grades[currentTab].currentCalculatedGrade !== null 
-                            ? 'Equivalent to ' + grades[currentTab].currentCalculatedGrade.toFixed(1) + '%' 
-                            : 'This will be updated once you have grades recorded for this term.'
-                    "></p>
                 </div>
             </div>
         </div>
@@ -176,14 +192,30 @@
                 </div>
             </div>
 
+            @php
+                $allGoogleIds = collect($termGoogleData ?? [])
+                    ->flatMap(fn($d) => $d['coursework'] ?? collect())
+                    ->pluck('google_coursework_id')
+                    ->map(fn($id) => (string) $id)
+                    ->all();
+            @endphp
+
             @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key => $termLabel)
                 @php
                     $termAll = $activities->where('term', $key);
-                    $termModules = $termAll->where('activity_type', 'module');
-                    $termTasks = $termAll->whereNotIn('activity_type', ['module']);
-
-                    $termMaterials = collect($materials)->where('term', $key);
                     
+                    // Kabilang na rito ang parehong 'module' at 'announcement' para lumabas sa Learning Materials
+                    $termMaterialsList = $termAll->filter(fn($t) => in_array(strtolower($t->activity_type), ['module', 'announcement']));
+                    
+                    // Quizzes, Activities, Exams lang ang maiiwan sa Tasks & Assessments
+                    $termTasks = $termAll
+                        ->filter(fn($t) => !in_array(strtolower($t->activity_type), ['module', 'announcement']))
+                        ->filter(fn($t) => empty($t->google_coursework_id) || !in_array((string) $t->google_coursework_id, $allGoogleIds, true));
+
+                    $gMirrorGrades = $activities
+                        ->filter(fn($t) => !empty($t->google_coursework_id))
+                        ->keyBy('google_coursework_id');
+
                     $gMaterials = $termGoogleData[$key]['materials'] ?? collect();
                     $gCourseWork = $termGoogleData[$key]['coursework'] ?? collect();
                     $hasGClass = isset($gLinkedCourse) && $gLinkedCourse;
@@ -193,27 +225,50 @@
 
                     <div class="workspace-card" style="margin-bottom: 32px;">
                         <div class="card-workspace-header mb-3">
-                            <h4 class="m-0 fw-bold text-dark-blue">{{ $termLabel }} Learning Materials</h4>
-                            <p class="small text-muted m-0">Modules, reviewers, and handouts for this term</p>
+                            <h4 class="m-0 fw-bold text-dark-blue">{{ $termLabel }} Learning Materials & Announcements</h4>
+                            <p class="small text-muted m-0">Modules, reviewers, handouts, and class announcements for this term</p>
                         </div>
 
-                        @if($termModules->isEmpty() && (!$hasGClass || $gMaterials->isEmpty()))
+                        @if($termMaterialsList->isEmpty() && (!$hasGClass || $gMaterials->isEmpty()))
                             <div class="empty-state-box">
                                 <div class="empty-state-icon"><i class="fa-solid fa-folder-open"></i></div>
-                                <h5 class="empty-state-title">No {{ $termLabel }} Materials Found</h5>
-                                <p class="empty-state-text">Your professor hasn't uploaded modules or handouts for this term yet.</p>
+                                <h5 class="empty-state-title">No {{ $termLabel }} Materials or Announcements Found</h5>
+                                <p class="empty-state-text">Your professor hasn't uploaded modules or posted announcements for this term yet.</p>
                             </div>
                         @else
                             <div class="material-list">
-                                @foreach($termModules as $module)
+                                @foreach($termMaterialsList as $item)
                                     <div class="material-row">
-                                        <div class="material-icon"><i class="fa-solid fa-file-lines"></i></div>
-                                        <div class="material-info">
-                                            <span class="material-title">{{ $module->activity_name }}</span>
-                                            <span class="material-filename">{{ $module->original_filename ?? 'No file attached' }}</span>
+                                        <div class="material-icon">
+                                            @if(strtolower($item->activity_type) === 'announcement')
+                                                <i class="fa-solid fa-bullhorn text-warning"></i>
+                                            @else
+                                                <i class="fa-solid fa-file-lines text-primary"></i>
+                                            @endif
                                         </div>
-                                        @if($module->file_path)
-                                            <a href="{{ route('professor.task-file', $module->id) }}" class="btn-sm-outline btn-download" target="_blank">
+                                        <div class="material-info">
+                                            <span class="material-title">
+                                                {{ $item->activity_name }}
+                                                @if(strtolower($item->activity_type) === 'announcement')
+                                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle font-xs ms-1">Announcement</span>
+                                                @endif
+                                            </span>
+                                            <span class="material-filename">
+                                                @if(strtolower($item->activity_type) === 'announcement')
+                                                    Posted {{ $item->created_at ? \Carbon\Carbon::parse($item->created_at)->format('M d, Y') : 'Recently' }}
+                                                @else
+                                                    {{ $item->original_filename ?? 'No file attached' }}
+                                                @endif
+                                            </span>
+                                        </div>
+
+                                        @if(strtolower($item->activity_type) === 'announcement')
+                                            <button type="button" class="btn-sm-outline btn-view-task" 
+                                                @click="openAnnouncement(@js($item->activity_name), '{{ $item->created_at ? \Carbon\Carbon::parse($item->created_at)->format('F d, Y h:i A') : 'N/A' }}', @js($item->description ?? 'No additional details provided.'))">
+                                                <i class="fa-solid fa-eye"></i> View Announcement
+                                            </button>
+                                        @elseif($item->file_path)
+                                            <a href="{{ route('professor.task-file', $item->id) }}" class="btn-sm-outline btn-download" target="_blank">
                                                 <i class="fa-solid fa-download"></i> Download
                                             </a>
                                         @endif
@@ -223,13 +278,12 @@
                                 @if($hasGClass)
                                     @foreach($gMaterials as $mat)
                                         <div class="material-row">
-                                            <div class="material-icon"><i class="fa-brands fa-google-drive"></i></div>
+                                            <div class="material-icon"><i class="fa-brands fa-google-drive text-success"></i></div>
                                             <div class="material-info">
                                                 <span class="material-title">
                                                     {{ $mat->title }} 
                                                     <span class="gclass-badge">Google Classroom</span>
                                                 </span>
-                                                
                                                 <span class="material-filename">
                                                     {{ $mat->drive_file_id ? ($mat->drive_file_name ?? 'Attached File') : 'No file attached' }}
                                                 </span>
@@ -303,7 +357,14 @@
                                                     </td>
                                                     <td style="width: 15%;"><span class="badge bg-secondary text-uppercase">{{ $cw->work_type ?? 'coursework' }}</span></td>
                                                     <td style="width: 15%;">{{ $cw->max_points ?? '—' }} pts</td>
-                                                    <td style="width: 15%;"><span class="text-muted">--</span></td>
+                                                    <td style="width: 15%;">
+                                                        @php $mirror = $gMirrorGrades->get($cw->google_coursework_id); @endphp
+                                                        @if($mirror && !is_null($mirror->student_grade))
+                                                            <strong class="text-success">{{ $mirror->student_grade }}</strong> <span class="text-muted">/{{ $mirror->max_score }}</span>
+                                                        @else
+                                                            <span class="text-muted">--</span>
+                                                        @endif
+                                                    </td>
                                                     <td style="width: 15%;">{{ $cw->due_date ? \Carbon\Carbon::parse($cw->due_date)->format('M d, Y') : 'No Deadline' }}</td>
                                                     <td style="width: 15%;" class="text-center">
                                                         <a href="{{ route('student.view-google-task', $cw->id) }}" class="btn-sm-outline btn-view-task">
@@ -323,6 +384,32 @@
 
         </div>
     </div>
+
+    <div class="custom-modal-backdrop" x-show="showAnnouncementModal" style="display: none;" x-transition>
+        <div class="custom-modal-card" @click.away="showAnnouncementModal = false">
+            <div class="modal-card-header">
+                <div>
+                    <h4 class="d-flex align-items-center gap-2 m-0 text-dark-blue">
+                        <i class="fa-solid fa-bullhorn text-warning"></i> 
+                        <span>Class Announcement</span>
+                    </h4>
+                    <span class="text-muted font-xs" x-text="announcementData.date"></span>
+                </div>
+                <button type="button" class="close-modal-btn" @click="showAnnouncementModal = false">&times;</button>
+            </div>
+
+            <div class="modal-card-body">
+                <h5 class="fw-bold text-dark-blue mb-3" x-text="announcementData.title"></h5>
+                
+                <div class="announcement-content-box p-3 rounded-3" style="background-color: #f8fafc; border: 1px solid #e2e8f0; font-size: 14px; color: #334155; line-height: 1.6; white-space: pre-wrap;" x-text="announcementData.content"></div>
+            </div>
+
+            <div class="modal-card-footer">
+                <button type="button" class="btn-primary-portal" @click="showAnnouncementModal = false">Close</button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <style>
@@ -368,6 +455,11 @@
 
     .badge-excellent { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; font-size: 10px; font-weight: 700; }
     .badge-passed { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-size: 10px; font-weight: 700; }
+    .badge-warning { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 10px; font-weight: 700; }
+    .au-prediction-display-box.au-borderline { border: 1px solid #f59e0b; background-color: #fffbeb; }
+    .au-prediction-display-box.au-borderline .predicted-grade-number { color: #b45309; }
+    .au-early-warning { margin-top: 12px; padding: 10px 12px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; text-align: left; font-size: 11.5px; color: #78350f; line-height: 1.45; }
+    .au-early-warning-title { font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
     .badge-failed { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; font-size: 10px; font-weight: 700; }
 
     .sidebar-navigation-card { 
@@ -462,6 +554,33 @@
         margin-left: 6px;
         vertical-align: middle;
         letter-spacing: 0.2px;
+    }
+
+    /* Modal Backdrop and Modal Styling */
+    .custom-modal-backdrop { 
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(15, 23, 42, 0.6); 
+        display: flex; justify-content: center; align-items: center; 
+        z-index: 9999; backdrop-filter: blur(2px); 
+    }
+    .custom-modal-card { 
+        background: white; width: 550px; max-width: 90%; 
+        border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); 
+        overflow: hidden; 
+    }
+    .modal-card-header { 
+        padding: 16px 20px; border-bottom: 1px solid #e2e8f0; 
+        display: flex; justify-content: space-between; align-items: center; 
+    }
+    .close-modal-btn { background: none; border: none; font-size: 24px; color: #94a3b8; cursor: pointer; }
+    .modal-card-body { padding: 20px; }
+    .modal-card-footer { 
+        padding: 14px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; 
+        display: flex; justify-content: flex-end; 
+    }
+    .btn-primary-portal { 
+        background: #1e2a5a; color: white; border: none; 
+        padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; 
     }
 </style>
 @endsection

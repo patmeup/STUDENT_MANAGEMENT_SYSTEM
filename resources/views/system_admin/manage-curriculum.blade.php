@@ -141,9 +141,22 @@
                 </div>
 
                 <div class="header-controls-flex">
+                    <div class="custom-select-wrapper" style="width: 140px;">
+                        <select id="yearFilterSelect" class="form-select-custom" style="padding: 6px 30px 6px 12px; font-size: 12.5px;">
+                            <option value="">All Years</option>
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                        </select>
+                    </div>
+
                     <div class="table-search-box">
-                        <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="tableSearchInput" placeholder="Search course, year, or subject...">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+                            <line x1="16.2" y1="16.2" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <input type="text" id="tableSearchInput" placeholder="Search course or subject...">
                     </div>
                     <span class="badge-count" id="curriculumTotalCount">Total: {{ count($mappings ?? []) }}</span>
                 </div>
@@ -162,7 +175,7 @@
                     </thead>
                     <tbody>
                         @forelse($mappings ?? [] as $map)
-                            <tr class="curriculum-row-item">
+                            <tr class="curriculum-row-item" data-year="{{ trim($map->year_level) }}">
                                 <td><span class="course-code-badge search-course">{{ $map->course }}</span></td>
                                 <td><strong class="search-year">{{ $map->year_level }}</strong></td>
                                 <td><span class="sem-badge search-sem">{{ $map->semester }}</span></td>
@@ -210,7 +223,7 @@
                         <tr id="curriculumNoResults" style="display:none;">
                             <td colspan="5" class="empty-table-state" style="text-align: center; color: #94a3b8; padding: 40px 0;">
                                 <i class="fas fa-database" style="font-size: 20px; display: block; margin-bottom: 8px;"></i>
-                                No curriculum entries match your search query.
+                                No curriculum entries match your search/filter query.
                             </td>
                         </tr>
                     </tbody>
@@ -243,54 +256,54 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const existingMappings = [
-            @if(isset($mappings))
-                @foreach($mappings as $m)
-                    {
-                        id: {{ $m->id }},
-                        course: @js(trim($m->course)),
-                        year_level: @js(trim($m->year_level)),
-                        semester: @js(trim($m->semester)),
-                        subject_id: {{ $m->subject_id }}
-                    },
-                @endforeach
-            @endif
-        ];
+        const existingMappings = @json($mappings ?? []);
 
         const searchInput = document.getElementById('tableSearchInput');
+        const yearFilterSelect = document.getElementById('yearFilterSelect');
         const tableRows   = document.querySelectorAll('.curriculum-row-item');
         const noResults   = document.getElementById('curriculumNoResults');
         const totalCountBadge = document.getElementById('curriculumTotalCount');
         const initialTotal = tableRows.length;
 
-        if (searchInput) {
-            searchInput.addEventListener('input', function () {
-                const term = searchInput.value.toLowerCase().trim();
-                let visibleCount = 0;
+        function filterTable() {
+            const term = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            const selectedYear = yearFilterSelect ? yearFilterSelect.value : '';
+            let visibleCount = 0;
 
-                tableRows.forEach(row => {
-                    const course = row.querySelector('.search-course').textContent.toLowerCase();
-                    const year = row.querySelector('.search-year').textContent.toLowerCase();
-                    const sem = row.querySelector('.search-sem').textContent.toLowerCase();
-                    const code = row.querySelector('.search-subj-code').textContent.toLowerCase();
-                    const title = row.querySelector('.search-subj-title').textContent.toLowerCase();
+            tableRows.forEach(row => {
+                const rowYear = row.getAttribute('data-year');
+                const course = row.querySelector('.search-course').textContent.toLowerCase();
+                const year = row.querySelector('.search-year').textContent.toLowerCase();
+                const sem = row.querySelector('.search-sem').textContent.toLowerCase();
+                const code = row.querySelector('.search-subj-code').textContent.toLowerCase();
+                const title = row.querySelector('.search-subj-title').textContent.toLowerCase();
 
-                    if (course.includes(term) || year.includes(term) || sem.includes(term) || code.includes(term) || title.includes(term)) {
-                        row.style.display = '';
-                        visibleCount++;
-                    } else {
-                        row.style.display = 'none';
-                    }
-                });
+                const matchesYear = (selectedYear === '' || rowYear === selectedYear);
+                const matchesSearch = (course.includes(term) || year.includes(term) || sem.includes(term) || code.includes(term) || title.includes(term));
 
-                if (totalCountBadge) {
-                    totalCountBadge.textContent = term === '' ? `Total: ${initialTotal}` : `Total: ${visibleCount}`;
-                }
-
-                if (noResults) {
-                    noResults.style.display = (visibleCount === 0 && initialTotal > 0) ? 'table-row' : 'none';
+                if (matchesYear && matchesSearch) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
                 }
             });
+
+            if (totalCountBadge) {
+                totalCountBadge.textContent = (term === '' && selectedYear === '') ? `Total: ${initialTotal}` : `Total: ${visibleCount}`;
+            }
+
+            if (noResults) {
+                noResults.style.display = (visibleCount === 0 && initialTotal > 0) ? 'table-row' : 'none';
+            }
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', filterTable);
+        }
+
+        if (yearFilterSelect) {
+            yearFilterSelect.addEventListener('change', filterTable);
         }
 
         const courseSelect   = document.getElementById('courseSelect');
@@ -325,7 +338,6 @@
         if (courseSelect) courseSelect.addEventListener('change', fetchFilteredSubjects);
         if (semesterSelect) semesterSelect.addEventListener('change', fetchFilteredSubjects);
 
-        // Initial check on load
         toggleSummerOption();
 
         if (curriculumForm) {
@@ -458,7 +470,6 @@
         document.getElementById('courseSelect').value = course;
         document.getElementById('yearSelect').value = year;
 
-        // Ensure Summer option visibility is updated before setting semester value
         const summerOption = document.getElementById('summerOption');
         if (summerOption) {
             summerOption.style.display = (year === '3rd Year') ? '' : 'none';
@@ -532,12 +543,12 @@
     .card-header-flex { background-color: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
     .card-title-container { display: flex; align-items: center; gap: 12px; }
     .card-title-list { font-size: 14.5px; font-weight: 700; color: #1e293b; margin: 0; }
-    .header-controls-flex { display: flex; align-items: center; gap: 15px; }
+    .header-controls-flex { display: flex; align-items: center; gap: 12px; }
 
     .table-search-box { position: relative; display: flex; align-items: center; }
-    .table-search-box input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px 6px 32px; font-size: 12.5px; color: #0f172a; outline: none; background: #ffffff; width: 220px; transition: all 0.2s ease; font-weight: 500; box-sizing: border-box; }
-    .table-search-box input:focus { border-color: #475569; width: 250px; box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.1); }
-    .table-search-box .search-icon { position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none; }
+    .table-search-box input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px 6px 32px; font-size: 12.5px; color: #0f172a; outline: none; background: #ffffff; width: 200px; transition: all 0.2s ease; font-weight: 500; box-sizing: border-box; }
+    .table-search-box input:focus { border-color: #1e2a5a; width: 230px; box-shadow: 0 0 0 3px rgba(30, 42, 90, 0.08); }
+    .table-search-box .search-icon { position: absolute; left: 12px; color: #94a3b8; width: 14px; height: 14px; pointer-events: none; }
 
     .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
@@ -547,14 +558,14 @@
     .form-select-custom { width: 100%; padding: 10px 40px 10px 14px; font-size: 14px; color: #0f172a; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; appearance: none; -webkit-appearance: none; cursor: pointer; outline: none; transition: all 0.2s ease; }
     .form-select-custom:disabled { background-color: #f8fafc; color: #94a3b8; cursor: not-allowed; border-color: #e2e8f0; }
     .form-select-custom:hover:not(:disabled) { border-color: #94a3b8; }
-    .form-select-custom:focus:not(:disabled) { border-color: #000000; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
+    .form-select-custom:focus:not(:disabled) { border-color: #1e2a5a; box-shadow: 0 0 0 3px rgba(30, 42, 90, 0.08); }
     .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 
     .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     
     .form-actions-bar { display: flex; gap: 10px; margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 16px; }
-    .btn-submit-subj { background: #000000; color: white; border: none; padding: 12px 20px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; flex: 1; transition: background 0.2s; }
-    .btn-submit-subj:hover { background: #1e293b; }
+    .btn-submit-subj { background: #1e2a5a; color: white; border: none; padding: 12px 20px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; flex: 1; transition: background 0.2s; }
+    .btn-submit-subj:hover { background: #152238; }
 
     .alert-success-custom { background: #ecfdf5; color: #065f46; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #059669; font-size: 14px; display: flex; align-items: center; gap: 10px; }
     .alert-danger-custom { background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; display: flex; align-items: flex-start; gap: 10px; }
@@ -593,7 +604,7 @@
     .btn-modal-confirm-delete:hover { background: #b91c1c; }
 
     .btn-action-edit,
-    .btn-action-delete{ display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; border-radius:6px; cursor:pointer; transition:.2s; white-space: nowrap; padding: 5px 12px; }
+    .btn-action-delete{ display:inline-flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:600; border-radius:6px; cursor:pointer; transition:.2s; white-space: nowrap; padding: 5px 12px; }
 
     .btn-action-edit{ background-color: transparent; border: 1px solid #cbd5e1; color: #475569; }
     .btn-action-edit:hover{ background-color: #f1f5f9; color: #1e293b; border-color: #94a3b8; }

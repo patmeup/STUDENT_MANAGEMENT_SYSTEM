@@ -40,8 +40,12 @@ class SendDocumentMail extends Mailable
 
     public function attachments(): array
     {
-        return [
-            Attachment::fromPath($this->filePath),
-        ];
+        if (!empty($this->filePath)) {
+            return [
+                Attachment::fromPath($this->filePath),
+            ];
+        }
+        
+        return [];
     }
 }

@@ -303,9 +303,11 @@ class RegistrarController extends Controller
         $activeAcademicPeriod = DB::table('academic_periods')
             ->where('is_active', 1)
             ->first();
+        
+        $activePeriodId = $activeAcademicPeriod ? $activeAcademicPeriod->id : 1;
 
         $termPeriods = DB::table('term_periods')
-            ->where('academic_period_id', $activeAcademicPeriod->id ?? 1)
+            ->where('academic_period_id', $activePeriodId)
             ->where('term', 'not like', '%semi%')
             ->orderBy('start_date', 'asc')
             ->get();
@@ -332,9 +334,11 @@ class RegistrarController extends Controller
 
         foreach ($students as $student) {
             $enrolledSchedules = DB::table('student_subjects')
-                ->where('student_number', $student->student_id)
-                ->where('status', 'Enrolled')
-                ->pluck('schedule_id');
+                ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
+                ->where('student_subjects.student_number', $student->student_id)
+                ->where('student_subjects.status', 'Enrolled')
+                ->where('class_schedules.academic_period_id', $activePeriodId)
+                ->pluck('class_schedules.id');
 
             $totalEnrolledSubjects = $enrolledSchedules->count();
 
@@ -372,6 +376,11 @@ class RegistrarController extends Controller
     {
         $term = strtolower(trim($request->input('term', 'prelim')));
 
+        $activeAcademicPeriod = DB::table('academic_periods')
+            ->where('is_active', 1)
+            ->first();
+        $activePeriodId = $activeAcademicPeriod ? $activeAcademicPeriod->id : null;
+
         $subjects = DB::table('student_subjects')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
@@ -381,17 +390,29 @@ class RegistrarController extends Controller
                     ->where(DB::raw('LOWER(student_term_grades.term)'), '=', $term);
             })
             ->where('student_subjects.student_number', $student_id)
-            ->where('student_subjects.status', 'Enrolled')
-            ->select(
+            ->where('student_subjects.status', 'Enrolled');
+
+        if ($activePeriodId) {
+            $subjects->where('class_schedules.academic_period_id', $activePeriodId);
+        }
+
+        $subjects = $subjects->select(
                 'subjects.subject_code',
                 'subjects.subject_title',
                 'class_schedules.section_name',
+                'class_schedules.schedule_type',
                 'student_term_grades.class_standing',
                 'student_term_grades.major_exam',
                 'student_term_grades.equivalent',
                 'student_term_grades.is_submitted'
             )
-            ->get();
+            ->get()
+            ->map(function($item) {
+                $type = strtoupper(trim($item->schedule_type ?? 'LEC'));
+                $item->subject_code = $item->subject_code . ' ' . $type;
+                $item->subject_title = $item->subject_title . ' (' . $type . ')';
+                return $item;
+            });
 
         return response()->json($subjects);
     }

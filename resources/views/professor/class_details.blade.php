@@ -36,6 +36,7 @@
         formType: 'quiz',
         formMaxScore: 100,
         formDueDate: '',
+        formDescription: '',
         publishing: false,
         fileSizeError: false,
 
@@ -113,6 +114,7 @@
             this.formType = 'quiz';
             this.formMaxScore = 100;
             this.formDueDate = '';
+            this.formDescription = '';
             this.publishing = false;
             this.fileSizeError = false;
             this.showModal = true;
@@ -125,6 +127,7 @@
             this.formType = task.activity_type;
             this.formMaxScore = task.max_score;
             this.formDueDate = task.due_date;
+            this.formDescription = task.description || '';
             this.publishing = false;
             this.fileSizeError = false;
             this.showModal = true;
@@ -326,9 +329,9 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
         <style>@media print { @page { size: A4 portrait; margin: 14mm 16mm; } }</style>
     </template>
 
-    <div class="page-header-row">
-        <a href="{{ route('professor.manage-classes') }}" class="btn-back-link">
-            <i class="fa-solid fa-arrow-left-long"></i> Back to My Classes List
+    <div class="page-header-row mb-3">
+        <a href="{{ route('professor.manage-classes') }}" class="btn-back-custom">
+            <i class="fa-solid fa-arrow-left"></i> Back to My Classes List
         </a>
     </div>
 
@@ -770,14 +773,15 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                         }
 
                         $mergedDeliverables->push((object)[
-                            'source'     => $isGoogleTask ? 'gclass_coursework' : 'system',
-                            'id'         => $task->id,
-                            'title'      => $task->activity_name,
-                            'type'       => $task->activity_type,
-                            'max_score'  => $task->max_score,
-                            'due_date'   => $task->due_date,
-                            'link'       => $gLink ?? null,
-                            'sort_date'  => $task->due_date ?? '1970-01-01',
+                            'source'      => $isGoogleTask ? 'gclass_coursework' : 'system',
+                            'id'          => $task->id,
+                            'title'       => $task->activity_name,
+                            'type'        => $task->activity_type,
+                            'max_score'   => $task->max_score,
+                            'due_date'    => $task->due_date,
+                            'description' => $task->description ?? null,
+                            'link'        => $gLink ?? null,
+                            'sort_date'   => $task->due_date ?? '1970-01-01',
                         ]);
                     }
 
@@ -827,7 +831,11 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                     }
 
                     $mergedDeliverables = $mergedDeliverables->sortByDesc('sort_date')->values();
+
+                    $termDraftCollection = $draftGrades->get($key);
+                    $isTermSubmitted = $termDraftCollection ? $termDraftCollection->where('is_submitted', 1)->count() > 0 : false;
                 @endphp
+                
                 <div x-show="currentTab === '{{ $key }}'" x-transition style="display: none;"
                     x-data="{
                             termSubTab: new URLSearchParams(window.location.search).get('subtab') || 'deliverables'
@@ -841,12 +849,11 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                             </div>
 
                             <div class="term-panel-header-actions">
-                                <template x-if="termSubTab === 'deliverables'">
+                                <template x-if="termSubTab === 'deliverables' && !{{ $isTermSubmitted ? 'true' : 'false' }}">
                                     <button type="button" class="btn-add-activity" @click="openCreateModal('{{ $key }}')">
                                         <i class="fa-solid fa-plus"></i> Add Task
                                     </button>
                                 </template>
-
                             </div>
                         </div>
 
@@ -861,6 +868,13 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
 
                         <div x-show="termSubTab === 'deliverables'">
 
+                            @if($isTermSubmitted)
+                                <div class="locked-alert-banner mb-3">
+                                    <i class="fa-solid fa-lock text-amber"></i>
+                                    <span>Official grades for <strong>{{ $termLabel }} Term</strong> have been submitted to the Registrar. Activity editing and task modifications are now locked.</span>
+                                </div>
+                            @endif
+
                             @if($gConnection && !$gLinkedCourse)
                                 <div class="gclass-link-box mb-3">
                                     <p class="gclass-link-text">Select which Google Classroom course corresponds to this class section to include its posts here.</p>
@@ -869,15 +883,17 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                     @else
                                         <form action="{{ route('professor.google-classroom.link', $classDetails->schedule_id) }}" method="POST" class="d-flex gap-2">
                                             @csrf
-                                            <select name="google_course_id" class="field-input" style="max-width: 280px;" required>
+                                            <select name="google_course_id" class="field-input" style="max-width: 280px;" required {{ $isTermSubmitted ? 'disabled' : '' }}>
                                                 <option value="">Select a course...</option>
                                                 @foreach($gAvailableCourses as $course)
                                                     <option value="{{ $course->id }}">{{ $course->course_name }} {{ $course->course_section ? '(' . $course->course_section . ')' : '' }}</option>
                                                 @endforeach
                                             </select>
-                                            <button type="submit" class="btn-add-activity">
-                                                <i class="fa-solid fa-link"></i> Link Course
-                                            </button>
+                                            @if(!$isTermSubmitted)
+                                                <button type="submit" class="btn-add-activity">
+                                                    <i class="fa-solid fa-link"></i> Link Course
+                                                </button>
+                                            @endif
                                         </form>
                                     @endif
                                 </div>
@@ -885,20 +901,20 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
 
                             @if($gConnection && $gLinkedCourse)
                                 <div class="gclass-linked-row mb-3">
-                                    
                                     <span class="gclass-linked-info">
                                         <i class="fa-brands fa-google-classroom"></i>
                                         Linked to: <strong>{{ $gLinkedCourse->course_name }}</strong>
                                     </span>                          
                                     
                                     <div class="gclass-sync-group">
-                                        
-                                        <form action="{{ route('professor.google-classroom.sync') }}" method="POST" class="m-0">
-                                            @csrf
-                                            <button type="submit" class="btn-sync-icon-sm" title="Sync Now">
-                                                <i class="fa-solid fa-arrows-rotate"></i>
-                                            </button>
-                                        </form>
+                                        @if(!$isTermSubmitted)
+                                            <form action="{{ route('professor.google-classroom.sync') }}" method="POST" class="m-0">
+                                                @csrf
+                                                <button type="submit" class="btn-sync-icon-sm" title="Sync Now">
+                                                    <i class="fa-solid fa-arrows-rotate"></i>
+                                                </button>
+                                            </form>
+                                        @endif
                                         
                                         @php
                                             $syncTime = $gLinkedCourse->last_synced_at 
@@ -908,7 +924,6 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                         <span class="gclass-sync-timestamp">
                                             Last synced: {{ $syncTime ? \Carbon\Carbon::parse($syncTime)->diffForHumans() : 'Never' }}
                                         </span>
-                                        
                                     </div>
                                 </div>
                             @endif
@@ -918,7 +933,13 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                     <div class="empty-state-box">
                                         <div class="empty-state-icon"><i class="fa-solid fa-folder-plus"></i></div>
                                         <h5 class="empty-state-title">No {{ $termLabel }} Deliverables Configured Yet</h5>
-                                        <p class="empty-state-text">Click the button above to add standard quizzes, classworks, or assignments.</p>
+                                        <p class="empty-state-text">
+                                            @if(!$isTermSubmitted)
+                                                Click the button above to add standard quizzes, classworks, or assignments.
+                                            @else
+                                                No deliverables recorded for this term.
+                                            @endif
+                                        </p>
                                     </div>
                                 @else
                                     <div class="table-responsive">
@@ -943,7 +964,7 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                                         </td>
                                                         <td>
                                                             @if($item->source === 'system')
-                                                                <span class="badge bg-secondary text-uppercase">{{ $item->type }}</span>
+                                                                <span class="plain-text-type">{{ strtolower($item->type) }}</span>
                                                             @elseif($item->source === 'gclass_coursework')
                                                                 <span class="gclass-type-badge gclass-type-coursework">Coursework</span>
                                                             @elseif($item->source === 'gclass_material')
@@ -965,20 +986,28 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                                         <td class="text-center">
                                                             @if($item->source === 'system')
                                                                 <div class="action-btn-group">
-                                                                    <button type="button" class="btn-sm-outline btn-edit"
-                                                                        @click="openEditModal({ id: {{ $item->id }}, term: '{{ $key }}', activity_name: @js($item->title), activity_type: '{{ $item->type }}', max_score: {{ $item->max_score ?? 'null' }}, due_date: '{{ $item->due_date }}' })">
-                                                                        <i class="fa-solid fa-pen"></i>
-                                                                    </button>
+                                                                    @if(!$isTermSubmitted)
+                                                                        <button type="button" class="btn-sm-outline btn-edit"
+                                                                            @click="openEditModal({ id: {{ $item->id }}, term: '{{ $key }}', activity_name: @js($item->title), activity_type: '{{ $item->type }}', max_score: {{ $item->max_score ?? 'null' }}, due_date: '{{ $item->due_date }}', description: @js($item->description ?? '') })">
+                                                                            <i class="fa-solid fa-pen"></i>
+                                                                        </button>
+                                                                    @endif
 
-                                                                    @if(strtolower($item->type) !== 'module')
+                                                                    @if(!in_array(strtolower($item->type), ['module', 'announcement']))
                                                                         <a href="{{ route('professor.task-submissions', $item->id) }}" class="btn-sm-outline btn-grade">
-                                                                            <i class="fa fa-star"></i> Grade
+                                                                            @if(!$isTermSubmitted)
+                                                                                <i class="fa fa-star"></i> Grade
+                                                                            @else
+                                                                                <i class="fa-solid fa-eye"></i> View
+                                                                            @endif
                                                                         </a>
                                                                     @endif
 
-                                                                    <button type="button" class="btn-sm-outline btn-delete" @click="deleteTask({{ $item->id }}, '{{ $key }}')">
-                                                                        <i class="fa-solid fa-trash"></i>
-                                                                    </button>
+                                                                    @if(!$isTermSubmitted)
+                                                                        <button type="button" class="btn-sm-outline btn-delete" @click="deleteTask({{ $item->id }}, '{{ $key }}')">
+                                                                            <i class="fa-solid fa-trash"></i>
+                                                                        </button>
+                                                                    @endif
                                                                 </div>
                                                             @elseif($item->source === 'gclass_coursework')
                                                                 <div class="action-btn-group">
@@ -988,7 +1017,11 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                                                         </a>
                                                                     @endif
                                                                     <a href="{{ route('professor.task-submissions', $item->id) }}" class="btn-sm-outline btn-grade" title="Grade Google Classroom Submissions">
-                                                                        <i class="fa fa-star"></i> Grade
+                                                                        @if(!$isTermSubmitted)
+                                                                            <i class="fa fa-star"></i> Grade
+                                                                        @else
+                                                                            <i class="fa-solid fa-eye"></i> View
+                                                                        @endif
                                                                     </a>
                                                                 </div>
                                                             @elseif($item->source === 'gclass_material')
@@ -1019,8 +1052,6 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                             $manualGrades = [];
                             $taskInputGrades = [];
 
-                            $termDraftCollection = $draftGrades->get($key);
-                            $isTermSubmitted = $termDraftCollection ? $termDraftCollection->where('is_submitted', 1)->count() > 0 : false;
                             $siblingStatus = $siblingTermStatus[$key] ?? ['submitted' => false, 'sent' => false];
                             $siblingPayload = !empty($siblingSchedule) ? [
                                 'type'      => strtoupper($siblingSchedule->schedule_type),
@@ -1030,7 +1061,9 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                             $currentSchedType = strtoupper($classDetails->schedule_type ?? 'LEC');
                             $isTermSentToStudent = $termDraftCollection ? $termDraftCollection->where('is_sent_to_student', 1)->count() > 0 : false;
 
-                            $termTasksList = collect($termTasks->get($key, []))->filter(fn($t) => !in_array(strtolower($t->activity_type), ['module', 'material', 'announcement']));
+                            $termTasksList = collect($termTasks->get($key, []))->filter(
+                                fn($t) => !in_array(strtolower($t->activity_type), ['module', 'material', 'announcement'])
+                            );
 
                             if (isset($gConnection) && $gConnection && isset($gLinkedCourse) && $gLinkedCourse) {
                                 if (isset($gCourseWork)) {
@@ -1610,83 +1643,85 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                 <button type="button" class="close-modal-btn" @click="showModal = false">&times;</button>
             </div>
 
-                <form id="addActivityForm" @submit.prevent="
-                    publishing = true;
-                    let formData = new FormData($el);
-                    formData.append('term', modalTerm);
-                    formData.append('schedule_id', '{{ $classDetails->schedule_id }}');
-                    if (selectedFile) formData.append('attachment', selectedFile);
+            <form id="addActivityForm" @submit.prevent="
+                publishing = true;
+                let formData = new FormData($el);
+                formData.append('term', modalTerm);
+                formData.append('schedule_id', '{{ $classDetails->schedule_id }}');
+                if (selectedFile && formType !== 'announcement') formData.append('attachment', selectedFile);
 
-                    let url = editingTaskId
-                        ? `/professor/update-activity/${editingTaskId}`
-                        : '{{ route('professor.save-activity') }}';
+                let url = editingTaskId
+                    ? `/professor/update-activity/${editingTaskId}`
+                    : '{{ route('professor.save-activity') }}';
 
-                    fetch(url, {
-                        method: 'POST',
-                        headers: { 
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            'Accept': 'application/json'
-                        },
-                        body: formData
-                    })
-                    .then(async res => {
-                        let data;
-                        try {
-                            data = await res.json();
-                        } catch (e) {
-                            throw new Error('Server returned an invalid JSON response. Status: ' + res.status);
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                })
+                .then(async res => {
+                    let data;
+                    try {
+                        data = await res.json();
+                    } catch (e) {
+                        throw new Error('Server returned an invalid JSON response. Status: ' + res.status);
+                    }
+
+                    if (!res.ok) {
+                        let errorMsg = data.message || 'Server error occurred.';
+                        if (data.errors) {
+                            errorMsg += '\n' + Object.values(data.errors).flat().join('\n');
                         }
+                        throw new Error(errorMsg);
+                    }
 
-                        if (!res.ok) {
-                            let errorMsg = data.message || 'Server error occurred.';
-                            if (data.errors) {
-                                errorMsg += '\n' + Object.values(data.errors).flat().join('\n');
-                            }
-                            throw new Error(errorMsg);
-                        }
-
-                        return data;
-                    })
-                    .then(data => {
-                        if(data.success) {
-                            window.location.reload();
-                        } else {
-                            alert(data.message || 'Error saving data');
-                            publishing = false;
-                        }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        alert(' ERROR:\n' + err.message);
+                    return data;
+                })
+                .then(data => {
+                    if(data.success) {
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Error saving data');
                         publishing = false;
-                    });
-                ">
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert(' ERROR:\n' + err.message);
+                    publishing = false;
+                });
+            ">
 
                 <div class="modal-card-body">
                     <div class="field-group">
-                        <label class="field-label">Task Title</label>
-                        <input type="text" name="title" class="field-input" x-model="formTitle" placeholder="e.g., Quiz 1: Introduction to HTML" required>
+                        <label class="field-label" x-text="formType === 'announcement' ? 'Announcement Title' : 'Task Title'"></label>
+                        <input type="text" name="title" class="field-input" x-model="formTitle" :placeholder="formType === 'announcement' ? 'e.g., Class Cancellation / Exam Schedule' : 'e.g., Quiz 1: Introduction to HTML'" required>
                     </div>
 
                     <div class="field-row">
                         <div class="field-group">
                             <label class="field-label">Type</label>
-                            <select name="type" class="field-input" x-model="formType" @change="if(formType === 'module') formMaxScore = '';" required>
+                            <select name="type" class="field-input" x-model="formType" @change="if(formType === 'module' || formType === 'announcement') { formMaxScore = ''; formDueDate = ''; }" required>
                                 <option value="quiz">Quiz</option>
+                                <option value="activity">Activity</option>
                                 <option value="assignment">Assignment</option>
                                 <option value="project">Project / Laboratory</option>
                                 <option value="exam">Major Exam</option>
                                 <option value="module">Module / Learning Material</option>
+                                <option value="announcement">Announcement</option>
                             </select>
                         </div>
 
-                        <div class="field-group" x-show="formType !== 'module'">
+                        <div class="field-group" x-show="formType !== 'module' && formType !== 'announcement'">
                             <label class="field-label">Highest Score</label>
-                            <input type="number" name="max_score" class="field-input" x-model="formMaxScore" min="1" :required="formType !== 'module'">
+                            <input type="number" name="max_score" class="field-input" x-model="formMaxScore" min="1" :required="formType !== 'module' && formType !== 'announcement'">
                         </div>
                     </div>
 
-                    <div class="field-group" x-show="formType !== 'module' && formType !== 'material'">
+                    <div class="field-group" x-show="formType !== 'module' && formType !== 'announcement'">
                         <label class="field-label">Due Date <span class="field-optional">(Optional)</span></label>
                         <input type="datetime-local" name="due_date" class="field-input" x-model="formDueDate">
                         
@@ -1706,7 +1741,12 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                         </div>
                     </div>
 
-                    <div class="field-group" style="margin-bottom:0;">
+                    <div class="field-group" x-show="formType === 'announcement'" style="margin-bottom:0;">
+                        <label class="field-label">Announcement Details</label>
+                        <textarea name="description" class="field-input" x-model="formDescription" rows="4" placeholder="Write your announcement message or information here..."></textarea>
+                    </div>
+
+                    <div class="field-group" x-show="formType !== 'announcement'" style="margin-bottom:0;">
                         <label class="field-label">Attachment <span class="field-optional">(Optional)</span></label>
 
                         <div class="dropzone"
@@ -1770,10 +1810,11 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                             ">
                     </div>
                 </div>
+
                 <div class="modal-card-footer">
                     <button type="button" class="btn-cancel-portal" @click="showModal = false">Cancel</button>
                     <button type="submit" class="btn-primary-portal" :disabled="fileSizeError || publishing">
-                        <span x-html="publishing ? '<i class=\'fa-solid fa-spinner fa-spin\' style=\'margin-right: 6px;\'></i> Publishing...' : (editingTaskId ? 'Save Changes' : 'Publish Task')"></span>
+                        <span x-html="publishing ? '<i class=\'fa-solid fa-spinner fa-spin\' style=\'margin-right: 6px;\'></i> Publishing...' : (editingTaskId ? 'Save Changes' : (formType === 'announcement' ? 'Post Announcement' : 'Publish Task'))"></span>
                     </button>
                 </div>
             </form>
@@ -1813,6 +1854,14 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
     .custom-portal-table th { background: #f8fafc; font-size: 11.5px; font-weight: 700; text-transform: uppercase; color: #64748b; padding: 14px 12px; border-bottom: 2px solid #e2e8f0; letter-spacing: 0.3px; }
     .custom-portal-table td { padding: 12px; font-size: 13.5px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
     .badge-enrolled-status { background: #dcfce7; color: #15803d; font-size: 12px; padding: 4px 12px; font-weight: 700; border-radius: 20px; }
+
+    .plain-text-type {
+        color: #334155;
+        font-weight: 500;
+        font-size: 13.5px;
+        background: transparent;
+        padding: 0;
+    }
 
     .new-student-row {
         background-color: #f0f9ff !important;
@@ -1885,10 +1934,11 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
         align-items: center;
         background: #f0fdf4;
         border: 1px solid #bbf7d0;
-        padding: 8px 14px;
+        padding: 10px 16px;
         border-radius: 8px;
         flex-wrap: wrap;
         gap: 10px;
+        margin-bottom: 16px;
     }
 
     .gclass-linked-info {
@@ -2266,10 +2316,11 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
         align-items: center;
         flex-wrap: wrap;
         gap: 12px;
-        padding: 10px 16px;
+        padding: 12px 16px;
         background: #f8fafc;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
+        margin-bottom: 16px;
     }
 
     .encoding-legend-bar {
@@ -2529,6 +2580,49 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
         padding: 4px 10px;
         border-radius: 20px;
         width: fit-content;
+    }
+
+    .btn-back-custom {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 8px 16px;
+        background-color: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+
+    .btn-back-custom:hover {
+        background-color: #f8fafc;
+        color: #1e2a5a;
+        border-color: #94a3b8;
+    }
+
+    .locked-alert-banner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background-color: #fffbeb;
+        border: 1px solid #fde68a;
+        color: #92400e;
+        padding: 13px 18px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        margin-bottom: 16px;
+    }
+
+    .locked-alert-banner i {
+        font-size: 15px;
+        color: #d97706;
+        flex-shrink: 0;
     }
 
     @media print {
