@@ -155,7 +155,7 @@ class GradeHelper
             'attendance'     => $attendance,
             'class_standing' => $classStanding,
             'major_exam'     => $majorExam,
-            'equivalent'     => $equivalent,
+            'equivalent'     => $equivalent !== null ? number_format((float)$equivalent, 2, '.', '') : null,
         ];
     }
 
