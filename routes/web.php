@@ -51,6 +51,7 @@ Route::middleware(['role:super_admin'])->group(function () {
     Route::get('/super_admin/user_details', [SuperAdminController::class, 'profileView'])->name('super_admin.user_details');
     Route::post('/super_admin/profile/picture', [SuperAdminController::class, 'updateProfilePicture'])->name('super_admin.profile.picture.update');
     Route::post('/super_admin/announcements/reorder', [AnnouncementController::class, 'reorder'])->name('super_admin.announcements.reorder');
+    Route::put('/super-admin/employees/{id}', [SuperAdminController::class, 'updateEmployee'])->name('super_admin.employee.update');
     });
 
 // SYSTEM ADMIN ROUTES
@@ -68,6 +69,7 @@ Route::middleware(['role:system_admin'])->group(function () {
     Route::get('/system_admin/manage-curriculum', [CurriculumController::class, 'index'])->name('system_admin.manage-curriculum');
     Route::post('/system_admin/manage-curriculum', [CurriculumController::class, 'store'])->name('system_admin.curriculum.store');
     Route::post('/system_admin/announcements/reorder', [AnnouncementController::class, 'reorder'])->name('system_admin.announcements.reorder');
+    Route::patch('/system_admin/manage-faculty/{id}', [SystemAdminController::class, 'updateFaculty'])->name('system_admin.manage-faculty.update');
 
     // FACULTY , SUBJECTS, CURRICULUM— Edit & Delete
     Route::patch('/system_admin/manage-faculty/{id}', [FacultyController::class, 'update'])->name('system_admin.manage-faculty.update');
@@ -168,10 +170,11 @@ Route::middleware(['role:professor'])->group(function () {
     Route::post('/professor/save-grades',[ProfessorController::class, 'saveDraftGrades'])->name('professor.save-grades');
     Route::post('/professor/recalculate-grade', [ProfessorController::class, 'recalculateAutoGrade'])->name('professor.recalculate-grade');
     Route::post('/professor/submit-to-registrar', [ProfessorController::class, 'submitToRegistrar'])->name('professor.submit-registrar');
+    Route::post('/professor/revert-submission', [ProfessorController::class, 'revertSubmission'])->name('professor.revert-registrar');
     Route::get('/professor/user_details', [ProfessorController::class, 'profileView'])->name('professor.user_details');
     Route::post('/professor/google-classroom/disconnect', [GoogleClassroomController::class, 'disconnect'])->name('professor.google-classroom.disconnect');
     Route::post('/professor/profile/picture', [ProfessorController::class, 'updateProfilePicture'])->name('professor.profile.picture.update');
-    Route::get('/professor/class/{schedule}/attendance-dates', [AttendanceController::class, 'getRecordedDates']);
+    // Route::get('/professor/class/{schedule}/attendance-dates', [AttendanceController::class, 'getRecordedDates']);
     });
 
 // STUDENT ROUTES
