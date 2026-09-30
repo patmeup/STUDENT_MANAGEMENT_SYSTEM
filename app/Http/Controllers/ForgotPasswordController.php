@@ -86,7 +86,6 @@ class ForgotPasswordController extends Controller
 
         DB::table('password_reset_tokens')->where('email', $email)->delete();
 
-        // 5. I-redirect pabalik sa login page na may kasamang success message
         return redirect('/')->with('status', 'Your password has been reset successfully! You can now log in.');
     }
 }
