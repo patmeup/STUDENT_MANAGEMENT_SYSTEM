@@ -27,7 +27,6 @@ Route::post('/login-submit', [AuthController::class, 'login'])->name('login.subm
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/account/security', [AuthController::class, 'showSecurityPage'])->name('account.security');
 Route::post('/account/security/update-password', [AuthController::class, 'updatePassword'])->name('account.update_password');
-Route::post('/account/security/update', [SuperAdminController::class, 'updatePassword'])->name('password.update');
 
 // FORGOT PASSWORD ROUTES
 Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
