@@ -155,7 +155,7 @@ class GradeHelper
             'attendance'     => $attendance,
             'class_standing' => $classStanding,
             'major_exam'     => $majorExam,
-            'equivalent'     => $equivalent,
+            'equivalent'     => $equivalent !== null ? number_format((float)$equivalent, 2, '.', '') : null,
         ];
     }
 
@@ -195,7 +195,7 @@ class GradeHelper
             return null;
         }
 
-        return round($grades->avg(), 2);
+        return self::snapToOfficialGrade($grades->avg());
     }
 
     public static function getSubmittedTermCount($scheduleId, $studentNumber)
@@ -250,6 +250,10 @@ class GradeHelper
             return [1.0, $row['prelim_eq'], $row['midterm_eq'], $row['semifinal_cs'], $row['semifinal_me']];
         });
 
+        $results[4] = self::trainStage($academicPeriodId, 4, $completedStudents, function ($row) {
+            return [1.0, $row['prelim_eq'], $row['midterm_eq'], $row['semifinal_eq'], $row['final_cs'], $row['final_me']];
+        });
+
         return ['success' => true, 'results' => $results];
     }
 
@@ -295,6 +299,8 @@ class GradeHelper
                     'semifinal_eq' => (float) $semifinal->equivalent,
                     'semifinal_cs' => (float) ($semifinal->class_standing ?? 0),
                     'semifinal_me' => (float) ($semifinal->major_exam ?? 0),
+                    'final_cs'     => (float) ($final->class_standing ?? 0),
+                    'final_me'     => (float) ($final->major_exam ?? 0),
                     'semestral'    => $semestral,
                 ];
             }
@@ -361,12 +367,8 @@ class GradeHelper
             $stage = 3;
             $currentTerm = 'semifinal';
         } else {
-            return [
-                'type'       => 'unavailable',
-                'value'      => null,
-                'stage'      => null,
-                'confidence' => null,
-            ];
+            $stage = 4;
+            $currentTerm = 'final';
         }
 
         $liveClassStanding = self::computeClassStanding($scheduleId, $studentNumber, $currentTerm);
@@ -388,8 +390,10 @@ class GradeHelper
             $features = [1.0, $liveClassStanding, $liveMajorExam];
         } elseif ($stage === 2) {
             $features = [1.0, (float) $terms['prelim'], $liveClassStanding, $liveMajorExam];
-        } else {
+        } elseif ($stage === 3) {
             $features = [1.0, (float) $terms['prelim'], (float) $terms['midterm'], $liveClassStanding, $liveMajorExam];
+        } else {
+            $features = [1.0, (float) $terms['prelim'], (float) $terms['midterm'], (float) $terms['semifinal'], $liveClassStanding, $liveMajorExam];
         }
 
         $model = DB::table('ml_grade_models')
@@ -421,6 +425,86 @@ class GradeHelper
             'confidence' => $model->r_squared,
             'risk'       => $predicted > 3.00 ? 'at_risk' : 'passing',
         ];
+    }
+
+    public static function predictAndSave($scheduleId, $studentNumber, $term, $academicPeriodId = null)
+    {
+        $stageMap = ['prelim' => 1, 'midterm' => 2, 'semifinal' => 3, 'final' => 4];
+
+        if (!array_key_exists($term, $stageMap)) {
+            return null;
+        }
+        $stage = $stageMap[$term];
+
+        if ($academicPeriodId === null) {
+            $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
+            if (!$activePeriod) {
+                return null;
+            }
+            $academicPeriodId = $activePeriod->id;
+        }
+
+        $model = DB::table('ml_grade_models')
+            ->where('academic_period_id', $academicPeriodId)
+            ->where('stage', $stage)
+            ->first();
+
+        if (!$model) {
+            return null;
+        }
+
+        $coefficients = json_decode($model->coefficients, true);
+        if (!is_array($coefficients)) {
+            return null;
+        }
+
+        $liveClassStanding = self::computeClassStanding($scheduleId, $studentNumber, $term);
+        $liveMajorExam = self::computeMajorExam($scheduleId, $studentNumber, $term);
+
+        if ($liveClassStanding === null && $liveMajorExam === null) {
+            return null;
+        }
+
+        $actualEquivalents = DB::table('student_term_grades')
+            ->where('schedule_id', $scheduleId)
+            ->where('student_number', $studentNumber)
+            ->where('is_submitted', 1)
+            ->pluck('equivalent', 'term');
+
+        $features = [1.0];
+        if ($stage >= 2) $features[] = (float) ($actualEquivalents['prelim'] ?? 0);
+        if ($stage >= 3) $features[] = (float) ($actualEquivalents['midterm'] ?? 0);
+        if ($stage >= 4) $features[] = (float) ($actualEquivalents['semifinal'] ?? 0);
+        $features[] = $liveClassStanding ?? 0.0;
+        $features[] = $liveMajorExam ?? 0.0;
+
+        $predictedValue = 0;
+        foreach ($features as $i => $val) {
+            $predictedValue += $val * ($coefficients[$i] ?? 0);
+        }
+        $predictedValue = max(1.00, min(5.00, round($predictedValue, 2)));
+
+        $columnMap = [
+            'prelim'    => 'predicted_prelim',
+            'midterm'   => 'predicted_midterm',
+            'semifinal' => 'predicted_semifinal',
+            'final'     => 'predicted_final',
+        ];
+        $targetColumn = $columnMap[$term];
+
+        DB::table('student_term_grades_predictions')->updateOrInsert(
+            [
+                'schedule_id'    => $scheduleId,
+                'student_number' => $studentNumber,
+            ],
+            [
+                $targetColumn => $predictedValue,
+                'updated_at'  => now(),
+                'created_at'  => now(),
+            ]
+        );
+
+        return $predictedValue;
     }
 
     protected static function solveOLS(array $X, array $y): array
@@ -534,5 +618,20 @@ class GradeHelper
         }
 
         return round(1 - ($ssRes / $ssTot), 4);
+    }
+
+    public static function snapToOfficialGrade($value)
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $rounded = round($value * 4) / 4;
+
+        if ($rounded > 3.00) {
+            return 5.00;
+        }
+
+        return max(1.00, $rounded);
     }
 }

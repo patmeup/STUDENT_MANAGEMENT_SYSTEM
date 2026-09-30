@@ -117,17 +117,43 @@
                         Predicted Term Grade
                     </span>
                     
-                    @if(isset($livePrediction) && $livePrediction->predicted_semestral)
-                        <div class="predicted-grade-number my-1" style="color: #1e2a5a;">
-                            {{ number_format($livePrediction->predicted_semestral, 2) }}
-                        </div>
-                        <p class="font-xs text-muted m-0">
-                            Machine learning forecast based on your ongoing <span x-text="currentTab"></span> standing.
-                        </p>
-                    @else
-                        <div class="predicted-grade-number my-1 text-muted">--</div>
-                        <p class="font-xs text-muted m-0">Awaiting performance data to generate prediction.</p>
-                    @endif
+                    @php
+                        $pRecord = DB::table('student_term_grades_predictions')
+                            ->where('schedule_id', $classDetails->id)
+                            ->where('student_number', session('student_id'))
+                            ->first();
+
+                        $termPredictions = [
+                            'prelim'    => $pRecord ? $pRecord->predicted_prelim : null,
+                            'midterm'   => $pRecord ? $pRecord->predicted_midterm : null,
+                            'semifinal' => $pRecord ? $pRecord->predicted_semifinal : null,
+                            'final'     => $pRecord ? $pRecord->predicted_final : null,
+                        ];
+
+                        foreach(['prelim', 'midterm', 'semifinal', 'final'] as $tKey) {
+                            if (is_null($termPredictions[$tKey])) {
+                                $computedVal = \App\Support\GradeHelper::predictAndSave($classDetails->id, session('student_id'), $tKey);
+                                $termPredictions[$tKey] = $computedVal;
+                            }
+                        }
+                    @endphp
+
+                    <div x-data="{ termPredictions: @js($termPredictions) }">
+                        <template x-if="termPredictions[currentTab]">
+                            <div>
+                                <div class="predicted-grade-number my-1" style="color: #1e2a5a;" x-text="Number(termPredictions[currentTab]).toFixed(2)"></div>
+                                <p class="font-xs text-muted m-0">
+                                    Machine learning forecast based on your ongoing <span x-text="currentTab"></span> standing.
+                                </p>
+                            </div>
+                        </template>
+                        <template x-if="!termPredictions[currentTab]">
+                            <div>
+                                <div class="predicted-grade-number my-1 text-muted">--</div>
+                                <p class="font-xs text-muted m-0">Awaiting performance data to generate prediction.</p>
+                            </div>
+                        </template>
+                    </div>
                 </div>
             </div>
         </div>

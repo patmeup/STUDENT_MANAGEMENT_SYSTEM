@@ -303,9 +303,11 @@ class RegistrarController extends Controller
         $activeAcademicPeriod = DB::table('academic_periods')
             ->where('is_active', 1)
             ->first();
+        
+        $activePeriodId = $activeAcademicPeriod ? $activeAcademicPeriod->id : 1;
 
         $termPeriods = DB::table('term_periods')
-            ->where('academic_period_id', $activeAcademicPeriod->id ?? 1)
+            ->where('academic_period_id', $activePeriodId)
             ->where('term', 'not like', '%semi%')
             ->orderBy('start_date', 'asc')
             ->get();
@@ -332,37 +334,75 @@ class RegistrarController extends Controller
 
         foreach ($students as $student) {
             $enrolledSchedules = DB::table('student_subjects')
-                ->where('student_number', $student->student_id)
-                ->where('status', 'Enrolled')
-                ->pluck('schedule_id');
+                ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
+                ->where('student_subjects.student_number', $student->student_id)
+                ->where('student_subjects.status', 'Enrolled')
+                ->where('class_schedules.academic_period_id', $activePeriodId)
+                ->pluck('class_schedules.id');
 
             $totalEnrolledSubjects = $enrolledSchedules->count();
 
-            $grades = DB::table('student_term_grades')
-                ->where('student_number', $student->student_id)
-                ->whereIn('schedule_id', $enrolledSchedules)
-                ->where(DB::raw('LOWER(term)'), $termFilter)
-                ->where('is_submitted', 1)
-                ->get();
+            if ($termFilter === 'semestral') {
+                $grades = DB::table('student_term_grades')
+                    ->where('student_number', $student->student_id)
+                    ->whereIn('schedule_id', $enrolledSchedules)
+                    ->where('is_submitted', 1)
+                    ->whereNotNull('equivalent')
+                    ->get();
 
-            $submittedCount = $grades->count();
+                $submittedCount = $grades->groupBy('schedule_id')->count();
+                $student->total_enrolled = $totalEnrolledSubjects;
+                $student->total_submitted = $submittedCount;
 
-            $student->total_enrolled = $totalEnrolledSubjects;
-            $student->total_submitted = $submittedCount;
+                if ($totalEnrolledSubjects > 0 && $submittedCount >= $totalEnrolledSubjects) {
+                    $student->grade_status = 'Complete';
+                    
+                    $semEquivalents = [];
+                    foreach ($enrolledSchedules as $schedId) {
+                        $semEquivalents[] = \App\Support\GradeHelper::computeSemestralGrade($schedId, $student->student_id);
+                    }
+                    $filteredSem = array_filter($semEquivalents, function($v) { return $v !== null; });
+                    $rawAvg = count($filteredSem) > 0 ? array_sum($filteredSem) / count($filteredSem) : null;
+                    $officialAvg = \App\Support\GradeHelper::snapToOfficialGrade($rawAvg);
+                    $student->average_equivalent = $officialAvg !== null ? number_format($officialAvg, 2) : null;
+                } elseif ($submittedCount > 0) {
+                    $student->grade_status = 'Partial';
+                    $student->average_equivalent = null;
+                } else {
+                    $student->grade_status = 'Pending';
+                    $student->average_equivalent = null;
+                }
 
-            if ($totalEnrolledSubjects > 0 && $submittedCount >= $totalEnrolledSubjects) {
-                $student->grade_status = 'Complete';
-                $student->average_equivalent = $grades->avg('equivalent');
-            } elseif ($submittedCount > 0) {
-                $student->grade_status = 'Partial';
-                $student->average_equivalent = null;
+                $student->is_fully_sent = false; 
             } else {
-                $student->grade_status = 'Pending';
-                $student->average_equivalent = null;
-            }
+                $grades = DB::table('student_term_grades')
+                    ->where('student_number', $student->student_id)
+                    ->whereIn('schedule_id', $enrolledSchedules)
+                    ->where(DB::raw('LOWER(term)'), $termFilter)
+                    ->where('is_submitted', 1)
+                    ->get();
 
-            $sentCount = $grades->where('is_sent_to_student', 1)->count();
-            $student->is_fully_sent = ($totalEnrolledSubjects > 0 && $sentCount >= $totalEnrolledSubjects);
+                $submittedCount = $grades->count();
+
+                $student->total_enrolled = $totalEnrolledSubjects;
+                $student->total_submitted = $submittedCount;
+
+                if ($totalEnrolledSubjects > 0 && $submittedCount >= $totalEnrolledSubjects) {
+                    $student->grade_status = 'Complete';
+                    $rawAvg = $grades->avg('equivalent');
+                    $officialAvg = \App\Support\GradeHelper::snapToOfficialGrade($rawAvg);
+                    $student->average_equivalent = $officialAvg !== null ? number_format($officialAvg, 2) : null;
+                } elseif ($submittedCount > 0) {
+                    $student->grade_status = 'Partial';
+                    $student->average_equivalent = null;
+                } else {
+                    $student->grade_status = 'Pending';
+                    $student->average_equivalent = null;
+                }
+
+                $sentCount = $grades->where('is_sent_to_student', 1)->count();
+                $student->is_fully_sent = ($totalEnrolledSubjects > 0 && $sentCount >= $totalEnrolledSubjects);
+            }
         }
 
         return view('registrar.manage-grades', compact('students', 'termPeriods', 'termFilter', 'search', 'activeAcademicPeriod'));
@@ -371,6 +411,58 @@ class RegistrarController extends Controller
     public function getStudentTermGradesJson(Request $request, $student_id)
     {
         $term = strtolower(trim($request->input('term', 'prelim')));
+
+        $activeAcademicPeriod = DB::table('academic_periods')
+            ->where('is_active', 1)
+            ->first();
+        $activePeriodId = $activeAcademicPeriod ? $activeAcademicPeriod->id : null;
+
+        if ($term === 'semestral') {
+            $subjects = DB::table('student_subjects')
+                ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
+                ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+                ->where('student_subjects.student_number', $student_id)
+                ->where('student_subjects.status', 'Enrolled');
+
+            if ($activePeriodId) {
+                $subjects->where('class_schedules.academic_period_id', $activePeriodId);
+            }
+
+            $subjects = $subjects->select(
+                    'subjects.subject_code',
+                    'subjects.subject_title',
+                    'class_schedules.section_name',
+                    'class_schedules.schedule_type',
+                    'class_schedules.id as schedule_id'
+                )
+                ->orderBy('subjects.subject_code', 'asc')
+                ->orderBy('class_schedules.schedule_type', 'asc')
+                ->get()
+                ->map(function($item) use ($student_id) {
+                    $type = strtoupper(trim($item->schedule_type ?? 'LEC'));
+                    $item->subject_code_display = $item->subject_code . ' ' . $type;
+                    $item->subject_title_display = $item->subject_title . ' (' . $type . ')';
+
+                    $semGrade = \App\Support\GradeHelper::computeSemestralGrade($item->schedule_id, $student_id);
+                    $item->equivalent = $semGrade;
+                    $item->is_submitted = $semGrade !== null ? 1 : 0;
+
+                    $termGrades = DB::table('student_term_grades')
+                        ->where('schedule_id', $item->schedule_id)
+                        ->where('student_number', $student_id)
+                        ->get()
+                        ->keyBy(function ($r) { return strtolower(trim($r->term)); });
+
+                    $item->prelim    = optional($termGrades->get('prelim'))->equivalent;
+                    $item->midterm   = optional($termGrades->get('midterm'))->equivalent;
+                    $item->semifinal = optional($termGrades->get('semifinal'))->equivalent;
+                    $item->final     = optional($termGrades->get('final'))->equivalent;
+
+                    return $item;
+                });
+
+            return response()->json($subjects);
+        }
 
         $subjects = DB::table('student_subjects')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
@@ -381,17 +473,31 @@ class RegistrarController extends Controller
                     ->where(DB::raw('LOWER(student_term_grades.term)'), '=', $term);
             })
             ->where('student_subjects.student_number', $student_id)
-            ->where('student_subjects.status', 'Enrolled')
-            ->select(
+            ->where('student_subjects.status', 'Enrolled');
+
+        if ($activePeriodId) {
+            $subjects->where('class_schedules.academic_period_id', $activePeriodId);
+        }
+
+        $subjects = $subjects->select(
                 'subjects.subject_code',
                 'subjects.subject_title',
                 'class_schedules.section_name',
+                'class_schedules.schedule_type',
                 'student_term_grades.class_standing',
                 'student_term_grades.major_exam',
                 'student_term_grades.equivalent',
                 'student_term_grades.is_submitted'
             )
-            ->get();
+            ->orderBy('subjects.subject_code', 'asc')
+            ->orderBy('class_schedules.schedule_type', 'asc')
+            ->get()
+            ->map(function($item) {
+                $type = strtoupper(trim($item->schedule_type ?? 'LEC'));
+                $item->subject_code_display = $item->subject_code . ' ' . $type;
+                $item->subject_title_display = $item->subject_title . ' (' . $type . ')';
+                return $item;
+            });
 
         return response()->json($subjects);
     }
