@@ -25,6 +25,12 @@ RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
+RUN php artisan config:clear
+RUN php artisan route:clear
+RUN php artisan cache:clear
+RUN php artisan config:cache
+RUN php artisan route:cache
+
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
