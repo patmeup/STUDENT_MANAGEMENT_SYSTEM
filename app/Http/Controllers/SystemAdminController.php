@@ -27,9 +27,9 @@ class SystemAdminController extends Controller
 
         return view('system_admin.dashboard', compact(
             'announcements',
-            'totalEmployees', 
-            'totalStudents', 
-            'totalCourses', 
+            'totalEmployees',
+            'totalStudents',
+            'totalCourses',
             'totalSubjects'
         ));
     }
@@ -69,6 +69,10 @@ class SystemAdminController extends Controller
             'updated_at' => now(),
         ]);
 
+        \App\Support\Notifier::toRole('super_admin', 'period_created', 'Academic period created',
+            "{$request->school_year} - {$request->semester} was created by " . (session('user_name') ?? 'System Admin') . '.',
+            \App\Support\Notifier::url('super_admin.dashboard'));
+
         return redirect()->back()->with('success', 'Academic period created. Set the term dates and activate it when ready.');
     }
 
@@ -90,6 +94,11 @@ class SystemAdminController extends Controller
         // Deactivate all periods first, then activate the selected one
         DB::table('academic_periods')->update(['is_active' => false]);
         DB::table('academic_periods')->where('id', $id)->update(['is_active' => true]);
+
+        // NOTIFICATION: EVERYONE is told a new academic period is active
+        $__p = DB::table('academic_periods')->where('id', $id)->first();
+        \App\Support\Notifier::toAll('period_activated', 'New academic period is now active',
+            $__p ? "{$__p->school_year} - {$__p->semester} is now the active academic period." : 'A new academic period is now active.');
 
         return redirect()->back()->with('success', 'Academic period activated. System data is now synced to this active period.');
     }
@@ -125,12 +134,23 @@ class SystemAdminController extends Controller
             ]);
         }
 
+        $__p = DB::table('academic_periods')->where('id', $request->academic_period_id)->first();
+        \App\Support\Notifier::toRole('super_admin', 'term_dates_saved', 'Term dates updated',
+            ucfirst($request->term) . ' dates (' . $request->start_date . ' to ' . $request->end_date . ')'
+                . ($__p ? " saved for {$__p->school_year} - {$__p->semester}" : '') . ' by ' . (session('user_name') ?? 'System Admin') . '.',
+            \App\Support\Notifier::url('super_admin.dashboard'));
+
         return redirect()->back()->with('success', 'Term dates saved.');
     }
 
     public function deleteAcademicPeriod($id)
     {
+        $__p = DB::table('academic_periods')->where('id', $id)->first();
         DB::table('academic_periods')->where('id', $id)->delete();
+
+        \App\Support\Notifier::toRole('super_admin', 'period_deleted', 'Academic period deleted',
+            ($__p ? "{$__p->school_year} - {$__p->semester}" : 'An academic period') . ' was deleted by ' . (session('user_name') ?? 'System Admin') . '.',
+            \App\Support\Notifier::url('super_admin.dashboard'));
 
         return redirect()->back()->with('success', 'Academic period deleted.');
     }
@@ -147,7 +167,7 @@ class SystemAdminController extends Controller
         $isLocked = !Str::startsWith($user->password, '$2y$');
 
         return view('system_admin.user_details', compact('user', 'isLocked'));
-    }   
+    }
 
     public function updateProfilePicture(Request $request)
     {
@@ -191,5 +211,5 @@ class SystemAdminController extends Controller
 
         return redirect()->back()->with('success', 'Faculty assignment and role successfully updated!');
     }
-    
+
 }

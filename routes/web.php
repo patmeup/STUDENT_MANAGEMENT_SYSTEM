@@ -20,6 +20,7 @@ use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\StudentTermGradeController;
 use App\Http\Controllers\GoogleClassroomController;
 use App\Http\Controllers\DocumentRequestController;
+use App\Http\Controllers\NotificationController;
 
 // ACCOUNT ROUTES
 Route::get('/', function () { return view('login'); })->name('login');
@@ -194,4 +195,13 @@ Route::middleware(['role:student'])->group(function () {
     Route::post('/student/document-requests', [DocumentRequestController::class, 'store'])->name('student.submit_document_request');
     Route::put('/account/update-credentials', [StudentController::class, 'updateCredentials'])->name('account.update_credentials');
     Route::post('/student/profile/picture', [StudentController::class, 'updateProfilePicture'])->name('student.profile.picture.update');
+});
+
+// NOTIFICATION ROUTES (all roles)
+Route::middleware(['role:super_admin,system_admin,registrar,dean,dept_sec,professor,student'])->group(function () {
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/feed', [NotificationController::class, 'feed'])->name('notifications.feed');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read_all');
+    Route::get('/notifications/{id}/open', [NotificationController::class, 'open'])->name('notifications.open');
+    Route::delete('/notifications/{id}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
 });

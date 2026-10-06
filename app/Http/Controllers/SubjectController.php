@@ -51,8 +51,10 @@ class SubjectController extends Controller
             'lecture_units' => $request->lecture_units,
             'lab_units'     => $request->lab_units,
             'total_units'   => (int)$request->lecture_units + (int)$request->lab_units,
-            'professor_id'  => $professorId, 
+            'professor_id'  => $professorId,
         ]);
+
+        \App\Support\Notifier::catalogChange('Subject', 'created', strtoupper($request->subject_code) . ' - ' . $request->subject_title, 'department_secretary.subject_catalog');
 
         return redirect()->back()->with('success', 'Global Subject catalog entry established successfully!');
     }
@@ -101,6 +103,8 @@ class SubjectController extends Controller
             'professor_id'  => $professorId,
         ]);
 
+        \App\Support\Notifier::catalogChange('Subject', 'updated', strtoupper($request->subject_code) . ' - ' . $request->subject_title, 'department_secretary.subject_catalog');
+
         return redirect()->back()->with('success', 'Global Subject entry updated successfully!');
     }
 
@@ -132,6 +136,8 @@ class SubjectController extends Controller
             'professor_id'  => $professorId,
         ]);
 
+        \App\Support\Notifier::catalogChange('Subject', 'updated', $subject->subject_code . ' - ' . $subject->subject_title, 'department_secretary.subject_catalog');
+
         return redirect()->back()->with(
             'success',
             "Subject [{$subject->subject_code}] updated successfully!"
@@ -144,6 +150,8 @@ class SubjectController extends Controller
         $code = $subject->subject_code;
 
         $subject->delete();
+
+        \App\Support\Notifier::catalogChange('Subject', 'removed', $code, 'department_secretary.subject_catalog');
 
         return redirect()->back()->with('success', "Subject [{$code}] has been removed from the catalog.");
     }

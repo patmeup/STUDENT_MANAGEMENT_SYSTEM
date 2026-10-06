@@ -210,8 +210,18 @@ class RegistrarController extends Controller
             'status' => 'required|string|in:Enrolled,On-Hold,Purged,Dropped',
         ]);
 
+        $oldStatus = $student->status;
         $student->status = $request->status;
         $student->save();
+
+        // NOTIFICATIONS: only when the status actually changed
+        if ($oldStatus !== $student->status) {
+            \App\Support\Notifier::toStudent($student->student_id, 'account_status', 'Account status updated',
+                "Your academic status is now: {$student->status}.", \App\Support\Notifier::url('student.dashboard'));
+            \App\Support\Notifier::toRole('dept_sec', 'student_status', 'Student status changed',
+                "{$student->last_name}, {$student->first_name} ({$student->student_id}) is now {$student->status}.",
+                \App\Support\Notifier::url('department_secretary.students.profile', ['student_id' => $student->student_id]));
+        }
 
         return redirect()->back()->with('Success', "Student academic status updated successfully for ID: {$student->student_id}");
     }
@@ -292,6 +302,11 @@ class RegistrarController extends Controller
 
         $student->delete();
 
+        // NOTIFICATION: dept. secretary is told a student record was removed
+        \App\Support\Notifier::toRole('dept_sec', 'student_deleted', 'Student record removed',
+            "Student {$sid} ({$fullName}) was permanently removed by the Registrar.",
+            \App\Support\Notifier::url('department_secretary.students'));
+
         return redirect()->route('registrar.manage-students')
             ->with('success', "Student record {$sid} ({$fullName}) has been permanently removed from the system.");
     }
@@ -343,7 +358,7 @@ class RegistrarController extends Controller
             if ($termFilter === 'semestral') {
                 $submittedCount = 0;
                 $semEquivalents = [];
-                
+
                 foreach ($enrolledSchedulesData as $sched) {
                     $completedTermsCount = DB::table('student_term_grades')
                         ->where('schedule_id', $sched->id)
@@ -355,7 +370,7 @@ class RegistrarController extends Controller
 
                     $isSubmitted = ($completedTermsCount === 4);
                     $semGrade = $isSubmitted ? \App\Support\GradeHelper::computeSemestralGrade($sched->id, $student->student_id) : null;
-                    
+
                     if (!$isSubmitted && strtoupper(trim($sched->schedule_type)) === 'LAB') {
                         $lecSched = $enrolledSchedulesData->first(function ($val) use ($sched) {
                             return $val->subject_id == $sched->subject_id && strtoupper(trim($val->schedule_type)) === 'LEC';
@@ -452,19 +467,19 @@ class RegistrarController extends Controller
                     $isSubmitted = false;
                     $isSent = false;
                     $gradeVal = null;
-                    
+
                     $dbGrade = $grades->firstWhere('schedule_id', $sched->id);
-                    
+
                     if ($dbGrade) {
                         $isSubmitted = true;
                         $isSent = $dbGrade->is_sent_to_student == 1;
                         $gradeVal = $dbGrade->equivalent;
-                    } 
+                    }
                     else if (strtoupper(trim($sched->schedule_type)) === 'LAB') {
                         $lecSched = $enrolledSchedulesData->first(function ($val) use ($sched) {
                             return $val->subject_id == $sched->subject_id && strtoupper(trim($val->schedule_type)) === 'LEC';
                         });
-                        
+
                         if ($lecSched) {
                             $lecGrade = $grades->firstWhere('schedule_id', $lecSched->id);
                             if ($lecGrade) {
@@ -548,7 +563,7 @@ class RegistrarController extends Controller
         $lecGrades = [];
         foreach ($subjects as $item) {
             $type = strtoupper(trim($item->schedule_type ?? 'LEC'));
-            
+
             if ($type === 'LEC' && $item->is_submitted) {
                 $lecGrades[$item->subject_id] = $item;
             }
@@ -561,11 +576,11 @@ class RegistrarController extends Controller
 
             if ($term === 'semestral') {
                 $semGrade = \App\Support\GradeHelper::computeSemestralGrade($item->schedule_id, $student_id);
-                
+
                 if ($semGrade === null && $type === 'LAB' && isset($lecGrades[$item->subject_id])) {
                     $semGrade = \App\Support\GradeHelper::computeSemestralGrade($lecGrades[$item->subject_id]->schedule_id, $student_id);
                 }
-                
+
                 $item->equivalent = $semGrade;
                 $item->is_submitted = $semGrade !== null ? 1 : 0;
 
@@ -685,6 +700,11 @@ class RegistrarController extends Controller
             );
         }
 
+        // NOTIFICATION: student is told the semestral grades are released
+        \App\Support\Notifier::toStudent($student_id, 'grades_released', 'Semestral grades released',
+            'Your semestral (final) grades for the term are now available in your portal.',
+            \App\Support\Notifier::url('student.my_grades'));
+
         return redirect()->back()->with('Success', "Semestral grades successfully released to student portal for ID: {$student_id}!");
     }
 
@@ -709,6 +729,11 @@ class RegistrarController extends Controller
             ->update(['is_sent_to_student' => 1]);
 
         if ($updated) {
+            // NOTIFICATION: student is told grades are released
+            \App\Support\Notifier::toStudent($student_id, 'grades_released', ucfirst($term) . ' grades released',
+                'Your ' . ucfirst($term) . ' term grades are now available in your portal.',
+                \App\Support\Notifier::url('student.my_grades'));
+
             return redirect()->back()->with('Success', ucfirst($term) . " term grades successfully released to student portal for ID: {$student_id}!");
         }
 

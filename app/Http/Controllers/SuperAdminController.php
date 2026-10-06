@@ -53,10 +53,10 @@ class SuperAdminController extends Controller
         }
 
         return view('super_admin.dashboard', compact(
-            'announcements', 
-            'totalStudents', 
-            'totalEmployees', 
-            'totalCourses', 
+            'announcements',
+            'totalStudents',
+            'totalEmployees',
+            'totalCourses',
             'totalSubjects',
             'avgAccuracy'
         ));
@@ -83,7 +83,7 @@ class SuperAdminController extends Controller
         } else {
             $nextNumber = '0001';
         }
-        
+
         $generatedId = "EMP-{$yearShort}-{$nextNumber}";
 
         User::create([
@@ -98,6 +98,10 @@ class SuperAdminController extends Controller
             'status'      => 'Active',
             'password'    => 'Welcome@AU2026',
         ]);
+
+        \App\Support\Notifier::toRole('system_admin', 'employee_created', 'New personnel account created',
+            strtoupper($request->last_name) . ', ' . strtoupper($request->first_name) . " ({$generatedId}) was added as " . \App\Support\Notifier::roleLabel($request->role) . '.',
+            \App\Support\Notifier::url('system_admin.manage-faculty'));
 
         return redirect()->back()->with('success', "Personnel account successfully created! ID: {$generatedId} | Default Pass: Welcome@AU2026");
     }
@@ -120,6 +124,10 @@ class SuperAdminController extends Controller
 
         $employee->save();
 
+        \App\Support\Notifier::toRole('system_admin', 'employee_status', 'Account status changed',
+            "{$employee->first_name} {$employee->last_name} ({$employee->employee_id}) is now {$employee->status}.",
+            \App\Support\Notifier::url('system_admin.manage-faculty'));
+
         return redirect()->back()->with('success', $message);
     }
 
@@ -131,6 +139,8 @@ class SuperAdminController extends Controller
         ]);
 
         $employee = User::findOrFail($id);
+        $oldRole = $employee->role;
+        $oldDept = $employee->department;
         $employee->role = $request->role;
 
         if (in_array($request->role, ['dean', 'dept_sec', 'professor'])) {
@@ -140,6 +150,15 @@ class SuperAdminController extends Controller
         }
 
         $employee->save();
+
+        // NOTIFICATIONS: the employee + system admin
+        if ($oldRole !== $employee->role || $oldDept !== $employee->department) {
+            \App\Support\Notifier::toEmployee($employee->id, 'role_changed', 'Your assignment was updated',
+                'You are now ' . \App\Support\Notifier::roleLabel($employee->role) . ($employee->department ? ' - ' . $employee->department : '') . '.');
+            \App\Support\Notifier::toRole('system_admin', 'employee_updated', 'Employee role updated',
+                "{$employee->first_name} {$employee->last_name} is now " . \App\Support\Notifier::roleLabel($employee->role) . '.',
+                \App\Support\Notifier::url('system_admin.manage-faculty'));
+        }
 
         return redirect()->back()->with('success', 'Employee role and department assignment updated successfully!');
     }
@@ -158,7 +177,7 @@ class SuperAdminController extends Controller
             'course_title' => 'required|string|max:255',
         ]);
 
-        $course = Course::findOrFail($id); 
+        $course = Course::findOrFail($id);
         $course->update([
             'course_code'  => strtoupper($request->course_code),
             'department'   => strtoupper($request->department),
@@ -172,7 +191,7 @@ class SuperAdminController extends Controller
     {
         $isCustom = $request->input('is_custom_mode') == '1';
 
-        $courseCode = $isCustom 
+        $courseCode = $isCustom
             ? strtoupper(trim($request->input('course_code_custom')))
             : strtoupper(trim($request->input('course_code_select')));
 
@@ -212,9 +231,9 @@ class SuperAdminController extends Controller
         }
 
         return view('super_admin.manage-ml', compact(
-            'mlModels', 
-            'avgAccuracy', 
-            'lastTrainedAt', 
+            'mlModels',
+            'avgAccuracy',
+            'lastTrainedAt',
             'activePeriod'
         ));
     }
@@ -224,8 +243,12 @@ class SuperAdminController extends Controller
         try {
             Artisan::call('ml:train');
 
+            \App\Support\Notifier::toRole('super_admin', 'ml_trained', 'ML models trained', 'Predictive models were trained and updated successfully.', \App\Support\Notifier::url('super_admin.manage-ml'));
+
             return redirect()->back()->with('success', 'ML Predictive Models trained and updated successfully!');
         } catch (\Exception $e) {
+            \App\Support\Notifier::toRole('super_admin', 'ml_failed', 'ML training failed', $e->getMessage(), \App\Support\Notifier::url('super_admin.manage-ml'));
+
             return redirect()->back()->with('error', 'ML Training Failed: ' . $e->getMessage());
         }
     }
@@ -242,7 +265,7 @@ class SuperAdminController extends Controller
         $isLocked = !Str::startsWith($user->password, '$2y$');
 
         return view('super_admin.user_details', compact('user', 'isLocked'));
-    }    
+    }
 
     public function updateProfilePicture(Request $request)
     {

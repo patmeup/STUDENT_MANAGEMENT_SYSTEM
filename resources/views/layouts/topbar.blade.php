@@ -21,8 +21,9 @@
         @endphp
 
         @if($user)
+            @include('notifications.bell')
             <div class="user-profile-wrapper">
-                
+
                 <div class="user-details-column">
                     {{-- 1. Pangalan sa Itaas (Surname First) --}}
                     <div class="name">
@@ -64,8 +65,8 @@
     .topbar {
         position: fixed;
         top: 0;
-        left: 0; 
-        width: 100%; 
+        left: 0;
+        width: 100%;
         height: 70px;
         background: #0039A6;
         display: flex;
@@ -127,24 +128,24 @@
         display: inline-flex;
         justify-content: center;
         align-items: center;
-        padding: 3px 14px; 
-        border-radius: 50px; 
+        padding: 3px 14px;
+        border-radius: 50px;
         color: white;
         font-size: 10px;
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.8px;
-        height: 19px; 
+        height: 19px;
         white-space: nowrap;
         border: 1px solid rgba(255, 255, 255, 0.2);
         box-sizing: border-box;
     }
 
     .role-badge.badge-super_admin { background: #1e293b; border-color: #334155; }
-    .role-badge.badge-system_admin { background: #000000; border-color: #1e293b; } 
-    .role-badge.badge-dept_sec { background: #ec4899; border-color: #f472b6; }    
-    .role-badge.badge-professor { background: #64748b; border-color: #475569; }   
-    .role-badge.badge-registrar { background: #0284c7; border-color: #0ea5e9; }   
+    .role-badge.badge-system_admin { background: #000000; border-color: #1e293b; }
+    .role-badge.badge-dept_sec { background: #ec4899; border-color: #f472b6; }
+    .role-badge.badge-professor { background: #64748b; border-color: #475569; }
+    .role-badge.badge-registrar { background: #0284c7; border-color: #0ea5e9; }
     .role-badge.badge-student { background: #059669; border-color: #10b981; }
 
     /* Circle Avatar Styling */
