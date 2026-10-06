@@ -1,11 +1,13 @@
 @extends('layouts.app')
 
 @section('content')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 <div class="sa-container">
     <div class="sa-header">
         <div class="header-titles">
-            <h2><i class="fas fa-users"></i> Block Section Roster</h2>
-            <p>Section: <span class="section-badge-title">{{ strtoupper($section_name) }}
+            <h2></i> Block Section Roster</h2>
+            <p>Section: <span class="section-badge-title">{{ strtoupper($section_name) }}</span></p>
         </div>
         <a href="{{ route('department_secretary.students') }}" class="btn-back">
             <i class="fas fa-arrow-left"></i> Back to Masterlist

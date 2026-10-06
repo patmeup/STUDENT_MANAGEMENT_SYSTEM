@@ -27,12 +27,20 @@ class StudentController extends Controller
             ->orderBy('id', 'asc')
             ->get();
 
-        $enrolledClasses = DB::table('student_subjects')
+        $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
+        $activePeriodId = $activePeriod ? $activePeriod->id : null;
+
+        $enrolledClassesQuery = DB::table('student_subjects')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->where('student_subjects.student_number', $studentNumber)
-            ->where('student_subjects.status', 'Enrolled')
-            ->select(
+            ->where('student_subjects.status', 'Enrolled');
+
+        if ($activePeriodId) {
+            $enrolledClassesQuery->where('class_schedules.academic_period_id', $activePeriodId);
+        }
+
+        $enrolledClasses = $enrolledClassesQuery->select(
                 'class_schedules.id as schedule_id',
                 'subjects.id as subject_id',
                 'subjects.total_units',
@@ -40,95 +48,8 @@ class StudentController extends Controller
             )
             ->get();
 
-        $totalUnits = 0;
-        $weightedGradesSum = 0;
-        $hasGrades = false;
-
-        foreach ($enrolledClasses as $class) {
-            $gradedSubmissions = DB::table('task_submissions')
-                ->join('student_tasks', 'task_submissions.task_id', '=', 'student_tasks.id')
-                ->where('student_tasks.class_schedule_id', $class->schedule_id)
-                ->where('task_submissions.student_id', $studentNumber)
-                ->whereNotNull('task_submissions.grade')
-                ->select('task_submissions.grade', 'student_tasks.activity_type')
-                ->get();
-
-            if ($gradedSubmissions->isNotEmpty()) {
-                $hasGrades = true;
-                $grouped = $gradedSubmissions->groupBy(function($item) {
-                    return strtolower(trim($item->activity_type));
-                });
-
-                $averages = [];
-                foreach ($grouped as $type => $items) {
-                    $averages[$type] = $items->avg('grade');
-                }
-
-                $majorExam = $averages['major exam'] ?? $averages['exam'] ?? 0;
-
-                $writtenComponents = [];
-                if (isset($averages['written'])) $writtenComponents[] = $averages['written'];
-                if (isset($averages['quiz'])) $writtenComponents[] = $averages['quiz'];
-                if (isset($averages['activity'])) $writtenComponents[] = $averages['activity'];
-
-                $currentWrittenWorks = count($writtenComponents) > 0 ? (array_sum($writtenComponents) / count($writtenComponents)) : 0;
-                $currentRecitation = $averages['recitation'] ?? 0;
-                $currentAttendance = $averages['attendance'] ?? 0;
-
-                $classStandingComponents = array_filter([$currentWrittenWorks, $currentRecitation, $currentAttendance]);
-                $classStandingAverage = count($classStandingComponents) > 0 ? (array_sum($classStandingComponents) / count($classStandingComponents)) : 0;
-
-                $classStandingContribution = $classStandingAverage * 0.60;
-                $examContribution = $majorExam * 0.40;
-
-                $subjectGrade = round($classStandingContribution + $examContribution, 2);
-
-                $weightedGradesSum += ($subjectGrade * $class->total_units);
-                $totalUnits += $class->total_units;
-            } else {
-                $totalUnits += $class->total_units;
-            }
-        }
-
-        $predictedTermGWA = ($hasGrades && $totalUnits > 0) ? round($weightedGradesSum / $totalUnits, 2) : 0;
-
-        $gwaStatus = 'No grades computed yet';
-        $statusClass = 'text-secondary';
-        if ($predictedTermGWA > 0) {
-            if ($predictedTermGWA >= 75) {
-                $gwaStatus = 'PASSED (Good Standing)';
-                $statusClass = 'text-success';
-            } else {
-                $gwaStatus = 'AT RISK (Needs Improvement)';
-                $statusClass = 'text-danger';
-            }
-        }
-
-        $totalEnrolledClasses = $enrolledClasses->count();
+        $totalEnrolledClasses = $enrolledClasses->unique('subject_id')->count();
         $enrolledScheduleIds = $enrolledClasses->pluck('schedule_id');
-
-        $terms = ['prelim', 'midterm', 'semifinal', 'final'];
-        $pendingTasksPerTerm = [];
-        $totalLocalPending = 0;
-
-        foreach ($terms as $term) {
-            $count = DB::table('student_tasks')
-                ->whereIn('class_schedule_id', $enrolledScheduleIds)
-                ->where('term', $term)
-                ->whereNull('google_coursework_id')
-                ->whereNotNull('due_date')
-                ->where('due_date', '!=', '')
-                ->whereNotExists(function ($query) use ($studentNumber) {
-                    $query->select(DB::raw(1))
-                        ->from('task_submissions')
-                        ->whereColumn('task_submissions.task_id', 'student_tasks.id')
-                        ->where('task_submissions.student_id', $studentNumber);
-                })
-                ->count();
-
-            $pendingTasksPerTerm[$term] = $count;
-            $totalLocalPending += $count;
-        }
 
         $googleCourseIds = DB::table('google_classroom_courses')
             ->whereIn('linked_class_schedule_id', $enrolledScheduleIds)
@@ -149,17 +70,26 @@ class StudentController extends Controller
                 ->count();
         }
 
-        $pendingTasksCount = $totalLocalPending + $googlePendingCount;
+        $localPendingCount = DB::table('student_tasks')
+            ->whereIn('class_schedule_id', $enrolledScheduleIds)
+            ->whereNull('google_coursework_id')
+            ->whereNotNull('due_date')
+            ->where('due_date', '!=', '')
+            ->whereNotExists(function ($query) use ($studentNumber) {
+                $query->select(DB::raw(1))
+                    ->from('task_submissions')
+                    ->whereColumn('task_submissions.task_id', 'student_tasks.id')
+                    ->where('task_submissions.student_id', $studentNumber);
+            })
+            ->count();
+
+        $pendingTasksCount = $localPendingCount + $googlePendingCount;
 
         return view('student.dashboard', compact(
             'student',
             'announcements',
             'totalEnrolledClasses',
-            'pendingTasksCount',
-            'pendingTasksPerTerm',
-            'predictedTermGWA',
-            'gwaStatus',
-            'statusClass'
+            'pendingTasksCount'
         ));
     }
 
@@ -672,13 +602,24 @@ class StudentController extends Controller
     {
         $studentId = session('student_id');
 
-        $classes = DB::table('student_subjects')
+        $activeAcademicPeriod = DB::table('academic_periods')
+            ->where('is_active', 1)
+            ->first();
+
+        $activePeriodId = $activeAcademicPeriod ? $activeAcademicPeriod->id : null;
+
+        $classesQuery = DB::table('student_subjects')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id')
             ->where('student_subjects.student_number', $studentId)
-            ->where('student_subjects.status', 'Enrolled')
-            ->select(
+            ->where('student_subjects.status', 'Enrolled');
+
+        if ($activePeriodId) {
+            $classesQuery->where('class_schedules.academic_period_id', $activePeriodId);
+        }
+
+        $classes = $classesQuery->select(
                 'class_schedules.id as schedule_id',
                 'class_schedules.section_name',
                 'class_schedules.class_days',
@@ -707,7 +648,7 @@ class StudentController extends Controller
 
         $totalUnits = $classes->unique('subject_id')->sum('total_units');
 
-        return view('student.my_classes', compact('classes', 'totalUnits'));
+        return view('student.my_classes', compact('classes', 'totalUnits', 'activeAcademicPeriod'));
     }
 
     public function viewTaskDetails($id)
@@ -1234,6 +1175,17 @@ class StudentController extends Controller
             $finals = $getTermGrade('final');
 
             $semestralGrade = \App\Support\GradeHelper::computeSemestralGrade($class->schedule_id, $studentNumber);
+
+            $semestralReleased = DB::table('student_term_grades')
+                ->where('schedule_id', $class->schedule_id)
+                ->where('student_number', $studentNumber)
+                ->where('term', 'semestral')
+                ->where('is_sent_to_student', 1)
+                ->exists();
+
+            if (!$semestralReleased) {
+                $semestralGrade = null;
+            }
             
             $mlPrediction = null;
             if ($activeAcademicPeriod) {

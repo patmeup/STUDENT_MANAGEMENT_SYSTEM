@@ -8,7 +8,13 @@
     <div class="prof-header">
         <div class="header-titles">
             <h2>My Enrolled Classes</h2>
-            <p>1st Semester — Academic Year 2026-2027</p>
+            <p>
+                @if(isset($activeAcademicPeriod))
+                    {{ $activeAcademicPeriod->semester }} — Academic Year {{ $activeAcademicPeriod->school_year }}
+                @else
+                    Current Semester & Academic Year
+                @endif
+            </p>
         </div>
         <div class="header-badge student-level">Total Units: {{ $totalUnits ?? 0 }}</div>
     </div>

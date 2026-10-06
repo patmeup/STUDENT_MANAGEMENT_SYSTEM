@@ -1,6 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $activePeriod = $activePeriod ?? \Illuminate\Support\Facades\DB::table('academic_periods')->where('is_active', true)->first();
+@endphp
 <div class="sa-container">
     <div class="sa-header">
         <div class="header-titles">
@@ -132,7 +135,7 @@
             <div class="card-header-flex">
                 <h3 class="card-title-list">Active Dynamic Block Sections</h3>
                 <span class="badge-count" style="background: #16a34a;">
-                    {{ $sections->groupBy('section_name')->count() }} Active Blocks
+                    {{ $sections->count() }} Active Blocks
                 </span>
             </div>
 
@@ -145,20 +148,18 @@
                     <thead>
                         <tr>
                             <th>Block Section Name</th>
-                            <th>Enrolled Students</th>
-                            <th>Academic Level</th>
+                            <th>Students in Block</th>
+                            <th>Active Subjects</th>
                             <th style="text-align: center;">Actions & Bulk Enrollment Controls</th>
                         </tr>
                     </thead>
                     <tbody id="blockTableBody">
-                        @forelse($sections->groupBy('section_name') as $sectionName => $records)
-                            @php 
-                                $slug = Str::slug($sectionName); 
-                                $defaultYear = '1st Year';
-                                if (str_contains($sectionName, '1')) $defaultYear = '1st Year';
-                                elseif (str_contains($sectionName, '2')) $defaultYear = '2nd Year';
-                                elseif (str_contains($sectionName, '3')) $defaultYear = '3rd Year';
-                                elseif (str_contains($sectionName, '4')) $defaultYear = '4th Year';
+                        @forelse($sections as $block)
+                            @php
+                                $sectionName = $block->section_name;
+                                $slug        = Str::slug($sectionName . '-' . ($block->block_year_level ?? 'na'));
+                                $enrolled    = $block->enrolled_count ?? 0;
+                                $pending     = $block->pending_count ?? 0;
                             @endphp
                             <tr class="block-row">
                                 <td>
@@ -169,20 +170,14 @@
 
                                 <td>
                                     <span class="enrolled-count-badge">
-                                        <i class="fas fa-users"></i> {{ $records->first()->enrolled_count ?? 0 }} Students
+                                        <i class="fas fa-users"></i> {{ $enrolled }} {{ Str::plural('Student', $enrolled) }}
                                     </span>
                                 </td>
 
                                 <td>
                                     <span id="display-count-{{ $slug }}">
-                                        <strong>0</strong> Active Subjects
+                                        <strong>{{ $block->total_subjects ?? 0 }}</strong> Active Subjects
                                     </span>
-
-                                    <div class="block-meta-dataset" style="display: none;" data-block-id="{{ $slug }}">
-                                        @foreach($records as $rec)
-                                            <span data-year="{{ $rec->year_level }}" data-sem="{{ $rec->semester }}" data-count="{{ $rec->total_subjects }}"></span>
-                                        @endforeach
-                                    </div>
                                 </td>
 
                                 <td style="text-align: center;">
@@ -193,21 +188,15 @@
                                     <form action="{{ route('department_secretary.bulk_enroll') }}" method="POST" style="display:inline-block; margin-left: 15px;">
                                         @csrf
                                         <input type="hidden" name="current_section" value="{{ $sectionName }}">
-                                        
-                                        <select name="target_year" class="select-input-helper year-selector-js" data-target="{{ $slug }}" style="width: 105px; padding: 4px 6px; font-size: 12px;" required>
-                                            <option value="1st Year" {{ $defaultYear == '1st Year' ? 'selected' : '' }}>1st Year</option>
-                                            <option value="2nd Year" {{ $defaultYear == '2nd Year' ? 'selected' : '' }}>2nd Year</option>
-                                            <option value="3rd Year" {{ $defaultYear == '3rd Year' ? 'selected' : '' }}>3rd Year</option>
-                                            <option value="4th Year" {{ $defaultYear == '4th Year' ? 'selected' : '' }}>4th Year</option>
-                                        </select>
 
-                                        <select name="target_semester" class="select-input-helper sem-selector-js" data-target="{{ $slug }}" style="width: 115px; padding: 4px 6px; font-size: 12px;" required>
-                                            <option value="1st Semester" selected>1st Sem</option>
-                                            <option value="2nd Semester">2nd Sem</option>
-                                            <option value="Summer" class="opt-summer-js" style="display: none;">Summer</option>
-                                        </select>
+                                        <span style="font-size: 12px; color: #64748b; margin-right: 6px;">
+                                            {{ $activePeriod ? $activePeriod->school_year . ' · ' . $activePeriod->semester : 'No active period' }}
+                                        </span>
 
-                                        <button type="submit" class="btn-helper" style="background: #16a34a; padding: 5px 10px; font-size: 12px;" onclick="return confirm('Do you want to bulk enroll this entire block into the selected Year and Semester?')">
+                                        <button type="submit" class="btn-helper"
+                                                style="background: {{ $pending > 0 ? '#16a34a' : '#94a3b8' }}; padding: 5px 10px; font-size: 12px;"
+                                                {{ $pending > 0 ? '' : 'disabled' }}
+                                                onclick="return confirm('Bulk enroll all students of this block into its schedules for the active semester?')">
                                             Bulk Enroll Block
                                         </button>
                                     </form>

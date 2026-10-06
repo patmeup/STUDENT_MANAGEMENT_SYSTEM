@@ -224,13 +224,14 @@ class DeanController extends Controller
 
     public function facultyGradeStatus(Request $request)
     {
-
         $search = $request->input('search');
+        $yearLevelFilter = $request->input('year_level');
 
         $activeAcademicPeriod = DB::table('academic_periods')->where('is_active', 1)->first();
+        $activePeriodId = $activeAcademicPeriod ? $activeAcademicPeriod->id : null;
 
-        $termPeriods = $activeAcademicPeriod
-            ? DB::table('term_periods')->where('academic_period_id', $activeAcademicPeriod->id)->orderBy('start_date', 'asc')->get()
+        $termPeriods = $activePeriodId
+            ? DB::table('term_periods')->where('academic_period_id', $activePeriodId)->orderBy('start_date', 'asc')->get()
             : collect();
 
         $currentDate = now()->toDateString();
@@ -246,15 +247,18 @@ class DeanController extends Controller
 
         $classesQuery = DB::table('class_schedules')
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->join('curricula', 'subjects.id', '=', 'curricula.subject_id')
             ->leftJoin('employees', function ($join) {
                 $join->on('subjects.professor_id', '=', 'employees.id')
                     ->where('employees.role', '=', 'professor');
             })
+            ->where('class_schedules.academic_period_id', $activePeriodId)
             ->select(
                 'class_schedules.id as schedule_id',
                 'class_schedules.section_name',
                 'subjects.subject_code',
                 'subjects.subject_title',
+                'curricula.year_level',
                 'employees.first_name as prof_first_name',
                 'employees.last_name as prof_last_name',
                 DB::raw('(SELECT COUNT(*)
@@ -263,6 +267,10 @@ class DeanController extends Controller
                         WHERE student_subjects.schedule_id = class_schedules.id
                         AND student_subjects.status = "Enrolled") as enrolled_count')
             );
+
+        if ($yearLevelFilter) {
+            $classesQuery->where('curricula.year_level', $yearLevelFilter);
+        }
 
         if ($search) {
             $classesQuery->where(function ($q) use ($search) {
@@ -302,7 +310,7 @@ class DeanController extends Controller
             return $class;
         });
 
-        return view('dean.faculty-grade-status', compact('report', 'termPeriods', 'termFilter', 'activeAcademicPeriod', 'search'));
+        return view('dean.faculty-grade-status', compact('report', 'termPeriods', 'termFilter', 'activeAcademicPeriod', 'search', 'yearLevelFilter'));
     }
 
     public function getGradeBreakdown(Request $request, $scheduleId)

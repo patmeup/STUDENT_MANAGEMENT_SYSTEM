@@ -37,7 +37,7 @@
                         <th colspan="2" class="term-header term-header-midterm">MIDTERM</th>
                         <th colspan="2" class="term-header term-header-semifinal" style="background-color: #f3e8ff; color: #6b21a8;">SEMI-FINALS</th>
                         <th colspan="2" class="term-header term-header-finals">FINALS</th>
-                        <th rowspan="2" class="col-final">PREDICTED SEMESTRAL</th>
+                        <th rowspan="2" class="col-final">SEMESTRAL GRADE</th>
                     </tr>
                     <tr>
                         <th class="sub-col">Percentage</th>
@@ -64,51 +64,46 @@
                                 <span class="prof-name">{{ $data['professor'] ?: 'TBA' }}</span>
                             </td>
 
-                            <!-- Prelim -->
                             <td class="text-center grade-value">{{ $data['prelim']['grade'] !== null ? number_format($data['prelim']['grade'], 2) : '—' }}</td>
                             <td class="text-center">
-                                @if($data['prelim']['equivalent'] ?? null)
-                                    <span class="equiv-chip {{ $data['prelim']['equivalent'] <= 3 ? 'equiv-pass' : 'equiv-fail' }}">{{ $data['prelim']['equivalent'] }}</span>
+                                @if($data['prelim']['equivalent'] !== null)
+                                    <span class="equiv-chip {{ $data['prelim']['equivalent'] <= 3 ? 'equiv-pass' : 'equiv-fail' }}">{{ number_format($data['prelim']['equivalent'], 2) }}</span>
                                 @else
                                     <span class="equiv-chip equiv-empty">—</span>
                                 @endif
                             </td>
 
-                            <!-- Midterm -->
                             <td class="text-center grade-value">{{ $data['midterm']['grade'] !== null ? number_format($data['midterm']['grade'], 2) : '—' }}</td>
                             <td class="text-center">
-                                @if($data['midterm']['equivalent'] ?? null)
-                                    <span class="equiv-chip {{ $data['midterm']['equivalent'] <= 3 ? 'equiv-pass' : 'equiv-fail' }}">{{ $data['midterm']['equivalent'] }}</span>
+                                @if($data['midterm']['equivalent'] !== null)
+                                    <span class="equiv-chip {{ $data['midterm']['equivalent'] <= 3 ? 'equiv-pass' : 'equiv-fail' }}">{{ number_format($data['midterm']['equivalent'], 2) }}</span>
                                 @else
                                     <span class="equiv-chip equiv-empty">—</span>
                                 @endif
                             </td>
 
-                            <!-- Semi-Final -->
                             <td class="text-center grade-value">{{ $data['semifinal']['grade'] !== null ? number_format($data['semifinal']['grade'], 2) : '—' }}</td>
                             <td class="text-center">
-                                @if($data['semifinal']['equivalent'] ?? null)
-                                    <span class="equiv-chip {{ $data['semifinal']['equivalent'] <= 3 ? 'equiv-pass' : 'equiv-fail' }}">{{ $data['semifinal']['equivalent'] }}</span>
+                                @if($data['semifinal']['equivalent'] !== null)
+                                    <span class="equiv-chip {{ $data['semifinal']['equivalent'] <= 3 ? 'equiv-pass' : 'equiv-fail' }}">{{ number_format($data['semifinal']['equivalent'], 2) }}</span>
                                 @else
                                     <span class="equiv-chip equiv-empty">—</span>
                                 @endif
                             </td>
 
-                            <!-- Finals -->
                             <td class="text-center grade-value">{{ $data['finals']['grade'] !== null ? number_format($data['finals']['grade'], 2) : '—' }}</td>
                             <td class="text-center">
-                                @if($data['finals']['equivalent'] ?? null)
-                                    <span class="equiv-chip {{ $data['finals']['equivalent'] <= 3 ? 'equiv-pass' : 'equiv-fail' }}">{{ $data['finals']['equivalent'] }}</span>
+                                @if($data['finals']['equivalent'] !== null)
+                                    <span class="equiv-chip {{ $data['finals']['equivalent'] <= 3 ? 'equiv-pass' : 'equiv-fail' }}">{{ number_format($data['finals']['equivalent'], 2) }}</span>
                                 @else
                                     <span class="equiv-chip equiv-empty">—</span>
                                 @endif
                             </td>
 
-                            <!-- Predicted Semestral Grade -->
                             <td class="text-center">
-                                @if($data['predicted_semestral'] !== null)
-                                    <span class="final-equiv-badge {{ $data['predicted_semestral'] <= 3 ? 'final-pass' : 'final-fail' }}">
-                                        {{ number_format($data['predicted_semestral'], 2) }}
+                                @if($data['prelim']['equivalent'] !== null && $data['midterm']['equivalent'] !== null && $data['semifinal']['equivalent'] !== null && $data['finals']['equivalent'] !== null && $data['semestral_grade'] !== null)
+                                    <span class="final-equiv-badge {{ $data['semestral_grade'] <= 3 ? 'final-pass' : 'final-fail' }}">
+                                        {{ number_format($data['semestral_grade'], 2) }}
                                     </span>
                                 @else
                                     <span class="equiv-chip equiv-empty">—</span>
