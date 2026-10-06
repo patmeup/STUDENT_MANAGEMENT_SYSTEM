@@ -69,7 +69,12 @@
 
                     <div class="form-group">
                         <label>Class Section / Block Name</label>
-                        <input type="text" name="section_name" id="formSectionName" placeholder="E.G., BSIT 2-A" class="select-input uppercase-input custom-validate">
+                        <input type="text" name="section_name" id="formSectionName" list="sectionSuggestions" placeholder="E.G., BSIT 2-A" class="select-input uppercase-input custom-validate">
+                        <datalist id="sectionSuggestions">
+                            @foreach(($sections ?? []) as $sectionOption)
+                                <option value="{{ $sectionOption }}"></option>
+                            @endforeach
+                        </datalist>
                     </div>
                 </div>
 

@@ -1,6 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 <div class="sa-container">
     <div class="sa-header">
         <div class="header-titles">
@@ -10,10 +12,10 @@
     </div>
 
     <div class="filter-bar-card">
-        <form method="GET" action="{{ route('dean.faculty-grade-status') }}" class="term-form" id="termForm">
-            <div class="term-select-wrapper">
-                <i class="fa-regular fa-calendar-days"></i>
-                <select name="term" class="term-select" onchange="document.getElementById('termForm').submit()">
+        <form method="GET" action="{{ route('dean.faculty-grade-status') }}" class="term-form" id="termForm" style="display: flex; gap: 12px; align-items: center; flex: 1; flex-wrap: wrap;">
+            
+            <div style="flex: 0 0 auto;">
+                <select name="term" class="custom-solid-select" onchange="document.getElementById('termForm').submit()">
                     @foreach($termPeriods as $tp)
                         <option value="{{ $tp->term }}" {{ $termFilter == $tp->term ? 'selected' : '' }}>
                             {{ ucfirst($tp->term) }} Term ({{ \Carbon\Carbon::parse($tp->start_date)->format('M d') }} - {{ \Carbon\Carbon::parse($tp->end_date)->format('M d, Y') }})
@@ -21,11 +23,13 @@
                     @endforeach
                 </select>
             </div>
-        </form>
 
-        <div class="search-input-wrapper">
-            <input type="text" id="liveSearchInput" class="custom-search-input" placeholder="Search by professor, subject, or section..." value="{{ $search }}">
-        </div>
+            <div class="search-input-wrapper" style="position: relative; flex: 1; min-width: 280px;">
+                <i class="fas fa-search search-icon" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px;"></i>
+                <input type="text" name="search" id="liveSearchInput" class="custom-search-input" placeholder="Search by professor, subject, or section..." value="{{ $search }}">
+            </div>
+
+        </form>
 
         <div class="status-pills-filter">
             <button type="button" class="status-pill-btn active" data-status-filter="all">All</button>
@@ -253,12 +257,41 @@
     .term-select { border: none; background: transparent; font-weight: 600; color: #334155; font-size: 13px; outline: none; cursor: pointer; }
 
     .search-input-wrapper { flex: 1; min-width: 250px; }
-    .custom-search-input {
-        width: 100%; box-sizing: border-box; padding: 9px 12px;
-        border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13.5px; color: #334155; outline: none; background: #fff;
-    }
-    .custom-search-input:focus { border-color: #cbd5e1 !important; box-shadow: none !important; outline: none !important; }
 
+    .custom-solid-select {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 100%;
+        min-width: 320px;
+        height: 42px;
+        padding: 0 40px 0 16px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background-color: #f8fafc;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+        background-size: 16px;
+        font-size: 13.5px;
+        font-weight: 600;
+        color: #334155;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .custom-solid-select:focus {
+        border-color: #1e2a5a;
+        box-shadow: 0 0 0 3px rgba(30,42,90,0.1);
+        background-color: #ffffff;
+    }
+
+    .custom-search-input {
+        width: 100%; box-sizing: border-box; height: 42px; padding: 0 16px 0 42px;
+        border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13.5px; color: #334155; outline: none; background: #fff;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .custom-search-input:focus { border-color: #1e2a5a !important; box-shadow: 0 0 0 3px rgba(30,42,90,0.08) !important; outline: none !important; }
+    
     .status-pills-filter { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     .status-pill-btn {
         background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px;

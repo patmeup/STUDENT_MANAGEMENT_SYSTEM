@@ -1,12 +1,11 @@
 @extends('layouts.app')
 
 @section('content')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 <div class="sa-container">
     
     <div class="sa-header" style="display: flex; gap: 15px; align-items: flex-start; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px;">
-        <div style="font-size: 32px; color: #1e2a5a; margin-top: 2px;">
-            <i class="fas fa-graduation-cap"></i>
-        </div>
         <div class="header-titles">
             <h2 style="margin: 0; font-size: 24px; color: #0f172a; font-weight: 800; line-height: 1.2;">Manage Student Grades</h2>
             <p style="margin: 6px 0 0 0; font-size: 14px; color: #64748b;">
@@ -58,7 +57,7 @@
                         @forelse($students as $student)
                             <tr>
                                 <td><strong class="code-highlight">{{ $student->student_id }}</strong></td>
-                                <td><strong>{{ strtoupper($student->last_name) }}</strong>, {{ $student->first_name }}</td>
+                                <td><strong>{{ strtoupper($student->last_name) }}</strong>, {{$student->first_name }}</td>
                                 <td>
                                     <div style="display: flex; align-items: center; gap: 6px;">
                                         <span class="sem-tag">{{ $student->course }}</span>
@@ -75,32 +74,37 @@
                                 </td>
 
                                 <td class="text-center">
+                                    @php
+                                        $isSemestral = strtolower($termFilter) == 'semestral';
+                                        $denominator = $student->total_required;
+                                    @endphp
+
                                     @if($student->grade_status == 'Complete')
                                         <span class="status-pill status-submitted">
-                                            <i class="fa-solid fa-circle-check"></i> Complete ({{ $student->total_submitted }}/{{ $student->total_enrolled }})
+                                            <i class="fa-solid fa-circle-check"></i> Complete ({{ $student->total_submitted }}/{{ $denominator }})
                                         </span>
                                     @elseif($student->grade_status == 'Partial')
                                         <span class="status-pill status-partial">
-                                            <i class="fa-solid fa-spinner"></i> Partial ({{ $student->total_submitted }}/{{ $student->total_enrolled }})
+                                            <i class="fa-solid fa-spinner"></i> Partial ({{ $student->total_submitted }}/{{ $denominator }})
                                         </span>
                                     @else
                                         <span class="status-pill status-pending">
-                                            <i class="fa-solid fa-hourglass-half"></i> Pending (0/{{ $student->total_enrolled }})
+                                            <i class="fa-solid fa-hourglass-half"></i> Pending (0/{{ $denominator }})
                                         </span>
                                     @endif
                                 </td>
 
                                 <td class="text-center">
                                     <div class="action-buttons-wrapper">
-                                        <button type="button" class="btn-action btn-view" onclick="openGradesModal('{{ $student->student_id }}', '{{ $student->first_name }} {{ $student->last_name }}', '{{ $termFilter }}')" title="View Subject Grades">
+                                        <button type="button" class="btn-action btn-view" onclick="openGradesModal('{{ $student->student_id }}', '{{$student->first_name }} {{ $student->last_name }}', '{{$termFilter }}')" title="View Subject Grades">
                                             <i class="fa-solid fa-eye"></i> View
                                         </button>
 
                                         @if($student->grade_status == 'Complete')
                                             @if($student->is_fully_sent)
-                                                <span class="status-pill status-submitted" style="padding: 6px 12px; font-size: 11px;">
-                                                    <i class="fa-solid fa-check-double"></i> Released
-                                                </span>
+                                                <button type="button" class="btn-action" style="background: #f8fafc; color: #15803d; border-color: #cbd5e1; cursor: default;" disabled title="Grades already released">
+                                                    <i class="fa-solid fa-check"></i> Released
+                                                </button>
                                             @else
                                                 <form action="{{ route('registrar.release-grades', $student->student_id) }}" method="POST" style="display:inline;">
                                                     @csrf
@@ -132,7 +136,7 @@
 
             @if($students->hasPages())
                 <div class="pagination-footer">
-                    {{ $students->appends(['search' => $search, 'term' => $termFilter])->links() }}
+                    {{ $students->appends(['search' => $search, 'term' =>$termFilter])->links() }}
                 </div>
             @endif
         </div>
@@ -145,8 +149,8 @@
             <h3 id="modalStudentName">Student Grades</h3>
             <button type="button" onclick="closeGradesModal()" class="modal-close-btn">&times;</button>
         </div>
-        <div class="custom-modal-body">
-            <p style="font-size: 13px; color: #64748b; margin-top: 0;">Term: <strong id="modalTermLabel" style="text-transform: uppercase;"></strong></p>
+        <div class="custom-modal-body" style="padding-top: 15px;">
+            <div id="modalTermLabel" style="display: none;"></div>
             <div class="table-responsive">
                 <table class="minimal-table" style="font-size: 13px;">
                     <thead>
@@ -185,7 +189,11 @@
 
     function openGradesModal(studentId, studentName, term) {
         document.getElementById('modalStudentName').innerText = studentName + ' (' + studentId + ')';
-        document.getElementById('modalTermLabel').innerText = term;
+        
+        const termLabelElem = document.getElementById('modalTermLabel');
+        if (termLabelElem) {
+            termLabelElem.innerText = term;
+        }
 
         const isSemestral = term.toLowerCase() === 'semestral';
         const headerRow = document.getElementById('modalHeaderRow');

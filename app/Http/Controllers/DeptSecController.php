@@ -95,16 +95,44 @@ class DeptSecController extends Controller
         return view('department_secretary.subject_catalog', compact('curriculumSubjects', 'dept', 'yearFilter'));
     }
 
+    private function allowedCoursesForDept()
+    {
+        $dept = strtolower((string) session('user_department'));
+        if (str_contains($dept, 'computer studies') || str_contains($dept, 'ccs')) {
+            return ['BSIT', 'BSCS'];
+        }
+        return ['BSIT'];
+    }
+
+    private function yearLevelFromSection($sectionName)
+    {
+        if (!preg_match('/(\d)/', (string) $sectionName, $m)) {
+            return null;
+        }
+        $map = [1 => '1st Year', 2 => '2nd Year', 3 => '3rd Year', 4 => '4th Year'];
+        return $map[(int) $m[1]] ?? null;
+    }
+
+    private function blockYearLevel($sectionName, $periodId)
+    {
+        $fromName = $this->yearLevelFromSection($sectionName);
+        if ($fromName) {
+            return $fromName;
+        }
+
+        return DB::table('class_schedules')
+            ->join('curricula', 'curricula.subject_id', '=', 'class_schedules.subject_id')
+            ->where('class_schedules.section_name', $sectionName)
+            ->where('class_schedules.academic_period_id', $periodId)
+            ->groupBy('curricula.year_level')
+            ->orderByRaw('count(*) desc')
+            ->value('curricula.year_level');
+    }
+
     public function studentsList(Request $request)
     {
         $dept = session('user_department');
-        $allowedCourses = [];
-
-        if (str_contains(strtolower($dept), 'computer studies') || str_contains(strtolower($dept), 'ccs')) {
-            $allowedCourses = ['BSIT', 'BSCS'];
-        } else {
-            $allowedCourses = ['BSIT'];
-        }
+        $allowedCourses = $this->allowedCoursesForDept();
 
         $students = DB::table('students')
             ->whereIn('course', $allowedCourses)
@@ -112,25 +140,66 @@ class DeptSecController extends Controller
             ->orderBy('first_name', 'asc')
             ->get();
 
-        $sections = DB::table('class_schedules as main_cs')
-            ->join('subjects', 'main_cs.subject_id', '=', 'subjects.id')
-            ->join('curricula', 'subjects.id', '=', 'curricula.subject_id')
-            ->select(
-                'main_cs.section_name',
-                'curricula.year_level',
-                'curricula.semester',
-                DB::raw('count(distinct main_cs.subject_id) as total_subjects'),
-                DB::raw("(
-                    select count(*)
-                    from students
-                    where students.section = main_cs.section_name
-                ) as enrolled_count")
-            )
-            ->groupBy('main_cs.section_name', 'curricula.year_level', 'curricula.semester')
-            ->orderBy('main_cs.section_name', 'asc')
-            ->get();
+        $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
 
-        return view('department_secretary.masterlist', compact('students', 'sections', 'dept'));
+        $sections = collect();
+
+        if ($activePeriod) {
+            $blocks = DB::table('class_schedules')
+                ->where('academic_period_id', $activePeriod->id)
+                ->where(function ($q) use ($allowedCourses) {
+                    foreach ($allowedCourses as $course) {
+                        $q->orWhere('section_name', 'LIKE', $course . '%');
+                    }
+                })
+                ->select(
+                    'section_name',
+                    DB::raw('count(distinct subject_id) as total_subjects')
+                )
+                ->groupBy('section_name')
+                ->orderBy('section_name', 'asc')
+                ->get();
+
+            $sections = $blocks->map(function ($rec) use ($activePeriod, $allowedCourses) {
+                $year = $this->blockYearLevel($rec->section_name, $activePeriod->id);
+
+                $assignedQuery = DB::table('students')
+                    ->where('section', $rec->section_name)
+                    ->whereIn('course', $allowedCourses);
+                if ($year) {
+                    $assignedQuery->where('year_level', $year);
+                }
+
+                $pendingQuery = (clone $assignedQuery)->whereNotExists(function ($q) use ($rec, $activePeriod) {
+                    $q->select(DB::raw(1))
+                        ->from('student_subjects as ss')
+                        ->join('class_schedules as cs', 'cs.id', '=', 'ss.schedule_id')
+                        ->whereColumn('ss.student_number', 'students.student_id')
+                        ->where('cs.section_name', $rec->section_name)
+                        ->where('cs.academic_period_id', $activePeriod->id)
+                        ->where('ss.status', 'Enrolled');
+                });
+
+                $enrolled = DB::table('student_subjects as ss')
+                    ->join('class_schedules as cs', 'cs.id', '=', 'ss.schedule_id')
+                    ->join('students as s', 's.student_id', '=', 'ss.student_number')
+                    ->where('cs.section_name', $rec->section_name)
+                    ->where('cs.academic_period_id', $activePeriod->id)
+                    ->where('ss.status', 'Enrolled')
+                    ->whereIn('s.course', $allowedCourses)
+                    ->distinct()
+                    ->count('ss.student_number');
+
+                $rec->block_year_level = $year;
+                $rec->assigned_count   = $assignedQuery->count();
+                $rec->pending_count    = $pendingQuery->count();
+                $rec->enrolled_count   = $enrolled;
+
+                return $rec;
+            });
+        }
+
+        return view('department_secretary.masterlist', compact('students', 'sections', 'dept', 'activePeriod'));
     }
 
     public function viewStudentProfile($student_id)
@@ -179,10 +248,13 @@ class DeptSecController extends Controller
     {
         $dept = session('user_department');
 
+        $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
+
         $students = DB::table('student_subjects')
             ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
             ->where('class_schedules.section_name', $section_name)
+            ->where('class_schedules.academic_period_id', $activePeriod ? $activePeriod->id : 0)
             ->where('student_subjects.status', 'Enrolled')
             ->select(
                 'students.student_id',
@@ -223,9 +295,15 @@ class DeptSecController extends Controller
             ->orderBy('curricula.semester')
             ->get();
 
-        $classSchedules = DB::table('class_schedules')->get();
+        $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
+        $activePeriodId = $activePeriod ? $activePeriod->id : 0;
+
+        $classSchedules = DB::table('class_schedules')
+            ->where('academic_period_id', $activePeriodId)
+            ->get();
 
         $availableSections = DB::table('class_schedules')
+            ->where('academic_period_id', $activePeriodId)
             ->select('section_name')
             ->distinct()
             ->orderBy('section_name', 'asc')
@@ -234,6 +312,7 @@ class DeptSecController extends Controller
         $enrolledSections = DB::table('student_subjects')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
             ->where('student_subjects.student_number', $student_id)
+            ->where('class_schedules.academic_period_id', $activePeriodId)
             ->pluck('class_schedules.section_name', 'student_subjects.subject_id')
             ->toArray();
 
@@ -251,53 +330,61 @@ class DeptSecController extends Controller
     {
         $request->validate([
             'current_section' => 'required|string',
-            'target_year'     => 'nullable|string',
-            'target_semester' => 'nullable|string',
         ]);
 
         $sectionName = $request->input('current_section');
-        $targetYear  = $request->input('target_year');
-        $targetSem   = $request->input('target_semester');
+
+        $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
+        if (!$activePeriod) {
+            return redirect()->back()->with('error', 'No active academic period set. Cannot bulk enroll.');
+        }
 
         DB::beginTransaction();
         try {
-            $students = DB::table('students')
+            $blockYear = $this->yearLevelFromSection($sectionName);
+
+            $studentsQuery = DB::table('students')
                 ->where('section', $sectionName)
-                ->pluck('student_id');
+                ->whereIn('course', $this->allowedCoursesForDept());
+            if ($blockYear) {
+                $studentsQuery->where('year_level', $blockYear);
+            }
+            $students = $studentsQuery->pluck('student_id');
 
             if ($students->isEmpty()) {
+                DB::rollBack();
                 return redirect()->back()->with('error', 'No students found in section "' . $sectionName . '". Please ensure students are assigned to this block section.');
             }
 
             $schedulesQuery = DB::table('class_schedules')
                 ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-                ->leftJoin('curricula', 'subjects.id', '=', 'curricula.subject_id')
-                ->where('class_schedules.section_name', $sectionName);
-
-            if ($targetYear) {
-                $schedulesQuery->where('curricula.year_level', $targetYear);
-            }
-            if ($targetSem) {
-                $schedulesQuery->where('curricula.semester', $targetSem);
-            }
+                ->where('class_schedules.section_name', $sectionName)
+                ->where('class_schedules.academic_period_id', $activePeriod->id);
 
             $schedules = $schedulesQuery->select('class_schedules.id as schedule_id', 'class_schedules.subject_id')
                 ->distinct()
                 ->get();
 
             if ($schedules->isEmpty()) {
-                return redirect()->back()->with('error', 'No class schedules found for section "' . $sectionName . '" (' . $targetYear . ' - ' . $targetSem . ').');
+                DB::rollBack();
+                return redirect()->back()->with('error', 'No class schedules found for section "' . $sectionName . '" in the active academic period.');
             }
 
             $enrollments = [];
             $now = now();
 
+            $alreadyEnrolled = [];
+            DB::table('student_subjects')
+                ->whereIn('student_number', $students)
+                ->whereIn('schedule_id', $schedules->pluck('schedule_id'))
+                ->get(['student_number', 'schedule_id'])
+                ->each(function ($row) use (&$alreadyEnrolled) {
+                    $alreadyEnrolled[$row->student_number . '|' . $row->schedule_id] = true;
+                });
+
             foreach ($students as $studentNumber) {
                 foreach ($schedules as $sched) {
-                    $exists = DB::table('student_subjects')
-                        ->where('student_number', $studentNumber)
-                        ->where('schedule_id', $sched->schedule_id)
-                        ->exists();
+                    $exists = isset($alreadyEnrolled[$studentNumber . '|' . $sched->schedule_id]);
 
                     if (!$exists) {
                         $enrollments[] = [
@@ -316,9 +403,18 @@ class DeptSecController extends Controller
                 DB::table('student_subjects')->insert($enrollments);
             }
 
+            $studentUpdate = ['semester' => $activePeriod->semester, 'updated_at' => $now];
+            if ($blockYear) {
+                $studentUpdate['year_level'] = $blockYear;
+            }
+            DB::table('students')->whereIn('student_id', $students)->update($studentUpdate);
+
             DB::commit();
 
-            return redirect()->back()->with('success', 'Successfully bulk-enrolled ' . count($students) . ' student(s) into section ' . $sectionName . ' (' . $targetYear . ' - ' . $targetSem . ') across all Lecture and Laboratory schedules!');
+            $added   = count($enrollments);
+            $skipped = ($students->count() * $schedules->count()) - $added;
+
+            return redirect()->back()->with('success', "Bulk enrollment done for section {$sectionName}: {$students->count()} student(s), {$added} new subject enrollment(s) added, {$skipped} already enrolled (skipped).");
 
         } catch (\Exception $e) {
             DB::rollback();
@@ -347,12 +443,22 @@ class DeptSecController extends Controller
                 return redirect()->back()->withInput()->with('error', 'Please select a schedule/section for at least one subject before saving.');
             }
 
-            $primarySection = reset($filteredSchedules);
+            $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
+            if (!$activePeriod) {
+                DB::rollBack();
+                return redirect()->back()->withInput()->with('error', 'No active academic period set. Cannot enroll subjects.');
+            }
 
-            $existingCount = DB::table('students')
+            $primarySection = reset($filteredSchedules);
+            $primaryYear    = $this->yearLevelFromSection($primarySection);
+
+            $capacityQuery = DB::table('students')
                 ->where('section', $primarySection)
-                ->where('student_id', '!=', $studentNumber)
-                ->count();
+                ->where('student_id', '!=', $studentNumber);
+            if ($primaryYear) {
+                $capacityQuery->where('year_level', $primaryYear);
+            }
+            $existingCount = $capacityQuery->count();
 
             if ($existingCount >= 30) {
                 return redirect()->back()
@@ -360,10 +466,18 @@ class DeptSecController extends Controller
                                 ->with('error', "Section {$primarySection} has already reached the maximum capacity of 30 students (Current: {$existingCount}). Please choose another block section.");
             }
 
-            DB::table('student_subjects')->where('student_number', $studentNumber)->delete();
+            $activeScheduleIds = DB::table('class_schedules')
+                ->where('academic_period_id', $activePeriod->id)
+                ->pluck('id');
+
+            DB::table('student_subjects')
+                ->where('student_number', $studentNumber)
+                ->whereIn('schedule_id', $activeScheduleIds)
+                ->delete();
 
             foreach ($filteredSchedules as $subjectId => $sectionName) {
                 $matchingSchedules = DB::table('class_schedules')
+                    ->where('academic_period_id', $activePeriod->id)
                     ->where('subject_id', $subjectId)
                     ->where('section_name', $sectionName)
                     ->get();
@@ -380,12 +494,24 @@ class DeptSecController extends Controller
                 }
             }
 
+            $years = [];
+            foreach ($filteredSchedules as $sec) {
+                $years[] = $this->yearLevelFromSection($sec);
+            }
+            $years = array_unique($years);
+
+            $studentUpdate = [
+                'section'    => $primarySection,
+                'semester'   => $activePeriod->semester,
+                'updated_at' => now(),
+            ];
+            if (count($years) === 1 && $years[0]) {
+                $studentUpdate['year_level'] = $years[0];
+            }
+
             DB::table('students')
                 ->where('student_id', $studentNumber)
-                ->update([
-                    'section' => $primarySection,
-                    'updated_at' => now()
-                ]);
+                ->update($studentUpdate);
 
             DB::commit();
 
