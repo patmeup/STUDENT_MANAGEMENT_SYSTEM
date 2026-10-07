@@ -347,6 +347,8 @@ class DeptSecController extends Controller
 
     public function deleteStudent($student_id)
     {
+        $__del = DB::table('students')->where('student_id', $student_id)->first();
+
         try {
             DB::beginTransaction();
 
@@ -360,6 +362,11 @@ class DeptSecController extends Controller
             }
 
             DB::commit();
+
+            // NOTIFICATION: registrar is told a student record was deleted
+            \App\Support\Notifier::toRole('registrar', 'student_deleted', 'Student record deleted',
+                "Student {$student_id}" . ($__del ? " ({$__del->last_name}, {$__del->first_name})" : '') . ' was deleted by ' . (session('user_name') ?? 'the Department Secretary') . '.',
+                \App\Support\Notifier::url('registrar.manage-students'));
 
             return redirect()->back()->with('success', 'Student record successfully deleted from the system.');
 
@@ -580,6 +587,11 @@ class DeptSecController extends Controller
 
             DB::commit();
 
+            // NOTIFICATION: only students who were newly enrolled
+            \App\Support\Notifier::toStudents(collect($enrollments)->pluck('student_number'), 'subjects_plotted', 'You have been enrolled',
+                "You were enrolled in all subjects of section {$sectionName}.",
+                \App\Support\Notifier::url('student.my_classes'));
+
             $added   = count($enrollments);
             $skipped = ($students->count() * $schedules->count()) - $added;
 
@@ -706,9 +718,9 @@ class DeptSecController extends Controller
 
             DB::commit();
 
-            $mixed = count($sectionTally) > 1
-                ? ' (mixed blocks: ' . implode(', ', array_keys($sectionTally)) . ')'
-                : '';
+            \App\Support\Notifier::toStudent($studentNumber, 'subjects_plotted', 'You have been enrolled',
+                "Your subjects were plotted. You are now enrolled in section {$primarySection}.",
+                \App\Support\Notifier::url('student.my_classes'));
 
             return redirect()->route('department_secretary.students')
                 ->with('success', "Subjects successfully plotted! Home block is {$primarySection}{$mixed}.");

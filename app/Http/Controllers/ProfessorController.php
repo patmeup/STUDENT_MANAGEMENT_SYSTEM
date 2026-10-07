@@ -28,7 +28,7 @@ class ProfessorController extends Controller
 
         $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
         $activePeriodId = $activePeriod ? $activePeriod->id : 0;
-            
+
         $totalClasses = DB::table('class_schedules')
             ->where('class_schedules.professor_id', $professor_id)
             ->where('class_schedules.academic_period_id', $activePeriodId)
@@ -139,8 +139,8 @@ class ProfessorController extends Controller
                 'subjects.subject_title',
                 'subjects.lecture_units',
                 'subjects.lab_units',
-                'employees.first_name as prof_first', 
-                'employees.last_name as prof_last'    
+                'employees.first_name as prof_first',
+                'employees.last_name as prof_last'
             )
             ->first();
 
@@ -500,8 +500,15 @@ class ProfessorController extends Controller
                 ->where('id', $connection->id)
                 ->update(['last_synced_at' => now()]);
 
+            \App\Support\Notifier::toEmployee($professorId, 'gclass_sync_ok', 'Google Classroom synced',
+                'Your Google Classroom courses, coursework and materials were synced successfully.',
+                \App\Support\Notifier::url('professor.manage-classes'));
+
             return redirect()->back()->with('success', 'Google Classroom synced successfully!');
         } catch (\Exception $e) {
+            \App\Support\Notifier::toEmployee($professorId, 'gclass_sync_failed', 'Google Classroom sync failed',
+                'The sync did not complete: ' . $e->getMessage(), \App\Support\Notifier::url('professor.manage-classes'));
+
             return redirect()->back()->with('error', 'Sync failed: ' . $e->getMessage());
         }
     }
@@ -552,9 +559,9 @@ class ProfessorController extends Controller
             }
 
             $isNonGradable = in_array(strtolower($request->type), ['module', 'material', 'announcement']);
-                        
-            $formattedDueDate = (!$isNonGradable && !empty($request->due_date)) 
-                ? date('Y-m-d H:i:s', strtotime($request->due_date)) 
+
+            $formattedDueDate = (!$isNonGradable && !empty($request->due_date))
+                ? date('Y-m-d H:i:s', strtotime($request->due_date))
                 : null;
 
             $maxScore = ($isNonGradable || empty($request->max_score)) ? null : (int)$request->max_score;
@@ -572,6 +579,16 @@ class ProfessorController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
+            // NOTIFICATION: enrolled students are told about the new post
+            $__type  = strtolower($request->type);
+            $__dueTx = $formattedDueDate ? ' Due: ' . date('M d, Y h:i A', strtotime($formattedDueDate)) . '.' : '';
+            \App\Support\Notifier::toScheduleStudents($request->schedule_id, 'new_' . $__type,
+                'New ' . $__type . ': ' . $request->title,
+                ($classInfo->subject_code ?? 'Class') . ' (' . ($classInfo->section_name ?? '') . ') - your professor posted a new ' . $__type . '.' . $__dueTx,
+                $isNonGradable
+                    ? \App\Support\Notifier::url('student.class.details', ['id' => $request->schedule_id])
+                    : \App\Support\Notifier::url('student.view-task', ['id' => $taskId]));
 
             return response()->json([
                 'success' => true,
@@ -608,8 +625,8 @@ class ProfessorController extends Controller
 
             $isNonGradable = in_array(strtolower($request->type), ['module', 'material', 'announcement']);
 
-            $formattedDueDate = (!$isNonGradable && !empty($request->due_date)) 
-                ? date('Y-m-d H:i:s', strtotime($request->due_date)) 
+            $formattedDueDate = (!$isNonGradable && !empty($request->due_date))
+                ? date('Y-m-d H:i:s', strtotime($request->due_date))
                 : null;
 
             $maxScore = ($isNonGradable || empty($request->max_score)) ? null : (int)$request->max_score;
@@ -875,6 +892,15 @@ class ProfessorController extends Controller
             'updated_at' => now()
         ]);
 
+        // NOTIFICATION: student is told their work was graded
+        $__name = $task->activity_name ?? $task->title ?? 'your activity';
+        \App\Support\Notifier::toStudent($submission->student_id, 'task_graded', 'Your work was graded',
+            "\"{$__name}\" - Score: {$request->grade}" . ($maxScore ? "/{$maxScore}" : '')
+                . ($request->feedback ? '. Feedback: ' . \Illuminate\Support\Str::limit($request->feedback, 120) : '.'),
+            $submission->task_id
+                ? \App\Support\Notifier::url('student.view-task', ['id' => $submission->task_id])
+                : \App\Support\Notifier::url('student.view-google-task', ['id' => $submission->google_coursework_id]));
+
         if (!empty($task->term) && !empty($task->class_schedule_id) && !empty($submission->student_id)) {
             GradeHelper::predictAndSave($task->class_schedule_id, $submission->student_id, $task->term);
         }
@@ -1109,6 +1135,11 @@ class ProfessorController extends Controller
 
             $grades->update(['is_submitted' => false]);
 
+            // NOTIFICATION: registrar is told the submission was reverted
+            \App\Support\Notifier::toRole('registrar', 'grades_reverted', ucfirst($term) . ' grade submission reverted',
+                (session('user_name') ?? 'A professor') . ' reverted the ' . ucfirst($term) . ' grades of ' . \App\Support\Notifier::classLabel($schedule_id) . '.',
+                \App\Support\Notifier::url('registrar.manage-grades'));
+
             return response()->json([
                 'success' => true,
                 'message' => 'Submission reverted. Grades are editable again.'
@@ -1290,7 +1321,7 @@ class ProfessorController extends Controller
             });
 
             $this->generatePredictionsForClass($schedule_id, $term);
-            
+
             if ($sibling) {
                 $this->generatePredictionsForClass($sibling->id, $term);
             }
@@ -1301,11 +1332,24 @@ class ProfessorController extends Controller
                 if ($activePeriod) {
                     try {
                         GradeHelper::trainModels($activePeriod->id);
+                        \App\Support\Notifier::toRole('super_admin', 'ml_trained', 'ML models retrained',
+                            'Predictive models were automatically retrained after final-term grades were submitted.',
+                            \App\Support\Notifier::url('super_admin.manage-ml'));
                     } catch (\Exception $e) {
                         \Log::error('ML Auto-Train Error: ' . $e->getMessage());
+                        \App\Support\Notifier::toRole('super_admin', 'ml_failed', 'ML auto-training failed',
+                            'Automatic retraining failed: ' . $e->getMessage(), \App\Support\Notifier::url('super_admin.manage-ml'));
                     }
                 }
             }
+
+            // NOTIFICATIONS: registrar + dean of the professor's department
+            $__txt = (session('user_name') ?? 'A professor') . ' submitted ' . ucfirst($term) . ' grades for ' . \App\Support\Notifier::classLabel($schedule_id)
+                   . ($sibling ? ' (and its ' . strtoupper($sibling->schedule_type) . ' counterpart)' : '') . '.';
+            \App\Support\Notifier::toRole('registrar', 'grades_submitted', ucfirst($term) . ' grades submitted', $__txt,
+                \App\Support\Notifier::url('registrar.manage-grades'));
+            \App\Support\Notifier::toDeanOfProfessor($professorId, 'grades_submitted', ucfirst($term) . ' grades submitted', $__txt,
+                \App\Support\Notifier::url('dean.faculty-grade-status', ['term' => $term]));
 
             $message = 'Grades successfully submitted to the registrar!';
             if ($sibling) {

@@ -23,12 +23,8 @@ class ScheduleController extends Controller
                 'subjects.lab_units',
                 'curricula.year_level',
                 'curricula.semester',
-                'employees.first_name as prof_first_name',  
-                'employees.last_name as prof_last_name',
-                DB::raw("(SELECT COUNT(DISTINCT ss.student_number) FROM student_subjects ss
-                          INNER JOIN students st ON st.student_id = ss.student_number
-                          WHERE ss.schedule_id = class_schedules.id
-                            AND ss.status = 'Enrolled') as enrolled_count")
+                'employees.first_name as prof_first_name',
+                'employees.last_name as prof_last_name'
             )
             ->orderBy('class_schedules.section_name', 'asc')
             ->get();
@@ -53,7 +49,7 @@ class ScheduleController extends Controller
             ->get();
 
         $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
-        
+
         $sections = DB::table('class_schedules')
             ->whereNotNull('section_name')
             ->distinct()
@@ -158,7 +154,7 @@ class ScheduleController extends Controller
             return redirect()->back()->withInput()->with('error', 'Schedule conflict: ' . $conflict);
         }
 
-        ClassSchedule::create([
+        $newSchedule = ClassSchedule::create([
             'academic_period_id' => $activePeriod->id,
             'subject_id'         => $request->input('subject_id'),
             'professor_id'       => $request->input('professor_id'),
@@ -169,6 +165,15 @@ class ScheduleController extends Controller
             'end_time'           => $request->input('end_time'),
             'room_assignment'    => $room,
         ]);
+
+        // NOTIFICATIONS: professor assigned + dean of the professor's department
+        $__label = \App\Support\Notifier::classLabel($newSchedule->id);
+        $__when  = $newSchedule->class_days . ' ' . date('h:i A', strtotime($request->input('start_time')))
+                 . '-' . date('h:i A', strtotime($request->input('end_time'))) . ', ' . strtoupper($request->input('room_assignment'));
+        \App\Support\Notifier::toEmployee($request->input('professor_id'), 'schedule_assigned', 'New class assigned',
+            "You were assigned to {$__label}: {$__when}.", \App\Support\Notifier::url('professor.manage-classes'));
+        \App\Support\Notifier::toDeanOfProfessor($request->input('professor_id'), 'schedule_created', 'New class schedule created',
+            "{$__label} was scheduled ({$__when}).", \App\Support\Notifier::url('dean.schedule.list'));
 
         return redirect()->back()->with('success', 'Class deployment schedule successfully established!');
     }
@@ -229,6 +234,8 @@ class ScheduleController extends Controller
             return redirect()->back()->withInput()->with('error', 'Schedule conflict: ' . $conflict);
         }
 
+        $__oldProf = \App\Support\Notifier::scheduleProfessorId($id); // before the update (class or subject professor)
+
         DB::table('class_schedules')->where('id', $id)->update([
             'professor_id'    => $request->input('professor_id'),
             'schedule_type'   => $type,
@@ -239,6 +246,30 @@ class ScheduleController extends Controller
             'room_assignment' => $room,
             'updated_at'      => now(),
         ]);
+
+        // NOTIFICATIONS: reassignment -> old + new professor; time/room/section change -> professor + students
+        $__fmt     = fn ($t) => date('h:i A', strtotime($t));
+        $__oldWhen = "{$schedule->class_days} " . $__fmt($schedule->start_time) . '-' . $__fmt($schedule->end_time) . ", {$schedule->room_assignment}";
+        $__newWhen = $request->input('class_days') . ' ' . $__fmt($request->input('start_time')) . '-' . $__fmt($request->input('end_time')) . ", {$room}";
+        $__changed = $__oldWhen !== $__newWhen
+                  || $schedule->section_name !== $section
+                  || strtoupper($schedule->schedule_type) !== $type;
+        $__label   = \App\Support\Notifier::classLabel($id);
+        $__newProf = (int) $request->input('professor_id');
+
+        if ($__oldProf && (int) $__oldProf !== $__newProf) {
+            \App\Support\Notifier::toEmployee($__oldProf, 'schedule_removed', 'Class reassigned',
+                "You are no longer assigned to {$__label}.", \App\Support\Notifier::url('professor.manage-classes'));
+            \App\Support\Notifier::toEmployee($__newProf, 'schedule_assigned', 'New class assigned',
+                "You were assigned to {$__label}: {$__newWhen}.", \App\Support\Notifier::url('professor.manage-classes'));
+        } elseif ($__changed) {
+            \App\Support\Notifier::toEmployee($__newProf, 'schedule_updated', 'Class schedule updated',
+                "{$__label} was changed. Now: {$__newWhen}.", \App\Support\Notifier::url('professor.manage-classes'));
+        }
+        if ($__changed) {
+            \App\Support\Notifier::toScheduleStudents($id, 'schedule_updated', 'Class schedule updated',
+                "{$__label} was changed. Now: {$__newWhen}.", \App\Support\Notifier::url('student.my_classes'));
+        }
 
         return redirect()->back()->with('success', 'Class schedule successfully updated!');
     }
@@ -285,8 +316,19 @@ class ScheduleController extends Controller
 
     public function delete($id)
     {
+        // capture who is affected BEFORE the rows are deleted
+        $__label    = \App\Support\Notifier::classLabel($id);
+        $__profId   = \App\Support\Notifier::scheduleProfessorId($id);
+        $__students = DB::table('student_subjects')->where('schedule_id', $id)->where('status', 'Enrolled')->pluck('student_number');
+
         DB::table('student_subjects')->where('schedule_id', $id)->delete();
         DB::table('class_schedules')->where('id', $id)->delete();
+
+        // NOTIFICATIONS: professor + enrolled students
+        \App\Support\Notifier::toEmployee($__profId, 'schedule_removed', 'Class schedule removed',
+            "{$__label} was removed from your schedule.", \App\Support\Notifier::url('professor.manage-classes'));
+        \App\Support\Notifier::toStudents($__students, 'schedule_removed', 'Class schedule removed',
+            "{$__label} was removed from the schedule. Please check with the Department Secretary.", \App\Support\Notifier::url('student.my_classes'));
 
         return redirect()->back()->with('success', 'Class deployment record successfully deleted!');
     }

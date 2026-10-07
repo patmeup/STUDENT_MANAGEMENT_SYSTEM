@@ -31,8 +31,8 @@ class DocumentRequestController extends Controller
 
         $studentId = session('student_id') ?? Auth::user()->student_id;
 
-        $documentName = is_array($request->document_name) 
-            ? json_encode($request->document_name) 
+        $documentName = is_array($request->document_name)
+            ? json_encode($request->document_name)
             : $request->document_name;
 
         DB::table('document_requests')->insert([
@@ -46,6 +46,13 @@ class DocumentRequestController extends Controller
         ]);
 
         $student = DB::table('students')->where('student_id', $studentId)->first();
+
+        // NOTIFICATION: registrar is told about the new request
+        \App\Support\Notifier::toRole('registrar', 'document_request', 'New document request',
+            ($student ? trim($student->first_name . ' ' . $student->last_name) : $studentId)
+                . " ({$studentId}) requested: " . \App\Support\Notifier::docLabel($documentName) . '.',
+            \App\Support\Notifier::url('registrar.document.requests'));
+
         if ($student && !empty($student->email)) {
             \Illuminate\Support\Facades\Mail::to($student->email)
                 ->send(new \App\Mail\DocumentRequestSubmitted($student, $documentName));
@@ -60,12 +67,21 @@ class DocumentRequestController extends Controller
             'status'  => 'required|string',
         ]);
 
+        $prevReq = DB::table('document_requests')->where('id', $requestId)->first();
+
         DB::table('document_requests')
             ->where('id', $requestId)
             ->update([
                 'status'     => $request->status,
                 'updated_at' => now(),
             ]);
+
+        // NOTIFICATION: student is told when the status changes
+        if ($prevReq && $prevReq->status !== $request->status) {
+            \App\Support\Notifier::toStudent($prevReq->student_id, 'document_status', 'Document request update',
+                \App\Support\Notifier::docLabel($prevReq->document_name) . " is now: {$request->status}.",
+                \App\Support\Notifier::url('student.document_request'));
+        }
 
         if ($request->has('notify_email') && $request->notify_email == 1) {
             $reqDetails = DB::table('document_requests')
@@ -75,7 +91,7 @@ class DocumentRequestController extends Controller
 
             if ($reqDetails && $reqDetails->email) {
                 $studentName = $reqDetails->first_name . ' ' . $reqDetails->last_name;
-                
+
                 \Illuminate\Support\Facades\Mail::to($reqDetails->email)
                     ->send(new \App\Mail\SendDocumentMail($studentName, $reqDetails->document_name, null));
             }

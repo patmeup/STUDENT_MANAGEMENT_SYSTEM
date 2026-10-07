@@ -84,6 +84,8 @@ class CurriculumController extends Controller
 
         Curriculum::create($validated);
 
+        \App\Support\Notifier::catalogChange('Curriculum', 'updated', "{$request->course} {$request->year_level} {$request->semester} (subject added)", 'department_secretary.subject_catalog');
+
         return redirect()->back()->with(
             'success',
             'Subject successfully mapped to the curriculum structure (Dean set as default instructor)!'
@@ -94,6 +96,8 @@ class CurriculumController extends Controller
     {
         $mapping = Curriculum::findOrFail($id);
         $mapping->delete();
+
+        \App\Support\Notifier::catalogChange('Curriculum', 'updated', "{$mapping->course} {$mapping->year_level} {$mapping->semester} (subject removed)", 'department_secretary.subject_catalog');
 
         return redirect()->back()->with('success', 'Curriculum link has been removed successfully.');
     }
@@ -134,6 +138,8 @@ class CurriculumController extends Controller
         $curriculum = Curriculum::findOrFail($id);
 
         $curriculum->update($validated);
+
+        \App\Support\Notifier::catalogChange('Curriculum', 'updated', "{$request->course} {$request->year_level} {$request->semester}", 'department_secretary.subject_catalog');
 
         return redirect()->back()->with(
             'success',

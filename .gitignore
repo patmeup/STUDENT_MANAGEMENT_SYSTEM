@@ -16,8 +16,11 @@
 /public/build
 /public/hot
 /public/storage
+/_storage_recovery/
 /storage/*.key
 # /storage/app/private/
+/storage/app/public/*
+!/storage/app/public/.gitignore
 /storage/pail
 /vendor
 Homestead.json

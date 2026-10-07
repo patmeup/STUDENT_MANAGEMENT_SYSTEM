@@ -88,9 +88,11 @@ class GoogleClassroomService
         foreach ($announcements->getAnnouncements() ?? [] as $a) {
             $seenIds[] = $a->getId();
 
-            $postedAt = $a->getCreationTime() 
-                ? Carbon::parse($a->getCreationTime())->format('Y-m-d H:i:s') 
+            $postedAt = $a->getCreationTime()
+                ? Carbon::parse($a->getCreationTime())->format('Y-m-d H:i:s')
                 : null;
+
+            $isNewAnn = !DB::table('google_classroom_announcements')->where('google_announcement_id', $a->getId())->exists();
 
             DB::table('google_classroom_announcements')->updateOrInsert(
                 ['google_announcement_id' => $a->getId()],
@@ -102,6 +104,16 @@ class GoogleClassroomService
                     'created_at' => DB::raw("COALESCE(created_at, '" . now() . "')"),
                 ]
             );
+
+            // NOTIFICATION: students are told about a NEW announcement (posted within the last 14 days)
+            if (!empty($isNewAnn) && $postedAt && Carbon::parse($postedAt)->gt(now()->subDays(14))) {
+                $__sid = DB::table('google_classroom_courses')->where('id', $localCourseId)->value('linked_class_schedule_id');
+                if ($__sid) {
+                    \App\Support\Notifier::toScheduleStudents($__sid, 'new_announcement', 'New announcement',
+                        \Illuminate\Support\Str::limit((string) $a->getText(), 140) ?: 'Your professor posted an announcement.',
+                        \App\Support\Notifier::url('student.class.details', ['id' => $__sid]));
+                }
+            }
         }
 
         DB::table('google_classroom_announcements')
@@ -135,9 +147,11 @@ class GoogleClassroomService
                 $dueDate = sprintf('%04d-%02d-%02d', $d->getYear(), $d->getMonth(), $d->getDay());
             }
 
-            $postedAt = $cw->getCreationTime() 
-                ? Carbon::parse($cw->getCreationTime())->format('Y-m-d H:i:s') 
+            $postedAt = $cw->getCreationTime()
+                ? Carbon::parse($cw->getCreationTime())->format('Y-m-d H:i:s')
                 : null;
+
+            $isNewWork = !DB::table('google_classroom_coursework')->where('google_coursework_id', $cw->getId())->exists();
 
             DB::table('google_classroom_coursework')->updateOrInsert(
                 ['google_coursework_id' => $cw->getId()],
@@ -184,6 +198,14 @@ class GoogleClassroomService
                         'created_at' => DB::raw("COALESCE(created_at, '" . now() . "')"),
                     ]
                 );
+
+                // NOTIFICATION: students are told about NEW coursework (posted within the last 14 days)
+                if ($isNewWork && $postedAt && Carbon::parse($postedAt)->gt(now()->subDays(14))) {
+                    $__wid = DB::table('google_classroom_coursework')->where('google_coursework_id', $cw->getId())->value('id');
+                    \App\Support\Notifier::toScheduleStudents($scheduleId, 'new_' . $activityType, 'New ' . $activityType . ': ' . $cw->getTitle(),
+                        'Posted in Google Classroom' . ($dueDate ? ". Due: {$dueDate}." : '.'),
+                        \App\Support\Notifier::url('student.view-google-task', ['id' => $__wid]));
+                }
             }
         }
 
@@ -232,8 +254,8 @@ class GoogleClassroomService
                 }
             }
 
-            $postedAt = $mat->getCreationTime() 
-                ? Carbon::parse($mat->getCreationTime())->format('Y-m-d H:i:s') 
+            $postedAt = $mat->getCreationTime()
+                ? Carbon::parse($mat->getCreationTime())->format('Y-m-d H:i:s')
                 : null;
 
             $postDateOnly = $postedAt ? date('Y-m-d', strtotime($postedAt)) : null;

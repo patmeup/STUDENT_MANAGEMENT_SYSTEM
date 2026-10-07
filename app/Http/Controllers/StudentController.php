@@ -585,12 +585,21 @@ class StudentController extends Controller
 
         $student->save();
 
+        // NOTIFICATIONS: new student registered
+        $newStudentName = trim($student->last_name . ', ' . $student->first_name);
+        \App\Support\Notifier::toRole('registrar', 'student_registered', 'New student registered',
+            "{$newStudentName} ({$generatedStudentNumber}) has been registered.",
+            \App\Support\Notifier::url('registrar.students.profile', ['student_id' => $generatedStudentNumber]));
+        \App\Support\Notifier::toRole('dept_sec', 'student_needs_plotting', 'New student needs subject plotting',
+            "{$newStudentName} ({$generatedStudentNumber}) is registered and has no subjects plotted yet.",
+            \App\Support\Notifier::url('department_secretary.plot_subjects', ['student_id' => $generatedStudentNumber]));
+
         try {
             \Illuminate\Support\Facades\Mail::to($student->email)->send(new \App\Mail\NewUserCredentials($student, $defaultPassword));
         } catch (\Exception $e) {
             return redirect()->back()
                 ->with('success', "Student registration compiled successfully, but email was not sent.")
-                ->with('student_id', $generatedStudentNumber); 
+                ->with('student_id', $generatedStudentNumber);
         }
 
         return redirect()->back()
@@ -993,6 +1002,12 @@ class StudentController extends Controller
                 ]
             );
 
+            // NOTIFICATION: professor gets notified of the submission
+            $__profId = \App\Support\Notifier::scheduleProfessorId($task->class_schedule_id);
+            \App\Support\Notifier::toEmployee($__profId, 'task_submitted', 'New submission',
+                trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')) . " submitted \"{$task->activity_name}\".",
+                \App\Support\Notifier::url('professor.task-submissions', ['task_id' => $task_id]));
+
             return redirect()->back()->with('success', 'Task submitted successfully!');
         }
 
@@ -1079,6 +1094,12 @@ class StudentController extends Controller
                 'updated_at' => now(),
             ]
         );
+
+        // NOTIFICATION: professor gets notified of the Google Classroom task submission
+        $__stu = DB::table('students')->where('student_id', $student_id)->first();
+        \App\Support\Notifier::toEmployee(\App\Support\Notifier::scheduleProfessorId($scheduleId), 'task_submitted', 'New submission',
+            trim(($__stu->first_name ?? '') . ' ' . ($__stu->last_name ?? '')) . " submitted \"{$task->title}\".",
+            \App\Support\Notifier::url('professor.class_details', ['schedule_id' => $scheduleId]));
 
         return redirect()->back()->with('success', 'Task submitted successfully!');
     }
@@ -1186,7 +1207,7 @@ class StudentController extends Controller
             if (!$semestralReleased) {
                 $semestralGrade = null;
             }
-            
+
             $mlPrediction = null;
             if ($activeAcademicPeriod) {
                 $mlPrediction = \App\Support\GradeHelper::predict($class->schedule_id, $studentNumber, $activeAcademicPeriod->id);
