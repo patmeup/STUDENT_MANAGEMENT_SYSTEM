@@ -24,7 +24,11 @@ class ScheduleController extends Controller
                 'curricula.year_level',
                 'curricula.semester',
                 'employees.first_name as prof_first_name',  
-                'employees.last_name as prof_last_name'     
+                'employees.last_name as prof_last_name',
+                DB::raw("(SELECT COUNT(DISTINCT ss.student_number) FROM student_subjects ss
+                          INNER JOIN students st ON st.student_id = ss.student_number
+                          WHERE ss.schedule_id = class_schedules.id
+                            AND ss.status = 'Enrolled') as enrolled_count")
             )
             ->orderBy('class_schedules.section_name', 'asc')
             ->get();
@@ -57,6 +61,46 @@ class ScheduleController extends Controller
             ->pluck('section_name');
 
         return view('department_secretary.manage-schedules', compact('schedules', 'subjects', 'professors', 'activePeriod', 'sections'));
+    }
+
+    public function enrolledStudents($id)
+    {
+        $schedule = DB::table('class_schedules')
+            ->leftJoin('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
+            ->where('class_schedules.id', $id)
+            ->select(
+                'class_schedules.id',
+                'class_schedules.section_name',
+                'class_schedules.schedule_type',
+                'subjects.subject_code',
+                'subjects.subject_title'
+            )
+            ->first();
+
+        if (!$schedule) {
+            return response()->json(['message' => 'Schedule not found.'], 404);
+        }
+
+        $students = DB::table('student_subjects as ss')
+            ->join('students as s', 's.student_id', '=', 'ss.student_number')
+            ->where('ss.schedule_id', $id)
+            ->where('ss.status', 'Enrolled')
+            ->orderBy('s.last_name', 'asc')
+            ->orderBy('s.first_name', 'asc')
+            ->get([
+                's.student_id',
+                's.last_name',
+                's.first_name',
+                's.middle_name',
+                's.course',
+                's.year_level',
+                's.section',
+            ]);
+
+        return response()->json([
+            'schedule' => $schedule,
+            'students' => $students,
+        ]);
     }
 
     public function store(Request $request)

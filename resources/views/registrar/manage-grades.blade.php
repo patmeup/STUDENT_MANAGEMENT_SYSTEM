@@ -61,7 +61,7 @@
                                 <td>
                                     <div style="display: flex; align-items: center; gap: 6px;">
                                         <span class="sem-tag">{{ $student->course }}</span>
-                                        <span class="year-tag">Yr {{ $student->year_level }}</span>
+                                        <span class="year-tag">{{ $student->year_level }}</span>
                                     </div>
                                 </td>
 

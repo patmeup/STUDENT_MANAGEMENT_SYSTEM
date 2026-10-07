@@ -1,6 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 <div class="sa-container">
     
     <div class="sa-header">
@@ -173,7 +175,7 @@
                             <th>Section</th>
                             <th>Schedule Details</th>
                             <th>Assigned Faculty</th>
-                            <th style="text-align: center; width: 130px;">Actions</th>
+                            <th style="text-align: center; width: 210px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -224,6 +226,10 @@
 
                                     <td style="text-align: center;">
                                         <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
+                                            <button type="button" class="btn-action-students btn-view-students"
+                                                    data-id="{{ $sched->id }}">
+                                                <i class="fas fa-users"></i> {{ $sched->enrolled_count ?? 0 }}
+                                            </button>
                                             <button type="button" class="btn-action-edit"
                                                     data-id="{{ $sched->id }}"
                                                     data-subject-id="{{ $sched->subject_id }}"
@@ -276,6 +282,102 @@
 
     </div>
 </div>
+
+<div id="studentsModal" class="sm-overlay" style="display:none;">
+    <div class="sm-box">
+        <div class="sm-header">
+            <div>
+                <h3 id="smTitle" style="margin:0; font-size:16px; font-weight:800; color:#0f172a;">Enrolled Students</h3>
+                <div id="smSub" style="font-size:12.5px; color:#64748b; margin-top:3px;"></div>
+            </div>
+            <button type="button" id="smClose" class="sm-close">&times;</button>
+        </div>
+        <div class="sm-body">
+            <div id="smState" style="padding:30px; text-align:center; color:#64748b; font-size:13px;">Loading...</div>
+            <table id="smTable" class="sm-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th>Student ID</th>
+                        <th>Name</th>
+                        <th>Course</th>
+                        <th>Year Level</th>
+                    </tr>
+                </thead>
+                <tbody id="smBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const studentsUrlTemplate = "{{ route('department_secretary.schedules.students', ':id') }}";
+        const overlay = document.getElementById('studentsModal');
+        const smTitle = document.getElementById('smTitle');
+        const smSub   = document.getElementById('smSub');
+        const smState = document.getElementById('smState');
+        const smTable = document.getElementById('smTable');
+        const smBody  = document.getElementById('smBody');
+
+        function closeModal() { overlay.style.display = 'none'; }
+        document.getElementById('smClose').addEventListener('click', closeModal);
+        overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+        document.querySelectorAll('.btn-view-students').forEach(btn => {
+            btn.addEventListener('click', async function () {
+                smTitle.textContent = 'Enrolled Students';
+                smSub.textContent = '';
+                smBody.innerHTML = '';
+                smTable.style.display = 'none';
+                smState.style.display = 'block';
+                smState.textContent = 'Loading...';
+                overlay.style.display = 'flex';
+
+                try {
+                    const res = await fetch(studentsUrlTemplate.replace(':id', btn.dataset.id), {
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    if (!res.ok) throw new Error('Request failed');
+                    const data = await res.json();
+
+                    const sc = data.schedule;
+                    smTitle.textContent = (sc.subject_code || '').toUpperCase() + ' (' + (sc.schedule_type || '') + ') - ' + (sc.section_name || '').toUpperCase();
+                    smSub.textContent = (sc.subject_title || '') + ' - ' + data.students.length + ' enrolled';
+
+                    if (data.students.length === 0) {
+                        smState.textContent = 'No students are enrolled in this class yet.';
+                        return;
+                    }
+
+                    data.students.forEach((s, i) => {
+                        const tr = document.createElement('tr');
+                        const mid = s.middle_name ? ' ' + s.middle_name.charAt(0) + '.' : '';
+                        const cells = [
+                            i + 1,
+                            s.student_id,
+                            (s.last_name || '').toUpperCase() + ', ' + (s.first_name || '') + mid,
+                            s.course || '',
+                            s.year_level || ''
+                        ];
+                        cells.forEach(val => {
+                            const td = document.createElement('td');
+                            td.textContent = val;
+                            tr.appendChild(td);
+                        });
+                        smBody.appendChild(tr);
+                    });
+
+                    smState.style.display = 'none';
+                    smTable.style.display = 'table';
+                } catch (err) {
+                    smState.textContent = 'Could not load the student list. Please try again.';
+                }
+            });
+        });
+    });
+</script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -578,6 +680,16 @@
     .btn-action-edit:hover { background-color: #f1f5f9; color: #1e293b; }
     .btn-action-delete { background-color: transparent; border: 1px solid #fca5a5; color: #dc2626; padding: 4px 10px; font-size: 11.5px; font-weight: 600; border-radius: 5px; cursor: pointer; }
     .btn-action-delete:hover { background-color: #fef2f2; }
+    .btn-action-students { background-color: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 4px 10px; font-size: 11.5px; font-weight: 700; border-radius: 5px; cursor: pointer; }
+    .btn-action-students:hover { background-color: #dbeafe; }
+    .sm-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 9999; align-items: center; justify-content: center; padding: 20px; }
+    .sm-box { background: #fff; border-radius: 12px; width: 100%; max-width: 640px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.25); }
+    .sm-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px; border-bottom: 1px solid #e2e8f0; }
+    .sm-close { background: none; border: none; font-size: 26px; line-height: 1; color: #64748b; cursor: pointer; }
+    .sm-body { overflow-y: auto; padding: 0; }
+    .sm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .sm-table th { background: #f8fafc; padding: 10px 16px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; text-align: left; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; }
+    .sm-table td { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; }
     .badge-count { background: #e2e8f0; color: #334155; font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 700; }
 </style>
 @endsection

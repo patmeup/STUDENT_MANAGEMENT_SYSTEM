@@ -169,6 +169,8 @@ class DeptSecController extends Controller
                 if ($year) {
                     $assignedQuery->where('year_level', $year);
                 }
+                
+                $studentIdsInBlock = (clone $assignedQuery)->pluck('student_id');
 
                 $pendingQuery = (clone $assignedQuery)->whereNotExists(function ($q) use ($rec, $activePeriod) {
                     $q->select(DB::raw(1))
@@ -190,16 +192,150 @@ class DeptSecController extends Controller
                     ->distinct()
                     ->count('ss.student_number');
 
-                $rec->block_year_level = $year;
-                $rec->assigned_count   = $assignedQuery->count();
-                $rec->pending_count    = $pendingQuery->count();
-                $rec->enrolled_count   = $enrolled;
+                $hasPendingGrades = false;
+                if ($studentIdsInBlock->isNotEmpty()) {
+                    $unreleasedCount = DB::table('student_subjects as ss')
+                        ->join('class_schedules as cs', 'cs.id', '=', 'ss.schedule_id')
+                        ->whereIn('ss.student_number', $studentIdsInBlock)
+                        ->where('cs.academic_period_id', '!=', $activePeriod->id)
+                        ->where('ss.status', 'Enrolled')
+                        ->whereNotExists(function ($query) {
+                            $query->select(DB::raw(1))
+                                  ->from('student_term_grades as stg')
+                                  ->whereColumn('stg.schedule_id', 'ss.schedule_id')
+                                  ->whereColumn('stg.student_number', 'ss.student_number')
+                                  ->where('stg.term', 'semestral')
+                                  ->where('stg.is_submitted', 1);
+                        })->count();
+                    $hasPendingGrades = $unreleasedCount > 0;
+                }
+
+                $rec->block_year_level   = $year;
+                $rec->assigned_count     = $assignedQuery->count();
+                $rec->pending_count      = $pendingQuery->count();
+                $rec->enrolled_count     = $enrolled;
+                $rec->has_pending_grades = $hasPendingGrades;
 
                 return $rec;
             });
         }
 
         return view('department_secretary.masterlist', compact('students', 'sections', 'dept', 'activePeriod'));
+    }
+
+    private function studentPassedLatestSemester($studentNumber)
+    {
+        $latestPeriodId = DB::table('student_subjects as ss')
+            ->join('class_schedules as cs', 'cs.id', '=', 'ss.schedule_id')
+            ->where('ss.student_number', $studentNumber)
+            ->where('ss.status', 'Enrolled')
+            ->max('cs.academic_period_id');
+
+        if (!$latestPeriodId) {
+            return false;
+        }
+
+        $scheduleIds = DB::table('student_subjects as ss')
+            ->join('class_schedules as cs', 'cs.id', '=', 'ss.schedule_id')
+            ->where('ss.student_number', $studentNumber)
+            ->where('ss.status', 'Enrolled')
+            ->where('cs.academic_period_id', $latestPeriodId)
+            ->distinct()
+            ->pluck('cs.id');
+
+        if ($scheduleIds->isEmpty()) {
+            return false;
+        }
+
+        $passed = DB::table('student_term_grades')
+            ->where('student_number', $studentNumber)
+            ->whereIn('schedule_id', $scheduleIds)
+            ->where('term', 'semestral')
+            ->where('is_submitted', 1)
+            ->whereNotNull('equivalent')
+            ->whereRaw("equivalent REGEXP '^[0-9]+(\\\\.[0-9]+)?$'")
+            ->whereRaw('CAST(equivalent AS DECIMAL(4,2)) <= 3.00')
+            ->distinct()
+            ->count('schedule_id');
+
+        return $passed >= $scheduleIds->count();
+    }
+
+    public function promoteBlocks(Request $request)
+    {
+        $yearLabels = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+        $allowedCourses = $this->allowedCoursesForDept();
+
+        $promoted = 0;
+        $graduated = 0;
+        $heldBack = [];
+        $skipped = 0;
+        $now = now();
+
+        DB::beginTransaction();
+        try {
+            for ($i = count($yearLabels) - 1; $i >= 0; $i--) {
+                $currentLabel = $yearLabels[$i];
+                $currentDigit = $i + 1;
+                $isLastYear   = ($i === count($yearLabels) - 1);
+
+                $students = DB::table('students')
+                    ->whereIn('course', $allowedCourses)
+                    ->where('year_level', $currentLabel)
+                    ->whereNotNull('section')
+                    ->where('section', '!=', '')
+                    ->where(function ($q) {
+                        $q->whereNull('status')->orWhere('status', '!=', 'Graduated');
+                    })
+                    ->get(['student_id', 'section', 'last_name', 'first_name']);
+
+                foreach ($students as $stu) {
+                    if ($this->yearLevelFromSection($stu->section) !== $currentLabel) {
+                        $skipped++;
+                        continue;
+                    }
+
+                    if (!$this->studentPassedLatestSemester($stu->student_id)) {
+                        $heldBack[] = strtoupper($stu->last_name) . ', ' . $stu->first_name;
+                        continue;
+                    }
+
+                    if ($isLastYear) {
+                        DB::table('students')->where('student_id', $stu->student_id)->update([
+                            'status'     => 'Graduated',
+                            'section'    => null,
+                            'updated_at' => $now,
+                        ]);
+                        $graduated++;
+                        continue;
+                    }
+
+                    $newSection = preg_replace('/' . $currentDigit . '/', (string)($currentDigit + 1), $stu->section, 1);
+
+                    DB::table('students')->where('student_id', $stu->student_id)->update([
+                        'section'    => $newSection,
+                        'year_level' => $yearLabels[$i + 1],
+                        'updated_at' => $now,
+                    ]);
+                    $promoted++;
+                }
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Promotion failed, nothing was changed: ' . $e->getMessage());
+        }
+
+        $msg = "Promotion done: {$promoted} student(s) moved up, {$graduated} graduated, " . count($heldBack) . ' held back (failed or no final grade yet).';
+        if ($skipped > 0) {
+            $msg .= " {$skipped} skipped (section name does not match year level).";
+        }
+        if (!empty($heldBack)) {
+            $msg .= ' Held back: ' . implode('; ', array_slice($heldBack, 0, 5)) . (count($heldBack) > 5 ? '; ...' : '');
+        }
+
+        return redirect()->back()->with('success', $msg);
     }
 
     public function viewStudentProfile($student_id)
@@ -249,26 +385,44 @@ class DeptSecController extends Controller
         $dept = session('user_department');
 
         $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
+        $periodId = $activePeriod ? $activePeriod->id : 0;
 
         $students = DB::table('student_subjects')
             ->join('students', 'student_subjects.student_number', '=', 'students.student_id')
             ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
             ->where('class_schedules.section_name', $section_name)
-            ->where('class_schedules.academic_period_id', $activePeriod ? $activePeriod->id : 0)
+            ->where('class_schedules.academic_period_id', $periodId)
             ->where('student_subjects.status', 'Enrolled')
+            ->groupBy(
+                'students.student_id',
+                'students.first_name',
+                'students.last_name',
+                'students.course',
+                'students.year_level',
+                'students.section'
+            )
             ->select(
                 'students.student_id',
                 'students.first_name',
                 'students.last_name',
                 'students.course',
-                'students.year_level'
+                'students.year_level',
+                'students.section',
+                DB::raw('COUNT(DISTINCT class_schedules.subject_id) as block_subjects')
             )
-            ->distinct()
             ->orderBy('students.last_name', 'asc')
             ->orderBy('students.first_name', 'asc')
             ->get();
 
-        return view('department_secretary.view_section', compact('students', 'section_name', 'dept'));
+        $totalBlockSubjects = DB::table('class_schedules')
+            ->where('section_name', $section_name)
+            ->where('academic_period_id', $periodId)
+            ->distinct()
+            ->count('subject_id');
+
+        return view('department_secretary.view_section', compact(
+            'students', 'section_name', 'dept', 'activePeriod', 'totalBlockSubjects'
+        ));
     }
 
     public function plotSubjects($student_id)
@@ -280,6 +434,26 @@ class DeptSecController extends Controller
         if (!$student) {
             return redirect()->back()->with('error', 'Student record not found.');
         }
+
+        $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
+        if (!$activePeriod) {
+            return redirect()->back()->with('error', 'No active academic period set. Set one before plotting subjects.');
+        }
+        $activePeriodId = $activePeriod->id;
+
+        $classSchedules = DB::table('class_schedules')
+            ->where('academic_period_id', $activePeriodId)
+            ->get();
+
+        $enrolledSections = DB::table('student_subjects')
+            ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
+            ->where('student_subjects.student_number', $student_id)
+            ->where('class_schedules.academic_period_id', $activePeriodId)
+            ->pluck('class_schedules.section_name', 'student_subjects.subject_id')
+            ->toArray();
+
+        $scheduledSubjectIds = $classSchedules->pluck('subject_id')->unique()->all();
+        $enrolledSubjectIds  = array_keys($enrolledSections);
 
         $curriculumSubjects = DB::table('curricula')
             ->join('subjects', 'curricula.subject_id', '=', 'subjects.id')
@@ -293,33 +467,28 @@ class DeptSecController extends Controller
             ->where('curricula.course', $student->course)
             ->orderBy('curricula.year_level')
             ->orderBy('curricula.semester')
-            ->get();
-
-        $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
-        $activePeriodId = $activePeriod ? $activePeriod->id : 0;
-
-        $classSchedules = DB::table('class_schedules')
-            ->where('academic_period_id', $activePeriodId)
-            ->get();
+            ->orderBy('subjects.subject_code')
+            ->get()
+            ->filter(function ($row) use ($activePeriod, $scheduledSubjectIds, $enrolledSubjectIds) {
+                return $row->semester === $activePeriod->semester
+                    || in_array($row->subject_id, $scheduledSubjectIds)
+                    || in_array($row->subject_id, $enrolledSubjectIds);
+            })
+            ->values();
 
         $availableSections = DB::table('class_schedules')
             ->where('academic_period_id', $activePeriodId)
+            ->where('section_name', 'LIKE', $student->course . '%')
             ->select('section_name')
             ->distinct()
             ->orderBy('section_name', 'asc')
             ->pluck('section_name');
 
-        $enrolledSections = DB::table('student_subjects')
-            ->join('class_schedules', 'student_subjects.schedule_id', '=', 'class_schedules.id')
-            ->where('student_subjects.student_number', $student_id)
-            ->where('class_schedules.academic_period_id', $activePeriodId)
-            ->pluck('class_schedules.section_name', 'student_subjects.subject_id')
-            ->toArray();
-
         return view('department_secretary.plot_subjects', compact(
             'student',
             'curriculumSubjects',
             'dept',
+            'activePeriod',
             'classSchedules',
             'availableSections',
             'enrolledSections'
@@ -429,42 +598,70 @@ class DeptSecController extends Controller
             'schedules'  => 'nullable|array',
         ]);
 
-        try {
-            DB::beginTransaction();
+        $studentNumber     = $request->input('student_id');
+        $selectedSchedules = $request->input('schedules', []);
 
-            $studentNumber = $request->input('student_id');
-            $selectedSchedules = $request->input('schedules', []);
+        $filteredSchedules = array_filter($selectedSchedules, function ($value) {
+            return !empty($value);
+        });
 
-            $filteredSchedules = array_filter($selectedSchedules, function($value) {
-                return !empty($value);
-            });
+        if (empty($filteredSchedules)) {
+            return redirect()->back()->withInput()->with('error', 'Please select a schedule/section for at least one subject before saving.');
+        }
 
-            if (empty($filteredSchedules)) {
-                return redirect()->back()->withInput()->with('error', 'Please select a schedule/section for at least one subject before saving.');
-            }
+        $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
+        if (!$activePeriod) {
+            return redirect()->back()->withInput()->with('error', 'No active academic period set. Cannot enroll subjects.');
+        }
 
-            $activePeriod = DB::table('academic_periods')->where('is_active', true)->first();
-            if (!$activePeriod) {
-                DB::rollBack();
-                return redirect()->back()->withInput()->with('error', 'No active academic period set. Cannot enroll subjects.');
-            }
+        $student = DB::table('students')->where('student_id', $studentNumber)->first();
+        if (!$student) {
+            return redirect()->back()->with('error', 'Student record not found.');
+        }
 
-            $primarySection = reset($filteredSchedules);
-            $primaryYear    = $this->yearLevelFromSection($primarySection);
+        $sectionTally = array_count_values(array_values($filteredSchedules));
+        arsort($sectionTally);
+        $topCount = reset($sectionTally);
+        $topSections = array_keys(array_filter($sectionTally, function ($c) use ($topCount) {
+            return $c === $topCount;
+        }));
+        $primarySection = in_array($student->section, $topSections, true)
+            ? $student->section
+            : $topSections[0];
+        $primaryYear = $this->yearLevelFromSection($primarySection);
 
-            $capacityQuery = DB::table('students')
-                ->where('section', $primarySection)
+        foreach (array_keys($sectionTally) as $sectionName) {
+            $sectionYear = $this->yearLevelFromSection($sectionName);
+
+            $assignedQuery = DB::table('students')
+                ->where('section', $sectionName)
                 ->where('student_id', '!=', $studentNumber);
-            if ($primaryYear) {
-                $capacityQuery->where('year_level', $primaryYear);
+            if ($sectionYear) {
+                $assignedQuery->where('year_level', $sectionYear);
             }
-            $existingCount = $capacityQuery->count();
+            $assigned = $assignedQuery->count();
+
+            $enrolled = DB::table('student_subjects as ss')
+                ->join('class_schedules as cs', 'cs.id', '=', 'ss.schedule_id')
+                ->join('students as st', 'st.student_id', '=', 'ss.student_number')
+                ->where('cs.section_name', $sectionName)
+                ->where('cs.academic_period_id', $activePeriod->id)
+                ->where('ss.status', 'Enrolled')
+                ->where('ss.student_number', '!=', $studentNumber)
+                ->distinct()
+                ->count('ss.student_number');
+
+            $existingCount = max($assigned, $enrolled);
 
             if ($existingCount >= 30) {
                 return redirect()->back()
-                                ->withInput()
-                                ->with('error', "Section {$primarySection} has already reached the maximum capacity of 30 students (Current: {$existingCount}). Please choose another block section.");
+                    ->withInput()
+                    ->with('error', "Section {$sectionName} has already reached the maximum capacity of 30 students (Current: {$existingCount}). Please choose another block section.");
             }
+        }
+
+        try {
+            DB::beginTransaction();
 
             $activeScheduleIds = DB::table('class_schedules')
                 ->where('academic_period_id', $activePeriod->id)
@@ -489,24 +686,18 @@ class DeptSecController extends Controller
                         'schedule_id'    => $sched->id,
                         'status'         => 'Enrolled',
                         'created_at'     => now(),
-                        'updated_at'     => now()
+                        'updated_at'     => now(),
                     ]);
                 }
             }
-
-            $years = [];
-            foreach ($filteredSchedules as $sec) {
-                $years[] = $this->yearLevelFromSection($sec);
-            }
-            $years = array_unique($years);
 
             $studentUpdate = [
                 'section'    => $primarySection,
                 'semester'   => $activePeriod->semester,
                 'updated_at' => now(),
             ];
-            if (count($years) === 1 && $years[0]) {
-                $studentUpdate['year_level'] = $years[0];
+            if ($primaryYear) {
+                $studentUpdate['year_level'] = $primaryYear;
             }
 
             DB::table('students')
@@ -515,13 +706,17 @@ class DeptSecController extends Controller
 
             DB::commit();
 
+            $mixed = count($sectionTally) > 1
+                ? ' (mixed blocks: ' . implode(', ', array_keys($sectionTally)) . ')'
+                : '';
+
             return redirect()->route('department_secretary.students')
-                            ->with('success', "Subjects successfully plotted! Student is now officially enrolled in section {$primarySection}.");
+                ->with('success', "Subjects successfully plotted! Home block is {$primarySection}{$mixed}.");
 
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
-                            ->with('error', 'An error occurred while saving: ' . $e->getMessage());
+                ->with('error', 'An error occurred while saving: ' . $e->getMessage());
         }
     }
 
