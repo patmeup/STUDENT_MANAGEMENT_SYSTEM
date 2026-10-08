@@ -10,29 +10,23 @@ class AnnouncementController extends Controller
 {
     public function store(Request $request)
     {
-
         $request->validate([
             'title' => 'nullable|string|max:100',
-            'announcement_image' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+            'announcement_image' => 'required|image|mimes:jpeg,png,jpg|max:10240',
         ]);
 
         if ($request->hasFile('announcement_image')) {
             $file = $request->file('announcement_image');
-
             $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-
             $file->storeAs('announcements', $fileName, 'public');
-
             DB::table('announcements')->insert([
                 'title' => $request->title,
                 'image_path' => 'announcements/' . $fileName,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-
             return redirect()->back()->with('success', 'Announcement banner uploaded successfully!');
         }
-
         return redirect()->back()->with('error', 'Failed to upload image.');
     }
 

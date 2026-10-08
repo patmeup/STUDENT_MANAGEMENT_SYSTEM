@@ -5,20 +5,29 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <div class="dashboard-wrapper py-4 px-3">
-    
+
+    {{-- Alert Notifications --}}
     @if(session('success'))
-        <div class="alert-banner alert-success"><i class="fa-solid fa-circle-check"></i> {{ session('success') }}</div>
+        <div class="alert-banner alert-success">
+            <i class="fa-solid fa-circle-check"></i> {{ session('success') }}
+        </div>
     @endif
+
     @if($errors->any())
         <div class="alert-banner alert-danger">
-            <i class="fa-solid fa-circle-exclamation"></i> Upload error! Please check the size or format of the image.
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <ul class="mb-0 ps-3">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
         </div>
     @endif
 
     <div class="announcement-carousel-wrapper mb-4">
         <div class="announcement-box">
             <span class="announcement-tag">ANNOUNCEMENT:</span>
-            
+
             <div class="carousel-track" id="carouselTrack">
                 @forelse($announcements as $index => $item)
                     <div class="carousel-slide {{ $index === 0 ? 'active' : '' }}">
@@ -48,7 +57,7 @@
     </div>
 
     <div class="stats-dashboard-grid mb-5">
-        
+
         <div class="stat-premium-card">
             <div class="stat-number-side text-green">
                 {{ $totalStudents }}
@@ -94,7 +103,7 @@
 
     <div class="management-panel">
         <h3 class="panel-title"><i class="fa-solid fa-sliders"></i> Announcement Banner Management</h3>
-        
+
         <form action="{{ route('registrar.announcements.store') }}" method="POST" enctype="multipart/form-data" class="upload-inline-form mb-4">
             @csrf
             <div class="form-group-custom">
@@ -154,10 +163,10 @@
         if (slides.length === 0) return;
         if (index >= slides.length) slideIndex = 0;
         if (index < 0) slideIndex = slides.length - 1;
-        
+
         slides.forEach(slide => slide.classList.remove('active'));
         dots.forEach(dot => dot.classList.remove('active'));
-        
+
         if (slides[slideIndex]) slides[slideIndex].classList.add('active');
         if (dots[slideIndex]) dots[slideIndex].classList.add('active');
     }
@@ -242,61 +251,61 @@
 
 <style>
     .dashboard-wrapper {
-        max-width: 1140px; 
-        margin: 0 auto; 
-        font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; 
+        max-width: 1140px;
+        margin: 0 auto;
+        font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
     }
-    
+
     .announcement-box {
-        background: #e2e8f0; 
-        border: 3px solid #1e293b; 
+        background: #e2e8f0;
+        border: 3px solid #1e293b;
         border-radius: 16px;
-        padding: 12px; 
-        position: relative; 
-        height: 340px; 
+        padding: 12px;
+        position: relative;
+        height: 340px;
         display: flex;
         flex-direction: column;
     }
 
     .announcement-tag {
-        position: absolute; 
-        top: 22px; 
-        left: 26px; 
+        position: absolute;
+        top: 22px;
+        left: 26px;
         font-weight: 800;
-        font-size: 12px; 
-        color: #1e293b; 
-        z-index: 10; 
+        font-size: 12px;
+        color: #1e293b;
+        z-index: 10;
         letter-spacing: 1px;
         text-transform: uppercase;
-        background: rgba(255, 255, 255, 0.85); 
+        background: rgba(255, 255, 255, 0.85);
         padding: 3px 8px;
         border-radius: 4px;
     }
 
-    .carousel-track { 
-        width: 100%; 
-        height: 100%; 
-        position: relative; 
-        border: 3px solid #1e293b; 
+    .carousel-track {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        border: 3px solid #1e293b;
         border-radius: 12px;
         overflow: hidden;
         background: #0f172a;
     }
-    
-    .carousel-slide { 
-        position: absolute; 
-        top: 0; 
-        left: 0; 
-        width: 100%; 
-        height: 100%; 
-        opacity: 0; 
-        transition: opacity 0.6s ease-in-out; 
+
+    .carousel-slide {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        transition: opacity 0.6s ease-in-out;
         display: flex;
         align-items: center;
         justify-content: center;
         overflow: hidden;
     }
-    
+
     .carousel-slide.active { opacity: 1; }
 
     /* Blurred Backdrop Effect sa Gilid */
@@ -314,38 +323,38 @@
     }
 
     /* Main Poster/Banner Image sa Gitna */
-    .main-slide-img { 
+    .main-slide-img {
         position: relative;
         z-index: 2;
-        max-width: 100%; 
-        max-height: 100%; 
+        max-width: 100%;
+        max-height: 100%;
         width: auto;
         height: auto;
-        object-fit: contain; 
+        object-fit: contain;
         box-shadow: 0 8px 25px rgba(0,0,0,0.5);
     }
-    
+
     .no-banner-placeholder { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #64748b; }
 
     .carousel-dots { text-align: center; margin-top: 14px; }
     .dot { cursor: pointer; height: 14px; width: 14px; margin: 0 6px; background-color: #ffffff; border: 3px solid #1e293b; border-radius: 50%; display: inline-block; transition: 0.2s; }
     .dot.active { background-color: #f59e0b; }
 
-    .stats-dashboard-grid { 
-        display: grid; 
-        grid-template-columns: repeat(3, 1fr); 
-        gap: 20px; 
+    .stats-dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
         width: 100%;
         margin-top: 25px;
     }
 
     .stat-premium-card {
-        background: #ffffff; 
-        border: 3px solid #1e293b; 
+        background: #ffffff;
+        border: 3px solid #1e293b;
         border-radius: 16px;
-        height: 110px; 
-        display: flex; 
-        align-items: center; 
+        height: 110px;
+        display: flex;
+        align-items: center;
         padding: 0 24px;
         position: relative;
         overflow: hidden;
@@ -353,12 +362,12 @@
     }
 
     .stat-number-side {
-        font-size: 40px; 
+        font-size: 40px;
         font-weight: 900;
         line-height: 1;
         letter-spacing: -1px;
         margin-right: 15px;
-        min-width: 55px; 
+        min-width: 55px;
         display: flex;
         align-items: center;
     }
@@ -483,12 +492,12 @@
     .drag-handle { color: #94a3b8; cursor: grab; font-size: 16px; text-align: center; }
     .drag-handle:active { cursor: grabbing; }
 
-    .alert-banner { 
-        padding: 14px 18px; 
-        border-radius: 8px; 
-        margin-bottom: 20px; 
-        font-size: 14px; 
-        font-weight: 600; 
+    .alert-banner {
+        padding: 14px 18px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        font-weight: 600;
         border: none;
         box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     }

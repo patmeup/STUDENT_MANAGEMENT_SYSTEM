@@ -4,20 +4,29 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <div class="dashboard-wrapper py-4 px-3">
-    
+
+    {{-- Alert Notifications --}}
     @if(session('success'))
-        <div class="alert-banner alert-success"><i class="fa-solid fa-circle-check"></i> {{ session('success') }}</div>
+        <div class="alert-banner alert-success">
+            <i class="fa-solid fa-circle-check"></i> {{ session('success') }}
+        </div>
     @endif
+
     @if($errors->any())
         <div class="alert-banner alert-danger">
-            <i class="fa-solid fa-circle-exclamation"></i> Upload error! Please check the size or format of the image.
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <ul class="mb-0 ps-3">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
         </div>
     @endif
 
     <div class="announcement-carousel-wrapper mb-4">
         <div class="announcement-box">
             <span class="announcement-tag">ANNOUNCEMENT:</span>
-            
+
             <div class="carousel-track" id="carouselTrack">
                 @forelse($announcements as $index => $item)
                     <div class="carousel-slide {{ $index === 0 ? 'active' : '' }}">
@@ -47,7 +56,7 @@
     </div>
 
     <div class="stats-dashboard-grid">
-      
+
         <div class="stat-premium-card">
             <div class="stat-number-side text-blue">
                 {{ $trackedSubjectsCount }}
@@ -60,7 +69,7 @@
                 <i class="fa-solid fa-bookmark"></i>
             </div>
         </div>
-        
+
         <div class="stat-premium-card">
             <div class="stat-number-side text-green">
                 {{ $totalStudentsCount }}
@@ -126,10 +135,10 @@
         if (slides.length === 0) return;
         if (index >= slides.length) slideIndex = 0;
         if (index < 0) slideIndex = slides.length - 1;
-        
+
         slides.forEach(slide => slide.classList.remove('active'));
         dots.forEach(dot => dot.classList.remove('active'));
-        
+
         if (slides[slideIndex]) slides[slideIndex].classList.add('active');
         if (dots[slideIndex]) dots[slideIndex].classList.add('active');
     }
@@ -149,9 +158,9 @@
 
 <style>
     .dashboard-wrapper {
-        max-width: 1140px; 
-        margin: 0 auto; 
-        font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; 
+        max-width: 1140px;
+        margin: 0 auto;
+        font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
     }
 
     .announcement-carousel-wrapper {
@@ -161,24 +170,24 @@
 
     /* OUTER BOX CONTAINER */
     .announcement-box {
-        background: #f1f5f9; 
+        background: #f1f5f9;
         border: 3px solid #1e293b;
         border-radius: 16px;
         padding: 10px;
-        position: relative; 
-        height: 280px; 
+        position: relative;
+        height: 280px;
         display: flex;
         flex-direction: column;
     }
 
     .announcement-tag {
-        position: absolute; 
-        top: 20px; 
-        left: 24px; 
+        position: absolute;
+        top: 20px;
+        left: 24px;
         font-weight: 800;
-        font-size: 11px; 
-        color: #1e293b; 
-        z-index: 10; 
+        font-size: 11px;
+        color: #1e293b;
+        z-index: 10;
         letter-spacing: 1px;
         text-transform: uppercase;
         background: rgba(255, 255, 255, 0.95);
@@ -187,30 +196,30 @@
         box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
 
-    .carousel-track { 
-        width: 100%; 
-        height: 100%; 
-        position: relative; 
-        border: 2px solid #1e293b; 
+    .carousel-track {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        border: 2px solid #1e293b;
         border-radius: 10px;
         overflow: hidden;
         background: #000000;
     }
-    
-    .carousel-slide { 
-        position: absolute; 
-        top: 0; 
-        left: 0; 
-        width: 100%; 
-        height: 100%; 
-        opacity: 0; 
-        transition: opacity 0.6s ease-in-out; 
+
+    .carousel-slide {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        transition: opacity 0.6s ease-in-out;
         display: flex;
         align-items: center;
         justify-content: center;
         overflow: hidden;
     }
-    
+
     .carousel-slide.active { opacity: 1; }
 
     /* BLURRED BACKGROUND IMAGE EFFECT */
@@ -227,7 +236,7 @@
     }
 
     /* CENTERED MAIN BANNER IMAGE */
-    .slide-main-img { 
+    .slide-main-img {
         position: relative;
         z-index: 2;
         max-width: 100%;
@@ -236,13 +245,13 @@
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
 
-    .no-banner-placeholder { 
-        height: 100%; 
-        display: flex; 
-        flex-direction: column; 
-        align-items: center; 
-        justify-content: center; 
-        color: #64748b; 
+    .no-banner-placeholder {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #64748b;
         background: #ffffff;
         width: 100%;
     }
@@ -252,21 +261,21 @@
     .dot.active { background-color: #f59e0b; }
 
     /* STATS GRID */
-    .stats-dashboard-grid { 
-        display: grid; 
-        grid-template-columns: repeat(2, 1fr); 
-        gap: 20px; 
+    .stats-dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
         width: 100%;
         margin-top: 25px;
     }
 
     .stat-premium-card {
-        background: #ffffff; 
-        border: 3px solid #1e293b; 
+        background: #ffffff;
+        border: 3px solid #1e293b;
         border-radius: 16px;
-        height: 110px; 
-        display: flex; 
-        align-items: center; 
+        height: 110px;
+        display: flex;
+        align-items: center;
         padding: 0 24px;
         position: relative;
         overflow: hidden;
@@ -279,12 +288,12 @@
     }
 
     .stat-number-side {
-        font-size: 40px; 
+        font-size: 40px;
         font-weight: 900;
         line-height: 1;
         letter-spacing: -1px;
         margin-right: 15px;
-        min-width: 55px; 
+        min-width: 55px;
     }
 
     .stat-label-side {
@@ -313,8 +322,8 @@
     .stat-icon-watermark {
         position: absolute;
         right: 24px;
-        font-size: 32px; 
-        opacity: 1; 
+        font-size: 32px;
+        opacity: 1;
         z-index: 1;
         display: flex;
         align-items: center;
@@ -333,12 +342,12 @@
     .text-purple-icon { color: #9333ea; }
     .text-teal-icon { color: #14b8a6; }
 
-    .alert-banner { 
-        padding: 14px 18px; 
-        border-radius: 8px; 
-        margin-bottom: 20px; 
-        font-size: 14px; 
-        font-weight: 600; 
+    .alert-banner {
+        padding: 14px 18px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        font-weight: 600;
         border: none;
         box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     }
@@ -347,8 +356,8 @@
 
     @media (max-width: 768px) {
         .announcement-box { height: 200px; }
-        .stats-dashboard-grid { 
-            grid-template-columns: 1fr; 
+        .stats-dashboard-grid {
+            grid-template-columns: 1fr;
         }
         .stat-premium-card.card-centered {
             width: 100%;

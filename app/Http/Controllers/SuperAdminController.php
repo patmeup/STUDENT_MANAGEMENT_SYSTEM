@@ -69,7 +69,7 @@ class SuperAdminController extends Controller
             'last_name'   => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'sex'         => 'required|string',
-            'email'       => 'required|email|unique:users,email',
+            'email'       => 'required|email|unique:employees,email',
             'role'        => 'required|string|in:system_admin,dean,registrar,dept_sec,professor',
             'department'  => 'required_if:role,dean,dept_sec,professor|string|nullable|max:255',
         ]);
@@ -96,7 +96,7 @@ class SuperAdminController extends Controller
             'role'        => $request->role,
             'department'  => in_array($request->role, ['dean', 'dept_sec', 'professor']) ? $request->department : null,
             'status'      => 'Active',
-            'password'    => 'Welcome@AU2026',
+            'password'    => Hash::make('Welcome@AU2026'),
         ]);
 
         \App\Support\Notifier::toRole('system_admin', 'employee_created', 'New personnel account created',
