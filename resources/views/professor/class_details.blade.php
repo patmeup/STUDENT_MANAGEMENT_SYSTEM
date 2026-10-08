@@ -335,6 +335,26 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
         </a>
     </div>
 
+    @if(session('success'))
+        <div class="mb-4" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; color: #166534; font-weight: 600; font-size: 13.5px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+            <div style="display: flex; align-items: center;">
+                <i class="fa-solid fa-circle-check" style="margin-right: 10px; font-size: 16px; color: #15803d;"></i> 
+                <span>{{ session('success') }}</span>
+            </div>
+            <button type="button" onclick="this.parentElement.style.display='none'" style="background: transparent; border: none; color: #166534; font-size: 20px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="mb-4" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background-color: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; color: #991b1b; font-weight: 600; font-size: 13.5px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+            <div style="display: flex; align-items: center;">
+                <i class="fa-solid fa-triangle-exclamation" style="margin-right: 10px; font-size: 16px; color: #b91c1c;"></i> 
+                <span>{{ session('error') }}</span>
+            </div>
+            <button type="button" onclick="this.parentElement.style.display='none'" style="background: transparent; border: none; color: #991b1b; font-size: 20px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+        </div>
+    @endif
+
     <div x-show="saveStatus.show"
          x-transition
          class="alert mb-4 d-flex align-items-center justify-content-between py-3 px-4 rounded-3 border transition"
@@ -881,16 +901,16 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                     @if($gAvailableCourses->isEmpty())
                                         <p class="text-muted small">No synced courses found. Try syncing your Google Classroom account first.</p>
                                     @else
-                                        <form action="{{ route('professor.google-classroom.link', $classDetails->schedule_id) }}" method="POST" class="d-flex gap-2">
+                                        <form action="{{ route('professor.google-classroom.link', $classDetails->schedule_id) }}" method="POST" style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
                                             @csrf
-                                            <select name="google_course_id" class="field-input" style="max-width: 280px;" required {{ $isTermSubmitted ? 'disabled' : '' }}>
+                                            <select name="google_course_id" class="field-input" style="width: auto; min-width: 250px; max-width: 280px; margin: 0;" required {{ $isTermSubmitted ? 'disabled' : '' }}>
                                                 <option value="">Select a course...</option>
                                                 @foreach($gAvailableCourses as $course)
                                                     <option value="{{ $course->id }}">{{ $course->course_name }} {{ $course->course_section ? '(' . $course->course_section . ')' : '' }}</option>
                                                 @endforeach
                                             </select>
                                             @if(!$isTermSubmitted)
-                                                <button type="submit" class="btn-add-activity">
+                                                <button type="submit" class="btn-add-activity" style="white-space: nowrap; margin: 0;">
                                                     <i class="fa-solid fa-link"></i> Link Course
                                                 </button>
                                             @endif
@@ -914,6 +934,39 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                                                     <i class="fa-solid fa-arrows-rotate"></i>
                                                 </button>
                                             </form>
+
+                                            <div x-data="{ showUnlinkModal: false }" style="display: inline-block;">
+                                                <button type="button" @click="showUnlinkModal = true" class="btn-sm-outline btn-delete" style="padding: 2px 8px; border-color: #fca5a5;" title="Unlink this course">
+                                                    <i class="fa-solid fa-link-slash"></i> Unlink
+                                                </button>
+
+                                                <div class="grade-modal-overlay" x-show="showUnlinkModal" style="display: none;" x-transition x-cloak
+                                                    @click.self="showUnlinkModal = false" @keydown.escape.window="showUnlinkModal = false">
+                                                    <div class="grade-modal" x-show="showUnlinkModal">
+                                                        <h5 class="grade-modal-title text-danger" style="color: #dc2626;">
+                                                            <i class="fa-solid fa-triangle-exclamation"></i> Unlink Google Classroom
+                                                        </h5>
+                                                        <p class="grade-modal-sub" style="margin-top: 10px;">
+                                                            Are you sure you want to unlink <strong>{{ $gLinkedCourse->course_name }}</strong>?
+                                                            <br><br>
+                                                            <span style="font-size: 12px; color: #64748b;">
+                                                                <strong>Note:</strong> Your existing synced activities and grades will remain intact (Soft Unlink), but automatic updates from Google Classroom for this schedule will stop.
+                                                            </span>
+                                                        </p>
+
+                                                        <div class="grade-modal-actions">
+                                                            <button type="button" class="btn-cancel-portal" @click="showUnlinkModal = false">Cancel</button>
+                                                            
+                                                            <form action="{{ route('professor.google-classroom.unlink', $classDetails->schedule_id) }}" method="POST" class="m-0">
+                                                                @csrf
+                                                                <button type="submit" class="btn-primary-portal" style="background-color: #dc2626; border-color: #dc2626;">
+                                                                    <i class="fa-solid fa-link-slash me-1"></i> Confirm Unlink
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         @endif
                                         
                                         @php
@@ -1741,9 +1794,10 @@ x-init="if (currentTab === 'attendance') { initAttendance(); }">
                         </div>
                     </div>
 
-                    <div class="field-group" x-show="formType === 'announcement'" style="margin-bottom:0;">
-                        <label class="field-label">Announcement Details</label>
-                        <textarea name="description" class="field-input" x-model="formDescription" rows="4" placeholder="Write your announcement message or information here..."></textarea>
+                    <div class="field-group" style="margin-bottom: 16px;">
+                        <label class="field-label" x-text="formType === 'announcement' ? 'Announcement Details' : 'Task Instructions / Description'"></label>
+                        <span class="field-optional" style="font-weight: 400; color: #94a3b8;">(Optional)</span>
+                        <textarea name="description" class="field-input" x-model="formDescription" rows="3" :placeholder="formType === 'announcement' ? 'Write your announcement message here...' : 'Add instructions, guidelines, or details for this task...'"></textarea>
                     </div>
 
                     <div class="field-group" x-show="formType !== 'announcement'" style="margin-bottom:0;">

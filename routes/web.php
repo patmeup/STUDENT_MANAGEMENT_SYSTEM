@@ -162,7 +162,7 @@ Route::middleware(['role:professor'])->group(function () {
     Route::get('/professor/google-classroom/callback', [GoogleClassroomController::class, 'callback'])->name('professor.google-classroom.callback');
     Route::post('/professor/google-classroom/sync', [ProfessorController::class, 'syncGoogleClassroom'])->name('professor.google-classroom.sync');
     Route::post('/professor/class/{schedule_id}/google-classroom/link', [ProfessorController::class, 'linkGoogleClassroomCourse'])->name('professor.google-classroom.link');
-    Route::post('/professor/class/{schedule_id}/google-classroom/unlink', [ProfessorController::class, 'unlinkGoogleClassroomCourse'])->name('professor.google-classroom.unlink');
+    Route::post('/professor/class/{schedule_id}/google-classroom/unlink', [ProfessorController::class, 'unlinkCourse'])->name('professor.google-classroom.unlink');
     Route::post('/professor/save-activity', [ProfessorController::class, 'saveActivity'])->name('professor.save-activity');
     Route::post('/professor/update-activity/{id}', [ProfessorController::class, 'updateActivity'])->name('professor.update-activity');
     Route::post('/professor/delete-activity/{id}', [ProfessorController::class, 'deleteActivity'])->name('professor.delete-activity');
@@ -180,7 +180,6 @@ Route::middleware(['role:professor'])->group(function () {
     Route::get('/professor/user_details', [ProfessorController::class, 'profileView'])->name('professor.user_details');
     Route::post('/professor/google-classroom/disconnect', [GoogleClassroomController::class, 'disconnect'])->name('professor.google-classroom.disconnect');
     Route::post('/professor/profile/picture', [ProfessorController::class, 'updateProfilePicture'])->name('professor.profile.picture.update');
-    // Route::get('/professor/class/{schedule}/attendance-dates', [AttendanceController::class, 'getRecordedDates']);
     });
 
 // STUDENT ROUTES
