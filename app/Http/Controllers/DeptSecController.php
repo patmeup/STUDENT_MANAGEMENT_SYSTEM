@@ -164,7 +164,19 @@ class DeptSecController extends Controller
                 ->orderBy('section_name', 'asc')
                 ->get();
 
-            $sections = $blocks->map(function ($rec) use ($activePeriod, $allowedCourses) {
+            $prevPeriod = DB::table('academic_periods')
+                ->where(function ($q) use ($activePeriod) {
+                    $q->where('school_year', '<', $activePeriod->school_year)
+                      ->orWhere(function ($q2) use ($activePeriod) {
+                          $q2->where('school_year', $activePeriod->school_year)
+                             ->where('semester', '<', $activePeriod->semester);
+                      });
+                })
+                ->orderByDesc('school_year')
+                ->orderByDesc('semester')
+                ->first();
+
+            $sections = $blocks->map(function ($rec) use ($activePeriod, $allowedCourses, $prevPeriod) {
                 $year = $this->blockYearLevel($rec->section_name, $activePeriod->id);
 
                 $assignedQuery = DB::table('students')
@@ -197,11 +209,11 @@ class DeptSecController extends Controller
                     ->count('ss.student_number');
 
                 $hasPendingGrades = false;
-                if ($studentIdsInBlock->isNotEmpty()) {
+                if ($prevPeriod && $studentIdsInBlock->isNotEmpty()) {
                     $unreleasedCount = DB::table('student_subjects as ss')
                         ->join('class_schedules as cs', 'cs.id', '=', 'ss.schedule_id')
                         ->whereIn('ss.student_number', $studentIdsInBlock)
-                        ->where('cs.academic_period_id', '!=', $activePeriod->id)
+                        ->where('cs.academic_period_id', $prevPeriod->id)
                         ->where('ss.status', 'Enrolled')
                         ->whereNotExists(function ($query) {
                             $query->select(DB::raw(1))
@@ -477,14 +489,8 @@ class DeptSecController extends Controller
             ->orderBy('curricula.year_level')
             ->orderBy('curricula.semester')
             ->orderBy('subjects.subject_code')
-            ->get()
-            ->filter(function ($row) use ($activePeriod, $scheduledSubjectIds, $enrolledSubjectIds) {
-                return $row->semester === $activePeriod->semester
-                    || in_array($row->subject_id, $scheduledSubjectIds)
-                    || in_array($row->subject_id, $enrolledSubjectIds);
-            })
-            ->values();
-
+            ->get();
+            
         $availableSections = DB::table('class_schedules')
             ->where('academic_period_id', $activePeriodId)
             ->where('section_name', 'LIKE', $student->course . '%')
@@ -770,7 +776,6 @@ class DeptSecController extends Controller
 
         $activeAcademicPeriod = DB::table('academic_periods')->where('is_active', 1)->first();
         
-        // Salain ang term periods batay sa active academic period ID kung mayroon man
         $termPeriods = collect();
         if ($activeAcademicPeriod) {
             $termPeriods = DB::table('term_periods')
@@ -791,7 +796,6 @@ class DeptSecController extends Controller
 
         $students = $studentsQuery->paginate(15);
 
-        // Kalkulahin ang average equivalent ng bawat estudyante para sa aktibong term/period
         foreach ($students as $student) {
             $student->average_equivalent = null;
             if ($activeAcademicPeriod) {
@@ -818,11 +822,6 @@ class DeptSecController extends Controller
         $query = DB::table('student_subjects as ss')
             ->join('class_schedules as cs', 'cs.id', '=', 'ss.schedule_id')
             ->join('subjects as sub', 'sub.id', '=', 'ss.subject_id')
-            ->leftJoin('student_term_grades as stg', function($join) use ($student_id, $term) {
-                $join->on('stg.schedule_id', '=', 'ss.schedule_id')
-                     ->where('stg.student_number', '=', $student_id)
-                     ->where(DB::raw('LOWER(stg.term)'), '=', $term);
-            })
             ->where('ss.student_number', $student_id)
             ->where('ss.status', 'Enrolled');
 
@@ -830,18 +829,52 @@ class DeptSecController extends Controller
             $query->where('cs.academic_period_id', $periodId);
         }
 
-        $grades = $query->select(
-                'sub.subject_code as subject_code_display',
-                'sub.subject_title as subject_title_display',
+        $enrolled = $query->select(
+                'ss.schedule_id',
                 'cs.section_name',
-                'stg.class_standing',
-                'stg.major_exam',
-                'stg.equivalent',
-                'stg.is_submitted'
+                'cs.schedule_type',
+                'sub.subject_code as subject_code_display',
+                'sub.subject_title as subject_title_display'
             )
             ->orderBy('sub.subject_code', 'asc')
+            ->orderBy('cs.schedule_type', 'asc')
             ->get();
 
-        return response()->json($grades);
+        $gradeRows = DB::table('student_term_grades')
+            ->where('student_number', $student_id)
+            ->whereIn('schedule_id', $enrolled->pluck('schedule_id'))
+            ->get()
+            ->groupBy('schedule_id');
+
+        $result = $enrolled->map(function ($row) use ($gradeRows, $term) {
+            $byTerm = ($gradeRows[$row->schedule_id] ?? collect())
+                ->keyBy(function ($g) {
+                    return strtolower($g->term);
+                });
+
+            $eq = function ($t) use ($byTerm) {
+                $g = $byTerm->get($t);
+                return ($g && $g->is_submitted == 1) ? $g->equivalent : null;
+            };
+
+            $selected = $byTerm->get($term);
+            $type = $row->schedule_type;
+
+            return [
+                'subject_code_display'  => $row->subject_code_display . ' ' . $type,
+                'subject_title_display' => $row->subject_title_display . ' (' . $type . ')',
+                'section_name'          => $row->section_name,
+                'class_standing'        => $selected->class_standing ?? null,
+                'major_exam'            => $selected->major_exam ?? null,
+                'equivalent'            => $selected->equivalent ?? null,
+                'is_submitted'          => $selected->is_submitted ?? 0,
+                'prelim'                => $eq('prelim'),
+                'midterm'               => $eq('midterm'),
+                'semifinal'             => $eq('semifinal'),
+                'final'                 => $eq('final'),
+            ];
+        });
+
+        return response()->json($result);
     }
 }

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\Students;
 use App\Models\StudentTermGrade;
+use App\Models\ClassSchedule;
 use App\Support\TermHelper;
 use App\Support\GradeHelper;
 use App\Support\GoogleClassroomService;
@@ -126,7 +127,7 @@ class ProfessorController extends Controller
             ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
             ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id')
             ->where('class_schedules.id', $schedule_id)
-            ->where('subjects.professor_id', $professorId)
+            ->where('class_schedules.professor_id', $professorId)
             ->select(
                 'class_schedules.id as schedule_id',
                 'class_schedules.section_name',
@@ -471,13 +472,13 @@ class ProfessorController extends Controller
         return redirect()->back()->with('success', 'Google Classroom course linked successfully!');
     }
 
-    public function unlinkGoogleClassroomCourse($schedule_id)
+    public function unlinkCourse($schedule_id)
     {
         DB::table('google_classroom_courses')
             ->where('linked_class_schedule_id', $schedule_id)
             ->update(['linked_class_schedule_id' => null]);
 
-        return redirect()->back()->with('success', 'Google Classroom course unlinked.');
+        return back()->with('success', 'Google Classroom course has been unlinked successfully.');
     }
 
     public function syncGoogleClassroom(Request $request)
@@ -1104,9 +1105,8 @@ class ProfessorController extends Controller
             $term = strtolower(trim($request->term));
 
             $ownsClass = DB::table('class_schedules')
-                ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-                ->where('class_schedules.id', $schedule_id)
-                ->where('subjects.professor_id', $professorId)
+                ->where('id', $schedule_id)
+                ->where('professor_id', $professorId)
                 ->exists();
 
             if (!$ownsClass) {
@@ -1215,9 +1215,8 @@ class ProfessorController extends Controller
             $applyToSibling = filter_var($request->input('apply_to_sibling', false), FILTER_VALIDATE_BOOLEAN);
 
             $ownsClass = DB::table('class_schedules')
-                ->join('subjects', 'class_schedules.subject_id', '=', 'subjects.id')
-                ->where('class_schedules.id', $schedule_id)
-                ->where('subjects.professor_id', $professorId)
+                ->where('id', $schedule_id)
+                ->where('professor_id', $professorId)
                 ->exists();
 
             if (!$ownsClass) {
