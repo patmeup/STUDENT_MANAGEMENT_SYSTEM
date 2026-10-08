@@ -3,30 +3,30 @@
 @section('content')
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<div class="sa-container">
-    
-    <div class="sa-header">
-        <div class="header-titles">
-            <h2>Department Student Registry</h2>
-            <p>View, search, and manage student records and block sections.</p>
+<div class="rg-page">
+
+    <header class="rg-header">
+        <div>
+            <h1 class="rg-title">Department Student Registry</h1>
+            <p class="rg-subtitle">View, search, and manage student records and block sections.</p>
         </div>
-    </div>
+    </header>
 
     @if(session('success'))
-        <div class="sa-alert-success">
+        <div class="rg-alert rg-alert-success">
             <i class="fas fa-check-circle"></i> {{ session('success') }}
         </div>
     @endif
 
     @if(session('error'))
-        <div class="sa-alert-error">
+        <div class="rg-alert rg-alert-error">
             <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
         </div>
     @endif
 
     <div class="sa-workspace">
 
-        <div class="sa-card form-panel">
+        <div class="rg-card form-panel">
             <div class="card-bar">
                 <span id="formPanelTitle"><i class="fas fa-calendar-plus"></i> Add Class Schedule</span>
             </div>
@@ -36,7 +36,7 @@
                 
                 <div id="methodContainer"></div>
 
-                <div id="formValidationAlert" class="sa-alert-error" style="display: none; margin-bottom: 15px;">
+                <div id="formValidationAlert" class="rg-alert-error" style="display: none; margin-bottom: 15px;">
                     <i class="fas fa-exclamation-triangle"></i> Please fill out all required fields.
                 </div>
 
@@ -56,7 +56,7 @@
 
                 <div class="form-group" id="subjectReadOnlyGroup" style="display: none;">
                     <label>Selected Subject</label>
-                    <input type="text" id="formSubjectReadOnly" class="select-input" style="background-color: #f8fafc; color: #64748b;" readonly>
+                    <input type="text" id="formSubjectReadOnly" class="select-input" style="background-color: var(--rg-surface); color: var(--rg-muted);" readonly>
                 </div>
 
                 <div class="form-grid-2">
@@ -127,18 +127,18 @@
                 </div>
 
                 <div class="form-actions-bar">
-                    <button type="button" id="btnCancelEdit" class="btn-clear" style="display: none; margin-right: auto;">Cancel</button>
-                    <button type="reset" id="btnResetForm" class="btn-clear">Reset</button>
-                    <button type="submit" id="btnSubmitForm" class="btn-submit-subj">Deploy Schedule</button>
+                    <button type="button" id="btnCancelEdit" class="rg-btn rg-btn-ghost" style="display: none; margin-right: auto;">Cancel</button>
+                    <button type="reset" id="btnResetForm" class="rg-btn rg-btn-ghost">Reset</button>
+                    <button type="submit" id="btnSubmitForm" class="rg-btn rg-btn-primary">Deploy Schedule</button>
                 </div>
             </form>
         </div>
 
-        <div class="sa-card table-panel">
+        <div class="rg-card table-panel">
             <div class="card-header-flex">
                 <div class="table-header-top">
                     <h3 class="card-title-list"><i class="fas fa-list-alt"></i> List of Schedules</h3>
-                    <span class="badge-count" id="visibleClassesCount">{{ isset($schedules) ? $schedules->count() : 0 }} Active Classes</span>
+                    <span class="rg-tab-count" id="visibleClassesCount">{{ isset($schedules) ?$schedules->count() : 0 }} Active Classes</span>
                 </div>
 
                 <div class="table-filters-row">
@@ -168,18 +168,18 @@
             </div>
 
             <div class="table-responsive">
-                <table class="minimal-table" id="scheduleTable">
+                <table class="rg-table" id="scheduleTable">
                     <thead>
                         <tr>
                             <th>Subject Info</th>
                             <th>Section</th>
                             <th>Schedule Details</th>
                             <th>Assigned Faculty</th>
-                            <th style="text-align: center; width: 210px;">Actions</th>
+                            <th class="col-actions" style="text-align: center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @if(isset($schedules) && $schedules->count() > 0)
+                        @if(isset($schedules) &&$schedules->count() > 0)
                             @foreach($schedules as $sched)
                                 <tr class="schedule-row-item"
                                     data-year="{{ $sched->year_level ?? '' }}"
@@ -194,12 +194,12 @@
                                                 <span class="badge-lec">LEC</span>
                                             @endif
                                         </div>
-                                        <div style="font-size: 12px; color: #64748b; margin-top: 4px; font-weight: 500;">
+                                        <div style="font-size: 12px; color: var(--rg-muted); margin-top: 4px; font-weight: 500;">
                                             {{ $sched->subject_title ?? '' }}
                                         </div>
                                     </td>
                                         
-                                    <td><strong style="color: #0f172a;">{{ strtoupper($sched->section_name) }}</strong></td>
+                                    <td class="col-section"><strong style="color: var(--rg-ink);">{{ strtoupper($sched->section_name) }}</strong></td>
 
                                     <td>
                                         <span class="sched-info-tag">
@@ -209,11 +209,11 @@
                                             <i class="fas fa-clock"></i> {{ date('g:i A', strtotime($sched->start_time)) }} - {{ date('g:i A', strtotime($sched->end_time)) }}
                                         </span>
                                         <div style="font-size: 11.5px; color: #475569; margin-top: 4px; font-weight: 600;">
-                                            <i class="fas fa-door-open" style="color: #94a3b8;"></i> Room: {{ strtoupper($sched->room_assignment) }}
+                                            <i class="fas fa-door-open" style="color: var(--rg-muted);"></i> Room: {{ strtoupper($sched->room_assignment) }}
                                         </div>
                                     </td>
 
-                                    <td>
+                                    <td class="col-faculty">
                                         @if($sched->prof_last_name ?? null)
                                             <span class="prof-assigned-tag">
                                                 <i class="fas fa-user-tie"></i>
@@ -224,13 +224,13 @@
                                         @endif
                                     </td>
 
-                                    <td style="text-align: center;">
-                                        <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
-                                            <button type="button" class="btn-action-students btn-view-students"
+                                    <td class="col-actions" style="text-align: center;">
+                                        <div style="display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: nowrap;">
+                                            <button type="button" class="rg-btn rg-btn-ghost btn-view-students" style="padding: 5px 10px; font-size: 11.5px;"
                                                     data-id="{{ $sched->id }}">
                                                 <i class="fas fa-users"></i> {{ $sched->enrolled_count ?? 0 }}
                                             </button>
-                                            <button type="button" class="btn-action-edit"
+                                            <button type="button" class="rg-btn rg-btn-outline-navy btn-action-edit" style="padding: 5px 10px; font-size: 11.5px;"
                                                     data-id="{{ $sched->id }}"
                                                     data-subject-id="{{ $sched->subject_id }}"
                                                     data-subject-text="[{{ strtoupper($sched->subject_code ?? '') }}] — {{ $sched->subject_title ?? '' }}"
@@ -248,7 +248,9 @@
                                                 style="display: inline-block; margin: 0; padding: 0;">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="btn-action-delete">Delete</button>
+                                                <button type="submit" class="rg-btn rg-btn-icon rg-btn-danger" style="width: 28px; height: 28px;" title="Delete schedule">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
                                             </form>
                                         </div>
                                     </td>
@@ -258,9 +260,9 @@
                             <tr id="noMatchingSchedulesRow" style="display: none;">
                                 <td colspan="5" class="empty-table-state">
                                     <div style="padding: 30px 10px; text-align: center;">
-                                        <i class="fas fa-calendar-times" style="font-size: 32px; color: #cbd5e1; margin-bottom: 10px;"></i>
-                                        <p style="margin: 0; font-weight: 600; color: #64748b; font-size: 14px;">No class schedules found for the selected filter.</p>
-                                        <small style="color: #94a3b8; font-size: 12px;">Try selecting another Year Level or Semester, or deploy a new schedule using the form.</small>
+                                        <i class="fas fa-calendar-times" style="font-size: 32px; color: var(--rg-muted); margin-bottom: 10px;"></i>
+                                        <p style="margin: 0; font-weight: 600; color: var(--rg-muted); font-size: 14px;">No class schedules found for the selected filter.</p>
+                                        <small style="color: var(--rg-muted); font-size: 12px;">Try selecting another Year Level or Semester, or deploy a new schedule using the form.</small>
                                     </div>
                                 </td>
                             </tr>
@@ -268,9 +270,9 @@
                             <tr>
                                 <td colspan="5" class="empty-table-state">
                                     <div style="padding: 40px 10px; text-align: center;">
-                                        <i class="fas fa-folder-open" style="font-size: 36px; color: #cbd5e1; margin-bottom: 12px;"></i>
-                                        <p style="margin: 0; font-weight: 700; color: #475569; font-size: 15px;">No Class Schedules Documented Yet</p>
-                                        <small style="color: #94a3b8; font-size: 12.5px;">There are no schedules deployed in the system. Use the form on the left to add your first schedule.</small>
+                                        <i class="fas fa-folder-open" style="font-size: 36px; color: var(--rg-muted); margin-bottom: 12px;"></i>
+                                        <p style="margin: 0; font-weight: 700; color: var(--rg-ink); font-size: 15px;">No Class Schedules Documented Yet</p>
+                                        <small style="color: var(--rg-muted); font-size: 12.5px;">There are no schedules deployed in the system. Use the form on the left to add your first schedule.</small>
                                     </div>
                                 </td>
                             </tr>
@@ -287,13 +289,13 @@
     <div class="sm-box">
         <div class="sm-header">
             <div>
-                <h3 id="smTitle" style="margin:0; font-size:16px; font-weight:800; color:#0f172a;">Enrolled Students</h3>
-                <div id="smSub" style="font-size:12.5px; color:#64748b; margin-top:3px;"></div>
+                <h3 id="smTitle" style="margin:0; font-size:16px; font-weight:800; color:var(--rg-ink);">Enrolled Students</h3>
+                <div id="smSub" style="font-size:12.5px; color:var(--rg-muted); margin-top:3px;"></div>
             </div>
             <button type="button" id="smClose" class="sm-close">&times;</button>
         </div>
         <div class="sm-body">
-            <div id="smState" style="padding:30px; text-align:center; color:#64748b; font-size:13px;">Loading...</div>
+            <div id="smState" style="padding:30px; text-align:center; color:var(--rg-muted); font-size:13px;">Loading...</div>
             <table id="smTable" class="sm-table" style="display:none;">
                 <thead>
                     <tr>
@@ -569,7 +571,6 @@
                 if (formPanelTitle) formPanelTitle.innerHTML = '<i class="fas fa-edit"></i> Update Deployment Specifications';
                 if (btnSubmitForm) {
                     btnSubmitForm.textContent = 'Update Class';
-                    btnSubmitForm.style.backgroundColor = '#0284c7';
                 }
 
                 if (btnResetForm) btnResetForm.style.display = 'none';
@@ -599,7 +600,6 @@
             if (formPanelTitle) formPanelTitle.innerHTML = '<i class="fas fa-calendar-plus"></i> Add Class Schedule';
             if (btnSubmitForm) {
                 btnSubmitForm.textContent = 'Deploy Schedule';
-                btnSubmitForm.style.backgroundColor = '#0033A0';
             }
 
             if (btnResetForm) btnResetForm.style.display = 'inline-block';
@@ -612,22 +612,40 @@
 </script>
 
 <style>
-    .sa-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #0f172a; max-width: 1450px; margin: 0 auto; padding: 24px; }
-    .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; }
-    .header-titles h2 { margin: 0 0 4px 0; font-size: 26px; font-weight: 800; color: #0f172a; }
-    .header-titles p { margin: 0; font-size: 13.5px; color: #64748b; }
-    .header-badge { background-color: #0284c7; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .rg-page {
+        --rg-blue: #0033A0;
+        --rg-blue-dark: #0A1F5C;
+        --rg-blue-tint: #EAF0FF;
+        --rg-gold: #F2B705;
+        --rg-ink: #0B1B3A;
+        --rg-muted: #5C6B8A;
+        --rg-line: #E2E8F3;
+        --rg-surface: #F7F9FD;
+        --rg-green: #15803D;
+        --rg-green-tint: #E8F7EE;
+        --rg-red: #C62828;
+
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--rg-ink);
+        max-width: 1450px;
+        margin: 0 auto;
+        padding: 24px 20px 40px;
+    }
+
+    .rg-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; padding-bottom: 18px; margin-bottom: 20px; border-bottom: 1px solid var(--rg-line); }
+    .rg-title { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.2px; color: var(--rg-blue-dark); }
+    .rg-subtitle { margin: 5px 0 0; font-size: 14px; color: var(--rg-muted); }
 
     .sa-workspace { display: flex; flex-direction: row; gap: 24px; align-items: flex-start; justify-content: space-between; width: 100%; }
-    .form-panel { flex: 1; min-width: 380px; background: #ffffff; position: sticky; top: 24px; }
-    .table-panel { flex: 2.2; background: #ffffff; }
+    .form-panel { flex: 0 0 clamp(340px, 30%, 440px); min-width: 0; background: #ffffff; position: sticky; top: 24px; }
+    .table-panel { flex: 1 1 0; min-width: 0; background: #ffffff; }
 
-    .sa-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02); overflow: hidden; }
-    .card-bar { background: #f8fafc; padding: 16px 20px; font-weight: 700; font-size: 14px; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
+    .rg-card { border-radius: 10px; border: 1px solid var(--rg-line); box-shadow: 0 1px 2px rgba(10, 31, 92, 0.05); overflow: hidden; }
+    .card-bar { background: var(--rg-surface); padding: 14px 20px; font-weight: 700; font-size: 14px; color: var(--rg-blue-dark); border-bottom: 1px solid var(--rg-line); }
     
-    .card-header-flex { background-color: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 14px; }
+    .card-header-flex { background-color: var(--rg-surface); padding: 14px 20px; border-bottom: 1px solid var(--rg-line); display: flex; flex-direction: column; gap: 14px; }
     .table-header-top { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-    .card-title-list { font-size: 14px; font-weight: 700; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 8px; }
+    .card-title-list { font-size: 14px; font-weight: 700; color: var(--rg-blue-dark); margin: 0; display: flex; align-items: center; gap: 8px; }
     
     .table-filters-row { display: flex; gap: 16px; flex-wrap: nowrap; width: 100%; align-items: center; justify-content: space-between; }
     .search-box-wrap { flex-grow: 1; min-width: 0; }
@@ -635,61 +653,82 @@
 
     .filters-group-container { display: flex; gap: 16px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
 
-    .filter-label { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 2px; }
-    .filter-pill { background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 5px 10px; font-size: 11px; font-weight: 600; border-radius: 20px; cursor: pointer; transition: all 0.15s ease; }
-    .filter-pill:hover { background: #e2e8f0; color: #0f172a; }
-    .filter-pill.active { background: #0f172a; color: #ffffff; border-color: #0f172a; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.2); }
+    .filter-label { font-size: 11px; font-weight: 700; color: var(--rg-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 2px; }
+    .filter-pill { background: var(--rg-surface); border: 1px solid var(--rg-line); color: var(--rg-muted); padding: 5px 12px; font-size: 11.5px; font-weight: 600; border-radius: 16px; cursor: pointer; transition: all 0.15s ease; }
+    .filter-pill:hover { border-color: var(--rg-blue); color: var(--rg-blue); }
+    .filter-pill.active { background: var(--rg-blue); color: #ffffff; border-color: var(--rg-blue); box-shadow: 0 2px 4px rgba(0, 51, 160, 0.2); }
 
-    .pure-form { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+    .pure-form { padding: 22px; display: flex; flex-direction: column; gap: 16px; }
     .form-group { display: flex; flex-direction: column; gap: 5px; }
-    .form-group label { font-size: 11.5px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.3px; }
+    .form-group label { font-size: 11.5px; font-weight: 700; color: var(--rg-muted); text-transform: uppercase; letter-spacing: 0.3px; }
     
-    .select-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 9px 12px; font-size: 13.5px; color: #0f172a; outline: none; background: #ffffff; box-sizing: border-box; width: 100%; transition: all 0.15s; }
-    .select-input:focus { border-color: #0033a0; box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.1); }
+    .select-input { border: 1px solid #CBD5E6; border-radius: 8px; padding: 10px 12px; font-size: 13.5px; color: var(--rg-ink); outline: none; background: #ffffff; box-sizing: border-box; width: 100%; transition: all 0.15s; }
+    .select-input:focus { border-color: var(--rg-blue); box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.14); }
     
-    .input-error { border-color: #ef4444 !important; background-color: #fef2f2 !important; }
-    .sa-alert-error { background: #fef2f2; color: #991b1b; padding: 12px 16px; border-radius: 6px; font-weight: 600; border-left: 4px solid #dc2626; font-size: 13px; }
-    .sa-alert-success { background: #ecfdf5; color: #065f46; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-weight: 600; border-left: 4px solid #059669; font-size: 13px; }
+    .input-error { border-color: var(--rg-red) !important; background-color: #fef2f2 !important; }
+    .rg-alert-error { background: #FDECEC; color: #8E1B1B; padding: 12px 16px; border-radius: 8px; font-weight: 600; border-left: 4px solid var(--rg-red); font-size: 13.5px; margin-bottom: 16px; }
+    .rg-alert-success { background: var(--rg-green-tint); color: #14532D; padding: 12px 16px; border-radius: 8px; font-weight: 600; border-left: 4px solid var(--rg-green); font-size: 13.5px; margin-bottom: 16px; }
     
-    .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: end; }
+    .form-grid-2 > .form-group { min-width: 0; }
     .uppercase-input { text-transform: uppercase; }
-    .field-help { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+    .field-help { font-size: 11px; color: var(--rg-muted); margin-top: 1px; }
     
-    .form-actions-bar { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; border-top: 1px solid #f1f5f9; padding-top: 14px; }
-    .btn-submit-subj { background: #0033A0; color: #ffffff; border: none; padding: 9px 18px; font-size: 13.5px; font-weight: 700; border-radius: 6px; cursor: pointer; transition: background 0.15s; }
-    .btn-submit-subj:hover { background: #002270; }
-    .btn-clear { background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 9px 14px; font-size: 13.5px; font-weight: 600; border-radius: 6px; cursor: pointer; }
-    .btn-clear:hover { background: #f8fafc; color: #334155; }
+    .form-actions-bar { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; border-top: 1px solid var(--rg-line); padding-top: 14px; }
     
     .table-responsive { width: 100%; overflow-x: auto; }
-    .minimal-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
-    .minimal-table th { background: #f8fafc; padding: 12px 16px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
-    .minimal-table td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
-    .minimal-table tbody tr:hover { background-color: #f8fafc; }
+    .rg-table { width: 100%; min-width: 680px; border-collapse: collapse; font-size: 14px; }
+    .rg-table th { background: var(--rg-surface); padding: 11px 20px; font-size: 12px; font-weight: 700; color: var(--rg-muted); text-align: left; border-bottom: 1px solid var(--rg-line); white-space: nowrap; }
+    .rg-table td { padding: 13px 20px; border-bottom: 1px solid #EEF2F9; color: var(--rg-ink); vertical-align: middle; }
+    .rg-table tbody tr:hover { background-color: #F5F8FF; }
     
-    .subject-code-tag { font-family: ui-monospace, monospace; font-weight: 700; color: #2563eb; background-color: #eff6ff; padding: 3px 7px; border-radius: 4px; font-size: 11.5px; }
-    .badge-lab { background-color: #fef3c7; color: #92400e; font-size: 9.5px; font-weight: 800; padding: 2px 5px; border-radius: 4px; border: 1px solid #fde68a; }
-    .badge-lec { background-color: #e0f2fe; color: #075985; font-size: 9.5px; font-weight: 800; padding: 2px 5px; border-radius: 4px; border: 1px solid #bae6fd; }
+    /* Keep these on a single line (no more "BSIT1-" / "A" or "DE GUZMAN," / "P.") */
+    .rg-table .col-section,
+    .rg-table .col-faculty,
+    .rg-table .col-actions { white-space: nowrap; }
+    .rg-table .col-actions { width: 1%; }
+    .subject-code-tag, .badge-lab, .badge-lec { white-space: nowrap; }
 
-    .sched-info-tag { font-size: 11px; font-weight: 600; color: #1e293b; background-color: #f1f5f9; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-right: 3px; border: 1px solid #e2e8f0; }
-    .prof-assigned-tag { font-size: 12px; font-weight: 600; color: #047857; background-color: #ecfdf5; border: 1px solid #a7f3d0; padding: 3px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 5px; }
-    .prof-unassigned-tag { font-size: 11.5px; font-weight: 500; color: #64748b; background-color: #f1f5f9; padding: 3px 8px; border-radius: 5px; font-style: italic; }
-    .empty-table-state { text-align: center; color: #94a3b8; padding: 40px 0 !important; font-style: italic; }
+    .subject-code-tag { font-family: ui-monospace, monospace; font-weight: 700; color: var(--rg-blue); background-color: var(--rg-blue-tint); padding: 3px 7px; border-radius: 6px; font-size: 11.5px; border: 1px solid #CFDBFB; }
+    .badge-lab { background-color: #fef3c7; color: #92400e; font-size: 9.5px; font-weight: 800; padding: 2px 5px; border-radius: 4px; border: 1px solid #fde68a; }
+    .badge-lec { background-color: var(--rg-blue-tint); color: var(--rg-blue); font-size: 9.5px; font-weight: 800; padding: 2px 5px; border-radius: 4px; border: 1px solid #CFDBFB; }
+
+    .sched-info-tag { white-space: nowrap; margin-bottom: 3px; font-size: 11px; font-weight: 600; color: var(--rg-ink); background-color: var(--rg-surface); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-right: 3px; border: 1px solid var(--rg-line); }
+    .prof-assigned-tag { font-size: 12px; font-weight: 600; color: var(--rg-green); background-color: var(--rg-green-tint); border: 1px solid #BFE8CE; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+    .prof-unassigned-tag { font-size: 11.5px; font-weight: 500; color: var(--rg-muted); background-color: var(--rg-surface); padding: 3px 8px; border-radius: 6px; font-style: italic; border: 1px solid var(--rg-line); }
+    .empty-table-state { text-align: center; color: var(--rg-muted); padding: 40px 0 !important; font-style: italic; }
     
-    .btn-action-edit { background-color: transparent; border: 1px solid #cbd5e1; color: #475569; padding: 4px 10px; font-size: 11.5px; font-weight: 600; border-radius: 5px; cursor: pointer; }
-    .btn-action-edit:hover { background-color: #f1f5f9; color: #1e293b; }
-    .btn-action-delete { background-color: transparent; border: 1px solid #fca5a5; color: #dc2626; padding: 4px 10px; font-size: 11.5px; font-weight: 600; border-radius: 5px; cursor: pointer; }
-    .btn-action-delete:hover { background-color: #fef2f2; }
-    .btn-action-students { background-color: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 4px 10px; font-size: 11.5px; font-weight: 700; border-radius: 5px; cursor: pointer; }
-    .btn-action-students:hover { background-color: #dbeafe; }
-    .sm-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 9999; align-items: center; justify-content: center; padding: 20px; }
+    .sm-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; }
     .sm-box { background: #fff; border-radius: 12px; width: 100%; max-width: 640px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.25); }
-    .sm-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px; border-bottom: 1px solid #e2e8f0; }
-    .sm-close { background: none; border: none; font-size: 26px; line-height: 1; color: #64748b; cursor: pointer; }
+    .sm-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px; border-bottom: 1px solid var(--rg-line); }
+    .sm-close { background: none; border: none; font-size: 26px; line-height: 1; color: var(--rg-muted); cursor: pointer; }
     .sm-body { overflow-y: auto; padding: 0; }
     .sm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .sm-table th { background: #f8fafc; padding: 10px 16px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; text-align: left; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; }
-    .sm-table td { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; }
-    .badge-count { background: #e2e8f0; color: #334155; font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 700; }
+    .sm-table th { background: var(--rg-surface); padding: 10px 16px; font-size: 11px; font-weight: 700; color: var(--rg-muted); text-transform: uppercase; text-align: left; border-bottom: 1px solid var(--rg-line); position: sticky; top: 0; }
+    .sm-table td { padding: 10px 16px; border-bottom: 1px solid #EEF2F9; color: var(--rg-ink); }
+    
+    .rg-btn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 7px; font-size: 12.5px; font-weight: 700; text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: background .15s, color .15s, border-color .15s; white-space: nowrap; line-height: 1.2; }
+    .rg-btn-primary { background: var(--rg-blue); color: #fff; }
+    .rg-btn-primary:hover { background: var(--rg-blue-dark); color: #fff; }
+    .rg-btn-ghost { background: #fff; color: var(--rg-blue); border-color: #B9C8F0; }
+    .rg-btn-ghost:hover { background: var(--rg-blue-tint); color: var(--rg-blue-dark); }
+    .rg-btn-outline-navy { background: #fff; color: var(--rg-blue-dark); border-color: var(--rg-blue-dark); }
+    .rg-btn-outline-navy:hover { background: var(--rg-blue-dark); color: #fff; }
+    .rg-btn-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 7px; background: #fff; border: 1px solid var(--rg-line); color: var(--rg-muted); cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+    .rg-btn-danger:hover { background: #FDECEC; border-color: #F0B4B4; color: var(--rg-red); }
+
+    @media (max-width: 1500px) {
+        .rg-table th { padding: 10px 12px; }
+        .rg-table td { padding: 12px 12px; }
+        .table-filters-row { flex-wrap: wrap; }
+    }
+
+    @media (max-width: 1100px) {
+        .sa-workspace { flex-direction: column; }
+        .form-panel { position: static; flex: none; width: 100%; }
+        .table-panel { flex: none; width: 100%; }
+    }
+
+    .rg-tab-count { background: var(--rg-line); color: var(--rg-muted); font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 10px; }
 </style>
 @endsection

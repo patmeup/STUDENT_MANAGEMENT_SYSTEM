@@ -585,7 +585,16 @@ class StudentController extends Controller
 
         $student->save();
 
-        // NOTIFICATIONS: new student registered
+        $folderWarning = null;
+        try {
+            if (!Storage::disk('local')->makeDirectory("student_records/{$student->student_id}")) {
+                throw new \RuntimeException('makeDirectory() returned false (check folder permissions on storage/app/private).');
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("student_records folder was not created for {$student->student_id}: " . $e->getMessage());
+            $folderWarning = "The student was registered, but the records folder could not be created. It will be created automatically on the first document upload. Check storage/logs/laravel.log for details.";
+        }
+
         $newStudentName = trim($student->last_name . ', ' . $student->first_name);
         \App\Support\Notifier::toRole('registrar', 'student_registered', 'New student registered',
             "{$newStudentName} ({$generatedStudentNumber}) has been registered.",
@@ -599,12 +608,14 @@ class StudentController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()
                 ->with('success', "Student registration compiled successfully, but email was not sent.")
-                ->with('student_id', $generatedStudentNumber);
+                ->with('student_id', $generatedStudentNumber)
+                ->with('folder_warning', $folderWarning);
         }
 
         return redirect()->back()
             ->with('success', "Student registration compiled successfully! Login credentials have been sent to the student’s email.")
-            ->with('student_id', $generatedStudentNumber);
+            ->with('student_id', $generatedStudentNumber)
+            ->with('folder_warning', $folderWarning);
     }
 
     public function myClasses()

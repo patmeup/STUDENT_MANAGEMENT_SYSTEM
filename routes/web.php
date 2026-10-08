@@ -94,6 +94,8 @@ Route::middleware(['role:registrar'])->group(function () {
     Route::delete('/registrar/announcements/delete/{id}', [RegistrarController::class, 'destroyAnnouncement'])->name('registrar.announcements.destroy');
     Route::get('/registrar/manage-enrollment', [RegistrarController::class, 'manageEnrollment'])->name('registrar.manage-enrollment');
     Route::post('/registrar/manage-enrollment', [StudentController::class, 'store'])->name('registrar.enroll.store');
+    Route::get('/registrar/api/student/search', [RegistrarController::class, 'searchStudentsJson'])->name('registrar.api.student.search');
+    Route::get('/registrar/api/student/{student_id}', [RegistrarController::class, 'getStudentJson'])->name('registrar.api.student.details');
     Route::get('/registrar/manage-students', [RegistrarController::class, 'manageStudents'])->name('registrar.manage-students');
     Route::get('/registrar/students/{student_id}/profile', [RegistrarController::class, 'viewStudentProfile'])->name('registrar.students.profile');
     Route::put('/registrar/students/{id}/update-info', [RegistrarController::class, 'updateStudentInfo'])->name('registrar.update-info');
@@ -143,6 +145,8 @@ Route::middleware(['role:dept_sec'])->group(function () {
     Route::delete('/department-secretary/manage-schedules/delete/{id}', [ScheduleController::class, 'delete'])->name('department_secretary.schedules.delete');
     Route::get('/department-secretary/user_details', [DeptSecController::class, 'profileView'])->name('department_secretary.user_details');
     Route::post('/department-secretary/profile/picture', [DeptSecController::class, 'updateProfilePicture'])->name('department_secretary.profile.picture.update');
+    Route::get('/department-secretary/manage-grades', [DeptSecController::class, 'manageGrades'])->name('department_secretary.manage-grades');
+    Route::get('/department-secretary/student-grades-json/{student_id}', [DeptSecController::class, 'getStudentTermGradesJson'])->name('department_secretary.student-grades-json');
 });
 
 // PROFESSOR ROUTE

@@ -164,7 +164,7 @@
 
     .rg-card { background: #fff; border: 1px solid var(--rg-line); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(10, 31, 92, 0.05); }
     .rg-card-header-dark { background: var(--rg-blue-dark); color: #fff; padding: 16px 20px; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
-    .rg-card-header-gray { background: #3B4A6B; color: #fff; padding: 16px 20px; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .rg-card-header-gray { background: #F2B705; color: #fff; padding: 16px 20px; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
     .rg-card-body { padding: 24px; }
 
     .rg-table-wrap { overflow-x: auto; border: 1px solid var(--rg-line); border-radius: 8px; }

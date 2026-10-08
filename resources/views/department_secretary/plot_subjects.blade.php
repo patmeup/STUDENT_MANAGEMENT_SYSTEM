@@ -5,24 +5,39 @@
 
 @php
     $initials = strtoupper(mb_substr($student->first_name, 0, 1) . mb_substr($student->last_name, 0, 1));
-    $yearsPresent = $curriculumSubjects->pluck('year_level')->unique()->values();
-    $defaultYear  = $yearsPresent->contains($student->year_level) ? $student->year_level : '';
+    $allYears = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+    $defaultYear  = in_array($student->year_level, $allYears) ? $student->year_level : '';
 @endphp
 
 <div class="rg-page">
 
-    <header class="rg-header">
-        <div class="rg-person rg-person-lg">
-            <span class="rg-avatar rg-avatar-lg" aria-hidden="true">{{ $initials }}</span>
+    <header class="rg-header" style="display: block;">
+        <div style="margin-bottom: 14px;">
+            <a href="{{ route('department_secretary.students') }}" class="rg-btn rg-btn-ghost">
+                <i class="fas fa-arrow-left"></i> Back to list
+            </a>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap;">
             <div>
                 <h1 class="rg-title">Plot Subjects</h1>
-                <p class="rg-subtitle">
-                    <strong>{{ strtoupper($student->last_name) }}</strong>, {{ $student->first_name }}
-                    <span class="rg-id">{{ $student->student_id }}</span>
-                </p>
-                <div class="rg-meta">
+                <p class="rg-subtitle">Choose and assign class schedules for the student this semester. Use the search and filters to easily find the subjects.</p>
+            
+                <div class="rg-meta" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--rg-line);">
+                    <span style="font-weight: 700; color: var(--rg-blue-dark); font-size: 15px; margin-right: 8px;">
+                        <i class="fas fa-user-graduate" style="color: var(--rg-muted); margin-right: 4px;"></i>
+                        {{ strtoupper($student->last_name) }}, {{ $student->first_name }} 
+                        <span style="color: var(--rg-muted); font-weight: 600; font-size: 13px;">({{ $student->student_id }})</span>
+                    </span>
                     <span class="rg-chip rg-chip-plain">{{ $student->course }}</span>
-                    <span class="rg-chip rg-chip-plain">{{ $student->year_level ?: 'No year level' }}</span>
+                    
+                    <span class="rg-chip rg-chip-plain">
+                        {{ $student->year_level ?: 'No year level' }}
+                        @if(!empty($student->semester))
+                            • {{ $student->semester }}
+                        @endif
+                    </span>
+
                     @if($student->section)
                         <span class="rg-chip rg-chip-blue">{{ $student->section }}</span>
                     @else
@@ -30,17 +45,14 @@
                     @endif
                 </div>
             </div>
-        </div>
 
-        <div class="rg-header-end">
-            <div class="rg-period" title="Subjects are enrolled for this period">
-                <span class="rg-period-label">Active Period</span>
-                <span class="rg-period-value">{{ $activePeriod->school_year }}</span>
-                <span class="rg-period-sem">{{ $activePeriod->semester }}</span>
+            <div class="rg-header-end">
+                <div class="rg-period" title="Subjects are enrolled for this period">
+                    <span class="rg-period-label">Active Period</span>
+                    <span class="rg-period-value">{{ $activePeriod->school_year }}</span>
+                    <span class="rg-period-sem">{{ $activePeriod->semester }}</span>
+                </div>
             </div>
-            <a href="{{ route('department_secretary.students') }}" class="rg-btn rg-btn-ghost">
-                <i class="fas fa-arrow-left"></i> Back to list
-            </a>
         </div>
     </header>
 
@@ -62,44 +74,21 @@
         </div>
     @endif
 
-    <section class="rg-helper" aria-labelledby="helperTitle">
-        <div class="rg-helper-text">
-            <h2 id="helperTitle"><i class="fas fa-magic" style="color: var(--rg-blue); margin-right: 6px;"></i> Quick Block Assignment</h2>
-            <p>Pick a block section to automatically fill in matching schedules. For irregular students, you can uncheck "Replace current selections" to add subjects while keeping existing choices[cite: 20].</p>
-        </div>
-
-        <div class="rg-helper-controls">
-            <select id="helperSection" class="rg-select" aria-label="Block section">
-                <option value="">Choose a block section</option>
-                @foreach($availableSections as $sec)
-                    <option value="{{ $sec }}">{{ strtoupper($sec) }}</option>
-                @endforeach
-            </select>
-
-            <label class="rg-check">
-                <input type="checkbox" id="replaceCurrent" checked>
-                <span>Replace current selections</span>
-            </label>
-
-            <button type="button" class="rg-btn rg-btn-primary" id="autoBlockBtn">
-                <i class="fas fa-bolt"></i> Apply block
-            </button>
-            <button type="button" class="rg-btn rg-btn-ghost" id="clearAllBtn">Clear all</button>
-        </div>
-
-        <div id="helperMsg" class="rg-helper-msg" role="status" aria-live="polite"></div>
-    </section>
-
     <form action="{{ route('department_secretary.save_subjects') }}" method="POST">
         @csrf
         <input type="hidden" name="student_id" value="{{ $student->student_id }}">
 
         <div class="rg-card">
             <div class="rg-toolbar">
+                <div class="rg-search" style="margin-right: auto; max-width: 320px;">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="subjectSearchInput" placeholder="Search subject code or title..." aria-label="Search subjects">
+                </div>
+
                 <div class="rg-filter" role="group" aria-label="Filter by year level">
                     <span class="rg-filter-label">Filter:</span>
                     <button type="button" class="filter-pill {{ $defaultYear === '' ? 'active' : '' }}" data-filter-value="">All years</button>
-                    @foreach($yearsPresent as $yr)
+                    @foreach($allYears as $yr)
                         <button type="button" class="filter-pill {{ $defaultYear === $yr ? 'active' : '' }}" data-filter-value="{{ $yr }}">{{ $yr }}</button>
                     @endforeach
                 </div>
@@ -123,11 +112,13 @@
                                 $currentSection   = $enrolledSections[$curricula->subject_id] ?? null;
                                 $offered          = $subjectSchedules->count() > 0;
                                 $totalUnits       = $curricula->lecture_units + $curricula->lab_units;
+                                $searchText       = strtolower($curricula->subject_code . ' ' . $curricula->subject_title);
                             @endphp
                             <tr class="plot-row {{ $offered ? '' : 'is-unavailable' }}"
                                 data-year="{{ $curricula->year_level }}"
                                 data-sem="{{ $curricula->semester }}"
-                                data-units="{{ $totalUnits }}">
+                                data-units="{{ $totalUnits }}"
+                                data-search="{{ $searchText }}">
                                 <td>
                                     <div class="rg-subject-code">{{ $curricula->subject_code }}</div>
                                     <div class="rg-subject-title">{{ $curricula->subject_title }}</div>
@@ -211,22 +202,21 @@
         const selLabel    = document.getElementById('selectedLabel');
         const hiddenNote  = document.getElementById('hiddenSelected');
         const totalUnitsElem = document.getElementById('totalUnitsCount');
-        const msg         = document.getElementById('helperMsg');
-        const yearNames   = { 1: '1st Year', 2: '2nd Year', 3: '3rd Year', 4: '4th Year' };
+        const searchInput = document.getElementById('subjectSearchInput');
 
         let activeYear = (document.querySelector('.filter-pill.active') || {}).dataset?.filterValue ?? '';
 
-        function say(text, kind) {
-            msg.textContent = text;
-            msg.className = 'rg-helper-msg ' + (kind ? 'is-' + kind : '');
-        }
-
         function refresh() {
             let visible = 0, selected = 0, selectedHidden = 0, totalUnits = 0;
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
             rows.forEach(row => {
                 const sel  = row.querySelector('.sub-selector');
-                const show = activeYear === '' || row.dataset.year === activeYear;
+                
+                const matchesYear = activeYear === '' || row.dataset.year === activeYear;
+                const matchesSearch = query === '' || (row.dataset.search || '').includes(query);
+                
+                const show = matchesYear && matchesSearch;
                 const has  = !!(sel && sel.value);
                 const units = parseFloat(row.dataset.units) || 0;
 
@@ -246,7 +236,19 @@
             selLabel.textContent = selected === 1 ? 'subject selected' : 'subjects selected';
             hiddenNote.textContent = selectedHidden > 0 ? '(' + selectedHidden + ' in other year levels)' : '';
             totalUnitsElem.textContent = totalUnits;
-            if (noMatchRow) noMatchRow.style.display = (visible === 0 && rows.length > 0) ? '' : 'none';
+            
+            if (noMatchRow) {
+                const emptyTitle = noMatchRow.querySelector('strong');
+                const emptySub = noMatchRow.querySelector('span');
+                if (query !== '') {
+                    emptyTitle.textContent = 'No subjects match your search';
+                    emptySub.textContent = 'Try checking your spelling or clear the search box.';
+                } else {
+                    emptyTitle.textContent = 'No subjects for this year level';
+                    emptySub.textContent = 'Choose another year level or "All years".';
+                }
+                noMatchRow.style.display = (visible === 0 && rows.length > 0) ? '' : 'none';
+            }
         }
 
         pills.forEach(pill => {
@@ -259,46 +261,10 @@
         });
 
         selects.forEach(sel => sel.addEventListener('change', refresh));
-
-        document.getElementById('autoBlockBtn').addEventListener('click', function () {
-            const section = document.getElementById('helperSection').value.trim();
-            const replace = document.getElementById('replaceCurrent').checked;
-
-            if (!section) { say('Choose a block section first.', 'warn'); return; }
-
-            const matches = [];
-            selects.forEach(sel => {
-                if (sel.disabled) return;
-                for (let i = 0; i < sel.options.length; i++) {
-                    if (sel.options[i].value && sel.options[i].value.toLowerCase() === section.toLowerCase()) {
-                        matches.push({ sel: sel, value: sel.options[i].value });
-                        break;
-                    }
-                }
-            });
-
-            if (matches.length === 0) {
-                say(section.toUpperCase() + ' has no schedules for these subjects. Nothing was changed.', 'warn');
-                return;
-            }
-
-            if (replace) selects.forEach(sel => { if (!sel.disabled) sel.value = ''; });
-            matches.forEach(m => { m.sel.value = m.value; });
-
-            const digit = (section.match(/\d/) || [])[0];
-            const targetYear = digit ? yearNames[digit] : null;
-            const targetPill = targetYear ? document.querySelector('.filter-pill[data-filter-value="' + targetYear + '"]') : null;
-            if (targetPill) targetPill.click(); else refresh();
-
-            say(matches.length + (matches.length === 1 ? ' subject' : ' subjects') + ' set to ' + section.toUpperCase()
-                + (replace ? '. Earlier selections were replaced.' : '. Other selections were kept.'), 'ok');
-        });
-
-        document.getElementById('clearAllBtn').addEventListener('click', function () {
-            selects.forEach(sel => { if (!sel.disabled) sel.value = ''; });
-            refresh();
-            say('All selections cleared. Save only when you have picked at least one schedule.', 'warn');
-        });
+        
+        if (searchInput) {
+            searchInput.addEventListener('input', refresh);
+        }
 
         refresh();
     });
@@ -313,43 +279,33 @@
         max-width: 1300px; margin: 0 auto; padding: 24px 20px 40px;
     }
 
-    .rg-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; padding-bottom: 18px; margin-bottom: 20px; border-bottom: 1px solid var(--rg-line); }
+    .rg-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; padding-bottom: 18px; margin-bottom: 20px; border-bottom: 1px solid var(--rg-line); }
     .rg-header-end { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .rg-title { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.2px; color: var(--rg-blue-dark); }
-    .rg-subtitle { margin: 4px 0 8px; font-size: 14px; color: var(--rg-muted); }
-    .rg-subtitle strong { color: var(--rg-ink); }
-    .rg-id { margin-left: 8px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+    .rg-subtitle { margin: 4px 0 0; font-size: 14px; color: var(--rg-muted); max-width: 600px; line-height: 1.5; }
+    
     .rg-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-
-    .rg-person { display: flex; align-items: center; gap: 14px; }
-    .rg-avatar { flex: 0 0 auto; width: 36px; height: 36px; border-radius: 50%; background: var(--rg-blue-tint); color: var(--rg-blue); display: inline-flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 800; }
-    .rg-avatar-lg { width: 56px; height: 56px; font-size: 18px; }
 
     .rg-period { display: grid; grid-template-columns: auto auto; column-gap: 10px; align-items: baseline; background: #fff; border: 1px solid var(--rg-line); border-left: 4px solid var(--rg-gold); border-radius: 8px; padding: 9px 16px 9px 14px; }
     .rg-period-label { grid-column: 1 / -1; font-size: 11.5px; font-weight: 600; color: var(--rg-muted); margin-bottom: 2px; }
     .rg-period-value { font-size: 15px; font-weight: 800; color: var(--rg-blue-dark); }
     .rg-period-sem { font-size: 13px; font-weight: 600; color: var(--rg-blue); }
 
+    .rg-search { position: relative; flex: 1 1 200px; }
+    .rg-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #8A97B3; font-size: 13px; pointer-events: none; }
+    .rg-search input { width: 100%; box-sizing: border-box; padding: 9px 12px 9px 34px; font-size: 13.5px; color: var(--rg-ink); background: #fff; border: 1px solid #CBD5E6; border-radius: 8px; }
+    .rg-search input::placeholder { color: #8A97B3; }
+    .rg-search input:focus { outline: none; border-color: var(--rg-blue); box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.14); }
+
     .rg-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; font-weight: 600; line-height: 1.45; }
     .rg-alert i { margin-top: 2px; }
     .rg-alert ul { margin: 0; padding-left: 18px; }
     .rg-alert-error { background: #FDECEC; color: #8E1B1B; border: 1px solid #F5C6C6; border-left: 4px solid var(--rg-red); }
 
-    .rg-helper { background: #ffffff; border: 1px solid #cbd5e1; border-top: 4px solid var(--rg-blue); border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
-    .rg-helper h2 { margin: 0 0 4px; font-size: 15px; font-weight: 800; color: var(--rg-blue-dark); display: flex; align-items: center; }
-    .rg-helper p { margin: 0 0 14px; font-size: 13px; line-height: 1.5; color: #475569; max-width: 760px; }
-    .rg-helper-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .rg-helper-msg { margin-top: 10px; font-size: 13px; font-weight: 600; min-height: 18px; }
-    .rg-helper-msg.is-ok { color: var(--rg-green); }
-    .rg-helper-msg.is-warn { color: #B45309; }
-
     .rg-select { padding: 9px 12px; font-size: 13.5px; color: var(--rg-ink); background: #fff; border: 1px solid #CBD5E6; border-radius: 8px; min-width: 220px; cursor: pointer; }
     .rg-select:focus { outline: none; border-color: var(--rg-blue); box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.14); }
     .rg-select:disabled { background: var(--rg-surface); color: #8A97B3; cursor: not-allowed; }
     .rg-select-block { width: 100%; min-width: 320px; max-width: 520px; font-size: 12.5px; }
-
-    .rg-check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #26345A; cursor: pointer; }
-    .rg-check input { width: 16px; height: 16px; accent-color: var(--rg-blue); }
 
     .rg-card { background: #fff; border: 1px solid var(--rg-line); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(10, 31, 92, 0.05); }
     .rg-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; padding: 14px 20px; border-bottom: 1px solid var(--rg-line); background: #f8fafc; }

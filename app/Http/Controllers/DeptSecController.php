@@ -11,6 +11,7 @@ use App\Models\Subject;
 use App\Models\Student;
 use App\Models\BlockSection;
 use App\Models\ClassSchedule;
+use App\Models\AcademicPeriod;
 
 class DeptSecController extends Controller
 {
@@ -75,12 +76,15 @@ class DeptSecController extends Controller
 
         $query = DB::table('curricula')
             ->join('subjects', 'curricula.subject_id', '=', 'subjects.id')
+            ->leftJoin('employees', 'subjects.professor_id', '=', 'employees.id')
             ->select(
                 'curricula.*',
                 'subjects.subject_code',
                 'subjects.subject_title',
                 'subjects.lecture_units',
-                'subjects.lab_units'
+                'subjects.lab_units',
+                'employees.first_name as prof_first_name',
+                'employees.last_name as prof_last_name'
             )
             ->where('curricula.course', 'BSIT');
 
@@ -313,9 +317,10 @@ class DeptSecController extends Controller
                     $newSection = preg_replace('/' . $currentDigit . '/', (string)($currentDigit + 1), $stu->section, 1);
 
                     DB::table('students')->where('student_id', $stu->student_id)->update([
-                        'section'    => $newSection,
-                        'year_level' => $yearLabels[$i + 1],
-                        'updated_at' => $now,
+                        'section'      => $newSection,
+                        'year_level'   => $yearLabels[$i + 1],
+                        'student_type' => 'Old',
+                        'updated_at'   => $now,
                     ]);
                     $promoted++;
                 }
@@ -327,12 +332,9 @@ class DeptSecController extends Controller
             return redirect()->back()->with('error', 'Promotion failed, nothing was changed: ' . $e->getMessage());
         }
 
-        $msg = "Promotion done: {$promoted} student(s) moved up, {$graduated} graduated, " . count($heldBack) . ' held back (failed or no final grade yet).';
+        $msg = "Promotion done successfully: {$promoted} student(s) moved up, {$graduated} graduated, " . count($heldBack) . ' student(s) held back due to failed or missing grades.';
         if ($skipped > 0) {
-            $msg .= " {$skipped} skipped (section name does not match year level).";
-        }
-        if (!empty($heldBack)) {
-            $msg .= ' Held back: ' . implode('; ', array_slice($heldBack, 0, 5)) . (count($heldBack) > 5 ? '; ...' : '');
+            $msg .= " {$skipped} skipped.";
         }
 
         return redirect()->back()->with('success', $msg);
@@ -759,5 +761,87 @@ class DeptSecController extends Controller
         $user->profile_picture = $path;
         $user->save();
         return redirect()->back()->with('success', 'Profile picture updated successfully!');
+    }
+
+    public function manageGrades(Request $request)
+    {
+        $termFilter = $request->input('term', 'prelim');
+        $search = $request->input('search');
+
+        $activeAcademicPeriod = DB::table('academic_periods')->where('is_active', 1)->first();
+        
+        // Salain ang term periods batay sa active academic period ID kung mayroon man
+        $termPeriods = collect();
+        if ($activeAcademicPeriod) {
+            $termPeriods = DB::table('term_periods')
+                ->where('academic_period_id', $activeAcademicPeriod->id)
+                ->orderBy('start_date', 'asc')
+                ->get();
+        }
+
+        $studentsQuery = Student::query();
+
+        if ($search) {
+            $studentsQuery->where(function($q) use ($search) {
+                $q->where('student_id', 'like', "%{$search}%")
+                  ->orWhere('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%");
+            });
+        }
+
+        $students = $studentsQuery->paginate(15);
+
+        // Kalkulahin ang average equivalent ng bawat estudyante para sa aktibong term/period
+        foreach ($students as $student) {
+            $student->average_equivalent = null;
+            if ($activeAcademicPeriod) {
+                $student->average_equivalent = DB::table('student_term_grades as stg')
+                    ->join('class_schedules as cs', 'cs.id', '=', 'stg.schedule_id')
+                    ->where('stg.student_number', $student->student_id)
+                    ->where('cs.academic_period_id', $activeAcademicPeriod->id)
+                    ->where('stg.term', $termFilter)
+                    ->where('stg.is_submitted', 1)
+                    ->whereNotNull('stg.equivalent')
+                    ->avg('stg.equivalent');
+            }
+        }
+
+        return view('department_secretary.manage-grades', compact('students', 'termFilter', 'activeAcademicPeriod', 'termPeriods', 'search'));
+    }
+
+    public function getStudentTermGradesJson($student_id, Request $request)
+    {
+        $term = strtolower(trim($request->input('term', 'prelim')));
+        $activePeriod = DB::table('academic_periods')->where('is_active', 1)->first();
+        $periodId = $activePeriod ? $activePeriod->id : null;
+
+        $query = DB::table('student_subjects as ss')
+            ->join('class_schedules as cs', 'cs.id', '=', 'ss.schedule_id')
+            ->join('subjects as sub', 'sub.id', '=', 'ss.subject_id')
+            ->leftJoin('student_term_grades as stg', function($join) use ($student_id, $term) {
+                $join->on('stg.schedule_id', '=', 'ss.schedule_id')
+                     ->where('stg.student_number', '=', $student_id)
+                     ->where(DB::raw('LOWER(stg.term)'), '=', $term);
+            })
+            ->where('ss.student_number', $student_id)
+            ->where('ss.status', 'Enrolled');
+
+        if ($periodId) {
+            $query->where('cs.academic_period_id', $periodId);
+        }
+
+        $grades = $query->select(
+                'sub.subject_code as subject_code_display',
+                'sub.subject_title as subject_title_display',
+                'cs.section_name',
+                'stg.class_standing',
+                'stg.major_exam',
+                'stg.equivalent',
+                'stg.is_submitted'
+            )
+            ->orderBy('sub.subject_code', 'asc')
+            ->get();
+
+        return response()->json($grades);
     }
 }

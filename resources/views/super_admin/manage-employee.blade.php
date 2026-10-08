@@ -1,33 +1,35 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="sa-container">
-    
-    <div class="sa-header">
-        <div class="header-titles">
-            <h2>Employee Accounts</h2>
-            <p>Create new staff accounts, assign system roles, and manage their access.</p>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<div class="rg-page">
+    <header class="rg-header">
+        <div>
+            <h2 class="rg-title">Faculty Management</h2>
+            <p class="rg-subtitle">Manage faculty accounts, assignments, and roster information.</p>
         </div>
-    </div>
+    </header>
 
     @if(session('success'))
-        <div class="sa-alert-success">
-            <i class="fas fa-check-circle"></i> {{ session('success') }}
+        <div class="rg-alert rg-alert-success" role="status">
+            <i class="fas fa-check-circle"></i> <span>{{ session('success') }}</span>
         </div>
     @endif
 
     @if(session('error'))
-        <div class="sa-alert-error">
-            <i class="fas fa-exclamation-triangle"></i> {{ session('error') }}
+        <div class="rg-alert rg-alert-error" role="alert">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>{{ session('error') }}</span>
         </div>
     @endif
 
     @if(isset($errors) && count($errors) > 0)
-        <div class="sa-alert-error">
-            <i class="fas fa-exclamation-circle" style="font-size: 16px;"></i>
+        <div class="rg-alert rg-alert-error" role="alert">
+            <i class="fas fa-exclamation-circle"></i>
             <div>
-                <strong>Unable to process request:</strong>
-                <ul style="margin: 4px 0 0 0; padding-left: 20px;">
+                <strong style="display:block; margin-bottom: 4px;">Unable to process request:</strong>
+                <ul style="margin: 0; padding-left: 20px;">
                     @php
                         $allErrors = $errors->all();
                     @endphp
@@ -39,510 +41,573 @@
         </div>
     @endif
 
-    <div id="js-alert-error" class="sa-alert-error" style="display: none;">
+    <div id="js-alert-error" class="rg-alert rg-alert-error" role="alert" style="display: none;">
         <i class="fas fa-exclamation-triangle"></i>
-        <span id="js-alert-message">Please fill out all required fields before submitting.</span>
+        <div>
+            <strong style="display:block; margin-bottom: 4px;">Unable to process request:</strong>
+            <ul id="js-alert-list" style="margin: 0; padding-left: 20px;"></ul>
+        </div>
     </div>
 
-    <div class="sa-workspace">
-        
-        <!-- ADD EMPLOYEE FORM PANEL -->
-        <div class="sa-card form-panel">
-            <div class="card-bar"><i class="fas fa-user-plus"></i> Add New Employee</div>
-            
-            <form action="{{ route('super_admin.employee.store') }}" method="POST" id="employee-form" autocomplete="off" class="pure-form" novalidate>
+    <div class="admin-workspace">
+        <div class="rg-card form-panel">
+            <div class="card-bar">
+                <span id="form-panel-title"><i class="fas fa-user-plus"></i> Add Faculty Member</span>
+            </div>
+
+            <form action="{{ route('super_admin.employee.store') }}" method="POST" id="faculty-form" autocomplete="off" class="pure-form" novalidate>
                 @csrf
+                <input type="hidden" name="_method" id="form_method">
+                <input type="hidden" name="faculty_id" id="form_faculty_id">
+
+                <input type="hidden" name="first_name" id="hidden_first_name">
+                <input type="hidden" name="last_name" id="hidden_last_name">
+                <input type="hidden" name="middle_name" id="hidden_middle_name">
+                <input type="hidden" name="sex" id="hidden_sex">
+                <input type="hidden" name="email" id="hidden_email">
+
+                <div class="form-group">
+                    <label>First Name <span id="star_first_name" class="required-star">*</span></label>
+                    <input type="text" name="first_name" id="first_name" class="rg-input" placeholder="Please put the first name" value="{{ old('first_name') }}" required>
+                </div>
                 
                 <div class="form-group">
-                    <label>First Name <span class="required-star">*</span></label>
-                    <input type="text" name="first_name" id="first_name" placeholder="e.g., JUAN" value="{{ old('first_name') }}" required>
+                    <label>Last Name <span id="star_last_name" class="required-star">*</span></label>
+                    <input type="text" name="last_name" id="last_name" class="rg-input" placeholder="Please put the last name" value="{{ old('last_name') }}" required>
                 </div>
-
-                <div class="form-group">
-                    <label>Last Name <span class="required-star">*</span></label>
-                    <input type="text" name="last_name" id="last_name" placeholder="e.g., DELA CRUZ" value="{{ old('last_name') }}" required>
-                </div>
-
+                
                 <div class="form-grid-2">
                     <div class="form-group">
-                        <label>Middle Name (Optional)</label>
-                        <input type="text" name="middle_name" id="middle_name" placeholder="e.g., REYES" value="{{ old('middle_name') }}">
+                        <label>Middle Name <small style="color:var(--rg-muted); text-transform:none; font-weight:normal;">(Optional)</small></label>
+                        <input type="text" name="middle_name" id="middle_name" class="rg-input" placeholder="Middle name" value="{{ old('middle_name') }}">
                     </div>
                     <div class="form-group">
-                        <label>Sex <span class="required-star">*</span></label>
-                        <div class="custom-select-wrapper">
-                            <select name="sex" id="sex" class="custom-select-dropdown" required>
-                                <option value="" disabled {{ old('sex') ? '' : 'selected' }} hidden>Select Sex</option>
-                                <option value="Male" {{ old('sex') == 'Male' ? 'selected' : '' }}>Male</option>
-                                <option value="Female" {{ old('sex') == 'Female' ? 'selected' : '' }}>Female</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Email Address <span class="required-star">*</span></label>
-                    <input type="email" name="email" id="email" placeholder="username@arellano.edu.ph" value="{{ old('email') }}" required>
-                </div>
-
-                <div class="form-group">
-                    <label>Role <span class="required-star">*</span></label>
-                    <div class="custom-select-wrapper">
-                        <select name="role" id="role-select" class="custom-select-dropdown" required>
-                            <option value="" disabled {{ old('role') ? '' : 'selected' }} hidden>Select Role</option>
-                            <option value="system_admin" {{ old('role') == 'system_admin' ? 'selected' : '' }}>System Admin</option>
-                            <option value="dean" {{ old('role') == 'dean' ? 'selected' : '' }}>Dean</option>
-                            <option value="registrar" {{ old('role') == 'registrar' ? 'selected' : '' }}>Registrar</option>
-                            <option value="dept_sec" {{ old('role') == 'dept_sec' ? 'selected' : '' }}>Dept Sec</option>
-                            <option value="professor" {{ old('role') == 'professor' ? 'selected' : '' }}>Professor</option>
+                        <label>Sex <span id="star_sex" class="required-star">*</span></label>
+                        <select name="sex" id="sex" class="rg-select" required>
+                            <option value="" disabled {{ old('sex') ? '' : 'selected' }} hidden>Select Sex</option>
+                            <option value="Male" {{ old('sex') == 'Male' ? 'selected' : '' }}>Male</option>
+                            <option value="Female" {{ old('sex') == 'Female' ? 'selected' : '' }}>Female</option>
                         </select>
                     </div>
                 </div>
-
-                <div class="form-group" id="department-group" style="{{ old('role') == 'dean' || old('role') == 'dept_sec' || old('role') == 'professor' ? 'display: flex;' : 'display: none;' }}">
-                    <label>Department <span class="required-star">*</span></label>
-                    <div class="custom-select-wrapper">
-                        <select name="department" id="department-select" class="custom-select-dropdown">
-                            <option value="" disabled {{ old('department') ? '' : 'selected' }} hidden>Select Department</option>
-                            <option value="College of Computer Studies" {{ old('department') == 'College of Computer Studies' ? 'selected' : '' }}>College of Computer Studies</option>
-                        </select>
-                    </div>
+                
+                <div class="form-group">
+                    <label>Faculty Role / Position <span class="required-star">*</span></label>
+                    <select name="role" id="role" class="rg-select" required>
+                        <option value="" disabled {{ old('role') ? '' : 'selected' }} hidden>Select Position</option>
+                        <option value="dean" {{ old('role') == 'dean' ? 'selected' : '' }}>Dean</option>
+                        <option value="dept_sec" {{ old('role') == 'dept_sec' ? 'selected' : '' }}>Department Secretary</option>
+                        <option value="professor" {{ old('role') == 'professor' ? 'selected' : '' }}>Professor</option>
+                        <option value="system_admin" {{ old('role') == 'system_admin' ? 'selected' : '' }}>System Admin</option>
+                    </select>
                 </div>
 
-                <button type="submit" class="btn-generate-account">Create Account</button>
+                <div class="form-group" id="department-group">
+                    <label>Assigned Academic Department <span id="star_department" class="required-star">*</span></label>
+                    <select name="department" id="department" class="rg-select" required>
+                        <option value="" disabled {{ old('department') ? '' : 'selected' }} hidden>Select Department</option>
+                        <option value="College of Computer Studies" {{ old('department') == 'College of Computer Studies' ? 'selected' : '' }}>College of Computer Studies</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Personal Email <span id="star_email" class="required-star">*</span></label>
+                    <input type="email" name="email" id="email" class="rg-input" placeholder="Please put the personal email" value="{{ old('email') }}" required>
+                </div>
+                
+                <div class="form-actions-bar">
+                    <button type="button" class="rg-btn rg-btn-ghost" id="btn-reset-form" onclick="resetFacultyFormState()">Reset</button>
+                    <button type="submit" id="btn-submit-action" class="rg-btn rg-btn-primary" style="flex: 1; justify-content: center;">Save Faculty Member</button>
+                </div>
             </form>
         </div>
 
-        <!-- TABLE PANEL -->
-        <div class="sa-card table-panel">
-            <div class="card-bar d-flex-jsb table-header-flex">
-                <span>Employee List</span>
-                <div class="table-controls" style="display: flex; align-items: center; gap: 12px;">
-                    <div class="search-wrapper">
-                        <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="personnel-search" placeholder="Search ID, name, email or role...">
-                    </div>
-                    <span class="count-tag">Total: {{ count($employees) }}</span>
-                </div>
+        <div class="rg-card table-panel">
+            <div class="card-bar">
+                <span style="font-size: 15px;"><i class="fa-solid fa-folder-open" style="margin-right: 6px;"></i> Faculty Members Directory</span>
             </div>
-            
-            <div class="table-wrap">
-                <table class="sa-table" id="personnel-table">
+
+            <div class="rg-toolbar">
+                <div class="rg-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="adminFacultySearch" placeholder="Search by Name, ID, or Email...">
+                </div>
+
+                <div class="rg-filter" role="group" aria-label="Filter by role">
+                    <span class="rg-filter-label">Role</span>
+                    <button type="button" class="filter-pill active" data-role="">All</button>
+                    <button type="button" class="filter-pill" data-role="dean">Dean</button>
+                    <button type="button" class="filter-pill" data-role="professor">Professor</button>
+                    <button type="button" class="filter-pill" data-role="department secretary">Dept. Sec</button>
+                    <button type="button" class="filter-pill" data-role="system admin">System Admin</button>
+                </div>
+
+                <span class="rg-result-count" id="facultyTotalCount">{{ count($employees ?? []) }} faculties</span>
+            </div>
+
+            <div class="rg-table-wrap">
+                <table class="rg-table" id="facultyTable">
                     <thead>
                         <tr>
-                            <th>Employee Details</th>
-                            <th>Role</th>
-                            <th>Status</th>
+                            <th style="width: 38%;">Faculty Identity Details</th>
+                            <th class="rg-text-center" style="width: 25%;">Position / Role</th>
+                            <th class="rg-text-center" style="width: 15%;">Status</th>
+                            <th class="rg-text-center" style="width: 22%;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @if(count($employees) > 0)
-                            @for($idx = 0; $idx < count($employees);$idx++)
-                                @php
-                                    $emp = $employees[$idx];
-                                @endphp
-                                <tr class="personnel-row">
+                        @if(count($employees ?? []) > 0)
+                            @foreach($employees as $employee)
+                                <tr class="faculty-row-item">
                                     <td>
-                                        <strong class="emp-id-text search-target-id">{{ $emp->employee_id }}</strong>
-                                        <br><span class="emp-name-text search-target-name">{{ strtoupper($emp->last_name) }}, {{ strtoupper($emp->first_name) }}</span>
-                                        
-                                        @if($emp->department)
-                                            <br><span class="emp-dept-text"><i class="fas fa-university"></i> {{ $emp->department }}</span>
-                                        @endif
-                                        
-                                        <br><small class="emp-email-text search-target-email">{{ $emp->email }}</small>
+                                        <div class="faculty-id-tag search-target-id">{{ $employee->employee_id }}</div>
+                                        <strong style="color: var(--rg-blue-dark); text-transform: uppercase; display: block; margin-top: 6px;" class="search-target-name">{{ $employee->last_name }}, {{ $employee->first_name }}</strong>
+                                        <div style="font-size: 12.5px; color: var(--rg-muted); margin-top: 2px;" class="search-target-email">{{ $employee->email }}</div>
                                     </td>
-                                    <td>
-                                        <span class="role-badge-sa {{ $emp->role }} search-target-role">
-                                            {{ str_replace('_', ' ', strtoupper($emp->role)) }}
+                                    <td class="rg-text-center">
+                                        <span class="rg-chip role-chip-{{ $employee->role }} search-target-role">
+                                            {{ $employee->role === 'dept_sec' ? 'Department Secretary' : ($employee->role === 'dean' ? 'Dean' : ($employee->role === 'system_admin' ? 'System Admin' : 'Professor')) }}
                                         </span>
                                     </td>
-                                    <td>
-                                        <div class="status-indicator-zone" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;">
-                                            
-                                            <div class="status-indicator">
-                                                <span class="pulse-dot {{ strtolower($emp->status ?? 'Active') }}"></span>
-                                                <span class="status-label">{{ ucfirst($emp->status ?? 'Active') }}</span>
-                                            </div>
-
-                                            <div class="action-buttons-group" style="display: flex; align-items: center; gap: 6px;">
-                                                <button type="button" 
-                                                    class="btn-action-edit btn-trigger-edit" 
-                                                    data-id="{{ $emp->id }}"
-                                                    data-firstname="{{ $emp->first_name }}"
-                                                    data-lastname="{{ $emp->last_name }}"
-                                                    data-middlename="{{ $emp->middle_name ?? '' }}"
-                                                    data-sex="{{ $emp->sex }}"
-                                                    data-email="{{ $emp->email }}"
-                                                    data-role="{{ $emp->role }}"
-                                                    data-department="{{ $emp->department ?? '' }}"
-                                                    title="Edit Employee">
-                                                    <i class="fas fa-edit"></i> Edit
-                                                </button>
-
-                                                @if(strtolower($emp->role) !== 'super_admin' &&$emp->email !== session('user_email'))
-                                                    <form action="{{ route('super_admin.employees.toggle_status', $emp->id) }}" method="POST" style="margin: 0; display: inline-block;">
-                                                        @csrf
-                                                        @method('PATCH')
-                                                        
-                                                        @if(ucfirst($emp->status ?? 'Active') === 'Active')
-                                                            <button type="submit" class="btn-action-restrict" onclick="return confirm('Are you sure you want to restrict this employee?')" title="Lock Account">
-                                                                <i class="fas fa-user-slash"></i> Restrict
-                                                            </button>
-                                                        @else
-                                                            <button type="submit" class="btn-action-restore" onclick="return confirm('Are you sure you want to restore this employee?')" title="Unlock Account">
-                                                                <i class="fas fa-user-check"></i> Restore
-                                                            </button>
-                                                        @endif
-                                                    </form>
-                                                @else
-                                                    <span class="badge-root-immunity">Protected</span>
-                                                @endif
-                                            </div>
-
+                                    <td class="rg-text-center">
+                                        <div class="status-indicator-center">
+                                            <span class="{{ strtolower($employee->status ?? 'active') === 'active' ? 'pulse-dot-green' : 'pulse-dot-red' }}" style="{{ strtolower($employee->status ?? 'active') !== 'active' ? 'background: var(--rg-red); width:8px; height:8px; border-radius:50%; display:inline-block;' : '' }}"></span>
+                                            <span class="status-label-text">{{ ucfirst($employee->status ?? 'Active') }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="rg-text-center">
+                                        <div class="action-btn-group">
+                                            <button type="button" class="rg-btn-action rg-btn-action-ghost btn-trigger-edit"
+                                                data-id="{{ $employee->id }}"
+                                                data-firstname="{{ $employee->first_name }}"
+                                                data-lastname="{{ $employee->last_name }}"
+                                                data-middlename="{{ $employee->middle_name }}"
+                                                data-sex="{{ $employee->sex }}"
+                                                data-email="{{ $employee->email }}"
+                                                data-role="{{ $employee->role }}"
+                                                data-department="{{ $employee->department }}">
+                                                Edit
+                                            </button>
+                                            <button type="button" class="rg-btn-action rg-btn-action-danger"
+                                                onclick="openDeleteFaculty({{ $employee->id }}, '{{ strtoupper($employee->last_name) }}, {{ strtoupper($employee->first_name) }}')">
+                                                {{ ucfirst($employee->status ?? 'Active') === 'Active' ? 'Disable' : 'Enable' }}
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
-                            @endfor
+                            @endforeach
                         @else
                             <tr class="static-empty-row">
-                                <td colspan="3" class="empty-message-state">
-                                    No employees added yet. Use the form to create an account.
+                                <td colspan="4" class="empty-table-state">
+                                    No faculty members recorded under the institutional scope yet.
                                 </td>
                             </tr>
                         @endif
-                        <tr id="no-search-results-row" style="display: none;">
-                            <td colspan="3" class="empty-message-state" style="text-align: center; color: #94a3b8; padding: 40px 0;">
-                                <i class="fas fa-database" style="font-size: 20px; display: block; margin-bottom: 8px;"></i>
-                                No matching records found.
+                        <tr id="facultyNoResults" style="display:none;">
+                            <td colspan="4" class="empty-table-state" style="text-align: center; color: var(--rg-muted); padding: 40px 0;">
+                                <i class="fas fa-database" style="font-size: 24px; display: block; margin-bottom: 8px; color: #cbd5e1;"></i>
+                                No faculty members match your search/filter query.
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
-
     </div>
 </div>
 
-<!-- EDIT EMPLOYEE MODAL (LOCKED PERSONAL DATA) -->
-<div id="editEmployeeModal" class="sa-modal-backdrop" style="display: none;">
-    <div class="sa-modal-card">
-        <div class="sa-modal-header">
-            <h4><i class="fas fa-user-edit" style="color: #0284c7;"></i> Edit Role & Assignment</h4>
-            <button type="button" class="sa-modal-close" onclick="closeEditModal()">&times;</button>
+<div id="deleteFacultyModal" class="rg-modal-overlay" style="display:none;">
+    <div class="rg-modal-card" style="max-width: 420px;">
+        <div class="rg-modal-header" style="background: #FEF2F2; color: #DC2626; border-bottom: 1px solid #FECACA;">
+            <h3><i class="fas fa-exclamation-triangle"></i> Confirm Status Change</h3>
+            <button type="button" class="rg-modal-close" onclick="closeModal('deleteFacultyModal')" style="color: #F87171;">&times;</button>
         </div>
-        <form id="edit-employee-form" method="POST" class="pure-form">
-            @csrf
-            @method('PUT')
-            
-            <div class="form-group">
-                <label>First Name <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
-                <input type="text" id="edit_first_name" class="readonly-input" readonly tabindex="-1">
-            </div>
-
-            <div class="form-group">
-                <label>Last Name <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
-                <input type="text" id="edit_last_name" class="readonly-input" readonly tabindex="-1">
-            </div>
-
-            <div class="form-grid-2">
-                <div class="form-group">
-                    <label>Middle Name <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
-                    <input type="text" id="edit_middle_name" class="readonly-input" readonly tabindex="-1">
+        <div class="rg-modal-body" style="padding: 24px;">
+            <p style="margin: 0 0 20px; font-size: 14.5px; line-height: 1.5; color: var(--rg-ink);">Are you sure you want to change the status/lock state of <strong id="deleteFacultyName"></strong>?</p>
+            <form id="deleteFacultyForm" method="POST">
+                @csrf
+                @method('PATCH')
+                <div style="display: flex; justify-content: flex-end; gap: 10px; padding-top: 16px; border-top: 1px solid var(--rg-line);">
+                    <button type="button" class="rg-btn rg-btn-ghost" onclick="closeModal('deleteFacultyModal')">Cancel</button>
+                    <button type="submit" class="rg-btn" style="background: #DC2626; color: #fff;">Confirm</button>
                 </div>
-                <div class="form-group">
-                    <label>Sex <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
-                    <div class="custom-select-wrapper readonly-wrapper">
-                        <select id="edit_sex" class="custom-select-dropdown readonly-input" disabled>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>Email Address <i class="fas fa-lock lock-icon" title="Locked Field"></i></label>
-                <input type="email" id="edit_email" class="readonly-input" readonly tabindex="-1">
-            </div>
-
-            <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 4px 0;">
-
-            <div class="form-group">
-                <label>Role <span class="required-star">*</span></label>
-                <div class="custom-select-wrapper">
-                    <select name="role" id="edit_role_select" class="custom-select-dropdown" required>
-                        <option value="system_admin">System Admin</option>
-                        <option value="dean">Dean</option>
-                        <option value="registrar">Registrar</option>
-                        <option value="dept_sec">Dept Sec</option>
-                        <option value="professor">Professor</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="form-group" id="edit_department_group" style="display: none;">
-                <label>Department <span class="required-star">*</span></label>
-                <div class="custom-select-wrapper">
-                    <select name="department" id="edit_department_select" class="custom-select-dropdown">
-                        <option value="" disabled selected hidden>Select Department</option>
-                        <option value="College of Computer Studies">College of Computer Studies</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="sa-modal-footer">
-                <button type="button" class="btn-cancel-modal" onclick="closeEditModal()">Cancel</button>
-                <button type="submit" class="btn-save-modal">Save Changes</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 </div>
 
 <script>
+    const roleSelect = document.getElementById('role');
+    const departmentGroup = document.getElementById('department-group');
+    const departmentSelect = document.getElementById('department');
+
+    function handleRoleDepartmentToggle() {
+        if (!roleSelect) return;
+        const selectedRole = roleSelect.value;
+        
+        if (selectedRole === 'system_admin') {
+            departmentGroup.style.display = 'none';
+            departmentSelect.removeAttribute('required');
+            departmentSelect.value = '';
+        } else {
+            departmentGroup.style.display = 'flex';
+            departmentSelect.setAttribute('required', 'required');
+        }
+    }
+
+    if (roleSelect) {
+        roleSelect.addEventListener('change', handleRoleDepartmentToggle);
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
-        const employeeForm = document.getElementById('employee-form');
-        const roleSelect = document.getElementById('role-select');
-        const departmentGroup = document.getElementById('department-group');
-        const departmentSelect = document.getElementById('department-select');
+        const existingFacultyList = @js(($employees ?? collect())->map(fn($f) => [
+            'first_name' => strtolower($f->first_name),
+            'last_name'  => strtolower($f->last_name),
+            'email'      => strtolower($f->email),
+            'role'       => strtolower($f->role)
+        ]));
+
+        const facultyForm = document.getElementById('faculty-form');
+        const submitBtn = document.getElementById('btn-submit-action');
         const jsAlertError = document.getElementById('js-alert-error');
-        const jsAlertMessage = document.getElementById('js-alert-message');
+        const jsAlertList = document.getElementById('js-alert-list');
 
-        const editRoleSelect = document.getElementById('edit_role_select');
-        const editDepartmentGroup = document.getElementById('edit_department_group');
+        if (facultyForm) {
+            facultyForm.addEventListener('submit', function (e) {
+                const facultyId = document.getElementById('form_faculty_id').value;
+                let errorMessages = [];
 
-        function toggleDepartmentVisibility(roleVal, groupElem) {
-            if (['dean', 'dept_sec', 'professor'].includes(roleVal)) {
-                groupElem.style.display = 'flex';
-            } else {
-                groupElem.style.display = 'none';
+                if (!facultyId) {
+                    const firstName = document.getElementById('first_name').value.trim();
+                    const lastName = document.getElementById('last_name').value.trim();
+                    const sex = document.getElementById('sex').value;
+                    const email = document.getElementById('email').value.trim();
+                    const role = document.getElementById('role').value;
+                    const department = document.getElementById('department').value;
+
+                    if (!firstName || !lastName || !sex || !role || !email) {
+                        errorMessages.push('Please fill out all required fields before submitting.');
+                    } else {
+                        if (role !== 'system_admin' && !department) {
+                            errorMessages.push('The department field is required when role is not system admin.');
+                        }
+                        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        if (!emailPattern.test(email)) {
+                            errorMessages.push('Please enter a valid email address.');
+                        }
+                        const emailLower = email.toLowerCase();
+                        if (existingFacultyList.some(f => f.email === emailLower)) {
+                            errorMessages.push('This email address is already registered in the system.');
+                        }
+                    }
+                } else {
+                    const role = document.getElementById('role').value;
+                    const department = document.getElementById('department').value;
+                    if (!role || (role !== 'system_admin' && !department)) {
+                        errorMessages.push('Please select a role and department.');
+                    }
+                }
+
+                if (jsAlertError) jsAlertError.style.display = 'none';
+
+                if (errorMessages.length > 0) {
+                    e.preventDefault();
+                    showJsErrors(errorMessages);
+                    return false;
+                }
+            });
+        }
+
+        function showJsErrors(messages) {
+            if (jsAlertError && jsAlertList) {
+                jsAlertList.innerHTML = '';
+                messages.forEach(msg => {
+                    const li = document.createElement('li');
+                    li.textContent = msg;
+                    jsAlertList.appendChild(li);
+                });
+                jsAlertError.style.display = 'flex';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
 
-        roleSelect.addEventListener('change', function () {
-            toggleDepartmentVisibility(this.value, departmentGroup);
-            if (!['dean', 'dept_sec', 'professor'].includes(this.value)) {
-                departmentSelect.value = '';
-            }
+        const editButtons = document.querySelectorAll('.btn-trigger-edit');
+        editButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.getAttribute('data-id');
+                const firstName = this.getAttribute('data-firstname');
+                const lastName = this.getAttribute('data-lastname');
+                const middleName = this.getAttribute('data-middlename');
+                const sex = this.getAttribute('data-sex');
+                const email = this.getAttribute('data-email');
+                const role = this.getAttribute('data-role');
+                const department = this.getAttribute('data-department');
+
+                document.getElementById('form_faculty_id').value = id;
+                
+                document.getElementById('first_name').value = firstName;
+                document.getElementById('last_name').value = lastName;
+                document.getElementById('middle_name').value = middleName && middleName !== 'null' ? middleName : '';
+                document.getElementById('sex').value = sex;
+                document.getElementById('email').value = email;
+                document.getElementById('role').value = role;
+                document.getElementById('department').value = department && department !== 'null' ? department : '';
+
+                handleRoleDepartmentToggle();
+
+                document.getElementById('hidden_first_name').value = firstName;
+                document.getElementById('hidden_last_name').value = lastName;
+                document.getElementById('hidden_middle_name').value = middleName && middleName !== 'null' ? middleName : '';
+                document.getElementById('hidden_sex').value = sex;
+                document.getElementById('hidden_email').value = email;
+
+                document.getElementById('first_name').setAttribute('readonly', true);
+                document.getElementById('last_name').setAttribute('readonly', true);
+                document.getElementById('middle_name').setAttribute('readonly', true);
+                document.getElementById('sex').setAttribute('disabled', true);
+                document.getElementById('email').setAttribute('readonly', true);
+
+                document.getElementById('first_name').classList.add('readonly-input');
+                document.getElementById('last_name').classList.add('readonly-input');
+                document.getElementById('middle_name').classList.add('readonly-input');
+                document.getElementById('sex').classList.add('readonly-input');
+                document.getElementById('email').classList.add('readonly-input');
+
+                document.getElementById('star_first_name').style.display = 'none';
+                document.getElementById('star_last_name').style.display = 'none';
+                document.getElementById('star_sex').style.display = 'none';
+                document.getElementById('star_email').style.display = 'none';
+
+                let updateUrl = "{{ route('super_admin.employee.update', ':id') }}";
+                facultyForm.action = updateUrl.replace(':id', id);
+                document.getElementById('form_method').value = 'PUT';
+
+                document.getElementById('form-panel-title').innerHTML = '<i class="fas fa-user-edit"></i> Edit Faculty Member';
+                submitBtn.innerText = "Update Faculty Member";
+
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
         });
 
-        editRoleSelect.addEventListener('change', function () {
-            toggleDepartmentVisibility(this.value, editDepartmentGroup);
+        const searchInput = document.getElementById('adminFacultySearch');
+        const filterPills = document.querySelectorAll('.filter-pill');
+        const tableRows = document.querySelectorAll('.faculty-row-item');
+        const noResults = document.getElementById('facultyNoResults');
+        const totalCountBadge = document.getElementById('facultyTotalCount');
+        const initialTotal = tableRows.length;
+        let currentRoleFilter = '';
+
+        filterPills.forEach(pill => {
+            pill.addEventListener('click', function() {
+                filterPills.forEach(p => p.classList.remove('active'));
+                this.classList.add('active');
+                currentRoleFilter = this.getAttribute('data-role');
+                filterFacultyTable();
+            });
         });
 
-        employeeForm.addEventListener('submit', function (e) {
-            const firstName = document.getElementById('first_name').value.trim();
-            const lastName = document.getElementById('last_name').value.trim();
-            const sex = document.getElementById('sex').value;
-            const email = document.getElementById('email').value.trim();
-            const role = roleSelect.value;
-
-            jsAlertError.style.display = 'none';
-
-            if (!firstName || !lastName || !sex || !email || !role) {
-                e.preventDefault();
-                showJsError('Please fill out all required fields before submitting.');
-                return false;
-            }
-
-            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailPattern.test(email)) {
-                e.preventDefault();
-                showJsError('Please enter a valid email address.');
-                return false;
-            }
-        });
-
-        function showJsError(message) {
-            jsAlertMessage.textContent = message;
-            jsAlertError.style.display = 'flex';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        const searchInput = document.getElementById('personnel-search');
-        const tableRows = document.querySelectorAll('.personnel-row');
-        const noResultsRow = document.getElementById('no-search-results-row');
-
-        searchInput.addEventListener('input', function () {
-            const query = this.value.toLowerCase().trim();
-            let visibleRecordsCount = 0;
+        function filterFacultyTable() {
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            const selectedRole = currentRoleFilter.toLowerCase().trim();
+            let visibleCount = 0;
 
             tableRows.forEach(row => {
                 const empId = row.querySelector('.search-target-id').textContent.toLowerCase();
                 const name = row.querySelector('.search-target-name').textContent.toLowerCase();
                 const email = row.querySelector('.search-target-email').textContent.toLowerCase();
-                const role = row.querySelector('.search-target-role').textContent.toLowerCase();
+                const role = row.querySelector('.search-target-role').textContent.toLowerCase().trim();
 
-                if (empId.includes(query) || name.includes(query) || email.includes(query) || role.includes(query)) {
-                    row.style.display = ''; 
-                    visibleRecordsCount++;
+                const matchesRole = (selectedRole === '' || role === selectedRole || (selectedRole === 'department secretary' && role === 'department secretary') || (selectedRole === 'system admin' && role === 'system admin'));
+                const matchesSearch = (empId.includes(query) || name.includes(query) || email.includes(query) || role.includes(query));
+
+                if (matchesRole && matchesSearch) {
+                    row.style.display = '';
+                    visibleCount++;
                 } else {
-                    row.style.display = 'none'; 
+                    row.style.display = 'none';
                 }
             });
 
-            if (visibleRecordsCount === 0 && tableRows.length > 0) {
-                noResultsRow.style.display = '';
-            } else {
-                noResultsRow.style.display = 'none';
+            if (totalCountBadge) {
+                totalCountBadge.textContent = visibleCount + (visibleCount <= 1 ? ' faculty' : ' faculties');
             }
-        });
 
-        document.addEventListener('click', function (e) {
-            const btn = e.target.closest('.btn-trigger-edit');
-            if (!btn) return;
-
-            const emp = {
-                id: btn.dataset.id,
-                first_name: btn.dataset.firstname,
-                last_name: btn.dataset.lastname,
-                middle_name: btn.dataset.middlename,
-                sex: btn.dataset.sex,
-                email: btn.dataset.email,
-                role: btn.dataset.role,
-                department: btn.dataset.department
-            };
-
-            openEditModal(emp);
-        });
-    });
-
-    function openEditModal(emp) {
-        document.getElementById('edit_first_name').value = emp.first_name || '';
-        document.getElementById('edit_last_name').value = emp.last_name || '';
-        document.getElementById('edit_middle_name').value = emp.middle_name || '';
-        document.getElementById('edit_sex').value = emp.sex || 'Male';
-        document.getElementById('edit_email').value = emp.email || '';
-        document.getElementById('edit_role_select').value = emp.role || '';
-
-        const editDeptGroup = document.getElementById('edit_department_group');
-        const editDeptSelect = document.getElementById('edit_department_select');
-
-        if (['dean', 'dept_sec', 'professor'].includes(emp.role)) {
-            editDeptGroup.style.display = 'flex';
-            editDeptSelect.value = emp.department || '';
-        } else {
-            editDeptGroup.style.display = 'none';
-            editDeptSelect.value = '';
+            if (noResults) {
+                noResults.style.display = (visibleCount === 0 && initialTotal > 0) ? 'table-row' : 'none';
+            }
         }
 
-        const editForm = document.getElementById('edit-employee-form');
-        editForm.action = `/super-admin/employees/${emp.id}`;
+        if (searchInput) searchInput.addEventListener('input', filterFacultyTable);
+    });
 
-        document.getElementById('editEmployeeModal').style.display = 'flex';
+    function resetFacultyFormState() {
+        const facultyForm = document.getElementById('faculty-form');
+        const submitBtn = document.getElementById('btn-submit-action');
+
+        facultyForm.reset();
+        handleRoleDepartmentToggle();
+
+        document.getElementById('form_faculty_id').value = '';
+        document.getElementById('form_method').value = '';
+        facultyForm.action = "{{ route('super_admin.employee.store') }}";
+
+        document.getElementById('first_name').removeAttribute('readonly');
+        document.getElementById('last_name').removeAttribute('readonly');
+        document.getElementById('middle_name').removeAttribute('readonly');
+        document.getElementById('sex').removeAttribute('disabled');
+        document.getElementById('email').removeAttribute('readonly');
+
+        document.getElementById('first_name').classList.remove('readonly-input');
+        document.getElementById('last_name').classList.remove('readonly-input');
+        document.getElementById('middle_name').classList.remove('readonly-input');
+        document.getElementById('sex').classList.remove('readonly-input');
+        document.getElementById('email').classList.remove('readonly-input');
+
+        document.getElementById('star_first_name').style.display = '';
+        document.getElementById('star_last_name').style.display = '';
+        document.getElementById('star_sex').style.display = '';
+        document.getElementById('star_email').style.display = '';
+
+        document.getElementById('form-panel-title').innerHTML = '<i class="fas fa-user-plus"></i> Add Faculty Member';
+        submitBtn.innerText = "Save Faculty Member";
+        submitBtn.style.backgroundColor = "var(--rg-blue)";
     }
 
-    function closeEditModal() {
-        document.getElementById('editEmployeeModal').style.display = 'none';
+    function openDeleteFaculty(id, name) {
+        document.getElementById('deleteFacultyName').textContent = name;
+        
+        let statusUrl = "{{ route('super_admin.employees.toggle_status', ':id') }}";
+        statusUrl = statusUrl.replace(':id', id);
+
+        document.getElementById('deleteFacultyForm').action = statusUrl;
+        document.getElementById('deleteFacultyModal').style.display = 'flex';
     }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+
+    document.querySelectorAll('.rg-modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === this) closeModal(this.id);
+        });
+    });
 </script>
 
 <style>
-    .sa-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #0f172a; max-width: 1300px; margin: 0 auto; padding: 20px; }
-    
-    .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; }
-    .header-titles h2 { margin: 0 0 4px 0; font-size: 28px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
-    .header-titles p { margin: 0; font-size: 14.5px; color: #64748b; }
+    .rg-page {
+        --rg-blue: #0033A0; --rg-blue-dark: #0A1F5C; --rg-blue-tint: #EAF0FF; --rg-gold: #F2B705;
+        --rg-ink: #0B1B3A; --rg-muted: #5C6B8A; --rg-line: #E2E8F3; --rg-surface: #F7F9FD;
+        --rg-green: #15803D; --rg-green-tint: #E8F7EE; --rg-red: #C62828;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: var(--rg-ink);
+        max-width: 1400px; margin: 0 auto; padding: 24px 20px 40px;
+    }
 
-    .required-star { color: #dc2626; font-weight: 700; }
+    .rg-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; padding-bottom: 18px; margin-bottom: 24px; border-bottom: 1px solid var(--rg-line); }
+    .rg-title { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.2px; color: var(--rg-blue-dark); }
+    .rg-subtitle { margin: 8px 0 0; font-size: 14px; color: var(--rg-muted); }
 
-    .sa-workspace { display: flex; flex-direction: row; gap: 28px; align-items: flex-start; justify-content: space-between; width: 100%; }
-    .form-panel { flex: 1; min-width: 380px; background: #ffffff; }
-    .table-panel { flex: 1.5; background: #ffffff; }
+    .rg-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; font-weight: 600; line-height: 1.45; }
+    .rg-alert i { margin-top: 2px; }
+    .rg-alert-success { background: var(--rg-green-tint); color: #14532D; border: 1px solid #BFE8CE; border-left: 4px solid var(--rg-green); }
+    .rg-alert-error { background: #FDECEC; color: #8E1B1B; border: 1px solid #F5C6C6; border-left: 4px solid var(--rg-red); }
 
-    .sa-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.03); overflow: hidden; }
-    .card-bar { background: #f8fafc; padding: 16px 22px; font-weight: 700; font-size: 14.5px; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
-    
+    .rg-card { background: #fff; border: 1px solid var(--rg-line); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(10, 31, 92, 0.05); }
+    .card-bar { background: var(--rg-surface); padding: 16px 20px; font-weight: 700; font-size: 14.5px; color: var(--rg-blue-dark); border-bottom: 1px solid var(--rg-line); display: flex; align-items: center; gap: 8px; }
+
+    .admin-workspace { display: flex; flex-direction: row; gap: 24px; align-items: flex-start; justify-content: space-between; width: 100%; }
+    .form-panel { flex: 0 0 380px; width: 380px; }
+    .table-panel { flex: 1; min-width: 0; }
+
+    @media (max-width: 1024px) {
+        .admin-workspace { flex-direction: column; }
+        .form-panel { flex: none; width: 100%; }
+    }
+
     .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
-    .form-group label { font-size: 12px; font-weight: 600; color: #475569; }
-    .form-group input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 14px; color: #0f172a; outline: none; background: #ffffff; }
-    .form-group input:focus { border-color: #475569; box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.15); }
-    .form-grid-2 { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px; }
+    .form-group label { font-size: 12px; font-weight: 700; color: var(--rg-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+    .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     
-    .btn-generate-account { background: #1e293b; color: #ffffff; border: none; padding: 14px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; margin-top: 12px; transition: background 0.2s; text-align: center; }
-    .btn-generate-account:hover { background: #0f172a; }
-
-    .table-wrap { width: 100%; overflow-x: auto; }
-    .sa-table { width: 100%; border-collapse: collapse; text-align: left; }
-    .sa-table th { background: #f8fafc; padding: 14px 20px; font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
-    .sa-table td { padding: 15px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; vertical-align: middle; }
+    .required-star { color: var(--rg-red); }
     
-    .emp-id-text { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #0f172a; font-size: 13px; font-weight: 700; }
-    .emp-name-text { font-weight: 700; color: #1e293b; font-size: 13.5px; }
-    .emp-dept-text { font-size: 12px; color: #0284c7; font-weight: 600; }
-    .emp-email-text { color: #64748b; font-size: 12px; }
-
-    .role-badge-sa { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.3px; text-align: center; }
-    .role-badge-sa.system_admin { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
-    .role-badge-sa.dean { background: #f0fdfa; color: #0d9488; border: 1px solid #ccfbf1; }
-    .role-badge-sa.registrar { background: #eff6ff; color: #1e40af; border: 1px solid #dbeafe; }
-    .role-badge-sa.dept_sec { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
-    .role-badge-sa.professor { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
-
-    .status-indicator { display: flex; align-items: center; gap: 6px; }
-    .pulse-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    .status-label { font-size: 13px; color: #334155; font-weight: 500; }
-
-    .sa-alert-success { background: #ecfdf5; color: #065f46; padding: 14px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #059669; font-size: 14px; display: flex; align-items: center; gap: 10px; }
-    .sa-alert-error { background: #fef2f2; color: #991b1b; padding: 14px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; display: flex; align-items: flex-start; gap: 10px; }
-
-    .d-flex-jsb { display: flex; justify-content: space-between; align-items: center; }
-    .count-tag { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 4px 10px; border-radius: 5px; font-weight: 700; white-space: nowrap; }
-    .empty-message-state { text-align: center; color: #94a3b8; padding: 50px 0; font-style: italic; font-size: 13.5px; }
-
-    .custom-select-wrapper { position: relative; width: 100%; }
-    .custom-select-dropdown { width: 100%; padding: 11px 40px 11px 14px; font-size: 14px; color: #0f172a; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; appearance: none; -webkit-appearance: none; -moz-appearance: none; cursor: pointer; outline: none; transition: all 0.2s ease; }
-    .custom-select-dropdown:hover { border-color: #94a3b8; }
-    .custom-select-dropdown:focus { border-color: #475569; box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.15); }
-    .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
-
-    .pulse-dot.active { background: #22c55e; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); animation: pulseGreen 2s infinite; }
-    .pulse-dot.disabled { background: #dc2626; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); animation: pulseRed 2s infinite; }
-
-    .btn-action-edit { background: #f0f9ff; color: #0284c7; border: 1px solid #bae6fd; padding: 6px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 5px; }
-    .btn-action-edit:hover { background: #0284c7; color: #ffffff; border-color: #0284c7; }
-
-    .btn-action-restrict { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 5px; }
-    .btn-action-restrict:hover { background: #dc2626; color: #ffffff; border-color: #dc2626; }
-
-    .btn-action-restore { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 5px; }
-    .btn-action-restore:hover { background: #16a34a; color: #ffffff; border-color: #16a34a; }
-
-    .badge-root-immunity { font-size: 11px; color: #64748b; font-style: italic; font-weight: 700; background: #f1f5f9; padding: 5px 10px; border-radius: 6px; border: 1px solid #cbd5e1; text-transform: uppercase; letter-spacing: 0.3px; }
-
-    .table-header-flex { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 15px; }
-    .search-wrapper { position: relative; display: flex; align-items: center; }
-    .search-icon { position: absolute; left: 12px; color: #94a3b8; font-size: 13px; pointer-events: none; }
-    #personnel-search { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px 6px 32px; font-size: 12.5px; color: #0f172a; outline: none; background: #ffffff; width: 240px; transition: all 0.2s ease; font-weight: 500; }
-    #personnel-search:focus { border-color: #475569; width: 280px; box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.1); }
-
-    .sa-modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.55); display: flex; justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(2px); }
-    .sa-modal-card { background: #ffffff; width: 100%; max-width: 500px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; border: 1px solid #e2e8f0; }
-    .sa-modal-header { padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-    .sa-modal-header h4 { margin: 0; font-size: 16px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px; }
-    .sa-modal-close { background: none; border: none; font-size: 22px; color: #64748b; cursor: pointer; }
-    .sa-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
-    .btn-cancel-modal { background: #ffffff; color: #475569; border: 1px solid #cbd5e1; padding: 9px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
-    .btn-save-modal { background: #0284c7; color: #ffffff; border: none; padding: 9px 18px; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer; }
-    .btn-save-modal:hover { background: #0369a1; }
-
-    /* Readonly styling */
-    .readonly-input { background-color: #f1f5f9 !important; color: #64748b !important; border-color: #cbd5e1 !important; cursor: not-allowed !important; user-select: none; }
-    .readonly-wrapper::after { color: #94a3b8 !important; }
-    .lock-icon { font-size: 10px; color: #94a3b8; margin-left: 4px; }
-
-    @keyframes pulseGreen {
-        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
-        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    .rg-input, .rg-select {
+        width: 100%; box-sizing: border-box; height: 40px; padding: 0 14px;
+        font-size: 14px; font-weight: 500; color: var(--rg-ink); background: #fff;
+        border: 1px solid #CBD5E6; border-radius: 6px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
     }
-
-    @keyframes pulseRed {
-        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
-        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
-        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+    .rg-input:focus, .rg-select:focus { border-color: var(--rg-blue); box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.14); }
+    .rg-select {
+        padding-right: 36px; appearance: none; -webkit-appearance: none; cursor: pointer;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%235C6B8A'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 12px center; background-size: 16px;
     }
+    .readonly-input { background-color: var(--rg-surface) !important; color: var(--rg-muted) !important; cursor: not-allowed !important; user-select: none; }
+
+    .form-actions-bar { display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px; border-top: 1px solid var(--rg-line); padding-top: 20px; }
+    
+    .rg-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 18px; border-radius: 6px; font-size: 13.5px; font-weight: 700; text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: background .15s, color .15s, border-color .15s; white-space: nowrap; line-height: 1.2; }
+    .rg-btn-primary { 
+        background: var(--rg-blue); 
+        color: #fff; 
+    }
+    .rg-btn-primary:hover { 
+        background: var(--rg-blue-dark); 
+        color: #fff; 
+    }
+    .rg-btn-ghost { background: transparent; color: var(--rg-muted); border-color: #CBD5E6; }
+    .rg-btn-ghost:hover { background: var(--rg-surface); color: var(--rg-ink); }
+
+    .rg-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; padding: 14px 20px; border-bottom: 1px solid var(--rg-line); background: #fff; }
+    
+    .rg-search { position: relative; flex: 1 1 280px; max-width: 420px; }
+    .rg-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #8A97B3; font-size: 13px; pointer-events: none; }
+    .rg-search input { width: 100%; box-sizing: border-box; padding: 10px 12px 10px 34px; font-size: 13.5px; color: var(--rg-ink); background: #fff; border: 1px solid #CBD5E6; border-radius: 8px; }
+    .rg-search input::placeholder { color: #8A97B3; }
+    .rg-search input:focus { outline: none; border-color: var(--rg-blue); box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.14); }
+
+    .rg-filter { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .rg-filter-label { font-size: 12.5px; font-weight: 600; color: var(--rg-muted); margin-right: 4px; }
+    .filter-pill { background: #fff; border: 1px solid #CBD5E6; color: var(--rg-muted); padding: 5px 12px; font-size: 12.5px; font-weight: 600; border-radius: 16px; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+    .filter-pill:hover { border-color: var(--rg-blue); color: var(--rg-blue); }
+    .filter-pill.active { background: var(--rg-blue); border-color: var(--rg-blue); color: #fff; }
+
+    .rg-result-count { margin-left: auto; font-size: 12.5px; font-weight: 600; color: var(--rg-muted); }
+
+    .rg-table-wrap { overflow-x: auto; width: 100%; }
+    .rg-table { width: 100%; min-width: 650px; border-collapse: collapse; font-size: 14px; }
+    .rg-table th { background: var(--rg-surface); padding: 12px 18px; font-size: 11.5px; font-weight: 700; color: var(--rg-muted); text-transform: uppercase; text-align: left; border-bottom: 1px solid var(--rg-line); }
+    .rg-table td { padding: 15px 18px; border-bottom: 1px solid #EEF2F9; color: var(--rg-ink); vertical-align: middle; }
+    .rg-table tbody tr:last-child td { border-bottom: none; }
+    .rg-table tbody tr:hover { background: #F5F8FF; }
+    .rg-text-center { text-align: center !important; }
+
+    .student-id-tag { font-family: ui-monospace, monospace; font-weight: 700; color: var(--rg-blue); background: var(--rg-blue-tint); padding: 3px 9px; border-radius: 6px; font-size: 12.5px; border: 1px solid #CFDBFB; display: inline-block; }
+
+    .rg-chip { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; white-space: nowrap; border: 1px solid transparent; }
+    .role-chip-professor { background: var(--rg-surface); color: var(--rg-muted); border-color: var(--rg-line); }
+    .role-chip-dept_sec { background: #FDF2F8; color: #BE185D; border-color: #FBCFE8; }
+    .role-chip-dean { background: #FFF7ED; color: #C2410C; border-color: #FFEDD5; }
+    .role-chip-system_admin { background: #F0FDF4; color: #15803D; border-color: #BBF7D0; }
+
+    .status-indicator-center { display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .pulse-dot-green { width: 8px; height: 8px; background: var(--rg-green); border-radius: 50%; }
+    .status-label-text { font-size: 13px; color: var(--rg-ink); font-weight: 600; }
+
+    .action-btn-group { display: flex; gap: 6px; justify-content: center; }
+    .rg-btn-action { border: 1px solid transparent; padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: 0.15s; }
+    .rg-btn-action-ghost { background: transparent; border-color: #CBD5E6; color: var(--rg-muted); }
+    .rg-btn-action-ghost:hover { background: var(--rg-surface); color: var(--rg-ink); }
+    .rg-btn-action-danger { background: transparent; border-color: #FECACA; color: var(--rg-red); }
+    .rg-btn-action-danger:hover { background: #FEF2F2; color: #991B1B; border-color: #F87171; }
+
+    .empty-table-state { text-align: center; color: var(--rg-muted) !important; padding: 50px 0 !important; font-style: italic; }
+
+    .rg-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 27, 58, 0.6); z-index: 1000; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+    .rg-modal-card { background: #fff; width: 100%; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); overflow: hidden; animation: fadeIn 0.2s ease-in-out; }
+    .rg-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; }
+    .rg-modal-header h3 { margin: 0; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .rg-modal-close { background: transparent; border: none; font-size: 24px; cursor: pointer; transition: 0.15s; padding: 0; line-height: 1; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 @endsection

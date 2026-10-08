@@ -3,27 +3,31 @@
 @section('content')
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<div class="sa-container">
-    <div class="sa-header">
-        <div class="header-titles">
-            <h2>Academic Period Management</h2>
-            <p>Set the current school year, semester, and term date ranges used system-wide.</p>
+<div class="rg-page">
+    <header class="rg-header">
+        <div>
+            <h2 class="rg-title">Academic Period Management</h2>
+            <p class="rg-subtitle">Set the current school year, semester, and term date ranges used system-wide.</p>
         </div>
-    </div>
+    </header>
 
     @if(session('success'))
-        <div class="sa-alert-success"><i class="fas fa-check-circle"></i> {{ session('success') }}</div>
+        <div class="rg-alert rg-alert-success" role="status">
+            <i class="fas fa-check-circle"></i> <span>{{ session('success') }}</span>
+        </div>
     @endif
     @if(session('error'))
-        <div class="sa-alert-danger"><i class="fas fa-exclamation-circle"></i> {{ session('error') }}</div>
+        <div class="rg-alert rg-alert-error" role="alert">
+            <i class="fas fa-exclamation-circle"></i> <span>{{ session('error') }}</span>
+        </div>
     @endif
 
     @if($errors->any())
-        <div class="sa-alert-danger" style="align-items: flex-start;">
-            <i class="fas fa-exclamation-circle" style="margin-top: 3px;"></i>
+        <div class="rg-alert rg-alert-error" role="alert">
+            <i class="fas fa-exclamation-circle"></i>
             <div>
-                <strong>Unable to process request:</strong>
-                <ul style="margin: 4px 0 0 0; padding-left: 20px;">
+                <strong style="display:block; margin-bottom: 4px;">Unable to process request:</strong>
+                <ul style="margin: 0; padding-left: 20px;">
                     @foreach($errors->all() as $error)
                         <li>{{ $error }}</li>
                     @endforeach
@@ -32,38 +36,36 @@
         </div>
     @endif
 
-    <div id="js-alert-error" class="sa-alert-danger" style="display: none; align-items: flex-start; gap: 10px;">
-        <i class="fas fa-exclamation-triangle" style="margin-top: 3px;"></i>
+    <div id="js-alert-error" class="rg-alert rg-alert-error" role="alert" style="display: none;">
+        <i class="fas fa-exclamation-triangle"></i>
         <div>
-            <strong>Unable to process request:</strong>
-            <ul id="js-alert-list" style="margin: 4px 0 0 0; padding-left: 20px;"></ul>
+            <strong style="display:block; margin-bottom: 4px;">Unable to process request:</strong>
+            <ul id="js-alert-list" style="margin: 0; padding-left: 20px;"></ul>
         </div>
     </div>
 
-    <div class="sa-card mb-4" style="margin-bottom: 24px;">
+    <div class="rg-card" style="margin-bottom: 24px;">
         <div class="card-bar">
             <span><i class="fas fa-calendar-plus"></i> Create New Academic Period</span>
         </div>
         <div style="padding: 24px;">
             <form id="academicPeriodForm" action="{{ route('system_admin.store_academic_period') }}" method="POST" class="create-period-grid" autocomplete="off" novalidate>
                 @csrf
-                <div class="form-field">
-                    <label class="field-label">School Year <span class="required-star">*</span></label>
-                    <input type="text" name="school_year" id="form_school_year" class="field-input" placeholder="e.g. 2026-2027" required>
+                <div class="form-group">
+                    <label>School Year <span class="required-star">*</span></label>
+                    <input type="text" name="school_year" id="form_school_year" class="rg-input" placeholder="e.g. 2026-2027" required>
                 </div>
-                <div class="form-field">
-                    <label class="field-label">Semester <span class="required-star">*</span></label>
-                    <div class="custom-select-wrapper">
-                        <select name="semester" id="form_semester" class="form-select-custom" required>
-                            <option value="" disabled selected hidden>Choose Semester</option>
-                            <option value="1st Semester">1st Semester</option>
-                            <option value="2nd Semester">2nd Semester</option>
-                            <option value="Summer">Summer</option>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label>Semester <span class="required-star">*</span></label>
+                    <select name="semester" id="form_semester" class="rg-select" required>
+                        <option value="" disabled selected hidden>Choose Semester</option>
+                        <option value="1st Semester">1st Semester</option>
+                        <option value="2nd Semester">2nd Semester</option>
+                        <option value="Summer">Summer</option>
+                    </select>
                 </div>
-                <div class="form-field-btn">
-                    <button type="submit" class="btn-submit-subj">
+                <div style="display: flex; align-items: flex-end;">
+                    <button type="submit" class="rg-btn rg-btn-primary" style="height: 40px; width: 100%; justify-content: center;">
                         <i class="fas fa-plus"></i> Create Period
                     </button>
                 </div>
@@ -71,33 +73,22 @@
         </div>
     </div>
 
-    <div class="sa-card">
-        <div class="card-header-flex">
-            <div class="card-title-container">
-                <h3 class="card-title-list">Academic Periods</h3>
+    <div class="rg-card">
+        <div class="rg-toolbar">
+            <div class="rg-search">
+                <i class="fas fa-search"></i>
+                <input type="text" id="academicPeriodSearch" placeholder="Search by School Year...">
             </div>
-            <div class="header-controls-flex" style="display: flex; align-items: center; gap: 15px;">
-                <div class="table-search-box">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
-                        <line x1="16.2" y1="16.2" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                    <input
-                        type="text"
-                        id="academicPeriodSearch"
-                        placeholder="Search by School Year...">
-                </div>
-                <span class="badge-count" id="totalPeriodsCount">{{ count($periods) }} Total</span>
-            </div>
+            <span class="rg-result-count" id="totalPeriodsCount">{{ count($periods) }} Total</span>
         </div>
 
         @if($periods->isEmpty())
-            <div style="padding: 50px; text-align: center; color: #94a3b8; font-style: italic;">
+            <div class="empty-table-state" style="padding: 50px;">
                 <i class="fas fa-calendar-xmark" style="font-size: 24px; display: block; margin-bottom: 8px;"></i>
                 No academic periods created yet.
             </div>
         @else
-            <div id="noPeriodResults" style="display: none; padding: 50px; text-align: center; color: #94a3b8; font-style: italic;">
+            <div id="noPeriodResults" class="empty-table-state" style="display: none; padding: 50px;">
                 <i class="fas fa-magnifying-glass" style="font-size: 24px; display: block; margin-bottom: 8px;"></i>
                 No academic periods match your search.
             </div>
@@ -105,7 +96,6 @@
                 @php
                     $terms = $termPeriods[$period->id] ?? collect();
 
-                    // All 4 terms must have both start and end dates saved before activation
                     $requiredTerms = ['prelim', 'midterm', 'semifinal', 'final'];
                     $missingTerms = collect($requiredTerms)->filter(function ($key) use ($terms) {
                         $t = $terms->firstWhere('term', $key);
@@ -113,15 +103,12 @@
                     });
                     $canActivate = $missingTerms->isEmpty();
 
-                    // School year -> year level mapping.
-                    // Base year 2023-2024 = 1st Year, 2024-2025 = 2nd Year, etc.
                     $baseStartYear = 2023;
                     $yearLevels = [1 => '1st Year', 2 => '2nd Year', 3 => '3rd Year', 4 => '4th Year'];
                     $startYear = (int) substr(trim($period->school_year), 0, 4);
                     $levelNumber = $startYear - $baseStartYear + 1;
                     $mappedYearLevel = $yearLevels[$levelNumber] ?? null;
 
-                    // Subjects for this period's semester AND mapped year level
                     $subjectsForPeriod = collect($curriculumSubjects[trim($period->semester)] ?? [])
                         ->filter(fn($s) => $mappedYearLevel && trim($s->year_level) === $mappedYearLevel)
                         ->values();
@@ -129,7 +116,7 @@
                 <div class="period-block" data-school-year="{{ strtolower(trim($period->school_year)) }}">
                     <div class="period-block-header">
                         <div class="period-title-group">
-                            <span class="period-title">{{ $period->school_year }} — {{ $period->semester }}</span>
+                            <span class="period-title">{{ $period->school_year }} — {{$period->semester }}</span>
                             @if($period->is_active)
                                 <span class="status-active-badge"><i class="fas fa-circle" style="font-size: 6px;"></i> Active</span>
                             @else
@@ -137,7 +124,7 @@
                             @endif
                         </div>
                         <div class="period-actions">
-                            <button type="button" class="btn-action-edit"
+                            <button type="button" class="rg-btn-action rg-btn-action-ghost"
                                 onclick="openPeriodSubjectsModal(@js($period->school_year . ' — ' . $period->semester), @js($mappedYearLevel ?? 'No matching year level'), @js($subjectsForPeriod))">
                                 <i class="fas fa-book"></i> View Subjects
                             </button>
@@ -145,11 +132,11 @@
                                 <form action="{{ route('system_admin.activate_academic_period', $period->id) }}" method="POST" style="display:inline-block;">
                                     @csrf
                                     @if($canActivate)
-                                        <button type="submit" class="btn-action-edit" onclick="return confirm('Set this as the active academic period? This will deactivate the current one.')">
+                                        <button type="submit" class="rg-btn-action rg-btn-action-ghost" onclick="return confirm('Set this as the active academic period? This will deactivate the current one.')">
                                             <i class="fas fa-check"></i> Set as Active
                                         </button>
                                     @else
-                                        <button type="button" class="btn-action-edit btn-disabled" disabled
+                                        <button type="button" class="rg-btn-action rg-btn-action-ghost" disabled style="opacity: 0.5; cursor: not-allowed;"
                                             title="Save the dates for all terms first (missing: {{ $missingTerms->map(fn($k) => ucfirst($k))->implode(', ') }})">
                                             <i class="fas fa-lock"></i> Set as Active
                                         </button>
@@ -160,7 +147,7 @@
                                 @csrf
                                 @method('DELETE')
                                 <input type="hidden" class="is-active-input" value="{{ $period->is_active ? 1 : 0 }}">
-                                <button type="submit" class="btn-action-delete btn-delete-trigger">
+                                <button type="submit" class="rg-btn-action rg-btn-action-danger btn-delete-trigger">
                                     <i class="fas fa-trash"></i> Delete
                                 </button>
                             </form>
@@ -168,8 +155,8 @@
                     </div>
 
                     <div class="term-dates-grid">
-                        @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key => $label)
-                            @php $existingTerm = $terms->firstWhere('term', $key); @endphp
+                        @foreach(['prelim' => 'Prelim', 'midterm' => 'Midterm', 'semifinal' => 'Semi-Final', 'final' => 'Final'] as $key =>$label)
+                            @php $existingTerm = $terms->firstWhere('term',$key); @endphp
                             <form action="{{ route('system_admin.store_term_period') }}" method="POST" class="term-date-card term-form" novalidate>
                                 @csrf
                                 <input type="hidden" name="academic_period_id" value="{{ $period->id }}">
@@ -182,15 +169,15 @@
                                 <div class="term-inputs-group">
                                     <div class="term-field-single">
                                         <label class="term-sub-label">Start</label>
-                                        <input type="date" name="start_date" value="{{ $existingTerm->start_date ?? '' }}" class="term-date-input start-date-field" required>
+                                        <input type="date" name="start_date" value="{{ $existingTerm->start_date ?? '' }}" class="rg-input start-date-field" style="height: 36px; font-size: 12.5px;" required>
                                     </div>
                                     <div class="term-field-single">
                                         <label class="term-sub-label">End</label>
-                                        <input type="date" name="end_date" value="{{ $existingTerm->end_date ?? '' }}" class="term-date-input end-date-field" required>
+                                        <input type="date" name="end_date" value="{{ $existingTerm->end_date ?? '' }}" class="rg-input end-date-field" style="height: 36px; font-size: 12.5px;" required>
                                     </div>
                                 </div>
 
-                                <button type="submit" class="btn-save-term">
+                                <button type="submit" class="rg-btn rg-btn-primary" style="justify-content: center; font-size: 12px; padding: 8px;">
                                     <i class="fas fa-save"></i> {{ $existingTerm ? 'Update' : 'Save' }}
                                 </button>
                             </form>
@@ -202,19 +189,18 @@
     </div>
 </div>
 
-<!-- MODAL FOR VIEWING SUBJECTS PER ACADEMIC PERIOD -->
-<div id="termSubjectsModal" class="custom-modal-overlay" style="display: none;">
-    <div class="custom-modal-content" style="max-width: 650px;">
-        <div class="modal-header-bar">
+<div id="termSubjectsModal" class="rg-modal-overlay" style="display: none;">
+    <div class="rg-modal-card" style="max-width: 650px;">
+        <div class="rg-modal-header" style="background: var(--rg-surface); border-bottom: 1px solid var(--rg-line);">
             <div>
-                <h3 id="modal-term-title" style="margin: 0; font-size: 16px; font-weight: 700;"><i class="fas fa-book-open"></i> Period Subjects</h3>
-                <span id="modal-term-subtitle" style="font-size: 12px; color: #64748b; font-weight: 600;"></span>
+                <h3 id="modal-term-title" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--rg-blue-dark);"><i class="fas fa-book-open"></i> Period Subjects</h3>
+                <span id="modal-term-subtitle" style="font-size: 12px; color: var(--rg-muted); font-weight: 600;"></span>
             </div>
-            <button type="button" class="close-modal-btn" onclick="closeTermSubjectsModal()">&times;</button>
+            <button type="button" class="rg-modal-close" onclick="closeTermSubjectsModal()">&times;</button>
         </div>
         
         <div style="padding: 20px; max-height: 420px; overflow-y: auto;">
-            <table class="minimal-table" style="width: 100%;">
+            <table class="rg-table" style="width: 100%;">
                 <thead>
                     <tr>
                         <th>Course</th>
@@ -223,7 +209,6 @@
                     </tr>
                 </thead>
                 <tbody id="modal-subjects-list">
-                    <!-- Populated via JavaScript -->
                 </tbody>
             </table>
         </div>
@@ -231,163 +216,162 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const existingPeriods = [
-        @if(isset($periods))
-            @foreach($periods as $p)
-                {
-                    school_year: @js(trim($p->school_year)),
-                    semester: @js(trim($p->semester))
-                },
-            @endforeach
-        @endif
-    ];
+    document.addEventListener('DOMContentLoaded', function () {
+        const existingPeriods = [
+            @if(isset($periods))
+                @foreach($periods as $p)
+                    {
+                        school_year: @js(trim($p->school_year)),
+                        semester: @js(trim($p->semester))
+                    },
+                @endforeach
+            @endif
+        ];
 
-    const periodForm = document.getElementById('academicPeriodForm');
-    const jsAlertError = document.getElementById('js-alert-error');
-    const jsAlertList = document.getElementById('js-alert-list');
+        const periodForm = document.getElementById('academicPeriodForm');
+        const jsAlertError = document.getElementById('js-alert-error');
+        const jsAlertList = document.getElementById('js-alert-list');
 
-    if (periodForm) {
-        periodForm.addEventListener('submit', function (e) {
-            const schoolYear = document.getElementById('form_school_year').value.trim();
-            const semester = document.getElementById('form_semester').value;
+        if (periodForm) {
+            periodForm.addEventListener('submit', function (e) {
+                const schoolYear = document.getElementById('form_school_year').value.trim();
+                const semester = document.getElementById('form_semester').value;
 
-            if (jsAlertError) jsAlertError.style.display = 'none';
-            let errorMessages = [];
+                if (jsAlertError) jsAlertError.style.display = 'none';
+                let errorMessages = [];
 
-            if (!schoolYear || !semester) {
-                errorMessages.push('Please fill out all required fields before submitting.');
-            } else {
-                const syPattern = /^\d{4}-\d{4}$/;
-                if (!syPattern.test(schoolYear)) {
-                    errorMessages.push('School Year format must be YYYY-YYYY (e.g., 2026-2027).');
+                if (!schoolYear || !semester) {
+                    errorMessages.push('Please fill out all required fields before submitting.');
                 } else {
-                    const years = schoolYear.split('-');
-                    const y1 = parseInt(years[0], 10);
-                    const y2 = parseInt(years[1], 10);
-                    if (y1 === y2) {
-                        errorMessages.push(`Invalid School Year: "${schoolYear}" repeats the same year twice. It must span two consecutive years (e.g., 2026-2027).`);
-                    } else if (y2 !== y1 + 1) {
-                        errorMessages.push('The second year must be exactly one year after the first year (e.g., 2026-2027).');
+                    const syPattern = /^\d{4}-\d{4}$/;
+                    if (!syPattern.test(schoolYear)) {
+                        errorMessages.push('School Year format must be YYYY-YYYY (e.g., 2026-2027).');
+                    } else {
+                        const years = schoolYear.split('-');
+                        const y1 = parseInt(years[0], 10);
+                        const y2 = parseInt(years[1], 10);
+                        if (y1 === y2) {
+                            errorMessages.push(`Invalid School Year: "${schoolYear}" repeats the same year twice. It must span two consecutive years (e.g., 2026-2027).`);
+                        } else if (y2 !== y1 + 1) {
+                            errorMessages.push('The second year must be exactly one year after the first year (e.g., 2026-2027).');
+                        }
+                    }
+
+                    const isDuplicate = existingPeriods.some(p => p.school_year === schoolYear && p.semester === semester);
+                    if (isDuplicate) {
+                        errorMessages.push('This academic period (School Year and Semester combination) already exists.');
                     }
                 }
 
-                const isDuplicate = existingPeriods.some(p => p.school_year === schoolYear && p.semester === semester);
-                if (isDuplicate) {
-                    errorMessages.push('This academic period (School Year and Semester combination) already exists.');
-                }
-            }
-
-            if (errorMessages.length > 0) {
-                e.preventDefault();
-                showJsErrors(errorMessages);
-                return false;
-            }
-        });
-    }
-
-    // SEARCH BAR: filter periods by school year
-    const periodSearchInput = document.getElementById('academicPeriodSearch');
-    const periodBlocks = document.querySelectorAll('.period-block');
-    const noPeriodResults = document.getElementById('noPeriodResults');
-    const totalPeriodsBadge = document.getElementById('totalPeriodsCount');
-    const totalPeriodsAll = periodBlocks.length;
-
-    if (periodSearchInput) {
-        periodSearchInput.addEventListener('input', function () {
-            const query = periodSearchInput.value.toLowerCase().trim();
-            let visibleCount = 0;
-
-            periodBlocks.forEach(block => {
-                const schoolYear = block.getAttribute('data-school-year') || '';
-                if (schoolYear.includes(query)) {
-                    block.style.display = '';
-                    visibleCount++;
-                } else {
-                    block.style.display = 'none';
-                }
-            });
-
-            if (totalPeriodsBadge) {
-                totalPeriodsBadge.textContent = query === ''
-                    ? `${totalPeriodsAll} Total`
-                    : `${visibleCount} of ${totalPeriodsAll}`;
-            }
-
-            if (noPeriodResults) {
-                noPeriodResults.style.display = (visibleCount === 0 && totalPeriodsAll > 0) ? 'block' : 'none';
-            }
-        });
-    }
-
-    const deleteForms = document.querySelectorAll('.delete-period-form');
-    const totalPeriodsCount = existingPeriods.length;
-
-    deleteForms.forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const isActive = form.querySelector('.is-active-input').value === '1';
-
-            if (totalPeriodsCount <= 1) {
-                e.preventDefault();
-                alert('You cannot delete this academic period because there must be at least one period in the system.');
-                return false;
-            }
-
-            if (isActive) {
-                const confirmActiveDelete = confirm('Warning: You are about to delete the currently ACTIVE academic period. Are you completely sure?');
-                if (!confirmActiveDelete) {
+                if (errorMessages.length > 0) {
                     e.preventDefault();
+                    showJsErrors(errorMessages);
                     return false;
                 }
-            } else {
-                const confirmDelete = confirm('Delete this academic period and all its term dates?');
-                if (!confirmDelete) {
-                    e.preventDefault();
-                    return false;
-                }
-            }
-        });
-    });
-
-    const termForms = document.querySelectorAll('.term-form');
-    termForms.forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const startDate = form.querySelector('.start-date-field').value;
-            const endDate = form.querySelector('.end-date-field').value;
-
-            if (!startDate || !endDate) {
-                e.preventDefault();
-                alert('Please provide both Start and End dates for the term.');
-                return false;
-            }
-
-            if (startDate === endDate) {
-                e.preventDefault();
-                alert('The Start date and End date cannot be the same day.');
-                return false;
-            }
-
-            if (new Date(startDate) > new Date(endDate)) {
-                e.preventDefault();
-                alert('The Start date cannot be later than the End date.');
-                return false;
-            }
-        });
-    });
-
-    function showJsErrors(messages) {
-        if (jsAlertError && jsAlertList) {
-            jsAlertList.innerHTML = '';
-            messages.forEach(msg => {
-                const li = document.createElement('li');
-                li.textContent = msg;
-                jsAlertList.appendChild(li);
             });
-            jsAlertError.style.display = 'flex';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-    }
-});
+
+        const periodSearchInput = document.getElementById('academicPeriodSearch');
+        const periodBlocks = document.querySelectorAll('.period-block');
+        const noPeriodResults = document.getElementById('noPeriodResults');
+        const totalPeriodsBadge = document.getElementById('totalPeriodsCount');
+        const totalPeriodsAll = periodBlocks.length;
+
+        if (periodSearchInput) {
+            periodSearchInput.addEventListener('input', function () {
+                const query = periodSearchInput.value.toLowerCase().trim();
+                let visibleCount = 0;
+
+                periodBlocks.forEach(block => {
+                    const schoolYear = block.getAttribute('data-school-year') || '';
+                    if (schoolYear.includes(query)) {
+                        block.style.display = '';
+                        visibleCount++;
+                    } else {
+                        block.style.display = 'none';
+                    }
+                });
+
+                if (totalPeriodsBadge) {
+                    totalPeriodsBadge.textContent = query === ''
+                        ? `${totalPeriodsAll} Total`
+                        : `${visibleCount} of ${totalPeriodsAll}`;
+                }
+
+                if (noPeriodResults) {
+                    noPeriodResults.style.display = (visibleCount === 0 && totalPeriodsAll > 0) ? 'block' : 'none';
+                }
+            });
+        }
+
+        const deleteForms = document.querySelectorAll('.delete-period-form');
+        const totalPeriodsCount = existingPeriods.length;
+
+        deleteForms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const isActive = form.querySelector('.is-active-input').value === '1';
+
+                if (totalPeriodsCount <= 1) {
+                    e.preventDefault();
+                    alert('You cannot delete this academic period because there must be at least one period in the system.');
+                    return false;
+                }
+
+                if (isActive) {
+                    const confirmActiveDelete = confirm('Warning: You are about to delete the currently ACTIVE academic period. Are you completely sure?');
+                    if (!confirmActiveDelete) {
+                        e.preventDefault();
+                        return false;
+                    }
+                } else {
+                    const confirmDelete = confirm('Delete this academic period and all its term dates?');
+                    if (!confirmDelete) {
+                        e.preventDefault();
+                        return false;
+                    }
+                }
+            });
+        });
+
+        const termForms = document.querySelectorAll('.term-form');
+        termForms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const startDate = form.querySelector('.start-date-field').value;
+                const endDate = form.querySelector('.end-date-field').value;
+
+                if (!startDate || !endDate) {
+                    e.preventDefault();
+                    alert('Please provide both Start and End dates for the term.');
+                    return false;
+                }
+
+                if (startDate === endDate) {
+                    e.preventDefault();
+                    alert('The Start date and End date cannot be the same day.');
+                    return false;
+                }
+
+                if (new Date(startDate) > new Date(endDate)) {
+                    e.preventDefault();
+                    alert('The Start date cannot be later than the End date.');
+                    return false;
+                }
+            });
+        });
+
+        function showJsErrors(messages) {
+            if (jsAlertError && jsAlertList) {
+                jsAlertList.innerHTML = '';
+                messages.forEach(msg => {
+                    const li = document.createElement('li');
+                    li.textContent = msg;
+                    jsAlertList.appendChild(li);
+                });
+                jsAlertError.style.display = 'flex';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+    });
 
     function openPeriodSubjectsModal(periodLabel, yearLevel, subjects) {
         const modal = document.getElementById('termSubjectsModal');
@@ -403,7 +387,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!subjects || subjects.length === 0) {
             listContainer.innerHTML = `
                 <tr>
-                    <td colspan="3" style="text-align: center; color: #94a3b8; padding: 25px !important; font-style: italic;">
+                    <td colspan="3" class="empty-table-state" style="padding: 25px !important;">
                         No subjects registered for this period in the curriculum masterlist.
                     </td>
                 </tr>`;
@@ -411,9 +395,9 @@ document.addEventListener('DOMContentLoaded', function () {
             subjects.forEach(sub => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td><span class="subject-code-tag" style="background:#f1f5f9; color:#475569;">${sub.course_code}</span></td>
-                    <td><span class="subject-code-tag" style="background:#ecfdf5; color:#059669;">${sub.subject_code}</span></td>
-                    <td style="font-size: 13px; font-weight: 600; color:#1e293b;">${sub.subject_title}</td>
+                    <td><span class="student-id-tag">${sub.course_code}</span></td>
+                    <td><span class="student-id-tag" style="background:#e8f7ee; color:#15803D; border-color:#bfe8ce;">${sub.subject_code}</span></td>
+                    <td style="font-weight: 700; color: var(--rg-blue-dark);">${sub.subject_title}</td>
                 `;
                 listContainer.appendChild(tr);
             });
@@ -428,87 +412,102 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <style>
-    .sa-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #0f172a; max-width: 1650px; margin: 0 auto; padding: 20px 24px; }
-    .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; }
-    .header-titles h2 { margin: 0 0 4px 0; font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
-    .header-titles p { margin: 0; font-size: 14px; color: #64748b; }
+    .rg-page {
+        --rg-blue: #0033A0; --rg-blue-dark: #0A1F5C; --rg-blue-tint: #EAF0FF; --rg-gold: #F2B705;
+        --rg-ink: #0B1B3A; --rg-muted: #5C6B8A; --rg-line: #E2E8F3; --rg-surface: #F7F9FD;
+        --rg-green: #15803D; --rg-green-tint: #E8F7EE; --rg-red: #C62828;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: var(--rg-ink);
+        max-width: 1500px; margin: 0 auto; padding: 24px 20px 40px;
+    }
 
-    .required-star { color: #dc2626; font-weight: 700; }
+    .rg-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; padding-bottom: 18px; margin-bottom: 24px; border-bottom: 1px solid var(--rg-line); }
+    .rg-title { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.2px; color: var(--rg-blue-dark); }
+    .rg-subtitle { margin: 8px 0 0; font-size: 14px; color: var(--rg-muted); }
 
-    .sa-card { border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; overflow: hidden; box-shadow: 0 4px 10px -2px rgba(0,0,0,0.03); }
-    .card-bar { background: #f8fafc; padding: 16px 20px; font-weight: 700; font-size: 14.5px; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
+    .rg-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; font-weight: 600; line-height: 1.45; }
+    .rg-alert i { margin-top: 2px; }
+    .rg-alert-success { background: var(--rg-green-tint); color: #14532D; border: 1px solid #BFE8CE; border-left: 4px solid var(--rg-green); }
+    .rg-alert-error { background: #FDECEC; color: #8E1B1B; border: 1px solid #F5C6C6; border-left: 4px solid var(--rg-red); }
 
-    .card-header-flex { background-color: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-    .card-title-container { display: flex; align-items: center; gap: 12px; }
-    .card-title-list { font-size: 14.5px; font-weight: 700; margin: 0; color: #1e293b; }
-    .badge-count { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 4px 12px; border-radius: 20px; font-weight: 700; white-space: nowrap; }
-
-    .table-search-box { position: relative; display: flex; align-items: center; }
-    .table-search-box .search-icon { position: absolute; left: 10px; width: 15px; height: 15px; color: #94a3b8; pointer-events: none; }
-    .table-search-box input { height: 36px; padding: 0 12px 0 32px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; color: #0f172a; background: #ffffff; outline: none; width: 220px; transition: border-color 0.2s, box-shadow 0.2s; }
-    .table-search-box input:focus { border-color: #0033A0; box-shadow: 0 0 0 3px rgba(0,51,160,0.1); }
+    .rg-card { background: #fff; border: 1px solid var(--rg-line); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(10, 31, 92, 0.05); }
+    .card-bar { background: var(--rg-surface); padding: 16px 20px; font-weight: 700; font-size: 14.5px; color: var(--rg-blue-dark); border-bottom: 1px solid var(--rg-line); display: flex; align-items: center; gap: 8px; }
 
     .create-period-grid { display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end; }
-    .form-field { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-    .form-field-btn { display: flex; align-items: end; }
-    .field-label { font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.3px; }
-    .field-input { width: 100%; height: 42px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #0f172a; background: #ffffff; box-sizing: border-box; outline: none; }
-    .field-input:focus { border-color: #000000; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
+    @media (max-width: 900px) {
+        .create-period-grid { grid-template-columns: 1fr; }
+    }
 
-    .custom-select-wrapper { position: relative; width: 100%; }
-    .form-select-custom { width: 100%; height: 42px; padding: 10px 40px 10px 14px; font-size: 14px; color: #0f172a; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; appearance: none; -webkit-appearance: none; cursor: pointer; outline: none; transition: all 0.2s ease; }
-    .form-select-custom:focus { border-color: #000000; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
-    .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 12px; font-weight: 700; color: var(--rg-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+    .required-star { color: var(--rg-red); }
 
-    .btn-submit-subj { background: #0033A0; color: #ffffff; border: none; padding: 0 24px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 42px; transition: background 0.2s; white-space: nowrap; }
-    .btn-submit-subj:hover { background: #002270; }
+    .rg-input, .rg-select {
+        width: 100%; box-sizing: border-box; height: 40px; padding: 0 14px;
+        font-size: 14px; font-weight: 500; color: var(--rg-ink); background: #fff;
+        border: 1px solid #CBD5E6; border-radius: 6px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .rg-input:focus, .rg-select:focus { border-color: var(--rg-blue); box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.14); }
+    .rg-select {
+        padding-right: 36px; appearance: none; -webkit-appearance: none; cursor: pointer;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%235C6B8A'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 12px center; background-size: 16px;
+    }
 
-    .period-block { padding: 20px 24px; border-bottom: 1px solid #f1f5f9; }
+    .rg-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 18px; border-radius: 6px; font-size: 13.5px; font-weight: 700; text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: background .15s, color .15s, border-color .15s; white-space: nowrap; line-height: 1.2; }
+    .rg-btn-primary { background: var(--rg-blue); color: #fff; }
+    .rg-btn-primary:hover { background: var(--rg-blue-dark); color: #fff; }
+    .rg-btn-ghost { background: transparent; color: var(--rg-muted); border-color: #CBD5E6; }
+    .rg-btn-ghost:hover { background: var(--rg-surface); color: var(--rg-ink); }
+
+    .rg-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; padding: 14px 20px; border-bottom: 1px solid var(--rg-line); background: #fff; }
+    .rg-search { position: relative; flex: 1 1 260px; max-width: 380px; }
+    .rg-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #8A97B3; font-size: 13px; pointer-events: none; }
+    .rg-search input { width: 100%; box-sizing: border-box; padding: 10px 12px 10px 34px; font-size: 13.5px; color: var(--rg-ink); background: #fff; border: 1px solid #CBD5E6; border-radius: 8px; outline: none; }
+    .rg-search input:focus { border-color: var(--rg-blue); box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.14); }
+    .rg-result-count { margin-left: auto; font-size: 12.5px; font-weight: 600; color: var(--rg-muted); background: var(--rg-line); padding: 4px 10px; border-radius: 12px; }
+
+    .period-block { padding: 20px 24px; border-bottom: 1px solid var(--rg-line); }
     .period-block:last-child { border-bottom: none; }
     .period-block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
     .period-title-group { display: flex; align-items: center; gap: 12px; }
-    .period-title { font-size: 15px; font-weight: 700; color: #1e293b; }
-    .status-active-badge { display: inline-flex; align-items: center; gap: 5px; background: #ecfdf5; color: #065f46; font-size: 11.5px; font-weight: 700; padding: 4px 12px; border-radius: 20px; border: 1px solid #a7f3d0; }
-    .status-inactive-badge { background: #f1f5f9; color: #64748b; font-size: 11.5px; font-weight: 700; padding: 4px 12px; border-radius: 20px; border: 1px solid #e2e8f0; }
-    .period-actions { display: flex; gap: 8px; }
+    .period-title { font-size: 15px; font-weight: 700; color: var(--rg-blue-dark); }
+    
+    .status-active-badge { display: inline-flex; align-items: center; gap: 5px; background: var(--rg-green-tint); color: #14532D; font-size: 11.5px; font-weight: 700; padding: 4px 12px; border-radius: 20px; border: 1px solid #BFE8CE; }
+    .status-inactive-badge { background: var(--rg-surface); color: var(--rg-muted); font-size: 11.5px; font-weight: 700; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--rg-line); }
+    
+    .period-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-    .term-dates-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-    .term-date-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .term-date-label { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.3px; }
-    .term-date-inputs { display: flex; align-items: center; gap: 6px; }
-    .term-date-input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12.5px; color: #0f172a; outline: none; background: #ffffff; }
-    .term-date-input:focus { border-color: #000000; box-shadow: 0 0 0 2px rgba(0,0,0,0.05); }
-
+    .term-dates-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .term-date-card { background: var(--rg-surface); border: 1px solid var(--rg-line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .term-date-label { font-size: 12px; font-weight: 700; color: var(--rg-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+    
     .term-inputs-group { display: flex; gap: 8px; }
     .term-field-single { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-    .term-sub-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; }
+    .term-sub-label { font-size: 11px; font-weight: 600; color: var(--rg-muted); text-transform: uppercase; }
 
-    .btn-save-term { background: #0033A0; color: white; border: none; padding: 9px; border-radius: 6px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s; }
-    .btn-save-term:hover { background: #002270; }
+    .rg-btn-action { border: 1px solid transparent; padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: 0.15s; display: inline-flex; align-items: center; gap: 5px; }
+    .rg-btn-action-ghost { background: transparent; border-color: #CBD5E6; color: var(--rg-muted); }
+    .rg-btn-action-ghost:hover { background: var(--rg-surface); color: var(--rg-ink); }
+    .rg-btn-action-danger { background: transparent; border-color: #FECACA; color: var(--rg-red); }
+    .rg-btn-action-danger:hover { background: #FEF2F2; color: #991B1B; border-color: #F87171; }
 
-    .btn-action-edit { background-color: transparent; border: 1px solid #cbd5e1; color: #475569; padding: 7px 14px; font-size: 12.5px; font-weight: 600; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
-    .btn-action-edit:hover { background-color: #f1f5f9; color: #1e293b; border-color: #94a3b8; }
+    .empty-table-state { text-align: center; color: var(--rg-muted) !important; padding: 50px 0 !important; font-style: italic; }
 
-    .btn-action-edit.btn-disabled, .btn-action-edit:disabled { opacity: 0.5; cursor: not-allowed; background-color: #f8fafc; color: #94a3b8; border-color: #e2e8f0; }
+    .rg-table-wrap { overflow-x: auto; width: 100%; }
+    .rg-table { width: 100%; min-width: 500px; border-collapse: collapse; font-size: 14px; }
+    .rg-table th { background: var(--rg-surface); padding: 12px 18px; font-size: 11.5px; font-weight: 700; color: var(--rg-muted); text-transform: uppercase; text-align: left; border-bottom: 1px solid var(--rg-line); }
+    .rg-table td { padding: 12px 18px; border-bottom: 1px solid #EEF2F9; color: var(--rg-ink); vertical-align: middle; }
+    .rg-table tbody tr:last-child td { border-bottom: none; }
+    .rg-table tbody tr:hover { background: #F5F8FF; }
 
-    .btn-action-delete { background-color: transparent; border: 1px solid #fecaca; color: #dc2626; padding: 7px 14px; font-size: 12.5px; font-weight: 600; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
-    .btn-action-delete:hover { background-color: #fef2f2; color: #991b1b; border-color: #f87171; }
+    .student-id-tag { font-family: ui-monospace, monospace; font-weight: 700; color: var(--rg-blue); background: var(--rg-blue-tint); padding: 3px 9px; border-radius: 6px; font-size: 12.5px; border: 1px solid #CFDBFB; display: inline-block; }
 
-    .btn-view-subjects { background: transparent; border: none; color: #2563eb; font-size: 11.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 0; }
-    .btn-view-subjects:hover { text-decoration: underline; color: #1d4ed8; }
-
-    .sa-alert-success { background: #ecfdf5; color: #065f46; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #059669; font-size: 14px; display: flex; align-items: center; gap: 10px; }
-    .sa-alert-danger { background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; display: flex; align-items: flex-start; gap: 10px; }
-
-    .minimal-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-    .minimal-table th { background-color: #f8fafc; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.72rem; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; text-align: left; }
-    .minimal-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
-    .subject-code-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; padding: 3px 6px; border-radius: 4px; font-size: 0.8rem; }
-
-    .custom-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 9999; }
-    .custom-modal-content { background: #ffffff; border-radius: 12px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; }
-    .modal-header-bar { background: #f8fafc; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
-    .close-modal-btn { background: transparent; border: none; font-size: 24px; color: #94a3b8; cursor: pointer; line-height: 1; padding: 0; }
-    .close-modal-btn:hover { color: #475569; }
+    .rg-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 27, 58, 0.6); z-index: 1000; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+    .rg-modal-card { background: #fff; width: 100%; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); overflow: hidden; animation: fadeIn 0.2s ease-in-out; }
+    .rg-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; }
+    .rg-modal-header h3 { margin: 0; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .rg-modal-close { background: transparent; border: none; font-size: 24px; cursor: pointer; transition: 0.15s; padding: 0; line-height: 1; color: var(--rg-muted); }
+    .rg-modal-close:hover { color: var(--rg-ink); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 @endsection

@@ -1,6 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 <div class="sis-container">
 
     <div class="sis-header">
@@ -18,6 +20,16 @@
                 <div class="sis-alert-body" style="margin-top: 4px;">
                     Assigned Student ID: <strong>{{ session('student_id') }}</strong>
                 </div>
+            </div>
+        </div>
+    @endif
+
+    @if(session('folder_warning'))
+        <div class="sis-alert sis-alert-warning">
+            <i class="fas fa-exclamation-triangle sis-alert-icon"></i>
+            <div>
+                <div class="sis-alert-title">RECORDS FOLDER NOT CREATED</div>
+                <div class="sis-alert-body">{{ session('folder_warning') }}</div>
             </div>
         </div>
     @endif
@@ -72,6 +84,7 @@
 
         <form action="{{ route('registrar.enroll.store') }}" method="POST" autocomplete="off" class="pure-form" novalidate>
             @csrf
+            <input type="hidden" name="existing_student_id" id="existing_student_id" value="{{ old('existing_student_id') }}">
 
             <div id="tab-admission" class="sis-tab-content active">
 
@@ -80,14 +93,17 @@
                         <label>Registration Date</label>
                         <input type="date" name="registration_date" value="{{ date('Y-m-d') }}" required>
                     </div>
+
                     <div class="form-group">
                         <label>Student Entry Type</label>
                         <select name="student_type" id="student_type" onchange="filterCredentials()" required>
                             <option value="New">Freshman (New Student)</option>
+                            <option value="Old">Old Student</option>
                             <option value="Transferee">Transferee</option>
                             <option value="Cross-Enrollee">Cross Enrollee</option>
                         </select>
                     </div>
+
                     <div class="form-group">
                         <label>Course / Program</label>
                         <select name="course" required>
@@ -95,6 +111,17 @@
                             <option value="BSIT">BS Information Technology</option>
                             <option value="BSCS">BS Computer Science</option>
                         </select>
+                    </div>
+                </div>
+
+                <!-- Old Student Live Search Box -->
+                <div class="form-group" id="old-student-lookup-group" style="display: none; margin-top: 15px; background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #cbd5e1; position: relative;">
+                    <label style="color: #0033A0; font-weight: 700; margin-bottom: 6px; display: block;">
+                        <i class="fas fa-search" style="margin-right: 5px;"></i> Search Previous Student by Name or ID
+                    </label>
+                    <div style="position: relative;">
+                        <input type="text" id="lookup_student_name" placeholder="Type student name or ID (e.g., Dela Cruz or 2026-0001)..." class="rg-input" autocomplete="off" oninput="searchOldStudents(this.value)">
+                        <div id="student-suggestions-box" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e1; border-radius: 6px; max-height: 220px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
                     </div>
                 </div>
 
@@ -302,9 +329,11 @@
 
             <div id="tab-credentials" class="sis-tab-content">
                 <h3 class="section-divider">Required Enrollment Credentials</h3>
-                <p class="credentials-instruction">
+                <p class="credentials-instruction" id="credentials-instruction">
                     Please verify the physical submission of the following documents for <strong id="selected-type-label" style="color: #0033A0;">Freshman (New Student)</strong>:
                 </p>
+
+                <div id="old-student-notice"></div>
 
                 <div class="credentials-checklist-container" id="credentials-wrapper">
                     <div class="credential-item-row" data-types="New,Transferee,Cross-Enrollee">
@@ -418,46 +447,311 @@
         highlighted.forEach(el => el.classList.remove('input-field-error'));
     }
 
+    // URL template for viewing archived files (same route the student profile page uses)
+    const SECURE_VIEW_URL = @json(route('registrar.secure-view', ['student_id' => '__SID__', 'filename' => '__FILE__']));
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    function toArray(value) {
+        if (Array.isArray(value)) return value;
+        if (value === null || value === undefined || String(value).trim() === '') return [];
+        if (typeof value === 'string') {
+            try {
+                let parsed = JSON.parse(value);
+                if (Array.isArray(parsed)) return parsed;
+            } catch (e) {}
+        }
+        return [String(value)]; // plain text stored in the DB
+    }
+
+    let searchTimeout = null;
+
+    function searchOldStudents(query) {
+        clearTimeout(searchTimeout);
+        let box = document.getElementById('student-suggestions-box');
+        
+        if (!query.trim()) {
+            box.style.display = 'none';
+            box.innerHTML = '';
+            return;
+        }
+
+        searchTimeout = setTimeout(() => {
+            fetch(`/registrar/api/student/search?q=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success' && data.students.length > 0) {
+                        let html = '';
+                        data.students.forEach(s => {
+                            let fullName = `${s.last_name}, ${s.first_name} ${s.middle_name || ''}`;
+                            html += `
+                                <div onclick="selectOldStudent('${s.student_id}')" style="padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                    <span style="font-weight: 600; color: #1e293b;">${fullName}</span>
+                                    <span style="font-family: monospace; background: #eef2ff; color: #0033A0; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 700;">${s.student_id}</span>
+                                </div>
+                            `;
+                        });
+                        box.innerHTML = html;
+                        box.style.display = 'block';
+                    } else {
+                        box.innerHTML = '<div style="padding: 10px 14px; color: #64748b; font-style: italic;">No students found.</div>';
+                        box.style.display = 'block';
+                    }
+                })
+                .catch(err => console.error('Search error:', err));
+        }, 300);
+    }
+
+    function setFieldValue(selector, value) {
+        let el = document.querySelector(selector);
+        if (el) el.value = value;
+    }
+
+    function selectOldStudent(studentId) {
+        let box = document.getElementById('student-suggestions-box');
+        box.style.display = 'none';
+
+        fetch(`/registrar/api/student/${encodeURIComponent(studentId)}`, { headers: { 'Accept': 'application/json' } })
+            .then(response => {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.json();
+            })
+            .then(data => {
+                if (data.status !== 'success') {
+                    alert('Student details could not be retrieved.');
+                    return;
+                }
+
+                let s = data.student;
+
+                // Remember which existing record this enrollment belongs to
+                document.getElementById('existing_student_id').value = s.student_id;
+                document.getElementById('lookup_student_name').value = `${s.last_name}, ${s.first_name} (${s.student_id})`;
+
+                // Tab 1: Course & General Info
+                setFieldValue('select[name="course"]', s.course || '');
+                setFieldValue('select[name="year_level"]', s.year_level || '');
+                setFieldValue('select[name="semester"]', s.semester || '');
+
+                setFieldValue('input[name="last_name"]', s.last_name || '');
+                setFieldValue('input[name="first_name"]', s.first_name || '');
+                setFieldValue('input[name="middle_name"]', s.middle_name || '');
+                setFieldValue('select[name="sex"]', s.sex || 'Male');
+                setFieldValue('select[name="civil_status"]', s.civil_status || 'Single');
+                setFieldValue('input[name="date_of_birth"]', s.date_of_birth || '');
+                setFieldValue('input[name="nationality"]', s.nationality || 'FILIPINO');
+                setFieldValue('input[name="city_address"]', s.city_address || '');
+                setFieldValue('input[name="zip_code"]', s.zip_code || '');
+                setFieldValue('input[name="place_of_birth"]', s.place_of_birth || '');
+                setFieldValue('input[name="contact_no"]', s.contact_no || '');
+                setFieldValue('input[name="email"]', s.email || '');
+
+                // Parent Information
+                setFieldValue('input[name="fathers_name"]', s.fathers_name || '');
+                setFieldValue('input[name="fathers_occupation"]', s.fathers_occupation || '');
+                setFieldValue('input[name="mothers_name"]', s.mothers_name || '');
+                setFieldValue('input[name="mothers_occupation"]', s.mothers_occupation || '');
+
+                // Tab 2: Educational Background
+                populateSchoolRows('elementary-schools-container', 'elementary-school-row', 'elementary_school_name', 'elementary_school_address', 'elementary_school_year', s.elementary_school_name, s.elementary_school_address, s.elementary_school_year);
+                populateSchoolRows('junior-hs-container', 'junior-hs-row', 'junior_hs_school_name', 'junior_hs_school_address', 'junior_hs_school_year', s.junior_hs_school_name, s.junior_hs_school_address, s.junior_hs_school_year);
+                populateSchoolRows('senior-hs-container', 'senior-hs-row', 'senior_hs_school_name', 'senior_hs_school_address', 'senior_hs_school_year', s.senior_hs_school_name, s.senior_hs_school_address, s.senior_hs_school_year);
+
+                populateSchoolRows('vocational-container', 'vocational-row', 'vocational_school_name', 'vocational_school_address', 'vocational_school_year', s.vocational_school_name, s.vocational_school_address, s.vocational_school_year);
+
+                // Tab 3: Documents already on file
+                renderExistingCredentials(s);
+                clearInputHighlights();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Could not load the student record. Please try again.');
+            });
+    }
+
+    function populateSchoolRows(containerId, rowClass, nameInputName, addressInputName, yearInputName, names, addresses, years) {
+        let container = document.getElementById(containerId);
+        container.innerHTML = '';
+
+        names = toArray(names);
+        addresses = toArray(addresses);
+        years = toArray(years);
+
+        if (names.length === 0) {
+            if (containerId === 'elementary-schools-container') addElementarySchool();
+            else if (containerId === 'junior-hs-container') addJuniorHS();
+            else if (containerId === 'senior-hs-container') addSeniorHS();
+            // vocational is optional: leave it empty
+            return;
+        }
+
+        let isVocational = (rowClass === 'vocational-row');
+        let requiredAttr = isVocational ? '' : 'required';
+        let namePlaceholder = isVocational ? 'Vocational / Trade School Name' : 'School Name';
+        let yearPlaceholder = isVocational ? 'Year Attended' : 'Year Graduated (YYYY-YYYY)';
+
+        names.forEach((name, index) => {
+            let address = addresses[index] ? addresses[index] : '';
+            let year = years[index] ? years[index] : '';
+
+            let div = document.createElement('div');
+            div.className = `school-row ${rowClass}`;
+            div.innerHTML = `
+                <div class="school-inputs">
+                    <input type="text" name="${nameInputName}[]" placeholder="${namePlaceholder}" value="${escapeHtml(name)}" ${requiredAttr}>
+                    <input type="text" name="${addressInputName}[]" placeholder="School Address" value="${escapeHtml(address)}" ${requiredAttr}>
+                    <input type="text" name="${yearInputName}[]" placeholder="${yearPlaceholder}" maxlength="9" oninput="formatSchoolYear(this)" value="${escapeHtml(year)}" ${requiredAttr}>
+                </div>
+                <button type="button" class="btn-remove-school" onclick="removeRow(this, '${rowClass}')"><i class="fas fa-times"></i> Remove</button>
+            `;
+            container.appendChild(div);
+        });
+        updateRemoveButtons(rowClass);
+    }
+
+    function renderExistingCredentials(student) {
+        let notice = document.getElementById('old-student-notice');
+        let docs = student.documents || [];
+        let uploaded = student.documents_uploaded || 0;
+
+        let rows = '';
+        docs.forEach(doc => {
+            let status;
+            if (doc.filename) {
+                let url = SECURE_VIEW_URL
+                    .replace('__SID__', encodeURIComponent(student.student_id))
+                    .replace('__FILE__', encodeURIComponent(doc.filename));
+                status = `
+                    <div class="od-doc-status">
+                        <span class="od-uploaded"><i class="fas fa-check-circle"></i> Uploaded</span>
+                        <a href="${url}" target="_blank" rel="noopener" class="od-link">View File</a>
+                    </div>`;
+            } else {
+                status = `<span class="od-missing"><i class="fas fa-times-circle"></i> No File</span>`;
+            }
+
+            rows += `
+                <tr>
+                    <td>
+                        <strong>${escapeHtml(doc.label)}</strong>
+                        ${doc.required ? '' : '<span class="od-extra-tag">On file</span>'}
+                    </td>
+                    <td>${status}</td>
+                </tr>`;
+        });
+
+        let body = docs.length > 0 ? `
+            <p class="od-hint">These are the documents previously submitted by <strong>${escapeHtml(student.last_name)}, ${escapeHtml(student.first_name)}</strong> (${escapeHtml(student.student_id)}). Click <strong>View File</strong> to open a file.</p>
+            <div class="od-table-wrap">
+                <table class="od-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 55%;">Document Type</th>
+                            <th style="width: 45%;">Current Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>` : `
+            <div style="text-align: center; padding: 24px 0; color: #5C6B8A;">
+                <i class="fas fa-folder-open" style="font-size: 28px; color: #B9C8F0; margin-bottom: 10px; display: block;"></i>
+                <strong style="color: #0B1B3A;">No documents on file</strong>
+                <div style="font-size: 13px; margin-top: 4px;">This student has no uploaded documents yet.</div>
+            </div>`;
+
+        notice.innerHTML = `
+            <div class="od-card">
+                <div class="od-card-header">
+                    <span><i class="fas fa-folder-open"></i> Previously Submitted Documents</span>
+                    ${docs.length > 0 ? `<span class="od-badge">${uploaded} / ${docs.length} uploaded</span>` : ''}
+                </div>
+                <div class="od-card-body">${body}</div>
+            </div>
+        `;
+    }
+
     function filterCredentials() {
         var dropdown = document.getElementById("student_type");
         var selectedType = dropdown.value;
         var selectedText = dropdown.options[dropdown.selectedIndex].text;
+        var lookupGroup = document.getElementById("old-student-lookup-group");
 
-        document.getElementById("selected-type-label").innerText = selectedText;
+        var notice = document.getElementById("old-student-notice");
+        var existingIdInput = document.getElementById("existing_student_id");
+        var credentialRows = document.querySelectorAll(".credential-item-row");
 
-        var rows = document.querySelectorAll(".credential-item-row");
-        rows.forEach(row => {
-            var allowedTypes = row.getAttribute("data-types").split(",");
-            var chkInput = row.querySelector('.credential-checkbox');
+        if (selectedType === 'Old') {
+            if (lookupGroup) lookupGroup.style.display = "block";
 
-            if (allowedTypes.includes(selectedType)) {
-                row.style.display = "flex";
-                if (chkInput) chkInput.required = true;
-            } else {
+            var instruction = document.getElementById("credentials-instruction");
+            if (instruction) instruction.style.display = "none";
+
+            // Hide the checklist (don't destroy it, so switching back to New still works)
+            credentialRows.forEach(row => {
                 row.style.display = "none";
-                if (chkInput) {
-                    chkInput.checked = false;
-                    chkInput.required = false;
+                var chk = row.querySelector('.credential-checkbox');
+                if (chk) {
+                    chk.checked = false;
+                    chk.required = false;
                 }
+            });
+
+            if (!existingIdInput.value) {
+                notice.innerHTML = `
+                    <p style="color: #64748b; font-style: italic;">Please search and select a previous student above to load and verify archived records.</p>
+                `;
             }
-        });
 
-        var transfereeSection = document.getElementById('transferee-section');
-        var collegeInputs = transfereeSection.querySelectorAll('input');
+            var transfereeSection = document.getElementById('transferee-section');
+            if (transfereeSection) transfereeSection.style.display = "none";
 
-        if (selectedType === 'Transferee') {
-            transfereeSection.style.display = "block";
-            collegeInputs.forEach(input => {
-                if (input.name === 'college_school_year') {
-                    input.setAttribute('required', 'required');
+        } else {
+            if (lookupGroup) lookupGroup.style.display = "none";
+            var instruction = document.getElementById("credentials-instruction");
+            if (instruction) instruction.style.display = "";
+            notice.innerHTML = "";
+            existingIdInput.value = "";
+
+            document.getElementById("selected-type-label").innerText = selectedText;
+
+            var rows = document.querySelectorAll(".credential-item-row");
+            rows.forEach(row => {
+                var allowedTypes = row.getAttribute("data-types").split(",");
+                var chkInput = row.querySelector('.credential-checkbox');
+
+                if (allowedTypes.includes(selectedType)) {
+                    row.style.display = "flex";
+                    if (chkInput) chkInput.required = true;
+                } else {
+                    row.style.display = "none";
+                    if (chkInput) {
+                        chkInput.checked = false;
+                        chkInput.required = false;
+                    }
                 }
             });
-        } else {
-            transfereeSection.style.display = "none";
-            collegeInputs.forEach(input => {
-                input.removeAttribute('required');
-                input.value = "";
-            });
+
+            var transfereeSection = document.getElementById('transferee-section');
+            var collegeInputs = transfereeSection.querySelectorAll('input');
+
+            if (selectedType === 'Transferee') {
+                transfereeSection.style.display = "block";
+                collegeInputs.forEach(input => {
+                    if (input.name === 'college_school_year') {
+                        input.setAttribute('required', 'required');
+                    }
+                });
+            } else {
+                transfereeSection.style.display = "none";
+                collegeInputs.forEach(input => {
+                    input.removeAttribute('required');
+                    input.value = "";
+                });
+            }
         }
     }
 
@@ -645,6 +939,26 @@
 </script>
 
 <style>
+    /* Old-student documents card (mirrors the registrar student profile layout) */
+    .od-card { background: #fff; border: 1px solid #E2E8F3; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(10, 31, 92, 0.05); margin-bottom: 20px; }
+    .od-card-header { background: #0A1F5C; color: #fff; padding: 16px 20px; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .od-card-header i { margin-right: 8px; color: #93B4FF; }
+    .od-badge { background: rgba(255,255,255,0.25); padding: 3px 10px; border-radius: 10px; font-size: 11.5px; }
+    .od-card-body { padding: 24px; }
+    .od-hint { margin: 0 0 16px; font-size: 13.5px; color: #5C6B8A; }
+    .od-table-wrap { overflow-x: auto; border: 1px solid #E2E8F3; border-radius: 8px; }
+    .od-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .od-table th { background: #F7F9FD; padding: 12px 20px; font-size: 13px; font-weight: 700; color: #5C6B8A; text-align: left; border-bottom: 1px solid #E2E8F3; white-space: nowrap; }
+    .od-table td { padding: 14px 20px; border-bottom: 1px solid #EEF2F9; color: #26345A; vertical-align: middle; font-weight: 500; }
+    .od-table tbody tr:last-child td { border-bottom: none; }
+    .od-table tbody tr:hover { background: #F5F8FF; }
+    .od-doc-status { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+    .od-uploaded { color: #15803D; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; }
+    .od-missing { color: #C62828; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; }
+    .od-link { color: #0033A0; text-decoration: underline; font-size: 12.5px; font-weight: 600; }
+    .od-link:hover { color: #0A1F5C; }
+    .od-extra-tag { display: inline-block; margin-left: 6px; font-size: 10.5px; font-weight: 700; color: #5C6B8A; background: #F7F9FD; border: 1px solid #E2E8F3; padding: 1px 7px; border-radius: 10px; vertical-align: middle; }
+
     .sis-alert {
         display: flex;
         align-items: flex-start;
@@ -669,6 +983,12 @@
         color: #14532d;
     }
 
+    .sis-alert-warning {
+        background-color: #fffbeb;
+        border-color: #d97706;
+        color: #78350f;
+    }
+
     .sis-alert-icon {
         font-size: 28px;
         margin-top: 2px;
@@ -681,6 +1001,10 @@
 
     .sis-alert-success .sis-alert-icon {
         color: #16a34a;
+    }
+
+    .sis-alert-warning .sis-alert-icon {
+        color: #d97706;
     }
 
     .sis-alert-title {

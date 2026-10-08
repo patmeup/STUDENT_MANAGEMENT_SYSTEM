@@ -5,11 +5,6 @@
 
 @php
     $activePeriod = $activePeriod ?? \Illuminate\Support\Facades\DB::table('academic_periods')->where('is_active', true)->first();
-
-    $promoteConfirm = "Promote blocks for the new school year?\n\n"
-        . "Passed students move up one year (BSIT1 to BSIT2, BSIT2 to BSIT3, BSIT3 to BSIT4). Passed 4th years become Graduated.\n"
-        . "Students with a failed or missing final grade stay in their current block.\n\n"
-        . "Run this before assigning new 1st years and before bulk enrolling the new school year.";
 @endphp
 
 <div class="rg-page">
@@ -96,10 +91,10 @@
                     <thead>
                         <tr>
                             <th>Student</th>
-                            <th>Course</th>
-                            <th>Section</th>
-                            <th>Year level</th>
-                            <th class="rg-th-actions">Actions</th>
+                            <th class="rg-text-center">Course</th>
+                            <th class="rg-text-center">Section</th>
+                            <th class="rg-text-center">Year & Sem</th>
+                            <th class="rg-text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="studentTableBody">
@@ -117,17 +112,24 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td><span class="rg-chip rg-chip-plain">{{ $student->course }}</span></td>
-                                <td>
+                                <td class="rg-text-center"><span class="rg-chip rg-chip-plain">{{ $student->course }}</span></td>
+                                <td class="rg-text-center">
                                     @if($student->section)
                                         <span class="rg-chip rg-chip-blue">{{ $student->section }}</span>
                                     @else
                                         <span class="rg-unassigned">Unassigned</span>
                                     @endif
                                 </td>
-                                <td><span class="rg-chip rg-chip-plain">{{ $student->year_level }}</span></td>
-                                <td>
-                                    <div class="rg-actions">
+                                <td class="rg-text-center">
+                                    <span class="rg-chip rg-chip-plain">
+                                        {{ $student->year_level }} 
+                                        @if(!empty($student->semester))
+                                            • {{ $student->semester }}
+                                        @endif
+                                    </span>
+                                </td>
+                                <td class="rg-text-center">
+                                    <div class="rg-actions-center">
                                         <a href="{{ route('department_secretary.students.profile', $student->student_id) }}"
                                            class="rg-btn rg-btn-ghost" title="View student profile">
                                             <i class="fas fa-folder-open"></i> Profile
@@ -183,14 +185,6 @@
                     <i class="fas fa-search"></i>
                     <input type="text" id="blockSearchInput" placeholder="Search by block section name" aria-label="Search block sections">
                 </div>
-
-                <form action="{{ route('department_secretary.promote_blocks') }}" method="POST"
-                      class="rg-toolbar-end" data-confirm="{{ $promoteConfirm }}">
-                    @csrf
-                    <button type="submit" class="rg-btn rg-btn-outline-navy">
-                        <i class="fas fa-level-up-alt"></i> Promote blocks
-                    </button>
-                </form>
             </div>
 
             <div class="rg-table-wrap">
@@ -198,9 +192,9 @@
                     <thead>
                         <tr>
                             <th>Block section</th>
-                            <th>Students enrolled</th>
-                            <th>Active subjects</th>
-                            <th class="rg-th-actions">Actions</th>
+                            <th class="rg-text-center">Students enrolled</th>
+                            <th class="rg-text-center">Active subjects</th>
+                            <th class="rg-text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="blockTableBody">
@@ -218,23 +212,23 @@
                                     
                                 $btnDisabled = ($pending == 0) || $hasPending;
                                 $btnTitle = $hasPending 
-                                    ? 'Cannot enroll: May pending unreleased grades mula sa nakaraang semester.' 
+                                    ? 'Cannot enroll: There are pending unreleased grades from the previous semester.' 
                                     : ($pending > 0 ? 'Enroll this block in the active period' : 'No students are waiting to be enrolled');
                             @endphp
                             <tr class="block-row" data-search="{{ strtolower($sectionName) }}">
                                 <td><span class="rg-block-name">{{ strtoupper($sectionName) }}</span></td>
 
-                                <td>
+                                <td class="rg-text-center">
                                     <span class="rg-count {{ $enrolled > 0 ? 'rg-count-on' : 'rg-count-off' }}">
                                         <i class="fas fa-users"></i>
                                         {{ $enrolled }} {{ Str::plural('student', $enrolled) }}
                                     </span>
                                 </td>
 
-                                <td><strong>{{ $subjects }}</strong> {{ Str::plural('subject', $subjects) }}</td>
+                                <td class="rg-text-center"><strong>{{ $subjects }}</strong> {{ Str::plural('subject', $subjects) }}</td>
 
-                                <td>
-                                    <div class="rg-actions">
+                                <td class="rg-text-center">
+                                    <div class="rg-actions-center">
                                         <a href="{{ route('department_secretary.view_section', $sectionName) }}" class="rg-btn rg-btn-ghost">
                                             <i class="fas fa-users"></i> View students
                                         </a>
@@ -248,7 +242,22 @@
                                                 <i class="fas fa-user-plus"></i> Bulk enroll
                                             </button>
                                         </form>
+
+                                        <button type="button" class="rg-btn rg-btn-outline-navy btn-open-promote-modal"
+                                                data-section="{{ strtoupper($sectionName) }}">
+                                            <i class="fas fa-level-up-alt"></i> Promote section
+                                        </button>
                                     </div>
+
+                                    @if($hasPending)
+                                        <div style="font-size: 11px; color: var(--rg-red); margin-top: 4px; font-weight: 600;">
+                                            <i class="fas fa-exclamation-circle"></i> Has pending unreleased grades
+                                        </div>
+                                    @elseif($pending == 0)
+                                        <div style="font-size: 11px; color: var(--rg-muted); margin-top: 4px; font-style: italic;">
+                                            No pending students to enroll
+                                        </div>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
@@ -278,6 +287,42 @@
     </section>
 </div>
 
+<div id="promoteModal" class="sm-overlay" style="display: none;">
+    <div class="sm-box" style="max-width: 520px;">
+        <div class="sm-header">
+            <div>
+                <h3 style="margin:0; font-size:16px; font-weight:800; color:#0f172a;">Promote Section: <span id="modalSectionName" style="color: var(--rg-blue);"></span></h3>
+                <div style="font-size:12.5px; color:#64748b; margin-top:3px;">Review the rules before proceeding with the promotion.</div>
+            </div>
+            <button type="button" id="closePromoteModal" class="sm-close">&times;</button>
+        </div>
+        
+        <div class="sm-body" style="padding: 20px; overflow-y: auto;">
+            <div style="background: #EAF0FF; color: #0A1F5C; border: 1px solid #CFDBFB; border-left: 4px solid var(--rg-blue); padding: 12px; border-radius: 6px; font-size: 13px; margin-bottom: 16px; line-height: 1.5;">
+                <strong><i class="fas fa-info-circle"></i> Promotion Rules:</strong>
+                <ul style="margin: 6px 0 0 18px; padding: 0;">
+                    <li>Passed students advance one year level (e.g., BSIT1 to BSIT2).</li>
+                    <li>Passed 4th-year students status will change to Graduated.</li>
+                    <li>Students with failed or missing final grades remain in their current block section.</li>
+                </ul>
+            </div>
+
+            <p style="font-size: 13.5px; color: #334155; margin-bottom: 20px;">Are you sure you want to promote this specific block section for the new school year?</p>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; padding: 15px 20px; border-top: 1px solid #e2e8f0; background: #f8fafc; border-radius: 0 0 12px 12px;">
+            <button type="button" id="cancelPromoteModal" class="rg-btn rg-btn-ghost">Cancel</button>
+            <form id="promoteFormAction" action="{{ route('department_secretary.promote_blocks') }}" method="POST" style="margin: 0;">
+                @csrf
+                <input type="hidden" name="section_name" id="modalInputSection">
+                <button type="submit" class="rg-btn rg-btn-primary">
+                    <i class="fas fa-level-up-alt"></i> Confirm Promotion
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
     function switchView(tabId, buttonElement) {
         document.querySelectorAll('.rg-panel').forEach(panel => panel.classList.remove('active-panel'));
@@ -297,6 +342,31 @@
                 if (!confirm(form.dataset.confirm)) {
                     e.preventDefault();
                 }
+            });
+        });
+
+        const promoteModal = document.getElementById('promoteModal');
+        const modalSectionName = document.getElementById('modalSectionName');
+        const modalInputSection = document.getElementById('modalInputSection');
+        const closePromoteModal = document.getElementById('closePromoteModal');
+        const cancelPromoteModal = document.getElementById('cancelPromoteModal');
+
+        function closeMod() {
+            if (promoteModal) promoteModal.style.display = 'none';
+        }
+
+        if (closePromoteModal) closePromoteModal.addEventListener('click', closeMod);
+        if (cancelPromoteModal) cancelPromoteModal.addEventListener('click', closeMod);
+        if (promoteModal) {
+            promoteModal.addEventListener('click', e => { if (e.target === promoteModal) closeMod(); });
+        }
+
+        document.querySelectorAll('.btn-open-promote-modal').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const sec = this.getAttribute('data-section');
+                if (modalSectionName) modalSectionName.textContent = sec;
+                if (modalInputSection) modalInputSection.value = sec;
+                if (promoteModal) promoteModal.style.display = 'flex';
             });
         });
 
@@ -435,7 +505,8 @@
     .rg-table td { padding: 13px 20px; border-bottom: 1px solid #EEF2F9; color: #26345A; vertical-align: middle; }
     .rg-table tbody tr:last-child td { border-bottom: none; }
     .rg-table tbody tr:hover { background: #F5F8FF; }
-    .rg-th-actions { text-align: right !important; }
+    
+    .rg-text-center { text-align: center !important; }
 
     .rg-person { display: flex; align-items: center; gap: 12px; }
     .rg-avatar { flex: 0 0 auto; width: 36px; height: 36px; border-radius: 50%; background: var(--rg-blue-tint); color: var(--rg-blue); display: inline-flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 800; }
@@ -453,7 +524,8 @@
     .rg-count-off { background: var(--rg-surface); color: var(--rg-muted); border: 1px solid var(--rg-line); }
 
     .rg-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
-    .rg-actions form { margin: 0; }
+    .rg-actions-center { display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .rg-actions form, .rg-actions-center form { margin: 0; }
 
     .rg-btn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 7px; font-size: 12.5px; font-weight: 700; text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: background .15s, color .15s, border-color .15s; white-space: nowrap; line-height: 1.2; }
     .rg-btn-primary { background: var(--rg-blue); color: #fff; }
@@ -467,20 +539,34 @@
     .rg-btn-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 7px; background: #fff; border: 1px solid var(--rg-line); color: #8A97B3; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
     .rg-btn-danger:hover { background: #FDECEC; border-color: #F0B4B4; color: var(--rg-red); }
 
-    .rg-btn:focus-visible, .rg-btn-icon:focus-visible, .rg-tab:focus-visible, .filter-pill:focus-visible { outline: 2px solid var(--rg-blue); outline-offset: 2px; }
-
     .rg-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 44px 16px; text-align: center; color: var(--rg-muted); font-size: 13.5px; }
     .rg-empty i { font-size: 28px; color: #B9C4DD; margin-bottom: 4px; }
+    #promoteModal {
+        --rg-blue: #0033A0;
+        --rg-blue-dark: #0A1F5C;
+        --rg-blue-tint: #EAF0FF;
+        --rg-gold: #F2B705;
+        --rg-ink: #0B1B3A;
+        --rg-muted: #5C6B8A;
+        --rg-line: #E2E8F3;
+        --rg-surface: #F7F9FD;
+        --rg-green: #15803D;
+        --rg-green-tint: #E8F7EE;
+        --rg-red: #C62828;
+    }
+
     .rg-empty strong { color: var(--rg-ink); font-size: 15px; }
+
+    .sm-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .sm-box { background: #fff; border-radius: 12px; width: 100%; max-width: 640px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.25); }
+    .sm-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px; border-bottom: 1px solid #e2e8f0; }
+    .sm-close { background: none; border: none; font-size: 26px; line-height: 1; color: #64748b; cursor: pointer; }
+    .sm-body { overflow-y: auto; padding: 0; }
 
     @media (max-width: 720px) {
         .rg-header { align-items: flex-start; }
         .rg-result-count, .rg-toolbar-end { margin-left: 0; }
         .rg-table th, .rg-table td { padding-left: 14px; padding-right: 14px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .rg-page * { transition: none !important; }
     }
 </style>
 @endsection

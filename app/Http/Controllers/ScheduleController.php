@@ -26,6 +26,14 @@ class ScheduleController extends Controller
                 'employees.first_name as prof_first_name',
                 'employees.last_name as prof_last_name'
             )
+
+            ->selectSub(function ($q) {
+                $q->from('student_subjects as ss')
+                  ->join('students as s', 's.student_id', '=', 'ss.student_number')
+                  ->whereColumn('ss.schedule_id', 'class_schedules.id')
+                  ->where('ss.status', 'Enrolled')
+                  ->selectRaw('COUNT(*)');
+            }, 'enrolled_count')
             ->orderBy('class_schedules.section_name', 'asc')
             ->get();
 
@@ -166,7 +174,6 @@ class ScheduleController extends Controller
             'room_assignment'    => $room,
         ]);
 
-        // NOTIFICATIONS: professor assigned + dean of the professor's department
         $__label = \App\Support\Notifier::classLabel($newSchedule->id);
         $__when  = $newSchedule->class_days . ' ' . date('h:i A', strtotime($request->input('start_time')))
                  . '-' . date('h:i A', strtotime($request->input('end_time'))) . ', ' . strtoupper($request->input('room_assignment'));
@@ -247,7 +254,6 @@ class ScheduleController extends Controller
             'updated_at'      => now(),
         ]);
 
-        // NOTIFICATIONS: reassignment -> old + new professor; time/room/section change -> professor + students
         $__fmt     = fn ($t) => date('h:i A', strtotime($t));
         $__oldWhen = "{$schedule->class_days} " . $__fmt($schedule->start_time) . '-' . $__fmt($schedule->end_time) . ", {$schedule->room_assignment}";
         $__newWhen = $request->input('class_days') . ' ' . $__fmt($request->input('start_time')) . '-' . $__fmt($request->input('end_time')) . ", {$room}";
@@ -316,7 +322,6 @@ class ScheduleController extends Controller
 
     public function delete($id)
     {
-        // capture who is affected BEFORE the rows are deleted
         $__label    = \App\Support\Notifier::classLabel($id);
         $__profId   = \App\Support\Notifier::scheduleProfessorId($id);
         $__students = DB::table('student_subjects')->where('schedule_id', $id)->where('status', 'Enrolled')->pluck('student_number');

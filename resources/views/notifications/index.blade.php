@@ -2,43 +2,208 @@
 
 @section('content')
 <style>
-    .nt-card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); overflow:hidden; max-width:900px; }
-    .nt-top { display:flex; justify-content:space-between; align-items:center; padding:20px 24px; border-bottom:1px solid #e2e8f0; flex-wrap:wrap; gap:12px; }
-    .nt-top h2 { margin:0; font-size:20px; color:#0f172a; }
-    .nt-tabs a { display:inline-block; padding:6px 14px; border-radius:20px; font-size:13px; font-weight:600; text-decoration:none; color:#475569; margin-right:6px; background:#f1f5f9; }
-    .nt-tabs a.active { background:#0039A6; color:#fff; }
-    .nt-btn { background:#0039A6; color:#fff; border:none; padding:8px 14px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
-    .nt-item { display:flex; align-items:flex-start; gap:14px; padding:16px 24px; border-bottom:1px solid #f1f5f9; }
-    .nt-item.unread { background:#eff6ff; }
-    .nt-dot { width:9px; height:9px; border-radius:50%; background:#cbd5e1; margin-top:6px; flex-shrink:0; }
-    .nt-item.unread .nt-dot { background:#0039A6; }
-    .nt-body { flex:1; min-width:0; }
-    .nt-body a { text-decoration:none; color:inherit; display:block; }
-    .nt-title { font-size:14px; font-weight:700; color:#0f172a; }
-    .nt-msg { font-size:13px; color:#475569; margin-top:2px; line-height:1.45; }
-    .nt-time { font-size:12px; color:#94a3b8; margin-top:5px; }
-    .nt-del { background:none; border:none; color:#94a3b8; cursor:pointer; font-size:18px; line-height:1; padding:2px 6px; }
-    .nt-del:hover { color:#ef4444; }
-    .nt-empty { padding:50px 24px; text-align:center; color:#94a3b8; }
-    .nt-pager { display:flex; justify-content:space-between; padding:14px 24px; }
-    .nt-pager a { color:#0039A6; font-weight:700; font-size:13px; text-decoration:none; }
+    .nt-card { 
+        background: #fff; 
+        border-radius: 14px; 
+        box-shadow: 0 4px 20px rgba(0,0,0,.05); 
+        overflow: hidden; 
+        width: 95%;
+        max-width: 900px; 
+        margin: 40px auto; 
+    }
+    
+    .nt-top { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        padding: 24px 30px; 
+        border-bottom: 1px solid #e2e8f0; 
+        flex-wrap: wrap; 
+        gap: 12px; 
+    }
+    
+    .nt-top h2 { 
+        margin: 0; 
+        font-size: 22px; 
+        color: #0f172a; 
+        font-weight: 700;
+    }
+    
+    .nt-tabs { 
+        margin-top: 12px; 
+        display: flex; 
+        gap: 8px; 
+    }
+    
+    .nt-tabs a { 
+        display: inline-block; 
+        padding: 8px 16px; 
+        border-radius: 20px; 
+        font-size: 14px; 
+        font-weight: 600; 
+        text-decoration: none; 
+        color: #475569; 
+        background: #f1f5f9; 
+        transition: all 0.2s ease;
+    }
+    
+    .nt-tabs a:hover { 
+        background: #e2e8f0; 
+    }
+    
+    .nt-tabs a.active { 
+        background: #0039A6; 
+        color: #fff; 
+        box-shadow: 0 2px 6px rgba(0, 57, 166, 0.3);
+    }
+    
+    .nt-btn { 
+        background: #0039A6; 
+        color: #fff; 
+        border: none; 
+        padding: 10px 18px; 
+        border-radius: 8px; 
+        font-size: 14px; 
+        font-weight: 600; 
+        cursor: pointer; 
+        transition: background 0.2s ease; 
+    }
+    
+    .nt-btn:hover { 
+        background: #002D80; 
+    }
+    
+    .nt-item { 
+        display: flex; 
+        align-items: flex-start; 
+        gap: 16px; 
+        padding: 20px 30px; 
+        border-bottom: 1px solid #f1f5f9; 
+        transition: background 0.2s ease;
+    }
+    
+    .nt-item:hover { 
+        background: #f8fafc; 
+    }
+    
+    .nt-item.unread { 
+        background: #f0f7ff; 
+    }
+    
+    .nt-dot { 
+        width: 10px; 
+        height: 10px; 
+        border-radius: 50%; 
+        background: #cbd5e1; 
+        margin-top: 6px; 
+        flex-shrink: 0; 
+    }
+    
+    .nt-item.unread .nt-dot { 
+        background: #0039A6; 
+        box-shadow: 0 0 0 4px rgba(0, 57, 166, 0.15);
+    }
+    
+    .nt-body { 
+        flex: 1; 
+        min-width: 0; 
+    }
+    
+    .nt-body a { 
+        text-decoration: none; 
+        color: inherit; 
+        display: block; 
+    }
+    
+    .nt-title { 
+        font-size: 15px; 
+        font-weight: 700; 
+        color: #0f172a; 
+        margin-bottom: 4px;
+    }
+    
+    .nt-msg { 
+        font-size: 14px; 
+        color: #475569; 
+        line-height: 1.5; 
+    }
+    
+    .nt-time { 
+        font-size: 12px; 
+        color: #94a3b8; 
+        margin-top: 8px; 
+        font-weight: 500;
+    }
+    
+    .nt-del { 
+        background: none; 
+        border: none; 
+        color: #94a3b8; 
+        cursor: pointer; 
+        font-size: 20px; 
+        line-height: 1; 
+        padding: 6px; 
+        border-radius: 6px;
+        transition: all 0.2s ease; 
+    }
+    
+    .nt-del:hover { 
+        color: #ef4444; 
+        background: #fee2e2;
+    }
+    
+    .nt-empty { 
+        padding: 80px 24px; 
+        text-align: center; 
+        color: #64748b; 
+        font-size: 15px;
+        font-weight: 500;
+    }
+    
+    .nt-pager { 
+        display: flex; 
+        justify-content: space-between; 
+        padding: 18px 30px; 
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    .nt-pager a { 
+        color: #0039A6; 
+        font-weight: 700; 
+        font-size: 14px; 
+        text-decoration: none; 
+        transition: color 0.2s ease;
+    }
+    
+    .nt-pager a:hover { 
+        color: #002D80; 
+    }
 </style>
 
 <div class="nt-card">
     <div class="nt-top">
         <div>
             <h2>Notifications</h2>
-            <div class="nt-tabs" style="margin-top:10px;">
+            <div class="nt-tabs">
                 <a href="{{ route('notifications.index') }}" class="{{ $filter === 'all' ? 'active' : '' }}">All</a>
-                <a href="{{ route('notifications.index', ['filter' => 'unread']) }}" class="{{ $filter === 'unread' ? 'active' : '' }}">Unread ({{ $unreadCount }})</a>
+                
+                @if($unreadCount > 0)
+                    <a href="{{ route('notifications.index', ['filter' => 'unread']) }}" class="{{ $filter === 'unread' ? 'active' : '' }}">Unread ({{ $unreadCount }})</a>
+                @else
+                    <a href="javascript:void(0)" class="{{ $filter === 'unread' ? 'active' : '' }}" style="opacity: 0.5; cursor: not-allowed;">Unread (0)</a>
+                @endif
             </div>
         </div>
-        @if($unreadCount > 0)
-            <form method="POST" action="{{ route('notifications.read_all') }}">
-                @csrf
+        
+        <form method="POST" action="{{ route('notifications.read_all') }}">
+            @csrf
+            @if($unreadCount > 0)
                 <button type="submit" class="nt-btn">Mark all as read</button>
-            </form>
-        @endif
+            @else
+                <button type="button" class="nt-btn" style="background: #cbd5e1; cursor: not-allowed; color: #64748b;" disabled>Mark all as read</button>
+            @endif
+        </form>
     </div>
 
     @forelse($notifications as $n)
@@ -57,7 +222,9 @@
             </form>
         </div>
     @empty
-        <div class="nt-empty">{{ $filter === 'unread' ? 'No unread notifications.' : 'You have no notifications yet.' }}</div>
+        <div class="nt-empty">
+            {{ $filter === 'unread' ? 'No unread notifications.' : 'You have no notifications yet.' }}
+        </div>
     @endforelse
 
     @if($notifications->previousPageUrl() || $notifications->nextPageUrl())

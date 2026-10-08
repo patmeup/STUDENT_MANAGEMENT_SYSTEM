@@ -151,7 +151,6 @@ class SuperAdminController extends Controller
 
         $employee->save();
 
-        // NOTIFICATIONS: the employee + system admin
         if ($oldRole !== $employee->role || $oldDept !== $employee->department) {
             \App\Support\Notifier::toEmployee($employee->id, 'role_changed', 'Your assignment was updated',
                 'You are now ' . \App\Support\Notifier::roleLabel($employee->role) . ($employee->department ? ' - ' . $employee->department : '') . '.');
