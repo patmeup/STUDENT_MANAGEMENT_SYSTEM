@@ -81,27 +81,40 @@ class RegistrarController extends Controller
             'email' => 'required|email|unique:students,email',
         ];
 
+        // Re-enrollment of an existing (Old) student: update that record instead of creating a new one
+        $existing = null;
+        if ($request->student_type === 'Old' && $request->filled('existing_student_id')) {
+            $existing = Student::where('student_id', $request->existing_student_id)->firstOrFail();
+            $rules['email'] = 'required|email|unique:students,email,' . $existing->id;
+        }
+
         $request->validate($rules);
 
         try {
             $currentYear = date('Y');
 
-            $lastStudent = DB::table('students')
-                ->where('student_id', 'LIKE', $currentYear . '-%')
-                ->orderBy('student_id', 'desc')
-                ->first();
-
-            if ($lastStudent) {
-                $lastSequence = intval(explode('-', $lastStudent->student_id)[1]);
-                $nextSequence = str_pad($lastSequence + 1, 4, '0', STR_PAD_LEFT);
+            if ($existing) {
+                $student = $existing;
+                $generatedStudentId = $existing->student_id;
             } else {
-                $nextSequence = '0001';
+                $lastStudent = DB::table('students')
+                    ->where('student_id', 'LIKE', $currentYear . '-%')
+                    ->orderBy('student_id', 'desc')
+                    ->first();
+
+                if ($lastStudent) {
+                    $lastSequence = intval(explode('-', $lastStudent->student_id)[1]);
+                    $nextSequence = str_pad($lastSequence + 1, 4, '0', STR_PAD_LEFT);
+                } else {
+                    $nextSequence = '0001';
+                }
+
+                $generatedStudentId = $currentYear . '-' . $nextSequence;
+
+                $student = new Student();
+                $student->student_id = $generatedStudentId;
             }
 
-            $generatedStudentId = $currentYear . '-' . $nextSequence;
-
-            $student = new Student();
-            $student->student_id = $generatedStudentId;
             $student->registration_date = $request->registration_date;
             $student->student_type = $request->student_type;
             $student->course = $request->course;
@@ -142,33 +155,186 @@ class RegistrarController extends Controller
             $student->vocational_school_address = array_values(array_filter($request->input('vocational_school_address', [])));
             $student->vocational_school_year    = array_values(array_filter($request->input('vocational_school_year', [])));
 
-            $student->college_school_name    = $request->college_school_name;
-            $student->college_school_address = $request->college_school_address;
-            $student->college_school_year    = $request->college_school_year;
+            // The college section is hidden for Old students, so don't wipe their archived college record
+            if (!$existing) {
+                $student->college_school_name    = $request->college_school_name;
+                $student->college_school_address = $request->college_school_address;
+                $student->college_school_year    = $request->college_school_year;
+            }
 
-            $student->credentials = [
-                'psa_birth_certificate'      => $request->has('check_psa'),
-                'id_picture_2x2'             => $request->has('check_2x2'),
-                'form_138'                   => $request->has('check_f138'),
-                'good_moral_new'             => $request->has('check_good_moral_new'),
-                'diploma'                    => $request->has('check_diploma'),
-                'transcript_of_records'      => $request->has('check_tor'),
-                'honorable_dismissal'        => $request->has('check_dismissal'),
-                'good_moral_transferee'      => $request->has('check_good_moral_trans'),
-                'old_curriculum'             => $request->has('check_curriculum'),
-                'cross_enroll_permit'        => $request->has('check_permit')
-            ];
+            // Keep archived credentials untouched when re-enrolling an old student
+            if (!$existing) {
+                $student->credentials = [
+                    'psa_birth_certificate'      => $request->has('check_psa'),
+                    'id_picture_2x2'             => $request->has('check_2x2'),
+                    'form_138'                   => $request->has('check_f138'),
+                    'good_moral_new'             => $request->has('check_good_moral_new'),
+                    'diploma'                    => $request->has('check_diploma'),
+                    'transcript_of_records'      => $request->has('check_tor'),
+                    'honorable_dismissal'        => $request->has('check_dismissal'),
+                    'good_moral_transferee'      => $request->has('check_good_moral_trans'),
+                    'old_curriculum'             => $request->has('check_curriculum'),
+                    'cross_enroll_permit'        => $request->has('check_permit')
+                ];
+            }
 
             $student->save();
 
+            $folderWarning = null;
+            try {
+                if (!Storage::disk('local')->makeDirectory("student_records/{$student->student_id}")) {
+                    throw new \RuntimeException('makeDirectory() returned false (check folder permissions on storage/app/private).');
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("student_records folder was not created for {$student->student_id}: " . $e->getMessage());
+                $folderWarning = "The student was registered, but the records folder could not be created. It will be created automatically on the first document upload. Check storage/logs/laravel.log for details.";
+            }
+
             return redirect()->back()->with([
-                'success' => 'Student registration successful!',
-                'student_id' => $generatedStudentId
+                'success' => $existing ? 'Student re-enrollment successful!' : 'Student registration successful!',
+                'student_id' => $generatedStudentId,
+                'folder_warning' => $folderWarning,
             ]);
 
         } catch (\Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Database Error: ' . $e->getMessage());
         }
+    }
+
+    public function searchStudentsJson(Request $request)
+    {
+        $query = trim($request->input('q', ''));
+        if ($query === '') {
+            return response()->json(['status' => 'success', 'students' => []]);
+        }
+
+        $like = "%{$query}%";
+
+        $students = Student::where(function ($q) use ($like) {
+                $q->where('student_id', 'like', $like)
+                  ->orWhere('first_name', 'like', $like)
+                  ->orWhere('last_name', 'like', $like)
+                  // works for "Mark Cruz", "Cruz Mark" and "Cruz, Mark"
+                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$like])
+                  ->orWhereRaw("CONCAT(last_name, ' ', first_name) LIKE ?", [$like])
+                  ->orWhereRaw("CONCAT(last_name, ', ', first_name) LIKE ?", [$like]);
+            })
+            ->orderBy('last_name')
+            ->limit(10)
+            ->get(['id', 'student_id', 'last_name', 'first_name', 'middle_name']);
+
+        return response()->json([
+            'status' => 'success',
+            'students' => $students
+        ]);
+    }
+
+    public function getStudentJson($student_id)
+    {
+        $student = Student::where('student_id', $student_id)->first();
+
+        if (!$student) {
+            return response()->json(['status' => 'error', 'message' => 'Student not found.'], 404);
+        }
+
+        $data = $student->toArray();
+
+        // <input type="date"> only accepts Y-m-d
+        $data['date_of_birth'] = $student->date_of_birth
+            ? \Carbon\Carbon::parse($student->date_of_birth)->format('Y-m-d')
+            : null;
+
+        // School history: older rows store plain text ("ADT Montessori School"),
+        // newer rows may store a JSON array. Normalize both into arrays.
+        foreach (['elementary', 'junior_hs', 'senior_hs', 'vocational'] as $level) {
+            foreach (['name', 'address', 'year'] as $field) {
+                $key = "{$level}_school_{$field}";
+                $data[$key] = $this->normalizeSchoolValue($student->getAttributes()[$key] ?? null);
+            }
+        }
+
+        $docInfo = $this->buildDocumentList($student);
+        $data['documents'] = $docInfo['documents'];
+        $data['documents_uploaded'] = $docInfo['uploaded'];
+
+        return response()->json(['status' => 'success', 'student' => $data]);
+    }
+
+    /**
+     * Turns a raw school column value into an array of strings.
+     * - null / empty            => []
+     * - JSON array string       => decoded array
+     * - plain text (or a number like 2017) => [that text]
+     */
+    private function normalizeSchoolValue($raw): array
+    {
+        if (is_array($raw)) {
+            return array_values(array_map('strval', $raw));
+        }
+
+        if ($raw === null || trim((string) $raw) === '') {
+            return [];
+        }
+
+        $decoded = json_decode((string) $raw, true);
+        if (is_array($decoded)) {
+            return array_values(array_map('strval', $decoded));
+        }
+
+        return [trim((string) $raw)];
+    }
+
+    /**
+     * Same document rules as the registrar's student profile page:
+     * required docs per student type, plus any other file already on record.
+     */
+    private function buildDocumentList(Student $student): array
+    {
+        $catalog = [
+            'psa'              => ['label' => 'PSA Birth Certificate',       'col' => 'path_psa'],
+            '2x2'              => ['label' => '2x2 ID Picture',              'col' => 'path_2x2'],
+            'f138'             => ['label' => 'Form 138 (Report Card)',      'col' => 'path_f138'],
+            'good_moral_new'   => ['label' => 'Good Moral Certificate',      'col' => 'path_good_moral_new'],
+            'diploma'          => ['label' => 'High School Diploma',         'col' => 'path_diploma'],
+            'tor'              => ['label' => 'Transcript of Records (TOR)', 'col' => 'path_tor'],
+            'dismissal'        => ['label' => 'Honorable Dismissal',         'col' => 'path_dismissal'],
+            'good_moral_trans' => ['label' => 'Good Moral Certificate',      'col' => 'path_good_moral_trans'],
+            'permit'           => ['label' => 'Cross-Enrollment Permit',     'col' => 'path_permit'],
+            'curriculum'       => ['label' => 'Old Curriculum',              'col' => 'path_curriculum'],
+        ];
+
+        $requiredByType = [
+            'new'            => ['psa', '2x2', 'f138', 'good_moral_new', 'diploma'],
+            'transferee'     => ['psa', '2x2', 'tor', 'dismissal', 'good_moral_trans'],
+            'cross-enrollee' => ['psa', '2x2', 'permit'],
+            'old'            => [],
+        ];
+
+        $typeKey = strtolower(trim((string) $student->student_type));
+        $requiredKeys = $requiredByType[$typeKey] ?? [];
+        $shownKeys = $requiredKeys;
+
+        foreach ($catalog as $key => $doc) {
+            if (!in_array($key, $shownKeys, true) && !empty($student->{$doc['col']})) {
+                $shownKeys[] = $key;
+            }
+        }
+
+        $documents = [];
+        $uploaded = 0;
+        foreach ($shownKeys as $key) {
+            $file = $student->{$catalog[$key]['col']};
+            if (!empty($file)) {
+                $uploaded++;
+            }
+            $documents[] = [
+                'label'    => $catalog[$key]['label'],
+                'filename' => $file ?: null,
+                'required' => in_array($key, $requiredKeys, true),
+            ];
+        }
+
+        return ['documents' => $documents, 'uploaded' => $uploaded];
     }
 
     public function manageStudents(Request $request)
@@ -283,6 +449,17 @@ class RegistrarController extends Controller
         $student->save();
 
         return redirect()->back()->with('Success', "Student documents updated successfully for ID: {$student->student_id}");
+    }
+
+    public function secureViewFile($student_id, $filename)
+    {
+        $path = 'student_records/' . basename($student_id) . '/' . basename($filename);
+
+        if (!Storage::disk('local')->exists($path)) {
+            abort(404, 'File not found.');
+        }
+
+        return Storage::disk('local')->response($path);
     }
 
     public function destroyStudent($student_id)

@@ -1,30 +1,32 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="admin-container">
-    <div class="admin-header">
-        <div class="header-titles">
-            <h2>Faculty Management</h2>
-            <p>Manage faculty accounts, assignments, and roster information.</p>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<div class="rg-page">
+    <header class="rg-header">
+        <div>
+            <h2 class="rg-title">Faculty Management</h2>
+            <p class="rg-subtitle">Manage faculty accounts, assignments, and roster information.</p>
         </div>
-    </div>
+    </header>
 
     @if(session('success'))
-        <div class="admin-alert-success">
-            <i class="fas fa-check-circle"></i> {{ session('success') }}
+        <div class="rg-alert rg-alert-success" role="status">
+            <i class="fas fa-check-circle"></i> <span>{{ session('success') }}</span>
         </div>
     @endif
 
     @if(isset($errors) && count($errors) > 0)
-        <div class="admin-alert-danger" style="align-items: flex-start;">
-            <i class="fas fa-exclamation-circle" style="margin-top: 3px;"></i>
+        <div class="rg-alert rg-alert-error" role="alert">
+            <i class="fas fa-exclamation-circle"></i>
             <div>
-                <strong>Unable to process request:</strong>
-                <ul style="margin: 4px 0 0 0; padding-left: 20px;">
+                <strong style="display:block; margin-bottom: 4px;">Unable to process request:</strong>
+                <ul style="margin: 0; padding-left: 20px;">
                     @php
-                        $allErrors = $errors->all();
+                        $allErrors =$errors->all();
                     @endphp
-                    @for($i = 0; $i < count($allErrors); $i++)
+                    @for($i = 0; $i < count($allErrors);$i++)
                         <li>{{ $allErrors[$i] }}</li>
                     @endfor
                 </ul>
@@ -32,16 +34,16 @@
         </div>
     @endif
 
-    <div id="js-alert-error" class="admin-alert-danger" style="display: none; align-items: flex-start; gap: 10px;">
-        <i class="fas fa-exclamation-triangle" style="margin-top: 3px;"></i>
+    <div id="js-alert-error" class="rg-alert rg-alert-error" role="alert" style="display: none;">
+        <i class="fas fa-exclamation-triangle"></i>
         <div>
-            <strong>Unable to process request:</strong>
-            <ul id="js-alert-list" style="margin: 4px 0 0 0; padding-left: 20px;"></ul>
+            <strong style="display:block; margin-bottom: 4px;">Unable to process request:</strong>
+            <ul id="js-alert-list" style="margin: 0; padding-left: 20px;"></ul>
         </div>
     </div>
 
     <div class="admin-workspace">
-        <div class="admin-card form-panel">
+        <div class="rg-card form-panel">
             <div class="card-bar">
                 <span id="form-panel-title"><i class="fas fa-user-plus"></i> Add Faculty Member</span>
             </div>
@@ -59,125 +61,113 @@
 
                 <div class="form-group">
                     <label>First Name <span id="star_first_name" class="required-star">*</span></label>
-                    <input type="text" name="first_name" id="first_name" placeholder="Please put the first name" value="{{ old('first_name') }}" required>
+                    <input type="text" name="first_name" id="first_name" class="rg-input" placeholder="Please put the first name" value="{{ old('first_name') }}" required>
                 </div>
+                
                 <div class="form-group">
                     <label>Last Name <span id="star_last_name" class="required-star">*</span></label>
-                    <input type="text" name="last_name" id="last_name" placeholder="Please put the last name" value="{{ old('last_name') }}" required>
+                    <input type="text" name="last_name" id="last_name" class="rg-input" placeholder="Please put the last name" value="{{ old('last_name') }}" required>
                 </div>
+                
                 <div class="form-grid-2">
                     <div class="form-group">
-                        <label>Middle Name (Optional)</label>
-                        <input type="text" name="middle_name" id="middle_name" placeholder="Middle name" value="{{ old('middle_name') }}">
+                        <label>Middle Name <small style="color:var(--rg-muted); text-transform:none; font-weight:normal;">(Optional)</small></label>
+                        <input type="text" name="middle_name" id="middle_name" class="rg-input" placeholder="Middle name" value="{{ old('middle_name') }}">
                     </div>
                     <div class="form-group">
                         <label>Sex <span id="star_sex" class="required-star">*</span></label>
-                        <div class="custom-select-wrapper" id="wrapper_sex">
-                            <select name="sex" id="sex" class="custom-select-dropdown" required>
-                                <option value="" disabled {{ old('sex') ? '' : 'selected' }} hidden>Select Sex</option>
-                                <option value="Male" {{ old('sex') == 'Male' ? 'selected' : '' }}>Male</option>
-                                <option value="Female" {{ old('sex') == 'Female' ? 'selected' : '' }}>Female</option>
-                            </select>
-                        </div>
+                        <select name="sex" id="sex" class="rg-select" required>
+                            <option value="" disabled {{ old('sex') ? '' : 'selected' }} hidden>Select Sex</option>
+                            <option value="Male" {{ old('sex') == 'Male' ? 'selected' : '' }}>Male</option>
+                            <option value="Female" {{ old('sex') == 'Female' ? 'selected' : '' }}>Female</option>
+                        </select>
                     </div>
                 </div>
+                
                 <div class="form-group">
                     <label>Assigned Academic Department <span class="required-star">*</span></label>
-                    <div class="custom-select-wrapper">
-                        <select name="department" id="department" class="custom-select-dropdown" required>
-                            <option value="College of Computer Studies" {{ old('department') == 'College of Computer Studies' ? 'selected' : '' }}>College of Computer Studies</option>
-                        </select>
-                    </div>
+                    <select name="department" id="department" class="rg-select" required>
+                        <option value="College of Computer Studies" {{ old('department') == 'College of Computer Studies' ? 'selected' : '' }}>College of Computer Studies</option>
+                    </select>
                 </div>
+                
                 <div class="form-group">
-                    <label>Faculty Role / Academic Position <span class="required-star">*</span></label>
-                    <div class="custom-select-wrapper">
-                        <select name="role" id="role" class="custom-select-dropdown" required>
-                            <option value="" disabled {{ old('role') ? '' : 'selected' }} hidden>Select Position</option>
-                            <option value="dean" {{ old('role') == 'dean' ? 'selected' : '' }}>Dean</option>
-                            <option value="dept_sec" {{ old('role') == 'dept_sec' ? 'selected' : '' }}>Department Secretary</option>
-                            <option value="professor" {{ old('role') == 'professor' ? 'selected' : '' }}>Professor</option>
-                        </select>
-                    </div>
+                    <label>Faculty Role / Position <span class="required-star">*</span></label>
+                    <select name="role" id="role" class="rg-select" required>
+                        <option value="" disabled {{ old('role') ? '' : 'selected' }} hidden>Select Position</option>
+                        <option value="dean" {{ old('role') == 'dean' ? 'selected' : '' }}>Dean</option>
+                        <option value="dept_sec" {{ old('role') == 'dept_sec' ? 'selected' : '' }}>Department Secretary</option>
+                        <option value="professor" {{ old('role') == 'professor' ? 'selected' : '' }}>Professor</option>
+                    </select>
                 </div>
+                
                 <div class="form-group">
                     <label>Personal Email <span id="star_email" class="required-star">*</span></label>
-                    <input type="email" name="email" id="email" placeholder="Please put the personal email" value="{{ old('email') }}" required>
-                    <small class="field-help" id="email-help-text">A temporary default credential (Welcome@AU2026) will be generated automatically.</small>
+                    <input type="email" name="email" id="email" class="rg-input" placeholder="Please put the personal email" value="{{ old('email') }}" required>
                 </div>
                 
                 <div class="form-actions-bar">
-                    <button type="button" class="btn-clear" id="btn-reset-form" onclick="resetFacultyFormState()">Reset Form</button>
-                    <button type="submit" id="btn-submit-action" class="btn-deploy-faculty">Save Faculty Member</button>
+                    <button type="button" class="rg-btn rg-btn-ghost" id="btn-reset-form" onclick="resetFacultyFormState()">Reset</button>
+                    <button type="submit" id="btn-submit-action" class="rg-btn rg-btn-primary" style="flex: 1; justify-content: center;">Save Faculty Member</button>
                 </div>
             </form>
         </div>
 
-        <div class="admin-card table-panel">
-            <div class="card-header-flex">
-                <div class="card-title-container">
-                    <h3 class="card-title-list">Faculty Members Directory</h3>
-                </div>
-                <div class="header-controls-flex">
-                    <div class="custom-select-wrapper" style="width: 140px;">
-                        <select id="roleFilterSelect" class="form-select-custom" style="padding: 6px 30px 6px 12px; font-size: 12.5px;">
-                            <option value="">All Roles</option>
-                            <option value="dean">Dean</option>
-                            <option value="professor">Professor</option>
-                            <option value="department secretary">Department Secretary</option>
-                        </select>
-                    </div>
-
-                    <div class="table-search-box">
-                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
-                            <line x1="16.2" y1="16.2" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        <input type="text" id="adminFacultySearch" placeholder="Search by Name, ID, or Email...">
-                    </div>
-
-                    <span class="badge-count" id="facultyTotalCount">
-                        Total: {{ count($faculties) }}
-                    </span>
-                </div>
+        <div class="rg-card table-panel">
+            <div class="card-bar">
+                <span style="font-size: 15px;"><i class="fa-solid fa-folder-open" style="margin-right: 6px;"></i> Faculty Members Directory</span>
             </div>
 
-            <div class="table-responsive">
-                <table class="minimal-table" id="facultyTable">
+            <div class="rg-toolbar">
+                <div class="rg-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="adminFacultySearch" placeholder="Search by Name, ID, or Email...">
+                </div>
+
+                <div class="rg-filter" role="group" aria-label="Filter by role">
+                    <span class="rg-filter-label">Role</span>
+                    <button type="button" class="filter-pill active" data-role="">All</button>
+                    <button type="button" class="filter-pill" data-role="dean">Dean</button>
+                    <button type="button" class="filter-pill" data-role="professor">Professor</button>
+                    <button type="button" class="filter-pill" data-role="department secretary">Dept. Sec</button>
+                </div>
+
+                <span class="rg-result-count" id="facultyTotalCount">{{ count($faculties) }} faculties</span>
+            </div>
+
+            <div class="rg-table-wrap">
+                <table class="rg-table" id="facultyTable">
                     <thead>
                         <tr>
-                            <th>Faculty Identity Details</th>
-                            <th style="text-align: center;">Position / Role</th>
-                            <th style="text-align: center;">Status</th>
-                            <th style="text-align: center;">Actions</th>
+                            <th style="width: 38%;">Faculty Identity Details</th>
+                            <th class="rg-text-center" style="width: 25%;">Position / Role</th>
+                            <th class="rg-text-center" style="width: 15%;">Status</th>
+                            <th class="rg-text-center" style="width: 22%;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @if(count($faculties) > 0)
-                            @for($fIdx = 0; $fIdx < count($faculties);$fIdx++)
-                                @php
-                                    $faculty = $faculties[$fIdx];
-                                @endphp
+                            @foreach($faculties as $faculty)
                                 <tr class="faculty-row-item">
                                     <td>
-                                        <strong class="faculty-id-text search-target-id">{{ $faculty->employee_id }}</strong>
-                                        <br><span class="faculty-name-text search-target-name">{{ strtoupper($faculty->last_name) }}, {{ strtoupper($faculty->first_name) }}</span>
-                                        <br><small class="faculty-email-text search-target-email">{{ $faculty->email }}</small>
+                                        <div class="faculty-id-tag search-target-id">{{ $faculty->employee_id }}</div>
+                                        <strong style="color: var(--rg-blue-dark); text-transform: uppercase; display: block; margin-top: 6px;" class="search-target-name">{{ $faculty->last_name }}, {{$faculty->first_name }}</strong>
+                                        <div style="font-size: 12.5px; color: var(--rg-muted); margin-top: 2px;" class="search-target-email">{{ $faculty->email }}</div>
                                     </td>
-                                    <td style="text-align: center;">
-                                        <span class="rank-badge {{ $faculty->role }} search-target-role">
+                                    <td class="rg-text-center">
+                                        <span class="rg-chip role-chip-{{ $faculty->role }} search-target-role">
                                             {{ $faculty->role === 'dept_sec' ? 'Department Secretary' : ($faculty->role === 'dean' ? 'Dean' : 'Professor') }}
                                         </span>
                                     </td>
-                                    <td style="text-align: center;">
+                                    <td class="rg-text-center">
                                         <div class="status-indicator-center">
                                             <span class="pulse-dot-green"></span>
                                             <span class="status-label-text">Active</span>
                                         </div>
                                     </td>
-                                    <td style="text-align: center;">
+                                    <td class="rg-text-center">
                                         <div class="action-btn-group">
-                                            <button type="button" class="btn-action-edit btn-trigger-edit"
+                                            <button type="button" class="rg-btn-action rg-btn-action-ghost btn-trigger-edit"
                                                 data-id="{{ $faculty->id }}"
                                                 data-firstname="{{ $faculty->first_name }}"
                                                 data-lastname="{{ $faculty->last_name }}"
@@ -188,14 +178,14 @@
                                                 data-department="{{ $faculty->department }}">
                                                 Edit
                                             </button>
-                                            <button type="button" class="btn-action-delete"
+                                            <button type="button" class="rg-btn-action rg-btn-action-danger"
                                                 onclick="openDeleteFaculty({{ $faculty->id }}, '{{ strtoupper($faculty->last_name) }}, {{ strtoupper($faculty->first_name) }}')">
                                                 Delete
                                             </button>
                                         </div>
                                     </td>
                                 </tr>
-                            @endfor
+                            @endforeach
                         @else
                             <tr class="static-empty-row">
                                 <td colspan="4" class="empty-table-state">
@@ -204,8 +194,8 @@
                             </tr>
                         @endif
                         <tr id="facultyNoResults" style="display:none;">
-                            <td colspan="4" class="empty-table-state" style="text-align: center; color: #94a3b8; padding: 40px 0;">
-                                <i class="fas fa-database" style="font-size: 20px; display: block; margin-bottom: 8px;"></i>
+                            <td colspan="4" class="empty-table-state" style="text-align: center; color: var(--rg-muted); padding: 40px 0;">
+                                <i class="fas fa-database" style="font-size: 24px; display: block; margin-bottom: 8px; color: #cbd5e1;"></i>
                                 No faculty members match your search/filter query.
                             </td>
                         </tr>
@@ -216,367 +206,368 @@
     </div>
 </div>
 
-<div id="deleteFacultyModal" class="modal-overlay" style="display:none;">
-    <div class="modal-box modal-box-sm">
-        <div class="modal-header modal-header-danger">
+<div id="deleteFacultyModal" class="rg-modal-overlay" style="display:none;">
+    <div class="rg-modal-card" style="max-width: 420px;">
+        <div class="rg-modal-header" style="background: #FEF2F2; color: #DC2626; border-bottom: 1px solid #FECACA;">
             <h3><i class="fas fa-exclamation-triangle"></i> Confirm Deletion</h3>
-            <button class="modal-close" type="button" onclick="closeModal('deleteFacultyModal')">&times;</button>
+            <button type="button" class="rg-modal-close" onclick="closeModal('deleteFacultyModal')" style="color: #F87171;">&times;</button>
         </div>
-        <div class="modal-body-text">
-            <p>Are you sure you want to remove <strong id="deleteFacultyName"></strong> from the system? This action cannot be undone.</p>
+        <div class="rg-modal-body" style="padding: 24px;">
+            <p style="margin: 0 0 20px; font-size: 14px; line-height: 1.5; color: var(--rg-ink);">Are you sure you want to remove <strong id="deleteFacultyName"></strong> from the system? This action cannot be undone.</p>
+            <form id="deleteFacultyForm" method="POST">
+                @csrf
+                @method('DELETE')
+                <div style="display: flex; justify-content: flex-end; gap: 10px; padding-top: 16px; border-top: 1px solid var(--rg-line);">
+                    <button type="button" class="rg-btn rg-btn-ghost" onclick="closeModal('deleteFacultyModal')">Cancel</button>
+                    <button type="submit" class="rg-btn" style="background: #DC2626; color: #fff;">Yes, Remove</button>
+                </div>
+            </form>
         </div>
-        <form id="deleteFacultyForm" method="POST">
-            @csrf
-            @method('DELETE')
-            <div class="modal-actions">
-                <button type="button" class="btn-modal-cancel" onclick="closeModal('deleteFacultyModal')">Cancel</button>
-                <button type="submit" class="btn-modal-confirm-delete">Yes, Remove</button>
-            </div>
-        </form>
     </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const existingFacultyList = @js($faculties->map(fn($f) => [
-        'first_name' => strtolower($f->first_name),
-        'last_name'  => strtolower($f->last_name),
-        'email'      => strtolower($f->email),
-        'role'       => strtolower($f->role)
-    ]));
+    document.addEventListener('DOMContentLoaded', function () {
+        const existingFacultyList = @js($faculties->map(fn($f) => [
+            'first_name' => strtolower($f->first_name),
+            'last_name'  => strtolower($f->last_name),
+            'email'      => strtolower($f->email),
+            'role'       => strtolower($f->role)
+        ]));
 
-    const facultyForm = document.getElementById('faculty-form');
-    const submitBtn = document.getElementById('btn-submit-action');
-    const jsAlertError = document.getElementById('js-alert-error');
-    const jsAlertList = document.getElementById('js-alert-list');
+        const facultyForm = document.getElementById('faculty-form');
+        const submitBtn = document.getElementById('btn-submit-action');
+        const jsAlertError = document.getElementById('js-alert-error');
+        const jsAlertList = document.getElementById('js-alert-list');
 
-    if (facultyForm) {
-        facultyForm.addEventListener('submit', function (e) {
-            const facultyId = document.getElementById('form_faculty_id').value;
-            let errorMessages = [];
+        if (facultyForm) {
+            facultyForm.addEventListener('submit', function (e) {
+                const facultyId = document.getElementById('form_faculty_id').value;
+                let errorMessages = [];
 
-            if (!facultyId) {
-                const firstName = document.getElementById('first_name').value.trim();
-                const lastName = document.getElementById('last_name').value.trim();
-                const sex = document.getElementById('sex').value;
-                const email = document.getElementById('email').value.trim();
-                const department = document.getElementById('department').value;
-                const role = document.getElementById('role').value;
+                if (!facultyId) {
+                    const firstName = document.getElementById('first_name').value.trim();
+                    const lastName = document.getElementById('last_name').value.trim();
+                    const sex = document.getElementById('sex').value;
+                    const email = document.getElementById('email').value.trim();
+                    const department = document.getElementById('department').value;
+                    const role = document.getElementById('role').value;
 
-                if (!firstName || !lastName || !sex || !department || !role || !email) {
-                    errorMessages.push('Please fill out all required fields before submitting.');
+                    if (!firstName || !lastName || !sex || !department || !role || !email) {
+                        errorMessages.push('Please fill out all required fields before submitting.');
+                    } else {
+                        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        if (!emailPattern.test(email)) {
+                            errorMessages.push('Please enter a valid email address.');
+                        }
+                        const emailLower = email.toLowerCase();
+                        if (existingFacultyList.some(f => f.email === emailLower)) {
+                            errorMessages.push('This email address is already registered in the system.');
+                        }
+                    }
                 } else {
-                    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    if (!emailPattern.test(email)) {
-                        errorMessages.push('Please enter a valid email address.');
-                    }
-                    const emailLower = email.toLowerCase();
-                    if (existingFacultyList.some(f => f.email === emailLower)) {
-                        errorMessages.push('This email address is already registered in the system.');
+                    const department = document.getElementById('department').value;
+                    const role = document.getElementById('role').value;
+                    if (!department || !role) {
+                        errorMessages.push('Please select a department and role.');
                     }
                 }
-            } else {
-                const department = document.getElementById('department').value;
-                const role = document.getElementById('role').value;
-                if (!department || !role) {
-                    errorMessages.push('Please select a department and role.');
+
+                if (jsAlertError) jsAlertError.style.display = 'none';
+
+                if (errorMessages.length > 0) {
+                    e.preventDefault();
+                    showJsErrors(errorMessages);
+                    return false;
                 }
-            }
-
-            if (jsAlertError) jsAlertError.style.display = 'none';
-
-            if (errorMessages.length > 0) {
-                e.preventDefault();
-                showJsErrors(errorMessages);
-                return false;
-            }
-        });
-    }
-
-    function showJsErrors(messages) {
-        if (jsAlertError && jsAlertList) {
-            jsAlertList.innerHTML = '';
-            messages.forEach(msg => {
-                const li = document.createElement('li');
-                li.textContent = msg;
-                jsAlertList.appendChild(li);
             });
-            jsAlertError.style.display = 'flex';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-    }
 
-    // Trigger Edit from Table row to Form Panel
-    const editButtons = document.querySelectorAll('.btn-trigger-edit');
-    editButtons.forEach(button => {
-        button.addEventListener('click', function () {
-            const id = this.getAttribute('data-id');
-            const firstName = this.getAttribute('data-firstname');
-            const lastName = this.getAttribute('data-lastname');
-            const middleName = this.getAttribute('data-middlename');
-            const sex = this.getAttribute('data-sex');
-            const email = this.getAttribute('data-email');
-            const role = this.getAttribute('data-role');
-            const department = this.getAttribute('data-department');
-
-            document.getElementById('form_faculty_id').value = id;
-            
-            // Fill values
-            document.getElementById('first_name').value = firstName;
-            document.getElementById('last_name').value = lastName;
-            document.getElementById('middle_name').value = middleName && middleName !== 'null' ? middleName : '';
-            document.getElementById('sex').value = sex;
-            document.getElementById('email').value = email;
-            document.getElementById('department').value = department;
-            document.getElementById('role').value = role;
-
-            // Fill hidden inputs
-            document.getElementById('hidden_first_name').value = firstName;
-            document.getElementById('hidden_last_name').value = lastName;
-            document.getElementById('hidden_middle_name').value = middleName && middleName !== 'null' ? middleName : '';
-            document.getElementById('hidden_sex').value = sex;
-            document.getElementById('hidden_email').value = email;
-
-            // Make fields Readonly/Disabled
-            document.getElementById('first_name').setAttribute('readonly', true);
-            document.getElementById('last_name').setAttribute('readonly', true);
-            document.getElementById('middle_name').setAttribute('readonly', true);
-            document.getElementById('sex').setAttribute('disabled', true);
-            document.getElementById('email').setAttribute('readonly', true);
-
-            // Add visual readonly styling class
-            document.getElementById('first_name').classList.add('readonly-input');
-            document.getElementById('last_name').classList.add('readonly-input');
-            document.getElementById('middle_name').classList.add('readonly-input');
-            document.getElementById('sex').classList.add('readonly-input');
-            document.getElementById('wrapper_sex').classList.add('readonly-wrapper');
-            document.getElementById('email').classList.add('readonly-input');
-
-            // Hide required stars for readonly fields
-            document.getElementById('star_first_name').style.display = 'none';
-            document.getElementById('star_last_name').style.display = 'none';
-            document.getElementById('star_sex').style.display = 'none';
-            document.getElementById('star_email').style.display = 'none';
-
-            // Update Form Action Route
-            facultyForm.action = `/system_admin/manage-faculty/${id}`;
-            document.getElementById('form_method').value = 'PATCH';
-
-            // Change UI headers and button text
-            document.getElementById('form-panel-title').innerHTML = '<i class="fas fa-user-edit"></i> Edit Faculty Member';
-            document.getElementById('email-help-text').textContent = 'Identity details are locked and cannot be modified.';
-            submitBtn.innerText = "Update Faculty Member";
-            submitBtn.style.backgroundColor = "#dc2626";
-
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-    });
-
-    // Search & Role Filtering logic
-    const searchInput = document.getElementById('adminFacultySearch');
-    const roleFilterSelect = document.getElementById('roleFilterSelect');
-    const tableRows = document.querySelectorAll('.faculty-row-item');
-    const noResults = document.getElementById('facultyNoResults');
-    const totalCountBadge = document.getElementById('facultyTotalCount');
-    const initialTotal = tableRows.length;
-
-    function filterFacultyTable() {
-        const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
-        const selectedRole = roleFilterSelect ? roleFilterSelect.value.toLowerCase().trim() : '';
-        let visibleCount = 0;
-
-        tableRows.forEach(row => {
-            const empId = row.querySelector('.search-target-id').textContent.toLowerCase();
-            const name = row.querySelector('.search-target-name').textContent.toLowerCase();
-            const email = row.querySelector('.search-target-email').textContent.toLowerCase();
-            const role = row.querySelector('.search-target-role').textContent.toLowerCase().trim();
-
-            const matchesRole = (selectedRole === '' || role === selectedRole);
-            const matchesSearch = (empId.includes(query) || name.includes(query) || email.includes(query) || role.includes(query));
-
-            if (matchesRole && matchesSearch) {
-                row.style.display = '';
-                visibleCount++;
-            } else {
-                row.style.display = 'none';
+        function showJsErrors(messages) {
+            if (jsAlertError && jsAlertList) {
+                jsAlertList.innerHTML = '';
+                messages.forEach(msg => {
+                    const li = document.createElement('li');
+                    li.textContent = msg;
+                    jsAlertList.appendChild(li);
+                });
+                jsAlertError.style.display = 'flex';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
+        }
+
+        const editButtons = document.querySelectorAll('.btn-trigger-edit');
+        editButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.getAttribute('data-id');
+                const firstName = this.getAttribute('data-firstname');
+                const lastName = this.getAttribute('data-lastname');
+                const middleName = this.getAttribute('data-middlename');
+                const sex = this.getAttribute('data-sex');
+                const email = this.getAttribute('data-email');
+                const role = this.getAttribute('data-role');
+                const department = this.getAttribute('data-department');
+
+                document.getElementById('form_faculty_id').value = id;
+                
+                document.getElementById('first_name').value = firstName;
+                document.getElementById('last_name').value = lastName;
+                document.getElementById('middle_name').value = middleName && middleName !== 'null' ? middleName : '';
+                document.getElementById('sex').value = sex;
+                document.getElementById('email').value = email;
+                document.getElementById('department').value = department;
+                document.getElementById('role').value = role;
+
+                document.getElementById('hidden_first_name').value = firstName;
+                document.getElementById('hidden_last_name').value = lastName;
+                document.getElementById('hidden_middle_name').value = middleName && middleName !== 'null' ? middleName : '';
+                document.getElementById('hidden_sex').value = sex;
+                document.getElementById('hidden_email').value = email;
+
+                document.getElementById('first_name').setAttribute('readonly', true);
+                document.getElementById('last_name').setAttribute('readonly', true);
+                document.getElementById('middle_name').setAttribute('readonly', true);
+                document.getElementById('sex').setAttribute('disabled', true);
+                document.getElementById('email').setAttribute('readonly', true);
+
+                document.getElementById('first_name').classList.add('readonly-input');
+                document.getElementById('last_name').classList.add('readonly-input');
+                document.getElementById('middle_name').classList.add('readonly-input');
+                document.getElementById('sex').classList.add('readonly-input');
+                document.getElementById('email').classList.add('readonly-input');
+
+                document.getElementById('star_first_name').style.display = 'none';
+                document.getElementById('star_last_name').style.display = 'none';
+                document.getElementById('star_sex').style.display = 'none';
+                document.getElementById('star_email').style.display = 'none';
+
+                facultyForm.action = `/system_admin/manage-faculty/${id}`;
+                document.getElementById('form_method').value = 'PATCH';
+
+                document.getElementById('form-panel-title').innerHTML = '<i class="fas fa-user-edit"></i> Edit Faculty Member';
+                submitBtn.innerText = "Update Faculty Member";
+
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
         });
 
-        if (totalCountBadge) {
-            totalCountBadge.textContent = (query === '' && selectedRole === '') ? `Total: ${initialTotal}` : `Total: ${visibleCount}`;
+        const searchInput = document.getElementById('adminFacultySearch');
+        const filterPills = document.querySelectorAll('.filter-pill');
+        const tableRows = document.querySelectorAll('.faculty-row-item');
+        const noResults = document.getElementById('facultyNoResults');
+        const totalCountBadge = document.getElementById('facultyTotalCount');
+        const initialTotal = tableRows.length;
+        let currentRoleFilter = '';
+
+        filterPills.forEach(pill => {
+            pill.addEventListener('click', function() {
+                filterPills.forEach(p => p.classList.remove('active'));
+                this.classList.add('active');
+                currentRoleFilter = this.getAttribute('data-role');
+                filterFacultyTable();
+            });
+        });
+
+        function filterFacultyTable() {
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            const selectedRole = currentRoleFilter.toLowerCase().trim();
+            let visibleCount = 0;
+
+            tableRows.forEach(row => {
+                const empId = row.querySelector('.search-target-id').textContent.toLowerCase();
+                const name = row.querySelector('.search-target-name').textContent.toLowerCase();
+                const email = row.querySelector('.search-target-email').textContent.toLowerCase();
+                const role = row.querySelector('.search-target-role').textContent.toLowerCase().trim();
+
+                const matchesRole = (selectedRole === '' || role === selectedRole || (selectedRole === 'department secretary' && role === 'department secretary'));
+                const matchesSearch = (empId.includes(query) || name.includes(query) || email.includes(query) || role.includes(query));
+
+                if (matchesRole && matchesSearch) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            if (totalCountBadge) {
+                totalCountBadge.textContent = visibleCount + (visibleCount <= 1 ? ' faculty' : ' faculties');
+            }
+
+            if (noResults) {
+                noResults.style.display = (visibleCount === 0 && initialTotal > 0) ? 'table-row' : 'none';
+            }
         }
 
-        if (noResults) {
-            noResults.style.display = (visibleCount === 0 && initialTotal > 0) ? 'table-row' : 'none';
-        }
+        if (searchInput) searchInput.addEventListener('input', filterFacultyTable);
+    });
+
+    function resetFacultyFormState() {
+        const facultyForm = document.getElementById('faculty-form');
+        const submitBtn = document.getElementById('btn-submit-action');
+
+        facultyForm.reset();
+
+        document.getElementById('form_faculty_id').value = '';
+        document.getElementById('form_method').value = '';
+        facultyForm.action = "{{ route('system_admin.manage-faculty.store') }}";
+
+        document.getElementById('first_name').removeAttribute('readonly');
+        document.getElementById('last_name').removeAttribute('readonly');
+        document.getElementById('middle_name').removeAttribute('readonly');
+        document.getElementById('sex').removeAttribute('disabled');
+        document.getElementById('email').removeAttribute('readonly');
+
+        document.getElementById('first_name').classList.remove('readonly-input');
+        document.getElementById('last_name').classList.remove('readonly-input');
+        document.getElementById('middle_name').classList.remove('readonly-input');
+        document.getElementById('sex').classList.remove('readonly-input');
+        document.getElementById('email').classList.remove('readonly-input');
+
+        document.getElementById('star_first_name').style.display = '';
+        document.getElementById('star_last_name').style.display = '';
+        document.getElementById('star_sex').style.display = '';
+        document.getElementById('star_email').style.display = '';
+
+        document.getElementById('form-panel-title').innerHTML = '<i class="fas fa-user-plus"></i> Add Faculty Member';
+        submitBtn.innerText = "Save Faculty Member";
+        submitBtn.style.backgroundColor = "var(--rg-blue)";
     }
 
-    if (searchInput) searchInput.addEventListener('input', filterFacultyTable);
-    if (roleFilterSelect) roleFilterSelect.addEventListener('change', filterFacultyTable);
-});
+    function openDeleteFaculty(id, name) {
+        document.getElementById('deleteFacultyName').textContent = name;
+        
+        let deleteUrl = "{{ route('system_admin.manage-faculty.destroy', ':id') }}";
+        deleteUrl = deleteUrl.replace(':id', id);
 
-function resetFacultyFormState() {
-    const facultyForm = document.getElementById('faculty-form');
-    const submitBtn = document.getElementById('btn-submit-action');
+        document.getElementById('deleteFacultyForm').action = deleteUrl;
+        document.getElementById('deleteFacultyModal').style.display = 'flex';
+    }
 
-    facultyForm.reset();
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
 
-    document.getElementById('form_faculty_id').value = '';
-    document.getElementById('form_method').value = '';
-    facultyForm.action = "{{ route('system_admin.manage-faculty.store') }}";
-
-    // Remove Readonly attributes
-    document.getElementById('first_name').removeAttribute('readonly');
-    document.getElementById('last_name').removeAttribute('readonly');
-    document.getElementById('middle_name').removeAttribute('readonly');
-    document.getElementById('sex').removeAttribute('disabled');
-    document.getElementById('email').removeAttribute('readonly');
-
-    // Remove visual readonly styling
-    document.getElementById('first_name').classList.remove('readonly-input');
-    document.getElementById('last_name').classList.remove('readonly-input');
-    document.getElementById('middle_name').classList.remove('readonly-input');
-    document.getElementById('sex').classList.remove('readonly-input');
-    document.getElementById('wrapper_sex').classList.remove('readonly-wrapper');
-    document.getElementById('email').classList.remove('readonly-input');
-
-    // Restore required stars
-    document.getElementById('star_first_name').style.display = '';
-    document.getElementById('star_last_name').style.display = '';
-    document.getElementById('star_sex').style.display = '';
-    document.getElementById('star_email').style.display = '';
-
-    document.getElementById('form-panel-title').innerHTML = '<i class="fas fa-user-plus"></i> Add Faculty Member';
-    document.getElementById('email-help-text').textContent = 'A temporary default credential (Welcome@AU2026) will be generated automatically.';
-    submitBtn.innerText = "Save Faculty Member";
-    submitBtn.style.backgroundColor = "#1e2a5a";
-}
-
-function openDeleteFaculty(id, name) {
-    document.getElementById('deleteFacultyName').textContent = name;
-    
-    let deleteUrl = "{{ route('system_admin.manage-faculty.destroy', ':id') }}";
-    deleteUrl = deleteUrl.replace(':id', id);
-
-    document.getElementById('deleteFacultyForm').action = deleteUrl;
-    document.getElementById('deleteFacultyModal').style.display = 'flex';
-}
-
-function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
-}
-
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', function(e) {
-        if (e.target === this) closeModal(this.id);
+    document.querySelectorAll('.rg-modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === this) closeModal(this.id);
+        });
     });
-});
 </script>
 
 <style>
-    .admin-container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #0f172a; max-width: 1350px; margin: 0 auto; padding: 20px 24px; }
-    .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; }
-    .header-titles h2 { margin: 0 0 4px 0; font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
-    .header-titles p { margin: 0; font-size: 14px; color: #64748b; }
+    .rg-page {
+        --rg-blue: #0033A0; --rg-blue-dark: #0A1F5C; --rg-blue-tint: #EAF0FF; --rg-gold: #F2B705;
+        --rg-ink: #0B1B3A; --rg-muted: #5C6B8A; --rg-line: #E2E8F3; --rg-surface: #F7F9FD;
+        --rg-green: #15803D; --rg-green-tint: #E8F7EE; --rg-red: #C62828;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: var(--rg-ink);
+        max-width: 1400px; margin: 0 auto; padding: 24px 20px 40px;
+    }
 
-    .required-star { color: #dc2626; font-weight: 700; }
+    .rg-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; padding-bottom: 18px; margin-bottom: 24px; border-bottom: 1px solid var(--rg-line); }
+    .rg-title { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.2px; color: var(--rg-blue-dark); }
+    .rg-subtitle { margin: 8px 0 0; font-size: 14px; color: var(--rg-muted); }
+
+    .rg-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; font-weight: 600; line-height: 1.45; }
+    .rg-alert i { margin-top: 2px; }
+    .rg-alert-success { background: var(--rg-green-tint); color: #14532D; border: 1px solid #BFE8CE; border-left: 4px solid var(--rg-green); }
+    .rg-alert-error { background: #FDECEC; color: #8E1B1B; border: 1px solid #F5C6C6; border-left: 4px solid var(--rg-red); }
+
+    .rg-card { background: #fff; border: 1px solid var(--rg-line); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(10, 31, 92, 0.05); }
+    .card-bar { background: var(--rg-surface); padding: 16px 20px; font-weight: 700; font-size: 14.5px; color: var(--rg-blue-dark); border-bottom: 1px solid var(--rg-line); display: flex; align-items: center; gap: 8px; }
 
     .admin-workspace { display: flex; flex-direction: row; gap: 24px; align-items: flex-start; justify-content: space-between; width: 100%; }
-    .form-panel { flex: 0 0 380px; background: #ffffff; }
-    .table-panel { flex: 1; background: #ffffff; min-width: 0; }
+    .form-panel { flex: 0 0 380px; width: 380px; }
+    .table-panel { flex: 1; min-width: 0; }
 
-    .admin-card { border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px -2px rgba(0,0,0,0.03); overflow: hidden; transition: .2s ease; }
-    .card-bar { background: #f8fafc; padding: 16px 20px; font-weight: 700; font-size: 14.5px; color: #1e293b; border-bottom: 1px solid #e2e8f0; }
-    .card-header-flex { background-color: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
-    .card-title-container { display: flex; align-items: center; gap: 12px; }
-    .card-title-list { font-size: 14.5px; font-weight: 700; color: #1e293b; margin: 0; }
-    .header-controls-flex { display: flex; align-items: center; gap: 12px; }
-
-    /* EXACT SEARCH BOX & ICON STYLING FROM CURRICULUM MANAGEMENT */
-    .table-search-box { position: relative; display: flex; align-items: center; }
-    .table-search-box input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px 6px 32px; font-size: 12.5px; color: #0f172a; outline: none; background: #ffffff; width: 220px; transition: all 0.2s ease; font-weight: 500; box-sizing: border-box; }
-    .table-search-box input:focus { border-color: #1e2a5a; width: 250px; box-shadow: 0 0 0 3px rgba(30, 42, 90, 0.08); }
-    .table-search-box .search-icon { position: absolute; left: 12px; color: #94a3b8; width: 14px; height: 14px; pointer-events: none; }
+    @media (max-width: 1024px) {
+        .admin-workspace { flex-direction: column; }
+        .form-panel { flex: none; width: 100%; }
+    }
 
     .pure-form { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
-    .form-group label { font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.3px; }
-    .form-group input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 14px; color: #0f172a; outline: none; background: #ffffff; box-sizing: border-box; width: 100%; }
-    .form-group input:focus { border-color: #1e2a5a; box-shadow: 0 0 0 3px rgba(30, 42, 90, 0.08); }
+    .form-group label { font-size: 12px; font-weight: 700; color: var(--rg-muted); text-transform: uppercase; letter-spacing: 0.3px; }
     .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .field-help { font-size: 11px; color: #64748b; margin-top: 2px; }
-
-    .form-actions-bar { display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 16px; }
-    .btn-deploy-faculty { 
-        background: #1e2a5a; 
-        color: #ffffff; 
-        border: none; 
-        padding: 12px 20px; 
-        font-size: 14px; 
-        font-weight: 700; 
-        border-radius: 6px; 
-        cursor: pointer; 
-        flex: 1; 
-        transition: background 0.2s; 
+    
+    .required-star { color: var(--rg-red); }
+    
+    .rg-input, .rg-select {
+        width: 100%; box-sizing: border-box; height: 40px; padding: 0 14px;
+        font-size: 14px; font-weight: 500; color: var(--rg-ink); background: #fff;
+        border: 1px solid #CBD5E6; border-radius: 6px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .btn-deploy-faculty:hover { background: #152238; }
-    .btn-clear { background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 12px 16px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; }
-    .btn-clear:hover { background: #f8fafc; }
+    .rg-input:focus, .rg-select:focus { border-color: var(--rg-blue); box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.14); }
+    .rg-select {
+        padding-right: 36px; appearance: none; -webkit-appearance: none; cursor: pointer;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%235C6B8A'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 12px center; background-size: 16px;
+    }
+    .readonly-input { background-color: var(--rg-surface) !important; color: var(--rg-muted) !important; cursor: not-allowed !important; user-select: none; }
 
-    .table-responsive { width: 100%; overflow-x: auto; }
-    .minimal-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px; }
-    .minimal-table th { background: #f8fafc; padding: 14px 16px; font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
-    .minimal-table td { padding: 15px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
-    .minimal-table tbody tr:hover { background-color: #f8fafc; }
+    .form-actions-bar { display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px; border-top: 1px solid var(--rg-line); padding-top: 20px; }
+    
+    .rg-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 18px; border-radius: 6px; font-size: 13.5px; font-weight: 700; text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: background .15s, color .15s, border-color .15s; white-space: nowrap; line-height: 1.2; }
+    .rg-btn-primary { 
+        background: var(--rg-blue); 
+        color: #fff; 
+    }
+    .rg-btn-primary:hover { 
+        background: var(--rg-blue-dark); 
+        color: #fff; 
+    }
+    .rg-btn-ghost { background: transparent; color: var(--rg-muted); border-color: #CBD5E6; }
+    .rg-btn-ghost:hover { background: var(--rg-surface); color: var(--rg-ink); }
 
-    .faculty-id-text { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; color: #0f172a; font-size: 13px; }
-    .faculty-name-text { font-weight: 700; color: #0f172a; font-size: 14px; }
-    .faculty-email-text { color: #64748b; font-size: 12px; }
+    .rg-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; padding: 14px 20px; border-bottom: 1px solid var(--rg-line); background: #fff; }
+    
+    .rg-search { position: relative; flex: 1 1 280px; max-width: 420px; }
+    .rg-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #8A97B3; font-size: 13px; pointer-events: none; }
+    .rg-search input { width: 100%; box-sizing: border-box; padding: 10px 12px 10px 34px; font-size: 13.5px; color: var(--rg-ink); background: #fff; border: 1px solid #CBD5E6; border-radius: 8px; }
+    .rg-search input::placeholder { color: #8A97B3; }
+    .rg-search input:focus { outline: none; border-color: var(--rg-blue); box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.14); }
 
-    .rank-badge { display: inline-block; padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 4px; text-transform: uppercase; border: 1px solid transparent; }
-    .rank-badge.professor { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
-    .rank-badge.dept_sec { background: #fdf2f8; color: #be185d; border-color: #fbcfe8; }
-    .rank-badge.dean { background: #fff7ed; color: #c2410c; border-color: #ffedd5; }
+    .rg-filter { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .rg-filter-label { font-size: 12.5px; font-weight: 600; color: var(--rg-muted); margin-right: 4px; }
+    .filter-pill { background: #fff; border: 1px solid #CBD5E6; color: var(--rg-muted); padding: 5px 12px; font-size: 12.5px; font-weight: 600; border-radius: 16px; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+    .filter-pill:hover { border-color: var(--rg-blue); color: var(--rg-blue); }
+    .filter-pill.active { background: var(--rg-blue); border-color: var(--rg-blue); color: #fff; }
 
-    .empty-table-state { text-align: center; color: #94a3b8; padding: 50px 0 !important; font-style: italic; }
+    .rg-result-count { margin-left: auto; font-size: 12.5px; font-weight: 600; color: var(--rg-muted); }
+
+    .rg-table-wrap { overflow-x: auto; width: 100%; }
+    .rg-table { width: 100%; min-width: 650px; border-collapse: collapse; font-size: 14px; }
+    .rg-table th { background: var(--rg-surface); padding: 12px 18px; font-size: 11.5px; font-weight: 700; color: var(--rg-muted); text-transform: uppercase; text-align: left; border-bottom: 1px solid var(--rg-line); }
+    .rg-table td { padding: 15px 18px; border-bottom: 1px solid #EEF2F9; color: var(--rg-ink); vertical-align: middle; }
+    .rg-table tbody tr:last-child td { border-bottom: none; }
+    .rg-table tbody tr:hover { background: #F5F8FF; }
+    .rg-text-center { text-align: center !important; }
+
+    .student-id-tag { font-family: ui-monospace, monospace; font-weight: 700; color: var(--rg-blue); background: var(--rg-blue-tint); padding: 3px 9px; border-radius: 6px; font-size: 12.5px; border: 1px solid #CFDBFB; display: inline-block; }
+
+    .rg-chip { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; white-space: nowrap; border: 1px solid transparent; }
+    .role-chip-professor { background: var(--rg-surface); color: var(--rg-muted); border-color: var(--rg-line); }
+    .role-chip-dept_sec { background: #FDF2F8; color: #BE185D; border-color: #FBCFE8; }
+    .role-chip-dean { background: #FFF7ED; color: #C2410C; border-color: #FFEDD5; }
 
     .status-indicator-center { display: flex; align-items: center; justify-content: center; gap: 6px; }
-    .pulse-dot-green { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; }
-    .status-label-text { font-size: 13px; color: #334155; font-weight: 500; }
+    .pulse-dot-green { width: 8px; height: 8px; background: var(--rg-green); border-radius: 50%; }
+    .status-label-text { font-size: 13px; color: var(--rg-ink); font-weight: 600; }
 
     .action-btn-group { display: flex; gap: 6px; justify-content: center; }
-    .btn-action-edit { background-color: transparent; border: 1px solid #cbd5e1; color: #475569; padding: 5px 12px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
-    .btn-action-edit:hover { background-color: #f1f5f9; color: #1e293b; border-color: #94a3b8; }
-    .btn-action-delete { background-color: transparent; border: 1px solid #fecaca; color: #dc2626; padding: 5px 12px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
-    .btn-action-delete:hover { background-color: #fef2f2; color: #991b1b; border-color: #f87171; }
+    .rg-btn-action { border: 1px solid transparent; padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: 0.15s; }
+    .rg-btn-action-ghost { background: transparent; border-color: #CBD5E6; color: var(--rg-muted); }
+    .rg-btn-action-ghost:hover { background: var(--rg-surface); color: var(--rg-ink); }
+    .rg-btn-action-danger { background: transparent; border-color: #FECACA; color: var(--rg-red); }
+    .rg-btn-action-danger:hover { background: #FEF2F2; color: #991B1B; border-color: #F87171; }
 
-    .admin-alert-success { background: #ecfdf5; color: #065f46; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #059669; font-size: 14px; display: flex; align-items: center; gap: 10px; }
-    .admin-alert-danger { background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: 600; border-left: 5px solid #dc2626; font-size: 14px; display: flex; align-items: flex-start; gap: 10px; }
-    .badge-count { background: #e2e8f0; color: #334155; font-size: 11.5px; padding: 4px 12px; border-radius: 20px; font-weight: 700; white-space: nowrap; }
+    .empty-table-state { text-align: center; color: var(--rg-muted) !important; padding: 50px 0 !important; font-style: italic; }
 
-    .custom-select-wrapper { position: relative; width: 100%; }
-    .custom-select-dropdown, .form-select-custom { width: 100%; padding: 10px 40px 10px 14px; font-size: 14px; color: #0f172a; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; appearance: none; -webkit-appearance: none; cursor: pointer; outline: none; transition: all 0.2s ease; }
-    .form-select-custom { padding: 6px 30px 6px 12px; font-size: 12.5px; font-weight: 500; }
-    .custom-select-dropdown:focus, .form-select-custom:focus { border-color: #1e2a5a; box-shadow: 0 0 0 3px rgba(30, 42, 90, 0.08); }
-    .custom-select-wrapper::after { content: "▼"; font-size: 0.65rem; color: #64748b; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
-
-    .readonly-input { background-color: #f1f5f9 !important; color: #64748b !important; border-color: #cbd5e1 !important; cursor: not-allowed !important; user-select: none; }
-    .readonly-wrapper::after { color: #cbd5e1 !important; }
-
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 9999; display: flex; align-items: center; justify-content: center; }
-    .modal-box { background: #ffffff; border-radius: 14px; width: 100%; max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden; }
-    .modal-box-sm { max-width: 420px; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
-    .modal-header h3 { margin: 0; font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; }
-    .modal-header-danger { background: #fef2f2; border-bottom-color: #fecaca; }
-    .modal-header-danger h3 { color: #dc2626; }
-    .modal-close { background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; padding: 0; line-height: 1; }
-    .modal-close:hover { color: #0f172a; }
-    .modal-body-text { padding: 24px 24px 0 24px; font-size: 14px; color: #334155; line-height: 1.6; }
-    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #f1f5f9; }
-    .btn-modal-cancel { background: transparent; border: 1px solid #cbd5e1; color: #64748b; padding: 9px 18px; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; }
-    .btn-modal-cancel:hover { background: #f8fafc; }
-    .btn-modal-confirm-delete { background: #dc2626; color: #ffffff; border: none; padding: 9px 20px; font-size: 13px; font-weight: 700; border-radius: 6px; cursor: pointer; }
-    .btn-modal-confirm-delete:hover { background: #b91c1c; }
+    .rg-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 27, 58, 0.6); z-index: 1000; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+    .rg-modal-card { background: #fff; width: 100%; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); overflow: hidden; animation: fadeIn 0.2s ease-in-out; }
+    .rg-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; }
+    .rg-modal-header h3 { margin: 0; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .rg-modal-close { background: transparent; border: none; font-size: 24px; cursor: pointer; transition: 0.15s; padding: 0; line-height: 1; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 @endsection

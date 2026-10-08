@@ -47,10 +47,11 @@
                         <a href="javascript:void(0);" 
                         style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
                             <i data-lucide="lock" style="color: #ef4444;"></i>
-                            <span>Manage ML Model Analytics
+                            <span>Manage ML Model Analytics</span>
+                        </a>
                     @else
                     <a href="{{ route('super_admin.manage-ml') }}" class="nav-link {{ request()->routeIs('super_admin.manage-ml') ? 'active' : '' }}">
-                        <i data-lucide="brain-circuit"></i></i><span>ML Model Analytics</span>
+                        <i data-lucide="brain-circuit"></i> <span>ML Model Analytics</span>
                     </a>
                     @endif
                 </li>
@@ -335,6 +336,21 @@
                         <a href="javascript:void(0);" 
                         style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
                             <i data-lucide="lock" style="color: #ef4444;"></i> 
+                            <span>Manage Grades</span>
+                        </a>
+                    @else
+                        <!-- Pinalitan ang route name para sumunod sa underscore convention ng dept_sec -->
+                        <a href="{{ route('department_secretary.manage-grades') }}" class="{{ request()->routeIs('department_secretary.manage-grades') ? 'active' : '' }}">
+                            <i data-lucide="file-spreadsheet"></i> <span>Manage Grades</span>
+                        </a>
+                    @endif
+                </li>
+
+                <li>
+                    @if($isAccountLocked)
+                        <a href="javascript:void(0);" 
+                        style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
+                            <i data-lucide="lock" style="color: #ef4444;"></i> 
                             <span>Manage Schedules</span>
                         </a>
                     @else
@@ -455,11 +471,14 @@
                         style="opacity: 0.4; cursor: not-allowed !important; user-select: none; text-decoration: none !important;">
                             <i data-lucide="lock" style="color: #ef4444;"></i> 
                             <span>Document Requests</span>
+                        </a>
                     @else
                         <a href="{{ route('student.document_request') }}" class="{{ Route::is('student.document_request') ? 'active' : '' }}">
                             <i data-lucide="file-text"></i> <span>Document Requests</span>
                         </a>
                     @endif
+                </li>
+
                 <li>
                     <a href="{{ route('student.user_details') }}" class="{{ Route::is('student.user_details') ? 'active' : '' }}">
                         <i data-lucide="user"></i> <span>Profile</span>

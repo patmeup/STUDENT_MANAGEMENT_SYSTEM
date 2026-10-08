@@ -94,6 +94,8 @@ Route::middleware(['role:registrar'])->group(function () {
     Route::delete('/registrar/announcements/delete/{id}', [RegistrarController::class, 'destroyAnnouncement'])->name('registrar.announcements.destroy');
     Route::get('/registrar/manage-enrollment', [RegistrarController::class, 'manageEnrollment'])->name('registrar.manage-enrollment');
     Route::post('/registrar/manage-enrollment', [StudentController::class, 'store'])->name('registrar.enroll.store');
+    Route::get('/registrar/api/student/search', [RegistrarController::class, 'searchStudentsJson'])->name('registrar.api.student.search');
+    Route::get('/registrar/api/student/{student_id}', [RegistrarController::class, 'getStudentJson'])->name('registrar.api.student.details');
     Route::get('/registrar/manage-students', [RegistrarController::class, 'manageStudents'])->name('registrar.manage-students');
     Route::get('/registrar/students/{student_id}/profile', [RegistrarController::class, 'viewStudentProfile'])->name('registrar.students.profile');
     Route::put('/registrar/students/{id}/update-info', [RegistrarController::class, 'updateStudentInfo'])->name('registrar.update-info');
@@ -133,15 +135,19 @@ Route::middleware(['role:dept_sec'])->group(function () {
     Route::delete('/department-secretary/student/delete/{student_id}', [DeptSecController::class, 'deleteStudent'])->name('department_secretary.delete_student');
     Route::get('/department-secretary/section/{section_name}', [DeptSecController::class, 'viewSectionRoster'])->name('department_secretary.view_section');
     Route::post('/department-secretary/section/bulk-enroll', [DeptSecController::class, 'bulkEnrollSection'])->name('department_secretary.bulk_enroll');
+    Route::post('/department-secretary/section/promote', [DeptSecController::class, 'promoteBlocks'])->name('department_secretary.promote_blocks');
     Route::get('/department_secretary/student/{student_id}/plot', [DeptSecController::class, 'plotSubjects'])->name('department_secretary.plot_subjects');
     Route::post('/department-secretary/subjects/save', [DeptSecController::class, 'saveSubjects'])->name('department_secretary.save_subjects');
     Route::get('/department_secretary/manage-schedules', [ScheduleController::class, 'index'])->name('department_secretary.schedules.index');
+    Route::get('/department-secretary/manage-schedules/{id}/students', [ScheduleController::class, 'enrolledStudents'])->name('department_secretary.schedules.students');
     Route::post('/department_secretary/manage-schedules/store', [ScheduleController::class, 'store'])->name('department_secretary.schedules.store');
     Route::put('/department-secretary/manage-schedules/update/{id}', [ScheduleController::class, 'update'])->name('department_secretary.schedules.update');
     Route::delete('/department-secretary/manage-schedules/delete/{id}', [ScheduleController::class, 'delete'])->name('department_secretary.schedules.delete');
     Route::get('/department-secretary/user_details', [DeptSecController::class, 'profileView'])->name('department_secretary.user_details');
     Route::post('/department-secretary/profile/picture', [DeptSecController::class, 'updateProfilePicture'])->name('department_secretary.profile.picture.update');
-    });
+    Route::get('/department-secretary/manage-grades', [DeptSecController::class, 'manageGrades'])->name('department_secretary.manage-grades');
+    Route::get('/department-secretary/student-grades-json/{student_id}', [DeptSecController::class, 'getStudentTermGradesJson'])->name('department_secretary.student-grades-json');
+});
 
 // PROFESSOR ROUTE
 Route::middleware(['role:professor'])->group(function () {

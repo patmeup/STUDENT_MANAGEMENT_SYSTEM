@@ -8,7 +8,6 @@ use Carbon\Carbon;
 
 class NotificationController extends Controller
 {
-    /** [recipient_type, recipient_id] for whoever is logged in (session-based auth). */
     private function me(): array
     {
         if (session('user_role') === 'student') {
@@ -23,7 +22,6 @@ class NotificationController extends Controller
         return DB::table('notifications')->where('recipient_type', $type)->where('recipient_id', $id);
     }
 
-    /** JSON polled by the bell every ~30s. */
     public function feed()
     {
         $items = $this->mine()->orderByDesc('id')->limit(10)->get()->map(function ($n) {
@@ -59,7 +57,6 @@ class NotificationController extends Controller
         return view('notifications.index', compact('notifications', 'filter', 'unreadCount'));
     }
 
-    /** Mark one as read, then go to its target page. */
     public function open($id)
     {
         $n = $this->mine()->where('id', $id)->first();

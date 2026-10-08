@@ -1,33 +1,49 @@
 @extends('layouts.app')
 
 @section('content')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 @php
     $activePeriod = $activePeriod ?? \Illuminate\Support\Facades\DB::table('academic_periods')->where('is_active', true)->first();
 @endphp
-<div class="sa-container">
-    <div class="sa-header">
-        <div class="header-titles">
-            <h2>Department Student Registry</h2>
-            <p>View, search, and manage student records and block sections.</p>
+
+<div class="rg-page">
+
+    <header class="rg-header">
+        <div>
+            <h1 class="rg-title">Department Student Registry</h1>
+            <p class="rg-subtitle">View, search, and manage student records and block sections.</p>
         </div>
-    </div>
+
+        <div class="rg-period" title="Bulk enrollment applies to this period">
+            <span class="rg-period-label">Active period</span>
+            @if($activePeriod)
+                <span class="rg-period-value">{{ $activePeriod->school_year }}</span>
+                <span class="rg-period-sem">{{ $activePeriod->semester }}</span>
+            @else
+                <span class="rg-period-value rg-period-none">None set</span>
+            @endif
+        </div>
+    </header>
 
     @if(session('success'))
-        <div class="alert-success-custom">
-            <i class="fas fa-check-circle"></i> {{ session('success') }}
+        <div class="rg-alert rg-alert-success" role="status">
+            <i class="fas fa-check-circle"></i>
+            <span>{{ session('success') }}</span>
         </div>
     @endif
 
     @if(session('error'))
-        <div class="alert-danger-custom">
-            <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
+        <div class="rg-alert rg-alert-error" role="alert">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>{{ session('error') }}</span>
         </div>
     @endif
 
     @if($errors->any())
-        <div class="alert-danger-custom">
+        <div class="rg-alert rg-alert-error" role="alert">
             <i class="fas fa-exclamation-circle"></i>
-            <ul style="margin: 0; padding-left: 20px;">
+            <ul>
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
@@ -35,82 +51,102 @@
         </div>
     @endif
 
-    <div class="tabs-control-wrapper">
-        <button class="tab-toggle-btn active" onclick="switchView('individualTab', this)">
-            <i class="fas fa-user"></i> Individual List (Alphabetical)
+    <div class="rg-tabs" role="tablist">
+        <button type="button" class="rg-tab active" role="tab" aria-selected="true"
+                onclick="switchView('individualTab', this)">
+            <i class="fas fa-user"></i> Individual list
+            <span class="rg-tab-count">{{ count($students) }}</span>
         </button>
-        <button class="tab-toggle-btn" onclick="switchView('sectionTab', this)">
-            <i class="fas fa-layer-group"></i> Block Section List
+        <button type="button" class="rg-tab" role="tab" aria-selected="false"
+                onclick="switchView('sectionTab', this)">
+            <i class="fas fa-layer-group"></i> Block sections
+            <span class="rg-tab-count">{{ $sections->count() }}</span>
         </button>
     </div>
 
-    <div id="individualTab" class="tab-content-panel active-panel">
-        <div class="sa-card">
-            <div class="card-header-flex" style="display: flex; flex-direction: column; gap: 14px; align-items: stretch;">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <h3 class="card-title-list">All Enrolled Students (Alphabetical Order)</h3>
-                    <span class="badge-count" id="studentTotalCount">{{ count($students) }} Total Students</span>
+    <section id="individualTab" class="rg-panel active-panel">
+        <div class="rg-card">
+            <div class="rg-toolbar">
+                <div class="rg-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="studentSearchInput"
+                           placeholder="Search by student ID, name, or course"
+                           aria-label="Search students">
                 </div>
 
-                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; width: 100%;">
-                    <div style="flex: 2; min-width: 280px;">
-                        <input type="text" id="studentSearchInput" placeholder="Search by Student ID, Name, or Course..." class="custom-search-input">
-                    </div>
-
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
-                        <span style="font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-right: 2px;">Year:</span>
-                        <button type="button" class="filter-pill active" data-filter-value="">All</button>
-                        <button type="button" class="filter-pill" data-filter-value="1st Year">1st</button>
-                        <button type="button" class="filter-pill" data-filter-value="2nd Year">2nd</button>
-                        <button type="button" class="filter-pill" data-filter-value="3rd Year">3rd</button>
-                        <button type="button" class="filter-pill" data-filter-value="4th Year">4th</button>
-                    </div>
+                <div class="rg-filter" role="group" aria-label="Filter by year level">
+                    <span class="rg-filter-label">Year level</span>
+                    <button type="button" class="filter-pill active" data-filter-value="">All</button>
+                    <button type="button" class="filter-pill" data-filter-value="1st Year">1st</button>
+                    <button type="button" class="filter-pill" data-filter-value="2nd Year">2nd</button>
+                    <button type="button" class="filter-pill" data-filter-value="3rd Year">3rd</button>
+                    <button type="button" class="filter-pill" data-filter-value="4th Year">4th</button>
                 </div>
+
+                <span class="rg-result-count" id="studentTotalCount">{{ count($students) }} students</span>
             </div>
 
-            <div class="table-responsive">
-                <table class="minimal-table">
+            <div class="rg-table-wrap">
+                <table class="rg-table">
                     <thead>
                         <tr>
-                            <th>Student ID</th>
-                            <th>Full Name</th>
-                            <th>Course</th>
-                            <th>Section</th>
-                            <th>Academic Level</th>
-                            <th style="text-align: center;">Action</th>
+                            <th>Student</th>
+                            <th class="rg-text-center">Course</th>
+                            <th class="rg-text-center">Section</th>
+                            <th class="rg-text-center">Year & Sem</th>
+                            <th class="rg-text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="studentTableBody">
                         @forelse($students as $student)
-                            <tr class="student-row" data-year="{{ $student->year_level }}">
-                                <td><strong class="code-highlight">{{ $student->student_id }}</strong></td>
-                                <td><strong>{{ strtoupper($student->last_name) }}</strong>, {{ $student->first_name }}</td>
-                                <td><span class="sem-tag">{{ $student->course }}</span></td>
+                            @php
+                                $initials = strtoupper(mb_substr($student->first_name, 0, 1) . mb_substr($student->last_name, 0, 1));
+                                $searchText = strtolower($student->student_id . ' ' . $student->last_name . ' ' . $student->first_name . ' ' . $student->course . ' ' . $student->section);
+                            @endphp
+                            <tr class="student-row" data-year="{{ $student->year_level }}" data-search="{{ $searchText }}">
                                 <td>
+                                    <div class="rg-person">
+                                        <div>
+                                            <div class="rg-person-name"><strong>{{ strtoupper($student->last_name) }}</strong>, {{ $student->first_name }}</div>
+                                            <div class="rg-person-id">{{ $student->student_id }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="rg-text-center"><span class="rg-chip rg-chip-plain">{{ $student->course }}</span></td>
+                                <td class="rg-text-center">
                                     @if($student->section)
-                                        <span class="year-tag" style="background: #e0f2fe; color: #0369a1; border-color: #bae6fd;">
-                                            {{ $student->section }}
-                                        </span>
+                                        <span class="rg-chip rg-chip-blue">{{ $student->section }}</span>
                                     @else
-                                        <span style="color: #94a3b8; font-size: 12px; font-style: italic;">None</span>
+                                        <span class="rg-unassigned">Unassigned</span>
                                     @endif
                                 </td>
-                                <td><span class="year-tag">{{ $student->year_level }}</span></td>
-                                <td style="text-align: center;">
-                                    <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
-                                        <a href="{{ route('department_secretary.students.profile', $student->student_id) }}" class="btn-action-view" title="View Student Profile">
-                                            <i class="fas fa-folder-open"></i> View Profile
+                                <td class="rg-text-center">
+                                    <span class="rg-chip rg-chip-plain">
+                                        {{ $student->year_level }} 
+                                        @if(!empty($student->semester))
+                                            • {{ $student->semester }}
+                                        @endif
+                                    </span>
+                                </td>
+                                <td class="rg-text-center">
+                                    <div class="rg-actions-center">
+                                        <a href="{{ route('department_secretary.students.profile', $student->student_id) }}"
+                                           class="rg-btn rg-btn-ghost" title="View student profile">
+                                            <i class="fas fa-folder-open"></i> Profile
                                         </a>
 
-                                        <a href="{{ route('department_secretary.plot_subjects', $student->student_id) }}" class="btn-action-plot">
-                                            Plot
+                                        <a href="{{ route('department_secretary.plot_subjects', $student->student_id) }}"
+                                           class="rg-btn rg-btn-primary" title="Plot subjects for this student">
+                                            <i class="fas fa-th-list"></i> Plot subjects
                                         </a>
 
-                                        <form action="{{ route('department_secretary.delete_student', $student->student_id) }}" method="POST" style="display: inline-block;">
+                                        <form action="{{ route('department_secretary.delete_student', $student->student_id) }}" method="POST"
+                                              data-confirm="Delete student {{ $student->student_id }}? This permanently removes their record from the database.">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn-action-delete" onclick="return confirm('Are you sure you want to delete student {{ $student->student_id }}? This will permanently remove their record from the database.')">
-                                                Delete
+                                            <button type="submit" class="rg-btn-icon rg-btn-danger"
+                                                    title="Delete student" aria-label="Delete student {{ $student->student_id }}">
+                                                <i class="fas fa-trash-alt"></i>
                                             </button>
                                         </form>
                                     </div>
@@ -118,123 +154,228 @@
                             </tr>
                         @empty
                             <tr id="studentEmptyRow">
-                                <td colspan="6" style="text-align: center; padding: 40px; color: #64748b;">No individual student records found for this department.</td>
+                                <td colspan="5">
+                                    <div class="rg-empty">
+                                        <i class="fas fa-user-graduate"></i>
+                                        <strong>No student records yet</strong>
+                                        <span>Students registered under your department will show up here.</span>
+                                    </div>
+                                </td>
                             </tr>
                         @endforelse
                         <tr id="studentNoMatchRow" style="display: none;">
-                            <td colspan="6" style="text-align: center; padding: 40px; color: #64748b;">No students match your filter or search query.</td>
+                            <td colspan="5">
+                                <div class="rg-empty">
+                                    <i class="fas fa-search"></i>
+                                    <strong>No students match your search</strong>
+                                    <span>Try a different name, ID, or year level.</span>
+                                </div>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
-    </div>
+    </section>
 
-    <div id="sectionTab" class="tab-content-panel">
-        <div class="sa-card">
-            <div class="card-header-flex">
-                <h3 class="card-title-list">Active Dynamic Block Sections</h3>
-                <span class="badge-count" style="background: #16a34a;">
-                    {{ $sections->count() }} Active Blocks
-                </span>
+    <section id="sectionTab" class="rg-panel">
+        <div class="rg-card">
+            <div class="rg-toolbar">
+                <div class="rg-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="blockSearchInput" placeholder="Search by block section name" aria-label="Search block sections">
+                </div>
             </div>
 
-            <div class="search-bar-container" style="padding: 14px 24px; background: #ffffff; border-bottom: 1px solid #f1f5f9;">
-                <input type="text" id="blockSearchInput" placeholder="Search by Block Section Name..." class="custom-search-input" style="max-width: 450px;">
-            </div>
-
-            <div class="table-responsive">
-                <table class="minimal-table">
+            <div class="rg-table-wrap">
+                <table class="rg-table">
                     <thead>
                         <tr>
-                            <th>Block Section Name</th>
-                            <th>Students in Block</th>
-                            <th>Active Subjects</th>
-                            <th style="text-align: center;">Actions & Bulk Enrollment Controls</th>
+                            <th>Block section</th>
+                            <th class="rg-text-center">Students enrolled</th>
+                            <th class="rg-text-center">Active subjects</th>
+                            <th class="rg-text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="blockTableBody">
                         @forelse($sections as $block)
                             @php
                                 $sectionName = $block->section_name;
-                                $slug        = Str::slug($sectionName . '-' . ($block->block_year_level ?? 'na'));
                                 $enrolled    = $block->enrolled_count ?? 0;
                                 $pending     = $block->pending_count ?? 0;
+                                $subjects    = $block->total_subjects ?? 0;
+                                $hasPending  = $block->has_pending_grades ?? false;
+                                
+                                $enrollConfirm = "Bulk enroll every student of " . strtoupper($sectionName)
+                                    . " into its schedules for "
+                                    . ($activePeriod ? $activePeriod->school_year . ', ' . $activePeriod->semester : 'the active period') . '?';
+                                    
+                                $btnDisabled = ($pending == 0) || $hasPending;
+                                $btnTitle = $hasPending 
+                                    ? 'Cannot enroll: There are pending unreleased grades from the previous semester.' 
+                                    : ($pending > 0 ? 'Enroll this block in the active period' : 'No students are waiting to be enrolled');
                             @endphp
-                            <tr class="block-row">
-                                <td>
-                                    <span class="year-tag" style="font-size: 14px; padding: 6px 12px; background: #e0f2fe; color: #0369a1; border-color: #bae6fd;">
-                                        {{ strtoupper($sectionName) }}
+                            <tr class="block-row" data-search="{{ strtolower($sectionName) }}">
+                                <td><span class="rg-block-name">{{ strtoupper($sectionName) }}</span></td>
+
+                                <td class="rg-text-center">
+                                    <span class="rg-count {{ $enrolled > 0 ? 'rg-count-on' : 'rg-count-off' }}">
+                                        <i class="fas fa-users"></i>
+                                        {{ $enrolled }} {{ Str::plural('student', $enrolled) }}
                                     </span>
                                 </td>
 
-                                <td>
-                                    <span class="enrolled-count-badge">
-                                        <i class="fas fa-users"></i> {{ $enrolled }} {{ Str::plural('Student', $enrolled) }}
-                                    </span>
-                                </td>
+                                <td class="rg-text-center"><strong>{{ $subjects }}</strong> {{ Str::plural('subject', $subjects) }}</td>
 
-                                <td>
-                                    <span id="display-count-{{ $slug }}">
-                                        <strong>{{ $block->total_subjects ?? 0 }}</strong> Active Subjects
-                                    </span>
-                                </td>
+                                <td class="rg-text-center">
+                                    <div class="rg-actions-center">
+                                        <a href="{{ route('department_secretary.view_section', $sectionName) }}" class="rg-btn rg-btn-ghost">
+                                            <i class="fas fa-users"></i> View students
+                                        </a>
 
-                                <td style="text-align: center;">
-                                    <a href="{{ route('department_secretary.view_section', $sectionName) }}" class="btn-action-view">
-                                        <i class="fas fa-users"></i> View Students
-                                    </a>
+                                        <form action="{{ route('department_secretary.bulk_enroll') }}" method="POST" data-confirm="{{ $enrollConfirm }}">
+                                            @csrf
+                                            <input type="hidden" name="current_section" value="{{ $sectionName }}">
+                                            <button type="submit" class="rg-btn rg-btn-primary"
+                                                    {{ $btnDisabled ? 'disabled' : '' }}
+                                                    title="{{ $btnTitle }}">
+                                                <i class="fas fa-user-plus"></i> Bulk enroll
+                                            </button>
+                                        </form>
 
-                                    <form action="{{ route('department_secretary.bulk_enroll') }}" method="POST" style="display:inline-block; margin-left: 15px;">
-                                        @csrf
-                                        <input type="hidden" name="current_section" value="{{ $sectionName }}">
-
-                                        <span style="font-size: 12px; color: #64748b; margin-right: 6px;">
-                                            {{ $activePeriod ? $activePeriod->school_year . ' · ' . $activePeriod->semester : 'No active period' }}
-                                        </span>
-
-                                        <button type="submit" class="btn-helper"
-                                                style="background: {{ $pending > 0 ? '#16a34a' : '#94a3b8' }}; padding: 5px 10px; font-size: 12px;"
-                                                {{ $pending > 0 ? '' : 'disabled' }}
-                                                onclick="return confirm('Bulk enroll all students of this block into its schedules for the active semester?')">
-                                            Bulk Enroll Block
+                                        <button type="button" class="rg-btn rg-btn-outline-navy btn-open-promote-modal"
+                                                data-section="{{ strtoupper($sectionName) }}">
+                                            <i class="fas fa-level-up-alt"></i> Promote section
                                         </button>
-                                    </form>
+                                    </div>
+
+                                    @if($hasPending)
+                                        <div style="font-size: 11px; color: var(--rg-red); margin-top: 4px; font-weight: 600;">
+                                            <i class="fas fa-exclamation-circle"></i> Has pending unreleased grades
+                                        </div>
+                                    @elseif($pending == 0)
+                                        <div style="font-size: 11px; color: var(--rg-muted); margin-top: 4px; font-style: italic;">
+                                            No pending students to enroll
+                                        </div>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
                             <tr id="blockEmptyRow">
-                                <td colspan="4" style="text-align: center; padding: 40px; color: #64748b;">No active block sections mapped in schedule matrix for your courses.</td>
+                                <td colspan="4">
+                                    <div class="rg-empty">
+                                        <i class="fas fa-layer-group"></i>
+                                        <strong>No block sections for the active period</strong>
+                                        <span>Deploy class schedules in Manage Schedules to create blocks.</span>
+                                    </div>
+                                </td>
                             </tr>
                         @endforelse
+                        <tr id="blockNoMatchRow" style="display: none;">
+                            <td colspan="4">
+                                <div class="rg-empty">
+                                    <i class="fas fa-search"></i>
+                                    <strong>No block matches your search</strong>
+                                    <span>Check the section name and try again.</span>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
+        </div>
+    </section>
+</div>
+
+<div id="promoteModal" class="sm-overlay" style="display: none;">
+    <div class="sm-box" style="max-width: 520px;">
+        <div class="sm-header">
+            <div>
+                <h3 style="margin:0; font-size:16px; font-weight:800; color:#0f172a;">Promote Section: <span id="modalSectionName" style="color: var(--rg-blue);"></span></h3>
+                <div style="font-size:12.5px; color:#64748b; margin-top:3px;">Review the rules before proceeding with the promotion.</div>
+            </div>
+            <button type="button" id="closePromoteModal" class="sm-close">&times;</button>
+        </div>
+        
+        <div class="sm-body" style="padding: 20px; overflow-y: auto;">
+            <div style="background: #EAF0FF; color: #0A1F5C; border: 1px solid #CFDBFB; border-left: 4px solid var(--rg-blue); padding: 12px; border-radius: 6px; font-size: 13px; margin-bottom: 16px; line-height: 1.5;">
+                <strong><i class="fas fa-info-circle"></i> Promotion Rules:</strong>
+                <ul style="margin: 6px 0 0 18px; padding: 0;">
+                    <li>Passed students advance one year level (e.g., BSIT1 to BSIT2).</li>
+                    <li>Passed 4th-year students status will change to Graduated.</li>
+                    <li>Students with failed or missing final grades remain in their current block section.</li>
+                </ul>
+            </div>
+
+            <p style="font-size: 13.5px; color: #334155; margin-bottom: 20px;">Are you sure you want to promote this specific block section for the new school year?</p>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; padding: 15px 20px; border-top: 1px solid #e2e8f0; background: #f8fafc; border-radius: 0 0 12px 12px;">
+            <button type="button" id="cancelPromoteModal" class="rg-btn rg-btn-ghost">Cancel</button>
+            <form id="promoteFormAction" action="{{ route('department_secretary.promote_blocks') }}" method="POST" style="margin: 0;">
+                @csrf
+                <input type="hidden" name="section_name" id="modalInputSection">
+                <button type="submit" class="rg-btn rg-btn-primary">
+                    <i class="fas fa-level-up-alt"></i> Confirm Promotion
+                </button>
+            </form>
         </div>
     </div>
 </div>
 
 <script>
     function switchView(tabId, buttonElement) {
-        document.querySelectorAll('.tab-content-panel').forEach(panel => {
-            panel.classList.remove('active-panel');
-        });
-        
-        document.querySelectorAll('.tab-toggle-btn').forEach(btn => {
+        document.querySelectorAll('.rg-panel').forEach(panel => panel.classList.remove('active-panel'));
+        document.querySelectorAll('.rg-tab').forEach(btn => {
             btn.classList.remove('active');
+            btn.setAttribute('aria-selected', 'false');
         });
 
         document.getElementById(tabId).classList.add('active-panel');
         buttonElement.classList.add('active');
+        buttonElement.setAttribute('aria-selected', 'true');
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        const studentSearch = document.getElementById('studentSearchInput');
-        const filterPills = document.querySelectorAll('.filter-pill');
-        const studentRows = document.querySelectorAll('.student-row');
-        const noMatchRow = document.getElementById('studentNoMatchRow');
-        const totalCountBadge = document.getElementById('studentTotalCount');
-        const initialTotal = studentRows.length;
+        document.querySelectorAll('form[data-confirm]').forEach(form => {
+            form.addEventListener('submit', function (e) {
+                if (!confirm(form.dataset.confirm)) {
+                    e.preventDefault();
+                }
+            });
+        });
+
+        const promoteModal = document.getElementById('promoteModal');
+        const modalSectionName = document.getElementById('modalSectionName');
+        const modalInputSection = document.getElementById('modalInputSection');
+        const closePromoteModal = document.getElementById('closePromoteModal');
+        const cancelPromoteModal = document.getElementById('cancelPromoteModal');
+
+        function closeMod() {
+            if (promoteModal) promoteModal.style.display = 'none';
+        }
+
+        if (closePromoteModal) closePromoteModal.addEventListener('click', closeMod);
+        if (cancelPromoteModal) cancelPromoteModal.addEventListener('click', closeMod);
+        if (promoteModal) {
+            promoteModal.addEventListener('click', e => { if (e.target === promoteModal) closeMod(); });
+        }
+
+        document.querySelectorAll('.btn-open-promote-modal').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const sec = this.getAttribute('data-section');
+                if (modalSectionName) modalSectionName.textContent = sec;
+                if (modalInputSection) modalInputSection.value = sec;
+                if (promoteModal) promoteModal.style.display = 'flex';
+            });
+        });
+
+        const studentSearch  = document.getElementById('studentSearchInput');
+        const filterPills    = document.querySelectorAll('.filter-pill');
+        const studentRows    = document.querySelectorAll('.student-row');
+        const noMatchRow     = document.getElementById('studentNoMatchRow');
+        const totalCountText = document.getElementById('studentTotalCount');
+        const initialTotal   = studentRows.length;
 
         let activeYear = '';
 
@@ -243,30 +384,19 @@
             let visibleCount = 0;
 
             studentRows.forEach(row => {
-                const content = row.textContent.toLowerCase();
-                const rowYear = row.getAttribute('data-year');
+                const matchesSearch = (row.dataset.search || '').includes(query);
+                const matchesYear   = activeYear === '' || row.dataset.year === activeYear;
+                const show = matchesSearch && matchesYear;
 
-                const matchesSearch = content.includes(query);
-                const matchesYear = activeYear === '' || rowYear === activeYear;
-
-                if (matchesSearch && matchesYear) {
-                    row.style.display = '';
-                    visibleCount++;
-                } else {
-                    row.style.display = 'none';
-                }
+                row.style.display = show ? '' : 'none';
+                if (show) visibleCount++;
             });
 
-            if (totalCountBadge) {
-                totalCountBadge.textContent = `${visibleCount} Students Found`;
+            if (totalCountText) {
+                totalCountText.textContent = visibleCount + (visibleCount === 1 ? ' student' : ' students');
             }
-
             if (noMatchRow) {
-                if (visibleCount === 0 && initialTotal > 0) {
-                    noMatchRow.style.display = '';
-                } else {
-                    noMatchRow.style.display = 'none';
-                }
+                noMatchRow.style.display = (visibleCount === 0 && initialTotal > 0) ? '' : 'none';
             }
         }
 
@@ -279,197 +409,164 @@
             });
         });
 
-        if (studentSearch) {
-            studentSearch.addEventListener('input', filterStudents);
-        }
+        if (studentSearch) studentSearch.addEventListener('input', filterStudents);
 
-        const blockSearch = document.getElementById('blockSearchInput');
-        const blockTableBody = document.getElementById('blockTableBody');
-        
-        if (blockSearch && blockTableBody) {
-            const rows = blockTableBody.getElementsByClassName('block-row');
-            
+        const blockSearch  = document.getElementById('blockSearchInput');
+        const blockRows    = document.querySelectorAll('.block-row');
+        const blockNoMatch = document.getElementById('blockNoMatchRow');
+
+        if (blockSearch) {
             blockSearch.addEventListener('input', function () {
-                const searchVal = blockSearch.value.toLowerCase().trim();
-                
-                for (let i = 0; i < rows.length; i++) {
-                    const content = rows[i].textContent.toLowerCase();
-                    if (content.includes(searchVal)) {
-                        rows[i].style.display = '';
-                    } else {
-                        rows[i].style.display = 'none';
-                    }
+                const query = blockSearch.value.toLowerCase().trim();
+                let visible = 0;
+
+                blockRows.forEach(row => {
+                    const show = (row.dataset.search || '').includes(query);
+                    row.style.display = show ? '' : 'none';
+                    if (show) visible++;
+                });
+
+                if (blockNoMatch) {
+                    blockNoMatch.style.display = (visible === 0 && blockRows.length > 0) ? '' : 'none';
                 }
             });
         }
-
-        function updateRowSemesterOptions(row) {
-            const yearSelect = row.querySelector('.year-selector-js');
-            const semSelect = row.querySelector('.sem-selector-js');
-            const optSummer = row.querySelector('.opt-summer-js');
-
-            if (!yearSelect || !semSelect || !optSummer) return;
-
-            if (yearSelect.value === '3rd Year') {
-                optSummer.style.display = '';
-            } else {
-                optSummer.style.display = 'none';
-                if (semSelect.value === 'Summer') {
-                    semSelect.value = '1st Semester';
-                }
-            }
-        }
-
-        function updateSubjectCounter(slug, rowElement) {
-            const yearSelect = rowElement.querySelector('.year-selector-js');
-            const semSelect = rowElement.querySelector('.sem-selector-js');
-            
-            if (!yearSelect || !semSelect) return;
-
-            const selectedYear = yearSelect.value;
-            const selectedSem = semSelect.value;
-            
-            const datasetSpans = rowElement.querySelectorAll('.block-meta-dataset span');
-            let matchedCount = 0;
-
-            datasetSpans.forEach(span => {
-                const itemYear = span.getAttribute('data-year');
-                const itemSem = span.getAttribute('data-sem');
-
-                if (itemYear === selectedYear && itemSem === selectedSem) {
-                    matchedCount = parseInt(span.getAttribute('data-count')) || 0;
-                }
-            });
-
-            const targetDisplay = document.getElementById(`display-count-${slug}`);
-            if (targetDisplay) {
-                targetDisplay.innerHTML = `<strong>${matchedCount}</strong> Active Subjects`;
-            }
-        }
-
-        document.querySelectorAll('.block-row').forEach(row => {
-            const yearSelect = row.querySelector('.year-selector-js');
-            const semSelect = row.querySelector('.sem-selector-js');
-            const targetSlug = yearSelect ? yearSelect.getAttribute('data-target') : null;
-
-            if (yearSelect) {
-                yearSelect.addEventListener('change', function() {
-                    updateRowSemesterOptions(row);
-                    updateSubjectCounter(targetSlug, row);
-                });
-            }
-
-            if (semSelect) {
-                semSelect.addEventListener('change', function() {
-                    updateSubjectCounter(targetSlug, row);
-                });
-            }
-
-            updateRowSemesterOptions(row);
-            updateSubjectCounter(targetSlug, row);
-        });
     });
 </script>
 
 <style>
-    .sa-container { font-family: 'Segoe UI', sans-serif; padding: 20px; max-width: 1300px; margin: 0 auto; }
-    .sa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
-    .header-titles h2 { margin: 0; font-size: 24px; color: #0f172a; font-weight: 800; }
-    .header-titles p { margin: 4px 0 0 0; font-size: 14px; color: #64748b; }
+    .rg-page {
+        --rg-blue: #0033A0;
+        --rg-blue-dark: #0A1F5C;
+        --rg-blue-tint: #EAF0FF;
+        --rg-gold: #F2B705;
+        --rg-ink: #0B1B3A;
+        --rg-muted: #5C6B8A;
+        --rg-line: #E2E8F3;
+        --rg-surface: #F7F9FD;
+        --rg-green: #15803D;
+        --rg-green-tint: #E8F7EE;
+        --rg-red: #C62828;
 
-    .custom-search-input { width: 100%; padding: 9px 12px; font-size: 13.5px; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; box-sizing: border-box; background: #fff; }
-    .custom-search-input:focus { border-color: #cbd5e1 !important; box-shadow: none !important; outline: none !important; }
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--rg-ink);
+        max-width: 1300px;
+        margin: 0 auto;
+        padding: 24px 20px 40px;
+    }
 
-    .filter-pill { background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 5px 10px; font-size: 11.5px; font-weight: 600; border-radius: 20px; cursor: pointer; transition: all 0.15s ease; }
-    .filter-pill:hover { background: #e2e8f0; color: #0f172a; }
-    .filter-pill.active { background: #0f172a; color: #ffffff; border-color: #0f172a; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.2); }
+    .rg-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; padding-bottom: 18px; margin-bottom: 20px; border-bottom: 1px solid var(--rg-line); }
+    .rg-title { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.2px; color: var(--rg-blue-dark); }
+    .rg-subtitle { margin: 5px 0 0; font-size: 14px; color: var(--rg-muted); }
 
-    .tabs-control-wrapper { display: flex; gap: 8px; margin-bottom: 20px; background: #f1f5f9; padding: 6px; border-radius: 8px; width: max-content; }
-    .tab-toggle-btn { background: transparent; border: none; padding: 8px 18px; font-weight: 600; font-size: 13.5px; color: #475569; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
-    .tab-toggle-btn.active { background: #ffffff; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .rg-period { display: grid; grid-template-columns: auto auto; column-gap: 10px; align-items: baseline; background: #fff; border: 1px solid var(--rg-line); border-left: 4px solid var(--rg-gold); border-radius: 8px; padding: 9px 16px 9px 14px; }
+    .rg-period-label { grid-column: 1 / -1; font-size: 11.5px; font-weight: 600; color: var(--rg-muted); margin-bottom: 2px; }
+    .rg-period-value { font-size: 15px; font-weight: 800; color: var(--rg-blue-dark); }
+    .rg-period-sem { font-size: 13px; font-weight: 600; color: var(--rg-blue); }
+    .rg-period-none { color: var(--rg-red); }
+
+    .rg-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; font-weight: 600; line-height: 1.45; }
+    .rg-alert i { margin-top: 2px; }
+    .rg-alert ul { margin: 0; padding-left: 18px; }
+    .rg-alert-success { background: var(--rg-green-tint); color: #14532D; border: 1px solid #BFE8CE; border-left: 4px solid var(--rg-green); }
+    .rg-alert-error { background: #FDECEC; color: #8E1B1B; border: 1px solid #F5C6C6; border-left: 4px solid var(--rg-red); }
+
+    .rg-tabs { display: flex; gap: 4px; margin-bottom: 18px; border-bottom: 1px solid var(--rg-line); }
+    .rg-tab { display: inline-flex; align-items: center; gap: 8px; background: none; border: none; border-bottom: 3px solid transparent; margin-bottom: -1px; padding: 10px 16px; font-size: 14px; font-weight: 600; color: var(--rg-muted); cursor: pointer; transition: color .15s, border-color .15s; }
+    .rg-tab:hover { color: var(--rg-blue-dark); }
+    .rg-tab.active { color: var(--rg-blue-dark); border-bottom-color: var(--rg-gold); }
+    .rg-tab-count { background: var(--rg-line); color: var(--rg-muted); font-size: 11.5px; font-weight: 700; padding: 1px 8px; border-radius: 10px; }
+    .rg-tab.active .rg-tab-count { background: var(--rg-blue); color: #fff; }
+
+    .rg-panel { display: none; }
+    .rg-panel.active-panel { display: block; }
+
+    .rg-card { background: #fff; border: 1px solid var(--rg-line); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(10, 31, 92, 0.05); }
+    .rg-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; padding: 14px 20px; border-bottom: 1px solid var(--rg-line); }
+    .rg-toolbar-end { margin: 0 0 0 auto; }
+
+    .rg-search { position: relative; flex: 1 1 320px; max-width: 460px; }
+    .rg-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #8A97B3; font-size: 13px; pointer-events: none; }
+    .rg-search input { width: 100%; box-sizing: border-box; padding: 10px 12px 10px 34px; font-size: 13.5px; color: var(--rg-ink); background: #fff; border: 1px solid #CBD5E6; border-radius: 8px; }
+    .rg-search input::placeholder { color: #8A97B3; }
+    .rg-search input:focus { outline: none; border-color: var(--rg-blue); box-shadow: 0 0 0 3px rgba(0, 51, 160, 0.14); }
+
+    .rg-filter { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .rg-filter-label { font-size: 12.5px; font-weight: 600; color: var(--rg-muted); margin-right: 2px; }
+    .filter-pill { background: #fff; border: 1px solid #CBD5E6; color: var(--rg-muted); padding: 5px 12px; font-size: 12.5px; font-weight: 600; border-radius: 16px; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+    .filter-pill:hover { border-color: var(--rg-blue); color: var(--rg-blue); }
+    .filter-pill.active { background: var(--rg-blue); border-color: var(--rg-blue); color: #fff; }
+
+    .rg-result-count { margin-left: auto; font-size: 12.5px; font-weight: 600; color: var(--rg-muted); }
+
+    .rg-table-wrap { overflow-x: auto; }
+    .rg-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .rg-table th { background: var(--rg-surface); padding: 11px 20px; font-size: 12px; font-weight: 700; color: var(--rg-muted); text-align: left; border-bottom: 1px solid var(--rg-line); white-space: nowrap; }
+    .rg-table td { padding: 13px 20px; border-bottom: 1px solid #EEF2F9; color: #26345A; vertical-align: middle; }
+    .rg-table tbody tr:last-child td { border-bottom: none; }
+    .rg-table tbody tr:hover { background: #F5F8FF; }
     
-    .tab-content-panel { display: none; }
-    .tab-content-panel.active-panel { display: block; }
+    .rg-text-center { text-align: center !important; }
 
-    .sa-card { border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
-    .card-header-flex { background-color: #f8fafc; padding: 16px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-    .card-title-list { font-size: 14.5px; font-weight: 700; margin: 0; color: #1e293b; }
-    .badge-count { background: #0f172a; color: white; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
+    .rg-person { display: flex; align-items: center; gap: 12px; }
+    .rg-avatar { flex: 0 0 auto; width: 36px; height: 36px; border-radius: 50%; background: var(--rg-blue-tint); color: var(--rg-blue); display: inline-flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 800; }
+    .rg-person-name { font-size: 14px; color: var(--rg-ink); }
+    .rg-person-id { margin-top: 1px; font-size: 12px; color: var(--rg-muted); font-variant-numeric: tabular-nums; }
 
-    .enrolled-count-badge {
-        display: inline-flex; align-items: center; gap: 6px;
-        background: #f0fdf4; color: #166534; font-weight: 700;
-        padding: 5px 12px; border-radius: 20px; font-size: 12.5px;
-        border: 1px solid #bbf7d0;
+    .rg-chip { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .rg-chip-plain { background: var(--rg-surface); color: #3B4A6B; border: 1px solid var(--rg-line); }
+    .rg-chip-blue { background: var(--rg-blue-tint); color: var(--rg-blue); border: 1px solid #CFDBFB; }
+    .rg-unassigned { font-size: 12.5px; color: #8A97B3; font-style: italic; }
+
+    .rg-block-name { display: inline-block; background: var(--rg-blue); color: #fff; font-size: 14px; font-weight: 800; letter-spacing: 0.3px; padding: 6px 14px; border-radius: 6px; }
+    .rg-count { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 16px; font-size: 12.5px; font-weight: 700; }
+    .rg-count-on { background: var(--rg-green-tint); color: var(--rg-green); border: 1px solid #BFE8CE; }
+    .rg-count-off { background: var(--rg-surface); color: var(--rg-muted); border: 1px solid var(--rg-line); }
+
+    .rg-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+    .rg-actions-center { display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .rg-actions form, .rg-actions-center form { margin: 0; }
+
+    .rg-btn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 7px; font-size: 12.5px; font-weight: 700; text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: background .15s, color .15s, border-color .15s; white-space: nowrap; line-height: 1.2; }
+    .rg-btn-primary { background: var(--rg-blue); color: #fff; }
+    .rg-btn-primary:hover { background: var(--rg-blue-dark); color: #fff; }
+    .rg-btn-primary:disabled { background: #D5DCEB; color: #7D8AA8; cursor: not-allowed; }
+    .rg-btn-ghost { background: #fff; color: var(--rg-blue); border-color: #B9C8F0; }
+    .rg-btn-ghost:hover { background: var(--rg-blue-tint); color: var(--rg-blue-dark); }
+    .rg-btn-outline-navy { background: #fff; color: var(--rg-blue-dark); border-color: var(--rg-blue-dark); }
+    .rg-btn-outline-navy:hover { background: var(--rg-blue-dark); color: #fff; }
+
+    .rg-btn-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 7px; background: #fff; border: 1px solid var(--rg-line); color: #8A97B3; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+    .rg-btn-danger:hover { background: #FDECEC; border-color: #F0B4B4; color: var(--rg-red); }
+
+    .rg-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 44px 16px; text-align: center; color: var(--rg-muted); font-size: 13.5px; }
+    .rg-empty i { font-size: 28px; color: #B9C4DD; margin-bottom: 4px; }
+    #promoteModal {
+        --rg-blue: #0033A0;
+        --rg-blue-dark: #0A1F5C;
+        --rg-blue-tint: #EAF0FF;
+        --rg-gold: #F2B705;
+        --rg-ink: #0B1B3A;
+        --rg-muted: #5C6B8A;
+        --rg-line: #E2E8F3;
+        --rg-surface: #F7F9FD;
+        --rg-green: #15803D;
+        --rg-green-tint: #E8F7EE;
+        --rg-red: #C62828;
     }
 
-    .minimal-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    .minimal-table th { background: #f8fafc; padding: 12px 24px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; text-align: left; }
-    .minimal-table td { padding: 14px 24px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
-    .minimal-table tbody tr:hover { background-color: #f8fafc; }
+    .rg-empty strong { color: var(--rg-ink); font-size: 15px; }
 
-    /* Registrar-style Action Buttons */
-    .btn-action-plot {
-        display: inline-block;
-        background-color: transparent;
-        color: #0f172a;
-        border: 1px solid #0f172a;
-        padding: 6px 14px;
-        border-radius: 6px;
-        font-size: 12.5px;
-        font-weight: 600;
-        text-decoration: none;
-        transition: all 0.15s ease;
-    }
-    .btn-action-plot:hover {
-        background-color: #0f172a;
-        color: white;
-        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
-    }
+    .sm-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .sm-box { background: #fff; border-radius: 12px; width: 100%; max-width: 640px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.25); }
+    .sm-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px; border-bottom: 1px solid #e2e8f0; }
+    .sm-close { background: none; border: none; font-size: 26px; line-height: 1; color: #64748b; cursor: pointer; }
+    .sm-body { overflow-y: auto; padding: 0; }
 
-    .btn-action-view {
-        display: inline-block;
-        background-color: transparent;
-        color: #2563eb;
-        border: 1px solid #2563eb;
-        padding: 6px 14px;
-        border-radius: 6px;
-        font-size: 12.5px;
-        font-weight: 600;
-        text-decoration: none;
-        transition: all 0.15s ease;
+    @media (max-width: 720px) {
+        .rg-header { align-items: flex-start; }
+        .rg-result-count, .rg-toolbar-end { margin-left: 0; }
+        .rg-table th, .rg-table td { padding-left: 14px; padding-right: 14px; }
     }
-    .btn-action-view:hover {
-        background-color: #2563eb;
-        color: white;
-    }
-    
-    .btn-action-delete {
-        display: inline-block;
-        background-color: transparent;
-        color: #dc2626;
-        border: 1px solid #dc2626;
-        padding: 6px 14px;
-        border-radius: 6px;
-        font-size: 12.5px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.15s ease;
-    }
-    .btn-action-delete:hover {
-        background-color: #dc2626;
-        color: white;
-        box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
-    }
-
-    .select-input-helper { background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 5px; color: #334155; cursor: pointer; }
-    .btn-helper { color: white; border: none; padding: 6px 12px; border-radius: 5px; font-weight: 600; cursor: pointer; }
-
-    .year-tag { font-weight: 700; color: #1e293b; background: #f1f5f9; padding: 4px 8px; border-radius: 6px; font-size: 11px; border: 1px solid #cbd5e1; }
-    .sem-tag { font-weight: 600; color: #475569; background: #f8fafc; padding: 4px 8px; border-radius: 6px; font-size: 11px; border: 1px solid #e2e8f0; }
-    .code-highlight { color: #2563eb; font-family: monospace; font-size: 13.5px; }
-
-    .alert-success-custom { background: #f0fdf4; color: #166534; padding: 12px 18px; border-radius: 8px; border-left: 5px solid #16a34a; margin-bottom: 15px; font-weight: 600; font-size: 13.5px; }
-    .alert-danger-custom { background: #fef2f2; color: #991b1b; padding: 12px 18px; border-radius: 8px; border-left: 5px solid #dc2626; margin-bottom: 15px; font-weight: 600; font-size: 13.5px; }
 </style>
 @endsection

@@ -5,7 +5,6 @@
     </div>
 
     <div class="topbar-right">
-        {{-- Sinuri na natin kung merong employee_id, student_id, o standard Auth login --}}
         @php
             $user = null;
             if (Auth::check()) {
@@ -16,7 +15,6 @@
                 $user = \App\Models\Student::where('student_id', session('student_id'))->first();
             }
 
-            // Kunin ang role galing sa session o user model, default sa 'student' kung wala
             $role = session('user_role') ?? ($user->role ?? (session()->has('student_id') ? 'student' : 'user'));
         @endphp
 
@@ -25,7 +23,6 @@
             <div class="user-profile-wrapper">
 
                 <div class="user-details-column">
-                    {{-- 1. Pangalan sa Itaas (Surname First) --}}
                     <div class="name">
                         {{ strtoupper($user->last_name) }}, {{ strtoupper($user->first_name) }}
                         @if(!empty($user->middle_name))
@@ -33,7 +30,6 @@
                         @endif
                     </div>
 
-                    {{-- 2. Role Badge sa Ibaba pero Naka-center sa Pangalan --}}
                     <div class="role-badge badge-{{ $role }}">
                         @if($role == 'super_admin') SUPER ADMIN
                         @elseif($role == 'system_admin') SYSTEM ADMIN
@@ -47,7 +43,6 @@
                     </div>
                 </div>
 
-                {{-- 3. Avatar Icon sa dulong kanan (Chine-check na ang na-upload na profile_picture) --}}
                 <div class="avatar">
                     @if(!empty($user->profile_picture))
                         <img src="{{ asset('storage/' . $user->profile_picture) }}" alt="Profile Picture">
@@ -123,7 +118,6 @@
         text-align: center;
     }
 
-    /* Role Badge Design Settings */
     .role-badge {
         display: inline-flex;
         justify-content: center;
@@ -148,7 +142,6 @@
     .role-badge.badge-registrar { background: #0284c7; border-color: #0ea5e9; }
     .role-badge.badge-student { background: #059669; border-color: #10b981; }
 
-    /* Circle Avatar Styling */
     .avatar img {
         width: 45px;
         height: 45px;
